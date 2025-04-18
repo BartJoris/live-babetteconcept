@@ -1,8 +1,17 @@
-import type { NextConfig } from "next";
+// next.config.js
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const isProd = process.env.NODE_ENV === 'production';
+
+module.exports = {
   reactStrictMode: true,
+  trailingSlash: true,
+  assetPrefix: isProd ? './' : '',
+  async rewrites() {
+    return [
+      {
+        source: '/jsonrpc',
+        destination: 'https://www.babetteconcept.be/jsonrpc',
+      },
+    ];
+  },
 };
-
-export default nextConfig;

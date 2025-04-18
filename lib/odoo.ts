@@ -1,6 +1,6 @@
 // lib/odoo.ts
 
-const ODOO_URL = "https://www.babetteconcept.be/jsonrpc";
+const ODOO_URL = "/jsonrpc"; // proxy naar https://www.babetteconcept.be/jsonrpc via next.config.js
 const ODOO_DB = "babetteconcept";
 
 export async function odooLogin(username: string, password: string): Promise<number | null> {
@@ -15,14 +15,21 @@ export async function odooLogin(username: string, password: string): Promise<num
     id: Date.now(),
   };
 
-  const res = await fetch(ODOO_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const res = await fetch(ODOO_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  const json = await res.json();
-  return json.result || null;
+    const json = await res.json();
+    console.log("🧪 Login payload:", payload);
+    console.log("🧪 Login response:", json);
+    return json.result || null;
+  } catch (err) {
+    console.error("❌ Login fetch error:", err);
+    throw err;
+  }
 }
 
 export async function odooCall({
@@ -51,13 +58,21 @@ export async function odooCall({
     id: Date.now(),
   };
 
-  const res = await fetch(ODOO_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const res = await fetch(ODOO_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  const json = await res.json();
-  if (json.error) throw new Error(JSON.stringify(json.error));
-  return json.result;
+    const json = await res.json();
+    console.log(`📦 Odoo call to ${model}.${method}`, { args });
+    console.log("📬 Response:", json);
+
+    if (json.error) throw new Error(JSON.stringify(json.error));
+    return json.result;
+  } catch (err) {
+    console.error("❌ Odoo call error:", err);
+    throw err;
+  }
 }
