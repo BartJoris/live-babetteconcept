@@ -1,8 +1,5 @@
-// pages/index.tsx
-
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { odooLogin } from '../lib/odoo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,14 +8,22 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const uid = await odooLogin(username, password);
-      if (uid) {
-        localStorage.setItem('odoo_uid', uid.toString());
+      const res = await fetch('/api/odoo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const json: { uid: number | null } = await res.json();
+
+      if (json.uid) {
+        localStorage.setItem('odoo_uid', json.uid.toString());
         localStorage.setItem('odoo_user', username);
         localStorage.setItem('odoo_pass', password);
         router.push('/dashboard');
@@ -26,7 +31,8 @@ export default function LoginPage() {
         setError('Ongeldige login');
       }
     } catch (err) {
-      setError('Fout bij inloggen');
+      console.error('Login fout:', err);
+      setError('Er ging iets mis bij het inloggen');
     } finally {
       setLoading(false);
     }

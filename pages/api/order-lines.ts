@@ -1,97 +1,71 @@
 // pages/api/order-lines.ts
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 
-const ODOO_URL = process.env.ODOO_URL!;
-const ODOO_DB = process.env.ODOO_DB!;
-const ODOO_API_KEY = process.env.ODOO_API_KEY!;
-const ODOO_USERNAME = process.env.ODOO_USERNAME!;
+const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
+const ODOO_DB = 'babetteconcept';
+const API_KEY = process.env.ODOO_API_KEY || '';
 
-// Auth
-async function authenticate(): Promise<number | null> {
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: {
-      service: 'common',
-      method: 'authenticate',
-      args: [ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, {}],
-    },
-    id: Date.now(),
-  };
+type OrderLineRaw = {
+  id: number;
+  order_id: [number, string];
+  product_id: [number, string];
+  qty: number;
+  price_unit: number;
+};
 
-  const response = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+type OrderLineFormatted = {
+  product_name: string;
+  qty: number;
+  price_unit: number;
+};
 
-  const json = await response.json();
-  return json.result;
-}
-
-// Odoo call
-async function callOdoo(
-  model: string,
-  method: string,
-  args: any[],
-  uid: number
-): Promise<any> {
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: {
-      service: 'object',
-      method: 'execute_kw',
-      args: [ODOO_DB, uid, ODOO_API_KEY, model, method, args],
-    },
-    id: Date.now(),
-  };
-
-  const response = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(JSON.stringify(json.error));
-  return json.result;
-}
-
-// Handler
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const orderId = parseInt(req.query.id as string);
+  if (!API_KEY) {
+    return res.status(401).json({ error: 'No API key' });
+  }
 
-  if (!orderId) {
-    return res.status(400).json({ error: 'order ID ontbreekt of ongeldig' });
+  const orderId = parseInt(req.query.id as string, 10);
+  if (!orderId || isNaN(orderId)) {
+    return res.status(400).json({ error: 'Invalid order ID' });
   }
 
   try {
-    const uid = await authenticate();
-    if (!uid) {
-      return res.status(401).json({ error: 'Authenticatie mislukt' });
-    }
+    const payload = {
+      jsonrpc: '2.0',
+      method: 'call',
+      params: {
+        service: 'object',
+        method: 'execute_kw',
+        args: [
+          ODOO_DB,
+          API_KEY,
+          'pos.order.line',
+          'search_read',
+          [[['order_id', '=', orderId]]],
+          ['id', 'order_id', 'product_id', 'qty', 'price_unit'],
+        ],
+      },
+      id: Date.now(),
+    };
 
-    const lines = await callOdoo(
-      'pos.order.line',
-      'search_read',
-      [
-        [['order_id', '=', orderId]],
-        ['product_id', 'qty', 'price_unit'],
-      ],
-      uid
-    );
+    const response = await fetch(ODOO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-    const formatted = lines.map((line: any) => ({
-      product_name: line.product_id[1],
+    const json: { result: OrderLineRaw[] } = await response.json();
+
+    const lines: OrderLineFormatted[] = json.result.map((line) => ({
+      product_name: line.product_id?.[1] || 'Onbekend',
       qty: line.qty,
       price_unit: line.price_unit,
     }));
 
-    return res.status(200).json({ lines: formatted });
-  } catch (err: any) {
-    console.error('❌ Fout in /api/order-lines:', err.message || err);
-    return res.status(500).json({ error: err.message || 'Interne serverfout' });
+    return res.status(200).json({ lines });
+  } catch (error) {
+    console.error('❌ API error:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }

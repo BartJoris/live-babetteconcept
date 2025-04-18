@@ -1,108 +1,106 @@
 // pages/api/pos-sales.ts
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 
-const ODOO_URL = process.env.ODOO_URL!;
-const ODOO_DB = process.env.ODOO_DB!;
-const ODOO_API_KEY = process.env.ODOO_API_KEY!;
-const ODOO_USERNAME = process.env.ODOO_USERNAME!;
+const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
+const ODOO_DB = 'babetteconcept';
+const API_KEY = process.env.ODOO_API_KEY || '';
 
-// 🔐 Authenticate with Odoo
-async function authenticate(): Promise<number | null> {
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: {
-      service: 'common',
-      method: 'authenticate',
-      args: [ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, {}],
-    },
-    id: Date.now(),
-  };
+type PosSession = {
+  id: number;
+  name: string;
+};
 
-  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await res.json();
-  return json.result;
-}
-
-// 🧠 General Odoo RPC call
-async function callOdoo(
-  model: string,
-  method: string,
-  args: any[],
-  uid: number
-): Promise<any> {
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: {
-      service: 'object',
-      method: 'execute_kw',
-      args: [ODOO_DB, uid, ODOO_API_KEY, model, method, args],
-    },
-    id: Date.now(),
-  };
-
-  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await res.json();
-  if (json.error) throw new Error(JSON.stringify(json.error));
-  return json.result;
-}
+type PosOrder = {
+  id: number;
+  amount_total: number;
+  date_order: string;
+  session_id: [number, string];
+  partner_id?: [number, string];
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!API_KEY) {
+    return res.status(401).json({ error: 'No API key' });
+  }
+
   try {
-    const uid = await authenticate();
-    if (!uid) return res.status(401).json({ error: 'Authenticatie mislukt' });
+    const sessionPayload = {
+      jsonrpc: '2.0',
+      method: 'call',
+      params: {
+        service: 'object',
+        method: 'execute_kw',
+        args: [
+          ODOO_DB,
+          API_KEY,
+          'pos.session',
+          'search_read',
+          [[['state', '=', 'opened']]],
+          ['id', 'name'],
+          0,
+          1,
+          'id desc',
+        ],
+      },
+      id: Date.now(),
+    };
 
-    // 🔍 Zoek de meest recente geopende sessie
-    const sessions = await callOdoo(
-      'pos.session',
-      'search_read',
-      [
-        [['state', '=', 'opened']],
-        ['id', 'name'],
-        0,
-        1,
-        'id desc'
-      ],
-      uid
-    );
+    const sessionRes = await fetch(ODOO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sessionPayload),
+    });
 
-    if (!sessions.length) {
-      return res.status(200).json({ session_id: null, orders: [], total: 0 });
+    const sessionJson: { result: PosSession[] } = await sessionRes.json();
+    const session = sessionJson.result[0];
+
+    if (!session) {
+      return res.status(200).json({
+        session_id: 0,
+        session_name: '',
+        total: 0,
+        orders: [],
+      });
     }
 
-    const session = sessions[0];
+    const orderPayload = {
+      jsonrpc: '2.0',
+      method: 'call',
+      params: {
+        service: 'object',
+        method: 'execute_kw',
+        args: [
+          ODOO_DB,
+          API_KEY,
+          'pos.order',
+          'search_read',
+          [[['session_id', '=', session.id]]],
+          ['id', 'amount_total', 'date_order', 'partner_id'],
+        ],
+      },
+      id: Date.now(),
+    };
 
-    // 📦 Haal de orders op van deze sessie
-    const orders = await callOdoo(
-      'pos.order',
-      'search_read',
-      [
-        [['session_id', '=', session.id]],
-        ['id', 'amount_total', 'date_order', 'partner_id'],
-      ],
-      uid
-    );
+    const orderRes = await fetch(ODOO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload),
+    });
 
-    const mappedOrders = orders.map((order: any) => ({
-      id: order.id,
-      total: order.amount_total,
-      timestamp: order.date_order,
-      partner: order.partner_id?.[1] || null,
+    const orderJson: { result: PosOrder[] } = await orderRes.json();
+
+    const mappedOrders = orderJson.result.map((o) => ({
+      id: o.id,
+      total: o.amount_total,
+      timestamp: o.date_order,
+      partner: o.partner_id?.[1] || null,
     }));
 
-    const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
+    const total = mappedOrders.reduce(
+      (sum: number, o: { total: number }) => sum + o.total,
+      0
+    );
 
     return res.status(200).json({
       session_id: session.id,
@@ -110,8 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total,
       orders: mappedOrders,
     });
-  } catch (err: any) {
-    console.error('❌ Fout in /api/pos-sales:', err.message || err);
-    return res.status(500).json({ error: err.message || 'Interne serverfout' });
+  } catch (error) {
+    console.error('❌ API error:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
