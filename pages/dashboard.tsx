@@ -78,6 +78,7 @@ export default function DashboardPage() {
         method: 'search_read',
         args: [
           [['state', '=', 'opened']],
+          // [['id', '=', "00908"]],
           ['id', 'name'],
           0,
           1,
@@ -135,10 +136,18 @@ export default function DashboardPage() {
     const isExpanded = expandedOrders[orderId];
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !isExpanded }));
 
+    console.log("🟡 Klik op order:", orderId);
+    console.log("🔐 uid aanwezig:", !!uid);
+    console.log("🔐 wachtwoord aanwezig:", !!password);
+
     if (!isExpanded && !orderLines[orderId]) {
       setLoadingOrderLines((prev) => ({ ...prev, [orderId]: true }));
       try {
-        const res = await fetch(`/api/order-lines?id=${orderId}`);
+        const res = await fetch(`/api/order-lines?id=${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid, password }),
+        });
         const json: { lines: OrderLine[] } = await res.json();
         setOrderLines((prev) => ({ ...prev, [orderId]: json.lines || [] }));
       } catch (err) {

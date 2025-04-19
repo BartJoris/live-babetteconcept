@@ -1,71 +1,70 @@
-// pages/api/order-lines.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-import { NextApiRequest, NextApiResponse } from 'next';
-
-const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = 'babetteconcept';
-const API_KEY = process.env.ODOO_API_KEY || '';
-
-type OrderLineRaw = {
-  id: number;
-  order_id: [number, string];
-  product_id: [number, string];
-  qty: number;
-  price_unit: number;
-};
-
-type OrderLineFormatted = {
-  product_name: string;
-  qty: number;
-  price_unit: number;
-};
+const ODOO_URL = process.env.ODOO_URL!;
+const ODOO_DB = process.env.ODOO_DB!;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!API_KEY) {
-    return res.status(401).json({ error: 'No API key' });
+  console.log("➡️ API /api/order-lines aangeroepen");
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST allowed' });
   }
 
-  const orderId = parseInt(req.query.id as string, 10);
-  if (!orderId || isNaN(orderId)) {
-    return res.status(400).json({ error: 'Invalid order ID' });
+  const orderId = Number(req.query.id);
+  const { uid, password } = req.body;
+
+  console.log("📦 Ophalen orderlijnen van:", orderId, "met uid:", uid);
+
+  if (!orderId || !uid || !password) {
+    console.log("❌ Ontbrekende parameters");
+    return res.status(400).json({ error: 'Missing parameters' });
   }
+
+  const payload = {
+    jsonrpc: '2.0',
+    method: 'call',
+    params: {
+      service: 'object',
+      method: 'execute_kw',
+      args: [
+        ODOO_DB,
+        uid,
+        password,
+        'pos.order.line',
+        'search_read',
+        [[['order_id', '=', orderId]]],
+        { fields: ['product_id', 'qty', 'price_unit'] },
+      ],
+    },
+    id: Date.now(),
+  };
 
   try {
-    const payload = {
-      jsonrpc: '2.0',
-      method: 'call',
-      params: {
-        service: 'object',
-        method: 'execute_kw',
-        args: [
-          ODOO_DB,
-          API_KEY,
-          'pos.order.line',
-          'search_read',
-          [[['order_id', '=', orderId]]],
-          ['id', 'order_id', 'product_id', 'qty', 'price_unit'],
-        ],
-      },
-      id: Date.now(),
-    };
-
     const response = await fetch(ODOO_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    const json: { result: OrderLineRaw[] } = await response.json();
+    const raw = await response.text();
+    console.log("⬅️ Ruwe Odoo-response:", raw);
 
-    const lines: OrderLineFormatted[] = json.result.map((line) => ({
-      product_name: line.product_id?.[1] || 'Onbekend',
+    const json = JSON.parse(raw);
+
+    if (json.error) {
+      console.error('Odoo error:', json.error);
+      return res.status(500).json({ error: json.error });
+    }
+
+    const lines = json.result.map((line: any) => ({
+      product_name: line.product_id?.[1] ?? 'Onbekend',
       qty: line.qty,
       price_unit: line.price_unit,
     }));
 
     return res.status(200).json({ lines });
-  } catch (error) {
-    console.error('❌ API error:', error);
+  } catch (err) {
+    console.error('❌ Fetch error:', err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
