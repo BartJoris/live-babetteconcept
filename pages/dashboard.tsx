@@ -70,8 +70,8 @@ export default function DashboardPage() {
         model: 'pos.session',
         method: 'search_read',
         args: [
-          // [['state', '=', 'opened']],
-          [['id', '=', "00908"]],
+          [['state', '=', 'opened']],
+          // [['id', '=', "00908"]],
           ['id', 'name'],
           0,
           1,
