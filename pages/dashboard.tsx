@@ -122,7 +122,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password]);
+  }, [uid, password, fetchFromOdoo]);
 
   useEffect(() => {
     if (uid && password) {

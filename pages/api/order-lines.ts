@@ -55,8 +55,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Odoo error:', json.error);
       return res.status(500).json({ error: json.error });
     }
+    
+    type RawLine = {
+      product_id?: [number, string];
+      qty: number;
+      price_unit: number;
+    };
 
-    const lines = json.result.map((line: any) => ({
+    const lines = (json.result as RawLine[]).map((line) => ({
       product_name: line.product_id?.[1] ?? 'Onbekend',
       qty: line.qty,
       price_unit: line.price_unit,
