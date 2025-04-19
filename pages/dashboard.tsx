@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 
+type OrderLine = {
+  product_name: string;
+  qty: number;
+  price_unit: number;
+};
+
 type Sale = {
   id: number;
   total: number;
@@ -13,19 +19,6 @@ type SessionData = {
   session_name: string;
   total: number;
   orders: Sale[];
-};
-
-type OrderLine = {
-  product_name: string;
-  qty: number;
-  price_unit: number;
-};
-
-type OdooOrder = {
-  id: number;
-  amount_total: number;
-  date_order: string;
-  partner_id?: [number, string];
 };
 
 export default function DashboardPage() {
@@ -51,7 +44,7 @@ export default function DashboardPage() {
     }
   }, [router]);
 
-  const fetchFromOdoo = async <T,>(params: {
+  const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
     method: string;
     args: unknown[];
@@ -67,7 +60,7 @@ export default function DashboardPage() {
     });
     const json = await res.json();
     return json.result as T;
-  };
+  }, [uid, password]);
 
   const fetchSales = useCallback(async () => {
     if (!uid || !password) return;
@@ -77,8 +70,8 @@ export default function DashboardPage() {
         model: 'pos.session',
         method: 'search_read',
         args: [
-          [['state', '=', 'opened']],
-          // [['id', '=', "00908"]],
+          // [['state', '=', 'opened']],
+          [['id', '=', "00908"]],
           ['id', 'name'],
           0,
           1,
@@ -93,7 +86,12 @@ export default function DashboardPage() {
 
       const session = sessions[0];
 
-      const orders = await fetchFromOdoo<OdooOrder[]>({
+      const orders = await fetchFromOdoo<{
+        id: number;
+        amount_total: number;
+        date_order: string;
+        partner_id?: [number, string];
+      }[]>({
         model: 'pos.order',
         method: 'search_read',
         args: [
@@ -124,21 +122,9 @@ export default function DashboardPage() {
     }
   }, [uid, password, fetchFromOdoo]);
 
-  useEffect(() => {
-    if (uid && password) {
-      fetchSales();
-      const interval = setInterval(fetchSales, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [uid, password, fetchSales]);
-
   const toggleOrder = async (orderId: number) => {
     const isExpanded = expandedOrders[orderId];
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !isExpanded }));
-
-    console.log("🟡 Klik op order:", orderId);
-    console.log("🔐 uid aanwezig:", !!uid);
-    console.log("🔐 wachtwoord aanwezig:", !!password);
 
     if (!isExpanded && !orderLines[orderId]) {
       setLoadingOrderLines((prev) => ({ ...prev, [orderId]: true }));
@@ -151,27 +137,24 @@ export default function DashboardPage() {
         const json: { lines: OrderLine[] } = await res.json();
         setOrderLines((prev) => ({ ...prev, [orderId]: json.lines || [] }));
       } catch (err) {
-        console.error(`Fout bij laden orderlijnen van order ${orderId}:`, err);
+        console.error(`❌ Fout bij laden orderlijnen van order ${orderId}:`, err);
       } finally {
         setLoadingOrderLines((prev) => ({ ...prev, [orderId]: false }));
       }
     }
   };
 
-  const getUniekeDatums = (): string => {
-    if (!data?.orders?.length) return '';
-    const formatter = new Intl.DateTimeFormat('nl-BE');
-    const datums = Array.from(
-      new Set(data.orders.map((o) => formatter.format(new Date(o.timestamp + 'Z'))))
-    );
-    return datums.length === 1 ? datums[0] : `${datums[0]} – ${datums[datums.length - 1]}`;
-  };
+  useEffect(() => {
+    if (uid && password) {
+      fetchSales();
+    }
+  }, [uid, password, fetchSales]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-sans">
-      <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-100 p-4 font-sans">
+      <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl sm:text-2xl font-bold">🧾 Kassa {getUniekeDatums()}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">🧾 POS Verkoopoverzicht</h1>
           <button
             onClick={fetchSales}
             className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
@@ -180,72 +163,59 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {loading && <p>⏳ Gegevens laden...</p>}
-
-        {!loading && data && (
+        {loading ? (
+          <p>⏳ Gegevens laden...</p>
+        ) : data ? (
           <>
-            <div className="mb-6 space-y-1 text-sm sm:text-base">
-              <p className="text-gray-600">📦 Aantal verkopen: <strong>{data.orders.length}</strong></p>
-              <p className="text-gray-600">💶 Totale omzet: <strong>€ {data.total.toFixed(2)}</strong></p>
-            </div>
+            <p className="mb-2 text-gray-700">
+              Sessienaam: <strong>{data.session_name}</strong>
+            </p>
+            <p className="mb-4 text-gray-700">
+              Totale omzet: <strong>€ {data.total.toFixed(2)}</strong>
+            </p>
+            <ul className="space-y-2">
+              {data.orders.map((order) => (
+                <li key={order.id} className="border border-gray-200 bg-white rounded-xl shadow-sm">
+                  <button
+                    onClick={() => toggleOrder(order.id)}
+                    className="w-full px-4 py-2 flex justify-between items-center"
+                  >
+                    <span>{new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', { timeZone: 'Europe/Brussels' })}</span>
+                    <span className="text-sm text-gray-600">{order.partner || '-'}</span>
+                    <span className="font-bold text-blue-800">€ {order.total.toFixed(2)}</span>
+                  </button>
 
-            <div className="space-y-2">
-              {data.orders.map((order) => {
-                const tijd = new Intl.DateTimeFormat('nl-BE', {
-                  timeZone: 'Europe/Brussels',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                }).format(new Date(order.timestamp + 'Z'));
-
-                return (
-                  <div key={order.id}>
-                    <div
-                      onClick={() => toggleOrder(order.id)}
-                      className="border border-gray-200 w-full bg-white rounded-xl shadow-sm cursor-pointer hover:bg-gray-50 px-4 py-3 flex justify-between items-center"
-                    >
-                      <span className="font-medium">{tijd}</span>
-                      <span className="text-gray-700">{order.partner || <span className="text-gray-400">–</span>}</span>
-                      <span className="text-right font-bold text-blue-800">€ {order.total.toFixed(2)}</span>
-                    </div>
-
-                    {expandedOrders[order.id] && (
-                      <div className="bg-gray-50 border border-t-0 border-gray-200 rounded-b-xl px-4 py-3">
-                        {loadingOrderLines[order.id] ? (
-                          <p className="text-sm text-gray-500">Laden...</p>
-                        ) : orderLines[order.id]?.length ? (
-                          <table className="w-full text-sm text-gray-700">
-                            <thead>
-                              <tr className="border-b border-gray-300 text-left">
-                                <th className="py-1 font-semibold">Product</th>
-                                <th className="py-1">Aantal × Prijs</th>
-                                <th className="py-1 text-right font-semibold">Totaal</th>
+                  {expandedOrders[order.id] && (
+                    <div className="px-6 pb-4">
+                      {loadingOrderLines[order.id] ? (
+                        <p className="text-sm text-gray-500">Laden...</p>
+                      ) : (
+                        <table className="w-full mt-2 text-sm">
+                          <tbody>
+                            {orderLines[order.id]?.map((line, index) => (
+                              <tr key={index} className="border-t border-gray-200">
+                                <td className="font-semibold pr-2 py-1">{line.product_name}</td>
+                                {line.qty > 1 && (
+                                  <td className="text-right text-gray-600 whitespace-nowrap px-2">
+                                    {line.qty} × € {line.price_unit.toFixed(2)}
+                                  </td>
+                                )}
+                                <td className="text-right font-bold text-blue-800 whitespace-nowrap pl-2">
+                                  € {(line.qty * line.price_unit).toFixed(2)}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {orderLines[order.id].map((line, index) => (
-                                <tr key={index} className="border-t border-gray-200">
-                                  <td className="py-1 font-semibold">{line.product_name}</td>
-                                  <td className="py-1">
-                                    {line.qty > 1 ? `${line.qty} × €${line.price_unit.toFixed(2)}` : ''}
-                                  </td>
-                                  <td className="py-1 text-right font-bold">
-                                    € {(line.qty * line.price_unit).toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-sm text-gray-500">Geen orderlijnen gevonden.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           </>
+        ) : (
+          <p>Geen gegevens beschikbaar.</p>
         )}
       </div>
     </div>

@@ -1,10 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = 'babetteconcept';
+const ODOO_URL = process.env.ODOO_URL!;
+const ODOO_DB = process.env.ODOO_DB!;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { model, method, args, uid, password } = req.body;
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST allowed' });
+  }
+
+  const { uid, password, model, method, args } = req.body;
 
   if (!uid || !password || !model || !method || !args) {
     return res.status(400).json({ error: 'Missing parameters' });
@@ -22,22 +26,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    const odooRes = await fetch(ODOO_URL, {
+    const response = await fetch(ODOO_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    const json = await odooRes.json();
+    const raw = await response.text();
+    const json = JSON.parse(raw);
 
     if (json.error) {
       console.error('Odoo error:', json.error);
       return res.status(500).json({ error: json.error });
     }
 
-    return res.status(200).json({ result: json.result });
-  } catch (error) {
-    console.error('Odoo call failed:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(200).json(json);
+  } catch (err) {
+    console.error('❌ Fout bij Odoo request:', err);
+    return res.status(500).json({ error: 'Odoo request failed' });
   }
 }
