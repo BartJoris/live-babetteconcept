@@ -170,9 +170,14 @@ export default function DashboardPage() {
             <p className="mb-2 text-gray-700">
               Sessienaam: <strong>{data.session_name}</strong>
             </p>
-            <p className="mb-4 text-gray-700">
-              Totale omzet: <strong>€ {data.total.toFixed(2)}</strong>
-            </p>
+            <div className="mb-4 flex gap-4">
+              <p className="text-gray-700">
+                Aantal orders: <strong>{data.orders.length}</strong>
+              </p>
+              <p className="text-gray-700">
+                Totale omzet: <strong>€ {data.total.toFixed(2)}</strong>
+              </p>
+            </div>
             <ul className="space-y-2">
               {data.orders.map((order) => (
                 <li key={order.id} className="border border-gray-200 bg-white rounded-xl shadow-sm">
