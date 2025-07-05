@@ -21,15 +21,23 @@ type SessionData = {
   orders: Sale[];
 };
 
+type LastSessionData = {
+  session_id: number;
+  session_name: string;
+  end_date: string;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [uid, setUid] = useState<number | null>(null);
   const [password, setPassword] = useState<string>('');
   const [data, setData] = useState<SessionData | null>(null);
+  const [lastSession, setLastSession] = useState<LastSessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
+  const [showingLastSession, setShowingLastSession] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -62,9 +70,38 @@ export default function DashboardPage() {
     return json.result as T;
   }, [uid, password]);
 
+  const fetchLastSession = useCallback(async () => {
+    if (!uid || !password) return;
+    try {
+      const sessions = await fetchFromOdoo<{ id: number; name: string; stop_at: string }[]>({
+        model: 'pos.session',
+        method: 'search_read',
+        args: [
+          [['state', '=', 'closed']],
+          ['id', 'name', 'stop_at'],
+          0,
+          1,
+          'id desc',
+        ],
+      });
+
+      if (sessions.length > 0) {
+        const session = sessions[0];
+        setLastSession({
+          session_id: session.id,
+          session_name: session.name,
+          end_date: session.stop_at,
+        });
+      }
+    } catch (err) {
+      console.error('Fout bij ophalen laatste sessie:', err);
+    }
+  }, [uid, password, fetchFromOdoo]);
+
   const fetchSales = useCallback(async () => {
     if (!uid || !password) return;
     setLoading(true);
+    setShowingLastSession(false);
     try {
       const sessions = await fetchFromOdoo<{ id: number; name: string }[]>({
         model: 'pos.session',
@@ -80,7 +117,9 @@ export default function DashboardPage() {
       });
 
       if (!sessions.length) {
-        setData({ session_id: 0, session_name: '', total: 0, orders: [] });
+        setData(null);
+        // Fetch last session when no active session is found
+        await fetchLastSession();
         return;
       }
 
@@ -120,7 +159,48 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, fetchFromOdoo]);
+  }, [uid, password, fetchFromOdoo, fetchLastSession]);
+
+  const fetchLastSessionSales = useCallback(async () => {
+    if (!uid || !password || !lastSession) return;
+    setLoading(true);
+    setShowingLastSession(true);
+    try {
+      const orders = await fetchFromOdoo<{
+        id: number;
+        amount_total: number;
+        date_order: string;
+        partner_id?: [number, string];
+      }[]>({
+        model: 'pos.order',
+        method: 'search_read',
+        args: [
+          [['session_id', '=', lastSession.session_id]],
+          ['id', 'amount_total', 'date_order', 'partner_id'],
+        ],
+      });
+
+      const mappedOrders: Sale[] = orders.map((order) => ({
+        id: order.id,
+        total: order.amount_total,
+        timestamp: order.date_order,
+        partner: order.partner_id?.[1] || null,
+      }));
+
+      const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
+
+      setData({
+        session_id: lastSession.session_id,
+        session_name: lastSession.session_name,
+        total,
+        orders: mappedOrders,
+      });
+    } catch (err) {
+      console.error('Fout bij ophalen laatste sessie data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [uid, password, lastSession, fetchFromOdoo]);
 
   const toggleOrder = async (orderId: number) => {
     const isExpanded = expandedOrders[orderId];
@@ -167,6 +247,21 @@ export default function DashboardPage() {
           <p>⏳ Gegevens laden...</p>
         ) : data ? (
           <>
+            {showingLastSession && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <p className="text-yellow-800">
+                    📋 Bekijkt laatste gesloten sessie: <strong>{data.session_name}</strong>
+                  </p>
+                  <button
+                    onClick={fetchSales}
+                    className="text-sm px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg"
+                  >
+                    🔄 Terug naar actieve sessies
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="mb-2 text-gray-700">
               Sessienaam: <strong>{data.session_name}</strong>
             </p>
@@ -219,6 +314,24 @@ export default function DashboardPage() {
               ))}
             </ul>
           </>
+        ) : lastSession ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600 mb-4">❌ Geen actieve POS-sessie gevonden</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 mb-3">
+                Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>
+              </p>
+              <p className="text-sm text-blue-600 mb-4">
+                Gesloten op: {new Date(lastSession.end_date + 'Z').toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}
+              </p>
+              <button
+                onClick={fetchLastSessionSales}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg font-semibold"
+              >
+                📊 Bekijk laatste sessie
+              </button>
+            </div>
+          </div>
         ) : (
           <p>Geen gegevens beschikbaar.</p>
         )}
