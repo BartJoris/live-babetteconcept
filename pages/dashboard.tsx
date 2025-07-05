@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import Navigation from '../components/Navigation';
 
 type OrderLine = {
   product_name: string;
@@ -251,17 +252,19 @@ export default function DashboardPage() {
   }, [uid, password, fetchSales]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 font-sans">
-      <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl sm:text-2xl font-bold">🧾 POS Verkoopoverzicht</h1>
-          <button
-            onClick={fetchSales}
-            className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
-          >
-            🔄 Refresh
-          </button>
-        </div>
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <Navigation />
+      <div className="p-4">
+        <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-xl sm:text-2xl font-bold">🧾 POS Verkoopoverzicht</h1>
+            <button
+              onClick={fetchSales}
+              className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
+            >
+              🔄 Refresh
+            </button>
+          </div>
 
         {loading ? (
           <p>⏳ Gegevens laden...</p>
@@ -363,6 +366,7 @@ export default function DashboardPage() {
         ) : (
           <p>Geen gegevens beschikbaar.</p>
         )}
+        </div>
       </div>
     </div>
   );
