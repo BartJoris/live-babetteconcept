@@ -25,6 +25,8 @@ type LastSessionData = {
   session_id: number;
   session_name: string;
   end_date: string;
+  order_count: number;
+  total_amount: number;
 };
 
 export default function DashboardPage() {
@@ -87,10 +89,28 @@ export default function DashboardPage() {
 
       if (sessions.length > 0) {
         const session = sessions[0];
+        
+        // Fetch orders for this session to get count and total
+        const orders = await fetchFromOdoo<{
+          id: number;
+          amount_total: number;
+        }[]>({
+          model: 'pos.order',
+          method: 'search_read',
+          args: [
+            [['session_id', '=', session.id]],
+            ['id', 'amount_total'],
+          ],
+        });
+
+        const total = orders.reduce((sum, order) => sum + order.amount_total, 0);
+        
         setLastSession({
           session_id: session.id,
           session_name: session.name,
           end_date: session.stop_at,
+          order_count: orders.length,
+          total_amount: total,
         });
       }
     } catch (err) {
@@ -321,6 +341,14 @@ export default function DashboardPage() {
               <p className="text-blue-800 mb-3">
                 Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>
               </p>
+              <div className="flex justify-center gap-6 mb-3 text-sm">
+                <p className="text-blue-700">
+                  Aantal orders: <strong>{lastSession.order_count}</strong>
+                </p>
+                <p className="text-blue-700">
+                  Totale omzet: <strong>€ {lastSession.total_amount.toFixed(2)}</strong>
+                </p>
+              </div>
               <p className="text-sm text-blue-600 mb-4">
                 Gesloten op: {new Date(lastSession.end_date + 'Z').toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}
               </p>
