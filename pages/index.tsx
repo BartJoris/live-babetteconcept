@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 export default function LoginPage() {
@@ -7,6 +7,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    if (typeof window !== 'undefined') {
+      const storedUid = localStorage.getItem('odoo_uid');
+      const storedPass = localStorage.getItem('odoo_pass');
+      if (storedUid && storedPass) {
+        router.push('/dashboard');
+      }
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

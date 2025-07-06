@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import Navigation from '../components/Navigation';
 
 type Sale = {
   id: number;
@@ -24,16 +26,37 @@ type OrderLine = {
 };
 
 export default function SalesDashboard() {
+  const router = useRouter();
+  const [uid, setUid] = useState<number | null>(null);
+  const [password, setPassword] = useState<string>('');
   const [data, setData] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUid = localStorage.getItem('odoo_uid');
+      const storedPass = localStorage.getItem('odoo_pass');
+      if (storedUid && storedPass) {
+        setUid(Number(storedUid));
+        setPassword(storedPass);
+      } else {
+        router.push('/');
+      }
+    }
+  }, [router]);
+
   const fetchSales = async () => {
+    if (!uid || !password) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/pos-sales');
+      const res = await fetch('/api/pos-sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, password }),
+      });
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -44,13 +67,18 @@ export default function SalesDashboard() {
   };
 
   const toggleOrder = async (orderId: number) => {
+    if (!uid || !password) return;
     const isExpanded = expandedOrders[orderId];
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !isExpanded }));
 
     if (!isExpanded && !orderLines[orderId]) {
       setLoadingOrderLines((prev) => ({ ...prev, [orderId]: true }));
       try {
-        const res = await fetch(`/api/order-lines?id=${orderId}`);
+        const res = await fetch(`/api/order-lines?id=${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid, password }),
+        });
         const json = await res.json();
         setOrderLines((prev) => ({ ...prev, [orderId]: json.lines || [] }));
       } catch (err) {
@@ -62,10 +90,12 @@ export default function SalesDashboard() {
   };
 
   useEffect(() => {
-    fetchSales();
-    const interval = setInterval(fetchSales, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    if (uid && password) {
+      fetchSales();
+      const interval = setInterval(fetchSales, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [uid, password]);
 
   const getUniekeDatums = (): string => {
     if (!data?.orders?.length) return '';
@@ -85,8 +115,10 @@ export default function SalesDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-sans">
-      <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <Navigation />
+      <div className="p-4 sm:p-8">
+        <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl sm:text-2xl font-bold">🧾 Kassa {getUniekeDatums()}</h1>
           <button
@@ -264,6 +296,7 @@ export default function SalesDashboard() {
         {!loading && !data?.session_id && (
           <p className="text-red-500 mt-4">⚠️ Geen actieve POS-sessie gevonden.</p>
         )}
+        </div>
       </div>
     </div>
   );

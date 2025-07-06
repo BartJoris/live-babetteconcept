@@ -4,7 +4,6 @@ import { NextApiRequest, NextApiResponse } from 'next';
 
 const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = 'babetteconcept';
-const API_KEY = process.env.ODOO_API_KEY || '';
 
 type PosSession = {
   id: number;
@@ -20,8 +19,14 @@ type PosOrder = {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!API_KEY) {
-    return res.status(401).json({ error: 'No API key' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { uid, password } = req.body;
+
+  if (!uid || !password) {
+    return res.status(401).json({ error: 'Missing authentication' });
   }
 
   try {
@@ -33,7 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         method: 'execute_kw',
         args: [
           ODOO_DB,
-          API_KEY,
+          uid,
+          password,
           'pos.session',
           'search_read',
           [[['state', '=', 'opened']]],
@@ -72,7 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         method: 'execute_kw',
         args: [
           ODOO_DB,
-          API_KEY,
+          uid,
+          password,
           'pos.order',
           'search_read',
           [[['session_id', '=', session.id]]],

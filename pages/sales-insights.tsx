@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import Navigation from '../components/Navigation';
 
 type DailySales = {
   date: string;
@@ -207,8 +208,10 @@ export default function SalesInsightsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 font-sans">
-      <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <Navigation />
+      <div className="p-4">
+        <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl sm:text-2xl font-bold">📊 Verkoop Inzichten</h1>
           <div className="flex gap-2">
@@ -331,6 +334,7 @@ export default function SalesInsightsPage() {
         ) : (
           <p>Geen gegevens beschikbaar.</p>
         )}
+        </div>
       </div>
     </div>
   );
