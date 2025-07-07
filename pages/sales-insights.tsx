@@ -243,7 +243,7 @@ export default function SalesInsightsPage() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-blue-600 text-sm font-medium">Totale Omzet</p>
-                  <p className="text-2xl font-bold text-blue-800">€ {insights.total_revenue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-blue-800">€ {insights.total_revenue.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p className="text-green-600 text-sm font-medium">Totaal Orders</p>
@@ -251,17 +251,17 @@ export default function SalesInsightsPage() {
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <p className="text-purple-600 text-sm font-medium">Gem. Dagelijkse Omzet</p>
-                  <p className="text-2xl font-bold text-purple-800">€ {insights.average_daily_revenue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-purple-800">€ {insights.average_daily_revenue.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
                   <p className="text-orange-600 text-sm font-medium">Gem. Orderwaarde</p>
-                  <p className="text-2xl font-bold text-orange-800">€ {insights.average_order_value.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-orange-800">€ {insights.average_order_value.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 {marginAvailable && (
                   <div className="bg-green-100 p-4 rounded-lg border border-green-300">
                     <p className="text-green-700 text-sm font-medium">Totale Marge</p>
                     <p className="text-2xl font-bold text-green-900">
-                      € {insights.daily_sales.reduce((sum, day) => sum + (day.margin || 0), 0).toFixed(2)}
+                      € {insights.daily_sales.reduce((sum, day) => sum + (day.margin || 0), 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 )}
@@ -303,17 +303,17 @@ export default function SalesInsightsPage() {
                               {formatDate(day.date)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-800">
-                              € {day.total_amount.toFixed(2)}
+                              € {day.total_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {day.order_count}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              € {(day.total_amount / day.order_count).toFixed(2)}
+                              € {(day.total_amount / day.order_count).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             {marginAvailable && (
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-green-800 font-semibold">
-                                € {day.margin?.toFixed(2) ?? '-'}
+                                € {day.margin?.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '-'}
                               </td>
                             )}
                           </tr>

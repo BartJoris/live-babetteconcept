@@ -293,7 +293,7 @@ export default function DashboardPage() {
                 Aantal orders: <strong>{data.orders.length}</strong>
               </p>
               <p className="text-gray-700">
-                Totale omzet: <strong>€ {data.total.toFixed(2)}</strong>
+                Totale omzet: <strong>€ {data.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </p>
             </div>
             <ul className="space-y-2">
@@ -305,7 +305,7 @@ export default function DashboardPage() {
                   >
                     <span>{new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', { timeZone: 'Europe/Brussels' })}</span>
                     <span className="text-sm text-gray-600">{order.partner || '-'}</span>
-                    <span className="font-bold text-blue-800">€ {order.total.toFixed(2)}</span>
+                    <span className="font-bold text-blue-800">€ {order.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </button>
 
                   {expandedOrders[order.id] && (
@@ -320,11 +320,11 @@ export default function DashboardPage() {
                                 <td className="font-semibold pr-2 py-1">{line.product_name}</td>
                                 {line.qty > 1 && (
                                   <td className="text-right text-gray-600 whitespace-nowrap px-2">
-                                    {line.qty} × € {line.price_unit.toFixed(2)}
+                                    {line.qty} × € {line.price_unit.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </td>
                                 )}
                                 <td className="text-right font-bold text-blue-800 whitespace-nowrap pl-2">
-                                  € {(line.qty * line.price_unit).toFixed(2)}
+                                  € {(line.qty * line.price_unit).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                               </tr>
                             ))}
@@ -349,7 +349,7 @@ export default function DashboardPage() {
                   Aantal orders: <strong>{lastSession.order_count}</strong>
                 </p>
                 <p className="text-blue-700">
-                  Totale omzet: <strong>€ {lastSession.total_amount.toFixed(2)}</strong>
+                  Totale omzet: <strong>€ {lastSession.total_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                 </p>
               </div>
               <p className="text-sm text-blue-600 mb-4">
