@@ -214,13 +214,46 @@ export default function SalesInsightsPage() {
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl sm:text-2xl font-bold">📊 Verkoop Inzichten</h1>
-          <div className="flex gap-2">
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+          <div className="flex gap-2 items-center">
+            <select
+              value={selectedMonth.split('-')[0]}
+              onChange={(e) => {
+                const year = e.target.value;
+                const month = selectedMonth.split('-')[1];
+                setSelectedMonth(`${year}-${month}`);
+              }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <select
+              value={selectedMonth.split('-')[1]}
+              onChange={(e) => {
+                const year = selectedMonth.split('-')[0];
+                const month = e.target.value;
+                setSelectedMonth(`${year}-${month}`);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {[
+                { value: '01', label: 'Januari' },
+                { value: '02', label: 'Februari' },
+                { value: '03', label: 'Maart' },
+                { value: '04', label: 'April' },
+                { value: '05', label: 'Mei' },
+                { value: '06', label: 'Juni' },
+                { value: '07', label: 'Juli' },
+                { value: '08', label: 'Augustus' },
+                { value: '09', label: 'September' },
+                { value: '10', label: 'Oktober' },
+                { value: '11', label: 'November' },
+                { value: '12', label: 'December' }
+              ].map(month => (
+                <option key={month.value} value={month.value}>{month.label}</option>
+              ))}
+            </select>
             <button
               onClick={fetchMonthlySales}
               className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"

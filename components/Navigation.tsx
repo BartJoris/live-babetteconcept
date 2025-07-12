@@ -76,6 +76,16 @@ export default function Navigation() {
             >
               Sales Insights
             </Link>
+            <Link 
+              href="/sales-products" 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/sales-products') 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              Sales Products
+            </Link>
             <button
               onClick={handleLogout}
               className="px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
@@ -165,6 +175,17 @@ export default function Navigation() {
             }`}
           >
             Sales Insights
+          </Link>
+          <Link
+            href="/sales-products"
+            onClick={closeMenu}
+            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+              isActive('/sales-products')
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            }`}
+          >
+            Sales Products
           </Link>
           <button
             onClick={() => {

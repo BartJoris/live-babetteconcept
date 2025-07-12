@@ -1,7 +1,7 @@
 // pages/sales-dashboard.tsx
 
 import React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Navigation from '../components/Navigation';
 
@@ -48,7 +48,7 @@ export default function SalesDashboard() {
     }
   }, [router]);
 
-  const fetchSales = async () => {
+  const fetchSales = useCallback(async () => {
     if (!uid || !password) return;
     setLoading(true);
     try {
@@ -64,7 +64,7 @@ export default function SalesDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [uid, password]);
 
   const toggleOrder = async (orderId: number) => {
     if (!uid || !password) return;
@@ -95,7 +95,7 @@ export default function SalesDashboard() {
       const interval = setInterval(fetchSales, 60000);
       return () => clearInterval(interval);
     }
-  }, [uid, password]);
+  }, [uid, password, fetchSales]);
 
   const getUniekeDatums = (): string => {
     if (!data?.orders?.length) return '';
