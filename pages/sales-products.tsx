@@ -26,6 +26,19 @@ type SalesProductData = {
   total_discount: number;
 };
 
+type ProductDetail = {
+  id: number;
+  name: string;
+  qty: number;
+  price_unit: number;
+  price_subtotal: number;
+  is_sales: boolean;
+  category: string;
+  order_id: number;
+  order_time: string;
+  price_with_discount?: number;
+};
+
 export default function SalesProductsPage() {
   const router = useRouter();
   const [uid, setUid] = useState<number | null>(null);
@@ -33,6 +46,9 @@ export default function SalesProductsPage() {
   const [data, setData] = useState<SalesProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dayDetails, setDayDetails] = useState<ProductDetail[]>([]);
+  const [loadingDayDetails, setLoadingDayDetails] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -58,9 +74,6 @@ export default function SalesProductsPage() {
     if (!uid || !password || !selectedMonth) return;
     setLoading(true);
     try {
-      // Parse the selected month - year and month are used implicitly in the API call
-      // const [year, month] = selectedMonth.split('-').map(Number);
-
       const res = await fetch('/api/sales-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,11 +97,46 @@ export default function SalesProductsPage() {
     }
   }, [uid, password, selectedMonth]);
 
+  const fetchDayDetails = useCallback(async (date: string) => {
+    if (!uid || !password) return;
+    setLoadingDayDetails(true);
+    try {
+      console.log('🔍 Fetching day details for date:', date);
+      const res = await fetch('/api/day-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          password,
+          date,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch day details');
+      }
+
+      const result = await res.json();
+      console.log('🔍 Day details result:', result);
+      setDayDetails(result);
+    } catch (err) {
+      console.error('Fout bij ophalen dag details:', err);
+    } finally {
+      setLoadingDayDetails(false);
+    }
+  }, [uid, password]);
+
   useEffect(() => {
     if (uid && password && selectedMonth) {
       fetchSalesProducts();
     }
   }, [uid, password, selectedMonth, fetchSalesProducts]);
+
+  const handleDayClick = (date: string) => {
+    console.log('🔍 Day clicked:', date);
+    setSelectedDate(date);
+    fetchDayDetails(date);
+  };
 
   const formatDate = (dateString: string) => {
     // Format as 'Mon 15 Jul' in Dutch
@@ -104,6 +152,13 @@ export default function SalesProductsPage() {
     return new Date(year, month - 1).toLocaleDateString('nl-BE', {
       year: 'numeric',
       month: 'long',
+    });
+  };
+
+  const formatTime = (timeString: string) => {
+    return new Date(timeString + 'Z').toLocaleTimeString('nl-BE', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -255,7 +310,7 @@ export default function SalesProductsPage() {
                         {data.daily_sales_products.length > 0 ? (
                           data.daily_sales_products.map((day, index) => (
                             <tr key={day.date} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 cursor-pointer hover:bg-blue-50" onClick={() => handleDayClick(day.date)}>
                                 {formatDate(day.date)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-800">
@@ -286,7 +341,7 @@ export default function SalesProductsPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                            <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
                               Geen sales-producten data gevonden voor deze maand
                             </td>
                           </tr>
@@ -295,6 +350,157 @@ export default function SalesProductsPage() {
                     </table>
                   </div>
                 </div>
+
+                {/* Day Details Modal */}
+                {selectedDate && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">Producten verkocht op {formatDate(selectedDate)}</h2>
+                        <button
+                          onClick={() => setSelectedDate(null)}
+                          className="text-gray-500 hover:text-gray-700 text-2xl"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      {/* Totals summary */}
+                      {dayDetails.length > 0 && (
+                        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                          <div className="bg-gray-50 rounded p-2">
+                            <span className="font-semibold">Totaal producten:</span> {dayDetails.reduce((sum, p) => sum + p.qty, 0)}
+                          </div>
+                          <div className="bg-red-50 rounded p-2">
+                            <span className="font-semibold text-red-700">Sales producten:</span> {dayDetails.filter(p => p.is_sales).reduce((sum, p) => sum + p.qty, 0)}
+                          </div>
+                          <div className="bg-blue-50 rounded p-2">
+                            <span className="font-semibold text-blue-700">Reguliere producten:</span> {dayDetails.filter(p => !p.is_sales).reduce((sum, p) => sum + p.qty, 0)}
+                          </div>
+                          <div className="bg-green-50 rounded p-2">
+                            <span className="font-semibold text-green-700">Omzet totaal:</span> € {dayDetails.reduce((sum, p) => sum + p.price_subtotal, 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="bg-red-100 rounded p-2">
+                            <span className="font-semibold text-red-800">Omzet sales:</span> € {dayDetails.filter(p => p.is_sales).reduce((sum, p) => sum + p.price_subtotal, 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="bg-blue-100 rounded p-2">
+                            <span className="font-semibold text-blue-800">Omzet regulier:</span> € {dayDetails.filter(p => !p.is_sales).reduce((sum, p) => sum + p.price_subtotal, 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      )}
+
+                      {loadingDayDetails ? (
+                        <p>⏳ Producten laden...</p>
+                      ) : dayDetails.length > 0 ? (
+                        <>
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-800">
+                              <strong>Let op:</strong> Niet alle producten in de &quot;Sales&quot; categorie hebben automatisch korting. 
+                              Sommige producten worden tegen normale prijs verkocht maar staan wel in de sales collectie.
+                            </p>
+                          </div>
+                          <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Tijd
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Product
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Categorie
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Type
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Aantal
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Prijs
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Prijs met korting
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Korting
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Totaal
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {dayDetails.map((product, index) => (
+                                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                    {formatTime(product.order_time)}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {product.name}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                    {product.category}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      product.is_sales 
+                                        ? 'bg-red-100 text-red-800' 
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {product.is_sales ? 'Sales' : 'Regulier'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                    {product.qty}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                    € {product.price_unit.toFixed(2)}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold">
+                                    {(() => {
+                                      const discountedPrice = product.price_with_discount !== undefined
+                                        ? product.price_with_discount
+                                        : product.price_subtotal / product.qty;
+                                      const hasDiscount = discountedPrice < product.price_unit;
+                                      return (
+                                        <span className={hasDiscount ? 'text-green-700' : 'text-gray-600'}>
+                                          € {discountedPrice.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold">
+                                    {(() => {
+                                      const discountedPrice = product.price_with_discount !== undefined
+                                        ? product.price_with_discount
+                                        : product.price_subtotal / product.qty;
+                                      const discountAmount = product.price_unit - discountedPrice;
+                                      const hasDiscount = discountAmount > 0;
+                                      return (
+                                        <span className={hasDiscount ? 'text-red-700' : 'text-gray-400'}>
+                                          € {discountAmount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                    € {product.price_subtotal.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-gray-500">Geen producten gevonden voor deze dag.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (

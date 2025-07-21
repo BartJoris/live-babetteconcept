@@ -21,9 +21,39 @@ const MONTH_LABELS = [
   'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December',
 ];
 
+const WEEKDAY_LABELS = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+
 // Helper voor alle dagen van een maand
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
+}
+
+// Helper voor weekdag van een specifieke datum
+function getWeekday(year: number, month: number, day: number) {
+  const date = new Date(year, month - 1, day);
+  return WEEKDAY_LABELS[date.getDay()];
+}
+
+// Helper om te checken of een datum een weekend is
+function isWeekend(year: number, month: number, day: number) {
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+  return dayOfWeek === 0 || dayOfWeek === 6; // Zondag || Zaterdag
+}
+
+// Belgische feestdagen
+function isBelgianHoliday(year: number, month: number, day: number) {
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const holidays: Record<string, string> = {
+    [`${year}-01-01`]: 'Nieuwjaar',
+    [`${year}-05-01`]: 'Dag van de Arbeid',
+    [`${year}-07-21`]: 'Nationale feestdag',
+    [`${year}-08-15`]: 'O.L.V. Hemelvaart',
+    [`${year}-11-01`]: 'Allerheiligen',
+    [`${year}-11-11`]: 'Wapenstilstand',
+    [`${year}-12-25`]: 'Kerstmis',
+  };
+  return holidays[dateStr] || null;
 }
 
 export default function DailyComparePage() {
@@ -248,6 +278,8 @@ export default function DailyComparePage() {
                       // Bepaal max aantal dagen van alle periodes
                       const maxDays = Math.max(...selectedPeriods.map(p => compareData[`${p.year}-${p.month}`]?.days || 0));
                       return Array.from({ length: maxDays }, (_, dayIdx) => {
+                        const dayNumber = dayIdx + 1;
+                        
                         // Bepaal hoogste omzet en marge voor deze dag
                         const omzetValues = selectedPeriods.map(p => compareData[`${p.year}-${p.month}`]?.omzet[dayIdx] || 0);
                         const maxOmzet = Math.max(...omzetValues);
@@ -256,14 +288,40 @@ export default function DailyComparePage() {
                           : [];
                         const maxMarge = marginAvailable ? Math.max(...margeValues) : 0;
                         
-                        return (
-                          <tr key={dayIdx} className={dayIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-2 font-medium">{dayIdx + 1}</td>
+                        // Standaard rij kleur (afwisselend wit/grijs)
+                        const baseRowClassName = dayIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        
+                                                  return (
+                            <tr key={dayIdx} className={baseRowClassName}>
+                            <td className="px-4 py-2 font-medium">
+                              {dayNumber}
+                              {selectedPeriods.map((p, idx) => (
+                                <div key={idx} className="text-xs text-gray-500">
+                                  {getWeekday(p.year, p.month, dayNumber)} {p.year}
+                                </div>
+                              ))}
+                            </td>
                             {selectedPeriods.map((p, idx) => {
                               const omzetValue = compareData[`${p.year}-${p.month}`]?.omzet[dayIdx] || 0;
                               const isMaxOmzet = omzetValue === maxOmzet && maxOmzet > 0;
+                              
+                              // Bepaal cel kleur op basis van dit specifieke jaar
+                              const isWeekendDay = isWeekend(p.year, p.month, dayNumber);
+                              const isHoliday = isBelgianHoliday(p.year, p.month, dayNumber);
+                              let cellClassName = 'px-4 py-2';
+                              
+                              if (isHoliday) {
+                                cellClassName += ' bg-red-100'; // Feestdag
+                              } else if (isWeekendDay) {
+                                cellClassName += ' bg-yellow-100'; // Weekend
+                              }
+                              
+                              if (isMaxOmzet) {
+                                cellClassName += ' font-bold underline';
+                              }
+                              
                               return (
-                                <td key={idx + '-omzet-' + dayIdx} className={`px-4 py-2 ${isMaxOmzet ? 'font-bold underline' : ''}`}>
+                                <td key={idx + '-omzet-' + dayIdx} className={cellClassName}>
                                   {formatBE(omzetValue)}
                                 </td>
                               );
@@ -271,8 +329,24 @@ export default function DailyComparePage() {
                             {marginAvailable && selectedPeriods.map((p, idx) => {
                               const margeValue = compareData[`${p.year}-${p.month}`]?.marge?.[dayIdx] || 0;
                               const isMaxMarge = margeValue === maxMarge && maxMarge > 0;
+                              
+                              // Bepaal cel kleur op basis van dit specifieke jaar
+                              const isWeekendDay = isWeekend(p.year, p.month, dayNumber);
+                              const isHoliday = isBelgianHoliday(p.year, p.month, dayNumber);
+                              let cellClassName = 'px-4 py-2 text-green-800';
+                              
+                              if (isHoliday) {
+                                cellClassName += ' bg-red-100'; // Feestdag
+                              } else if (isWeekendDay) {
+                                cellClassName += ' bg-yellow-100'; // Weekend
+                              }
+                              
+                              if (isMaxMarge) {
+                                cellClassName += ' font-bold underline';
+                              }
+                              
                               return (
-                                <td key={idx + '-marge-' + dayIdx} className={`px-4 py-2 text-green-800 ${isMaxMarge ? 'font-bold underline' : ''}`}>
+                                <td key={idx + '-marge-' + dayIdx} className={cellClassName}>
                                   {typeof compareData[`${p.year}-${p.month}`]?.marge?.[dayIdx] === 'number' ? formatBE(margeValue) : '-'}
                                 </td>
                               );

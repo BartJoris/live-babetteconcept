@@ -74,7 +74,7 @@ export default function Navigation() {
                   : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
             >
-              Sales Insights
+              Verkoop Inzichten
             </Link>
             <Link 
               href="/sales-products" 
@@ -84,7 +84,7 @@ export default function Navigation() {
                   : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
             >
-              Sales Products
+              Solden
             </Link>
             <button
               onClick={handleLogout}
@@ -174,7 +174,7 @@ export default function Navigation() {
                 : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
           >
-            Sales Insights
+            Verkoop Inzichten
           </Link>
           <Link
             href="/sales-products"
@@ -185,7 +185,7 @@ export default function Navigation() {
                 : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
           >
-            Sales Products
+            Solden
           </Link>
           <button
             onClick={() => {

@@ -43,13 +43,19 @@ type OrderLine = {
   product_id?: [number, string];
   qty: number;
   order_id?: [number, string];
+  discount?: number;
 };
 
 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Add cache-busting headers
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { uid, password, selectedMonth } = req.body;
@@ -88,7 +94,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Odoo gaf geen categorie-resultaat', odoo: allCategoriesJson });
     }
     // allCategories wordt gebruikt voor debug doeleinden maar is nu verwijderd
-    // const allCategories = allCategoriesJson.result as Category[];
 
     // 1. Zoek de hoofdcategorie 'Solden zomer 2025'
     const mainCategoryPayload = {
@@ -239,7 +244,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'pos.order.line',
           'search_read',
           [[['order_id', 'in', orderIds]]],
-          { fields: ['id', 'product_id', 'qty', 'order_id', 'price_unit', 'price_subtotal_incl'], limit: 10000 },
+          { fields: ['id', 'product_id', 'qty', 'order_id', 'price_unit', 'price_subtotal_incl', 'price_subtotal', 'discount'], limit: 10000 },
         ],
       },
       id: Date.now(),
@@ -297,14 +302,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       // Filter kortingregels uit
       const name = (line.product_id?.[1] || '').toLowerCase();
-      const isDiscount = name.includes('summersales') || name.includes('korting');
+      const isDiscount = name.includes('summersales') || name.includes('korting') || name.includes('discount');
       if (isDiscount) return;
       if (!dailyData[datePart]) {
         dailyData[datePart] = { salesProducts: 0, regularProducts: 0, orderIds: new Set() };
       }
       const productId = line.product_id?.[0];
       const qty = line.qty || 0;
-      if (productId && salesProductIds.includes(productId)) {
+      
+      // A product is considered "sales" if:
+      // 1. It's in a sales category, OR
+      // 2. It has direct discount applied (discount > 0)
+      const discount = (line as OrderLine & { discount?: number }).discount || 0;
+      const isSalesCategory = productId ? salesProductIds.includes(productId) : false;
+      const isSales = isSalesCategory || discount > 0;
+      
+      if (isSales) {
         dailyData[datePart].salesProducts += qty;
       } else {
         dailyData[datePart].regularProducts += qty;
@@ -329,27 +342,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
           return datePart === date;
         });
-        let salesValue = 0;
+        let originalSalesValue = 0;
+        let receivedSalesValue = 0;
         let regularValue = 0;
-        let totalDiscount = 0;
+        
         linesOnDay.forEach(line => {
           const productId = line.product_id?.[0];
-          const isSales = productId ? salesProductIds.includes(productId) : false;
+          const discount = (line as OrderLine & { discount?: number }).discount || 0;
+          const isSalesCategory = productId ? salesProductIds.includes(productId) : false;
+          const isSales = isSalesCategory || discount > 0;
+          
           const qty = line.qty || 0;
           const name = (line.product_id?.[1] || '').toLowerCase();
+          const priceUnit = (line as OrderLine & { price_unit?: number }).price_unit || 0;
           const subtotal = (typeof (line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_subtotal_incl === 'number'
             ? (line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_subtotal_incl
-            : ((line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_unit || 0) * qty) || 0;
-          const isDiscount = name.includes('summersales') || name.includes('korting');
+            : priceUnit * qty) || 0;
+          const isDiscount = name.toLowerCase().includes('summersales') || name.toLowerCase().includes('korting') || name.toLowerCase().includes('discount');
+          
           if (isDiscount) {
-            totalDiscount += subtotal;
+            // Discount lines reduce the sales value (they are already negative)
+            receivedSalesValue += subtotal;
           } else if (isSales) {
-            salesValue += subtotal;
+            originalSalesValue += priceUnit * qty;
+            receivedSalesValue += subtotal;
           } else {
             regularValue += subtotal;
           }
         });
-        const ontvangenSales = salesValue + totalDiscount;
+        
+        const totalDiscount = originalSalesValue - receivedSalesValue;
+        
         return {
           date,
           sales_products_count: data.salesProducts,
@@ -358,8 +381,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ? (data.salesProducts / (data.salesProducts + data.regularProducts)) * 100
             : 0,
           order_count: data.orderIds.size,
-          original_sales_value: salesValue,
-          received_sales_value: ontvangenSales,
+          original_sales_value: originalSalesValue,
+          received_sales_value: receivedSalesValue,
           regular_value: regularValue,
           total_discount: totalDiscount,
         };
@@ -373,29 +396,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const averageSalesPerOrder = totalOrders > 0 ? totalSalesProducts / totalOrders : 0;
 
     // Bereken waardes over alle order lines van de maand
-    let salesValue = 0;
+    let originalSalesValue = 0;
+    let receivedSalesValue = 0;
     let regularValue = 0;
-    let totalDiscount = 0;
+    
     allLines.forEach(line => {
       const productId = line.product_id?.[0];
-      const isSales = productId ? salesProductIds.includes(productId) : false;
+      const discount = (line as OrderLine & { discount?: number }).discount || 0;
+      const isSalesCategory = productId ? salesProductIds.includes(productId) : false;
+      const isSales = isSalesCategory || discount > 0;
+      
       const qty = line.qty || 0;
       const name = (line.product_id?.[1] || '').toLowerCase();
+      const priceUnit = (line as OrderLine & { price_unit?: number }).price_unit || 0;
       // Gebruik price_subtotal_incl indien beschikbaar
       const subtotal = (typeof (line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_subtotal_incl === 'number'
         ? (line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_subtotal_incl
-        : ((line as OrderLine & { price_subtotal_incl?: number; price_unit?: number }).price_unit || 0) * qty) || 0;
+        : priceUnit * qty) || 0;
       // Kortingregel?
-      const isDiscount = name.includes('summersales') || name.includes('korting');
+      const isDiscount = name.toLowerCase().includes('summersales') || name.toLowerCase().includes('korting') || name.toLowerCase().includes('discount');
+      
       if (isDiscount) {
-        totalDiscount += subtotal;
+        // Discount lines reduce the sales value (they are already negative)
+        receivedSalesValue += subtotal;
       } else if (isSales) {
-        salesValue += subtotal;
+        originalSalesValue += priceUnit * qty;
+        receivedSalesValue += subtotal;
       } else {
         regularValue += subtotal;
       }
     });
-    const ontvangenSales = salesValue + totalDiscount;
+    
+    const totalDiscount = originalSalesValue - receivedSalesValue;
 
     const result: SalesProductData = {
       total_sales_products: totalSalesProducts,
@@ -403,8 +435,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sales_percentage: salesPercentage,
       average_sales_per_order: averageSalesPerOrder,
       daily_sales_products: dailySalesProducts,
-      original_sales_value: salesValue,
-      received_sales_value: ontvangenSales,
+      original_sales_value: originalSalesValue,
+      received_sales_value: receivedSalesValue,
       regular_value: regularValue,
       total_discount: totalDiscount,
     };

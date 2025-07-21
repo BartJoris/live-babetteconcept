@@ -7,6 +7,12 @@ type DailySales = {
   total_amount: number;
   order_count: number;
   margin?: number;
+  morning_amount: number;  // 9:00-13:00
+  afternoon_amount: number; // 13:00-19:00
+  morning_orders: number;
+  afternoon_orders: number;
+  morning_margin?: number;
+  afternoon_margin?: number;
 };
 
 type MonthlyInsights = {
@@ -15,6 +21,10 @@ type MonthlyInsights = {
   average_daily_revenue: number;
   average_order_value: number;
   daily_sales: DailySales[];
+  total_morning_revenue: number;
+  total_afternoon_revenue: number;
+  total_morning_orders: number;
+  total_afternoon_orders: number;
 };
 
 export default function SalesInsightsPage() {
@@ -45,6 +55,8 @@ export default function SalesInsightsPage() {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     setSelectedMonth(currentMonth);
   }, []);
+
+
 
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
@@ -95,6 +107,10 @@ export default function SalesInsightsPage() {
           average_daily_revenue: 0,
           average_order_value: 0,
           daily_sales: [],
+          total_morning_revenue: 0,
+          total_afternoon_revenue: 0,
+          total_morning_orders: 0,
+          total_afternoon_orders: 0,
         });
         setLoading(false);
         alert('Let op: het veld price_subtotal_incl (inclusief btw) is niet beschikbaar op pos.order.line. Vraag je Odoo-beheerder om dit veld te activeren.');
@@ -110,11 +126,16 @@ export default function SalesInsightsPage() {
           average_daily_revenue: 0,
           average_order_value: 0,
           daily_sales: [],
+          total_morning_revenue: 0,
+          total_afternoon_revenue: 0,
+          total_morning_orders: 0,
+          total_afternoon_orders: 0,
         });
         setLoading(false);
         return;
       }
-      // 3. Fetch all pos.order for those IDs, get date_order
+      
+      // 3. Fetch all pos.order for those IDs, get date_order with time
       const orders = await fetchFromOdoo<{
         id: number;
         date_order: string;
@@ -126,55 +147,152 @@ export default function SalesInsightsPage() {
           ['id', 'date_order'],
         ],
       });
-      const orderIdToDate: Record<number, string> = {};
+      
+      const orderIdToDateTime: Record<number, string> = {};
       orders.forEach(order => {
-        orderIdToDate[order.id] = order.date_order;
+        orderIdToDateTime[order.id] = order.date_order;
       });
-      // 4. Group by day using order's date_order
-      const dailyData: Record<string, { total: number; orderIds: Set<number>; margin?: number }> = {};
+
+      // Helper function to determine if a time is in the morning (9:00-13:00) or afternoon (13:00-19:00)
+      const getTimeSlot = (dateTimeStr: string): 'morning' | 'afternoon' | 'other' => {
+        const timeStr = dateTimeStr.includes(' ') ? dateTimeStr.split(' ')[1] : '12:00:00';
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        
+        const morningStart = 9 * 60; // 9:00
+        const morningEnd = 13 * 60; // 13:00
+        const afternoonEnd = 19 * 60; // 19:00
+        
+        if (totalMinutes >= morningStart && totalMinutes < morningEnd) {
+          return 'morning';
+        } else if (totalMinutes >= morningEnd && totalMinutes < afternoonEnd) {
+          return 'afternoon';
+        }
+        return 'other';
+      };
+
+      // Debug: Track time distribution
+      const debugTimeSlots = { morning: 0, afternoon: 0, other: 0 };
+
+      // 4. Group by day and time slot using order's date_order
+      const dailyData: Record<string, {
+        total: number;
+        orderIds: Set<number>;
+        margin?: number;
+        morning: { total: number; orderIds: Set<number>; margin?: number };
+        afternoon: { total: number; orderIds: Set<number>; margin?: number };
+      }> = {};
+      
       let marginAvailable = false;
+      
       lines.forEach((line) => {
         const orderId = line.order_id?.[0];
-        const dateStr = orderIdToDate[orderId];
-        if (!dateStr) return;
+        const dateTimeStr = orderIdToDateTime[orderId];
+        if (!dateTimeStr) return;
+        
         let datePart = '';
-        if (dateStr.includes('T')) {
-          datePart = dateStr.split('T')[0];
-        } else if (dateStr.includes(' ')) {
-          datePart = dateStr.split(' ')[0];
+        if (dateTimeStr.includes('T')) {
+          datePart = dateTimeStr.split('T')[0];
+        } else if (dateTimeStr.includes(' ')) {
+          datePart = dateTimeStr.split(' ')[0];
         } else {
-          datePart = dateStr;
+          datePart = dateTimeStr;
         }
+        
         if (!dailyData[datePart]) {
-          dailyData[datePart] = { total: 0, orderIds: new Set(), margin: 0 };
+          dailyData[datePart] = {
+            total: 0,
+            orderIds: new Set(),
+            margin: 0,
+            morning: { total: 0, orderIds: new Set(), margin: 0 },
+            afternoon: { total: 0, orderIds: new Set(), margin: 0 },
+          };
         }
-        dailyData[datePart].total += line.price_subtotal_incl || 0;
+        
+        const amount = line.price_subtotal_incl || 0;
+        const margin = line.margin || 0;
+        
+        // Add to daily totals
+        dailyData[datePart].total += amount;
         dailyData[datePart].orderIds.add(orderId);
+        
         if (typeof line.margin === 'number') {
           marginAvailable = true;
-          dailyData[datePart].margin = (dailyData[datePart].margin || 0) + line.margin;
+          dailyData[datePart].margin = (dailyData[datePart].margin || 0) + margin;
+        }
+        
+        // Determine time slot and add to appropriate slot
+        const timeSlot = getTimeSlot(dateTimeStr);
+        debugTimeSlots[timeSlot]++;
+        
+        if (timeSlot === 'morning') {
+          dailyData[datePart].morning.total += amount;
+          dailyData[datePart].morning.orderIds.add(orderId);
+          if (typeof line.margin === 'number') {
+            dailyData[datePart].morning.margin = (dailyData[datePart].morning.margin || 0) + margin;
+          }
+        } else if (timeSlot === 'afternoon') {
+          dailyData[datePart].afternoon.total += amount;
+          dailyData[datePart].afternoon.orderIds.add(orderId);
+          if (typeof line.margin === 'number') {
+            dailyData[datePart].afternoon.margin = (dailyData[datePart].afternoon.margin || 0) + margin;
+          }
+        } else {
+          // Add 'other' time sales to morning (fallback for early/late sales)
+          dailyData[datePart].morning.total += amount;
+          dailyData[datePart].morning.orderIds.add(orderId);
+          if (typeof line.margin === 'number') {
+            dailyData[datePart].morning.margin = (dailyData[datePart].morning.margin || 0) + margin;
+          }
         }
       });
+
       // Convert to array and sort by date
       const dailySales: DailySales[] = Object.entries(dailyData)
         .map(([date, data]) => ({
           date,
           total_amount: data.total,
           order_count: data.orderIds.size,
+          morning_amount: data.morning.total,
+          afternoon_amount: data.afternoon.total,
+          morning_orders: data.morning.orderIds.size,
+          afternoon_orders: data.afternoon.orderIds.size,
           ...(marginAvailable && typeof data.margin === 'number' ? { margin: data.margin } : {}),
+          ...(marginAvailable && typeof data.morning.margin === 'number' ? { morning_margin: data.morning.margin } : {}),
+          ...(marginAvailable && typeof data.afternoon.margin === 'number' ? { afternoon_margin: data.afternoon.margin } : {}),
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
+
       // Calculate insights
       const totalRevenue = dailySales.reduce((sum, day) => sum + day.total_amount, 0);
       const totalOrders = dailySales.reduce((sum, day) => sum + day.order_count, 0);
+      const totalMorningRevenue = dailySales.reduce((sum, day) => sum + day.morning_amount, 0);
+      const totalAfternoonRevenue = dailySales.reduce((sum, day) => sum + day.afternoon_amount, 0);
+      const totalMorningOrders = dailySales.reduce((sum, day) => sum + day.morning_orders, 0);
+      const totalAfternoonOrders = dailySales.reduce((sum, day) => sum + day.afternoon_orders, 0);
       const averageDailyRevenue = dailySales.length > 0 ? totalRevenue / dailySales.length : 0;
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+      // Debug logging
+      console.log('🕐 Time distribution:', debugTimeSlots);
+      console.log('💰 Revenue check:', {
+        total: totalRevenue,
+        morning: totalMorningRevenue,
+        afternoon: totalAfternoonRevenue,
+        sum: totalMorningRevenue + totalAfternoonRevenue,
+        difference: totalRevenue - (totalMorningRevenue + totalAfternoonRevenue)
+      });
+
       setInsights({
         total_revenue: totalRevenue,
         total_orders: totalOrders,
         average_daily_revenue: averageDailyRevenue,
         average_order_value: averageOrderValue,
         daily_sales: dailySales,
+        total_morning_revenue: totalMorningRevenue,
+        total_afternoon_revenue: totalAfternoonRevenue,
+        total_morning_orders: totalMorningOrders,
+        total_afternoon_orders: totalAfternoonOrders,
       });
       setMarginAvailable(marginAvailable);
     } catch (err) {
@@ -273,7 +391,7 @@ export default function SalesInsightsPage() {
               </h2>
               
               {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-blue-600 text-sm font-medium">Totale Omzet</p>
                   <p className="text-2xl font-bold text-blue-800">€ {insights.total_revenue.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -289,6 +407,14 @@ export default function SalesInsightsPage() {
                 <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
                   <p className="text-orange-600 text-sm font-medium">Gem. Orderwaarde</p>
                   <p className="text-2xl font-bold text-orange-800">€ {insights.average_order_value.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                  <p className="text-amber-600 text-sm font-medium">Ochtend Omzet</p>
+                  <p className="text-2xl font-bold text-amber-800">€ {insights.total_morning_revenue.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                  <p className="text-indigo-600 text-sm font-medium">Middag Omzet</p>
+                  <p className="text-2xl font-bold text-indigo-800">€ {insights.total_afternoon_revenue.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 {marginAvailable && (
                   <div className="bg-green-100 p-4 rounded-lg border border-green-300">
@@ -307,27 +433,33 @@ export default function SalesInsightsPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
+                                      <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Datum
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Totale Omzet
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Aantal Orders
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ochtend
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Middag
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Gem. Orderwaarde
+                      </th>
+                      {marginAvailable && (
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Datum
+                          Marge
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Totale Omzet
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Aantal Orders
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Gem. Orderwaarde
-                        </th>
-                        {marginAvailable && (
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Marge
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
+                      )}
+                    </tr>
+                  </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {insights.daily_sales.length > 0 ? (
                         insights.daily_sales.map((day, index) => (
@@ -341,6 +473,14 @@ export default function SalesInsightsPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {day.order_count}
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-700">
+                              € {day.morning_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="text-xs text-gray-500 block">({day.morning_orders} orders)</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-700">
+                              € {day.afternoon_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="text-xs text-gray-500 block">({day.afternoon_orders} orders)</span>
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                               € {(day.total_amount / day.order_count).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
@@ -353,7 +493,7 @@ export default function SalesInsightsPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={marginAvailable ? 5 : 4} className="px-6 py-4 text-center text-gray-500">
+                          <td colSpan={marginAvailable ? 7 : 6} className="px-6 py-4 text-center text-gray-500">
                             Geen verkoopdata gevonden voor deze maand
                           </td>
                         </tr>
