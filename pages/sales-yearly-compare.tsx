@@ -266,6 +266,22 @@ export default function SalesComparePage() {
                       ))}
                     </tr>
                   ))}
+                  {/* Year Total Row */}
+                  <tr className="bg-blue-100 font-bold border-t-2 border-gray-300">
+                    <td className="px-4 py-2">Totaal</td>
+                    {selectedYears.map(y => {
+                      const yearOmzetTotal = MONTHS.reduce((sum, m) => sum + (compareData[y]?.[m]?.omzet || 0), 0);
+                      return (
+                        <td key={y + '-omzet-total'} className="px-4 py-2">{formatBE(yearOmzetTotal)}</td>
+                      );
+                    })}
+                    {marginAvailable && selectedYears.map(y => {
+                      const yearMargeTotal = MONTHS.reduce((sum, m) => sum + (compareData[y]?.[m]?.marge || 0), 0);
+                      return (
+                        <td key={y + '-marge-total'} className="px-4 py-2 text-green-800">{formatBE(yearMargeTotal)}</td>
+                      );
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>

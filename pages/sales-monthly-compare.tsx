@@ -606,6 +606,24 @@ export default function DailyComparePage() {
                         );
                       });
                     })()}
+                    {/* Total Row */}
+                    <tr className="bg-blue-100 font-bold border-t-2 border-gray-300">
+                      <td className="px-4 py-2">Totaal</td>
+                      {selectedPeriods.map((p, idx) => {
+                        const periodData = compareData[`${p.year}-${p.month}`];
+                        const periodOmzetTotal = periodData?.omzet.reduce((sum, val) => sum + val, 0) || 0;
+                        return (
+                          <td key={idx + '-omzet-total'} className="px-4 py-2">{formatBE(periodOmzetTotal)}</td>
+                        );
+                      })}
+                      {marginAvailable && selectedPeriods.map((p, idx) => {
+                        const periodData = compareData[`${p.year}-${p.month}`];
+                        const periodMargeTotal = periodData?.marge?.reduce((sum, val) => sum + val, 0) || 0;
+                        return (
+                          <td key={idx + '-marge-total'} className="px-4 py-2 text-green-800">{formatBE(periodMargeTotal)}</td>
+                        );
+                      })}
+                    </tr>
                   </tbody>
               </table>
             </div>
