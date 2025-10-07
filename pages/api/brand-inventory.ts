@@ -310,6 +310,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const seasonsToProcess: Array<'winter' | 'summer'> = 
       selectedSeason === 'both' ? ['winter', 'summer'] : [selectedSeason];
 
+    // Track products per brand (shared across seasons to avoid duplicates)
+    const globalBrandProducts: Record<number, Set<number>> = {};
+
     for (const currentSeason of seasonsToProcess) {
       const dateRange = getSeasonDateRanges(year, currentSeason);
       
@@ -398,7 +401,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         productCount: 0,
       });
 
-      // Track products per brand
+      // Track products per brand (per season)
       const brandProducts: Record<number, Set<number>> = {};
 
       // STEP 6a: Get stock location IDs (we need to know warehouse locations)
@@ -599,12 +602,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Aggregate stock movement data by brand
-      Object.entries(productStockHistory).forEach(([productIdStr, history]) => {
+      // Add current stock for all products with brands
+      // Only add stock in the first season when processing both (to avoid duplication)
+      const isFirstSeasonInLoop = seasonsToProcess[0] === currentSeason;
+      
+      Object.entries(variantToBrand).forEach(([productIdStr, brandInfo]) => {
         const productId = Number(productIdStr);
-        const brandInfo = variantToBrand[productId];
-        if (!brandInfo) return;
-
         const { brandId, cost, currentStock } = brandInfo;
 
         if (!seasons[currentSeason][brandId]) {
@@ -613,8 +616,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!brandProducts[brandId]) {
           brandProducts[brandId] = new Set();
         }
+        if (!globalBrandProducts[brandId]) {
+          globalBrandProducts[brandId] = new Set();
+        }
 
         brandProducts[brandId].add(productId);
+        globalBrandProducts[brandId].add(productId);
+        
+        // Only add current stock in the first season to avoid duplication
+        if (isFirstSeasonInLoop) {
+          seasons[currentSeason][brandId].currentStock += currentStock;
+          seasons[currentSeason][brandId].stockValue += currentStock * cost;
+        }
+      });
+
+      // Then, aggregate stock movement data by brand
+      Object.entries(productStockHistory).forEach(([productIdStr, history]) => {
+        const productId = Number(productIdStr);
+        const brandInfo = variantToBrand[productId];
+        if (!brandInfo) return;
+
+        const { brandId } = brandInfo;
+
+        if (!seasons[currentSeason][brandId]) {
+          seasons[currentSeason][brandId] = initMetrics(brandId);
+        }
 
         // Aggregate opening stock
         seasons[currentSeason][brandId].openingStock += history.openingStock;
@@ -627,10 +653,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         seasons[currentSeason][brandId].stockOut += history.movesOut;
         seasons[currentSeason][brandId].stockOutSales += history.salesOut;
         seasons[currentSeason][brandId].stockOutAdjustments += history.adjustmentsOut;
-
-        // Add current stock and value
-        seasons[currentSeason][brandId].currentStock += currentStock;
-        seasons[currentSeason][brandId].stockValue += currentStock * cost;
       });
 
       // Calculate derived metrics
