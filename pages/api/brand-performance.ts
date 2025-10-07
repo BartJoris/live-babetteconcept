@@ -160,7 +160,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Create brand lookup
     const brandMap: Record<number, string> = {};
-    allBrands.forEach((brand: any) => {
+    allBrands.forEach((brand: { id: number; name: string }) => {
       brandMap[brand.id] = brand.name;
     });
 
@@ -194,7 +194,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Get all attribute line IDs
     const allAttributeLineIds: number[] = [];
-    productTemplates.forEach((tmpl: any) => {
+    productTemplates.forEach((tmpl: { id: number; attribute_line_ids?: number[] }) => {
       if (tmpl.attribute_line_ids && Array.isArray(tmpl.attribute_line_ids)) {
         allAttributeLineIds.push(...tmpl.attribute_line_ids);
       }
@@ -230,7 +230,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Map product_tmpl_id to brand IDs
     const templateToBrand: Record<number, number> = {};
-    attributeLines.forEach((line: any) => {
+    attributeLines.forEach((line: { product_tmpl_id: [number, string]; value_ids?: number[] }) => {
       const tmplId = line.product_tmpl_id[0];
       if (line.value_ids && line.value_ids.length > 0) {
         templateToBrand[tmplId] = line.value_ids[0]; // Take first brand value
@@ -266,15 +266,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`✅ Found ${productVariants.length} product variants`);
 
     // Map variant ID to brand ID and prices
-    const variantToBrand: Record<number, { brandId: number; cost: number; price: number }> = {};
-    productVariants.forEach((variant: any) => {
+    const variantToBrand: Record<number, { brandId: number; cost: number }> = {};
+    productVariants.forEach((variant: { id: number; product_tmpl_id: [number, string]; standard_price?: number; list_price?: number }) => {
       const tmplId = variant.product_tmpl_id[0];
       const brandId = templateToBrand[tmplId];
       if (brandId) {
         variantToBrand[variant.id] = {
           brandId,
           cost: variant.standard_price || 0,
-          price: variant.list_price || 0,
         };
       }
     });
@@ -310,11 +309,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const orders = ordersJson.result || [];
     console.log(`✅ Found ${orders.length} orders`);
 
-    const orderIdToDate: Record<number, string> = {};
-    const orderIds: number[] = orders.map((order: any) => {
-      orderIdToDate[order.id] = order.date_order;
-      return order.id;
-    });
+      const orderIdToDate: Record<number, string> = {};
+      const orderIds: number[] = orders.map((order: { id: number; date_order: string }) => {
+        orderIdToDate[order.id] = order.date_order;
+        return order.id;
+      });
 
     if (orderIds.length === 0) {
       return res.status(200).json({
@@ -387,7 +386,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       summerRegular: {},
     };
 
-    allLines.forEach((line: any) => {
+    allLines.forEach((line: { order_id?: [number, string]; product_id?: [number, string]; qty?: number; price_subtotal_incl?: number }) => {
       const orderId = line.order_id?.[0];
       const productId = line.product_id?.[0];
       
@@ -402,7 +401,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const brandInfo = variantToBrand[productId];
       if (!brandInfo) return; // Product doesn't have a brand
 
-      const { brandId, cost, price } = brandInfo;
+      const { brandId, cost } = brandInfo;
       const qty = line.qty || 0;
       const revenueInclTax = line.price_subtotal_incl || 0;
       // Exclude 21% BTW from revenue
@@ -446,7 +445,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const response: BrandPerformanceResponse = {
       year,
       periods,
-      brandList: allBrands.map((b: any) => ({ id: b.id, name: b.name })),
+      brandList: allBrands.map((b: { id: number; name: string }) => ({ id: b.id, name: b.name })),
       totalRevenue,
     };
 

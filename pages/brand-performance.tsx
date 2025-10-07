@@ -192,7 +192,7 @@ export default function BrandPerformancePage() {
     });
 
     // Filter by minimum revenue
-    let filtered = Object.values(brandTotals).filter(b => b.totalRevenue >= minRevenue);
+    const filtered = Object.values(brandTotals).filter(b => b.totalRevenue >= minRevenue);
 
     // Sort
     filtered.sort((a, b) => {
@@ -569,7 +569,7 @@ export default function BrandPerformancePage() {
                             <tr className="bg-blue-50">
                               <td colSpan={11} className="px-6 py-4 border-b">
                                 <div className="grid grid-cols-4 gap-4">
-                                  {(['winterSales', 'winterRegular', 'summerSales', 'summerRegular'] as const).map(period => {
+                                  {(['winterSales', 'winterRegular', 'summerSales', 'summerRegular'] as const).map((period: 'winterSales' | 'winterRegular' | 'summerSales' | 'summerRegular') => {
                                     const metrics = brand[period];
                                     if (!metrics) return (
                                       <div key={period} className="text-gray-400 text-center py-4">

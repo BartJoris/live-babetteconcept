@@ -102,7 +102,7 @@ export default function BrandInventoryPage() {
         body: JSON.stringify({ uid, password, year: selectedYear, season: selectedSeason }),
       });
       
-      const json = await res.json();
+      const json: BrandInventoryData = await res.json();
       setData(json);
     } catch (error) {
       console.error('Error fetching brand inventory:', error);
@@ -266,11 +266,11 @@ export default function BrandInventoryPage() {
               </label>
               <label className="flex items-center gap-2">
                 <span className="font-medium">Seizoen:</span>
-                <select
-                  value={selectedSeason}
-                  onChange={e => setSelectedSeason(e.target.value as any)}
-                  className="border rounded px-3 py-2"
-                >
+                  <select
+                    value={selectedSeason}
+                    onChange={e => setSelectedSeason(e.target.value as 'winter' | 'summer' | 'both')}
+                    className="border rounded px-3 py-2"
+                  >
                   <option value="both">Beide</option>
                   <option value="winter">❄️ Winter</option>
                   <option value="summer">☀️ Zomer</option>
