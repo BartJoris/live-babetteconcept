@@ -384,7 +384,7 @@ export default function BrandInventoryPage() {
                   <span className="font-medium">Sorteer op:</span>
                   <select
                     value={sortBy}
-                    onChange={e => setSortBy(e.target.value as any)}
+                    onChange={e => setSortBy(e.target.value as 'sellThrough' | 'stockValue' | 'totalSold')}
                     className="border rounded px-3 py-2"
                   >
                     <option value="sellThrough">Sell-through %</option>

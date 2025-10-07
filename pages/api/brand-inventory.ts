@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const allBrands = brandValuesJson.result || [];
 
     const brandMap: Record<number, string> = {};
-    allBrands.forEach((brand: any) => {
+    allBrands.forEach((brand: { id: number; name: string }) => {
       brandMap[brand.id] = brand.name;
     });
 
@@ -214,7 +214,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const productTemplates = productTemplatesJson.result || [];
 
     const allAttributeLineIds: number[] = [];
-    productTemplates.forEach((tmpl: any) => {
+    productTemplates.forEach((tmpl: { id: number; attribute_line_ids?: number[] }) => {
       if (tmpl.attribute_line_ids && Array.isArray(tmpl.attribute_line_ids)) {
         allAttributeLineIds.push(...tmpl.attribute_line_ids);
       }
@@ -248,7 +248,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const attributeLines = attributeLinesJson.result || [];
 
     const templateToBrand: Record<number, number> = {};
-    attributeLines.forEach((line: any) => {
+    attributeLines.forEach((line: { product_tmpl_id: [number, string]; value_ids?: number[] }) => {
       const tmplId = line.product_tmpl_id[0];
       if (line.value_ids && line.value_ids.length > 0) {
         templateToBrand[tmplId] = line.value_ids[0];
@@ -289,7 +289,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       currentStock: number;
     }> = {};
     
-    productVariants.forEach((variant: any) => {
+    productVariants.forEach((variant: { id: number; product_tmpl_id: [number, string]; standard_price?: number; qty_available?: number }) => {
       const tmplId = variant.product_tmpl_id[0];
       const brandId = templateToBrand[tmplId];
       if (brandId) {
@@ -341,7 +341,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const orders = ordersJson.result || [];
 
       const orderIdToDate: Record<number, string> = {};
-      const orderIds: number[] = orders.map((order: any) => {
+      const orderIds: number[] = orders.map((order: { id: number; date_order: string }) => {
         orderIdToDate[order.id] = order.date_order;
         return order.id;
       });
@@ -428,17 +428,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       const locationsJson = await locationsRes.json();
       const locations = locationsJson.result || [];
-      const internalLocationIds = locations.map((loc: any) => loc.id);
+      const internalLocationIds = locations.map((loc: { id: number }) => loc.id);
       console.log(`✅ Found ${internalLocationIds.length} internal locations`);
 
       // STEP 6b: Get stock moves for the period
       console.log('🔍 Fetching stock moves for period...');
       const periodStart = dateRange.start;
       const periodEnd = dateRange.end;
-      
-      // Get opening stock (stock at period start)
-      // We need moves BEFORE the period to calculate opening balance
-      const beforePeriodStart = `${year}-01-01`; // Start of year or earlier
       
       const stockMovesPayload = {
         jsonrpc: '2.0',
@@ -491,7 +487,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         adjustmentsOut: number;
       }> = {};
 
-      stockMoves.forEach((move: any) => {
+      stockMoves.forEach((move: { 
+        product_id?: [number, string]; 
+        date: string; 
+        product_qty?: number; 
+        location_id?: [number, string]; 
+        location_dest_id?: [number, string]; 
+        origin?: string; 
+        reference?: string 
+      }) => {
         const productId = move.product_id?.[0];
         if (!productId) return;
 
@@ -559,7 +563,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Process sales data from POS
-      allLines.forEach((line: any) => {
+      allLines.forEach((line: { order_id?: [number, string]; product_id?: [number, string]; qty?: number }) => {
         const orderId = line.order_id?.[0];
         const productId = line.product_id?.[0];
         
@@ -681,7 +685,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const response: BrandInventoryResponse = {
       year,
       seasons,
-      brandList: allBrands.map((b: any) => ({ id: b.id, name: b.name })),
+      brandList: allBrands.map((b: { id: number; name: string }) => ({ id: b.id, name: b.name })),
       totalStockValue,
       avgSellThrough,
     };

@@ -324,7 +324,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           summerSales: {},
           summerRegular: {},
         },
-        brandList: allBrands.map((b: any) => ({ id: b.id, name: b.name })),
+        brandList: allBrands.map((b: { id: number; name: string }) => ({ id: b.id, name: b.name })),
         totalRevenue: 0,
       });
     }

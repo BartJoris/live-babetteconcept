@@ -459,7 +459,7 @@ export default function BrandPerformancePage() {
                   <span className="font-medium">Sorteer op:</span>
                   <select
                     value={sortBy}
-                    onChange={e => setSortBy(e.target.value as any)}
+                    onChange={e => setSortBy(e.target.value as 'profit' | 'revenue' | 'margin' | 'quantity')}
                     className="border rounded px-3 py-2"
                   >
                     <option value="profit">Winst</option>
