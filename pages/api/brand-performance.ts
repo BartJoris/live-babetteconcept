@@ -96,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`🔍 Fetching brand performance for year ${year}...`);
 
-    // STEP 1: Get MERK attribute
+    // STEP 1: Get MERK and Merk 1 attributes
     const merkAttributePayload = {
       jsonrpc: '2.0',
       method: 'call',
@@ -109,8 +109,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           password,
           'product.attribute',
           'search_read',
-          [[['name', '=', 'MERK']]],
-          { fields: ['id', 'name'], limit: 1 },
+          [[['name', 'in', ['MERK', 'Merk 1']]]],
+          { fields: ['id', 'name'], limit: 10 },
         ],
       },
       id: Date.now(),
@@ -124,13 +124,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const merkAttributes = merkAttrJson.result || [];
     
     if (!merkAttributes.length) {
-      return res.status(404).json({ error: 'MERK attribute not found' });
+      return res.status(404).json({ error: 'MERK or Merk 1 attributes not found' });
     }
     
-    const merkAttributeId = merkAttributes[0].id;
-    console.log(`✅ Found MERK attribute: ${merkAttributeId}`);
+    const merkAttributeIds = merkAttributes.map((attr: { id: number; name: string }) => attr.id);
+    console.log(`✅ Found brand attributes: ${merkAttributes.map((a: { id: number; name: string }) => a.name).join(', ')} (IDs: ${merkAttributeIds.join(', ')})`);
 
-    // STEP 2: Get all brand values
+    // STEP 2: Get all brand values from both attributes
     const brandValuesPayload = {
       jsonrpc: '2.0',
       method: 'call',
@@ -143,8 +143,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           password,
           'product.attribute.value',
           'search_read',
-          [[['attribute_id', '=', merkAttributeId]]],
-          { fields: ['id', 'name'], limit: 200 },
+          [[['attribute_id', 'in', merkAttributeIds]]],
+          { fields: ['id', 'name', 'attribute_id'], limit: 500 },
         ],
       },
       id: Date.now(),
@@ -156,13 +156,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     const brandValuesJson = await brandValuesRes.json();
     const allBrands = brandValuesJson.result || [];
-    console.log(`✅ Found ${allBrands.length} brands`);
+    console.log(`✅ Found ${allBrands.length} brands across all attributes`);
 
-    // Create brand lookup
+    // Detect and merge duplicate brand names (case-insensitive)
+    const brandNameMap: Record<string, string> = {}; // lowercase name -> canonical name
+    const brandIdToCanonicalName: Record<number, string> = {};
+    
+    allBrands.forEach((brand: { id: number; name: string }) => {
+      const normalizedName = brand.name.trim().toLowerCase();
+      
+      if (!brandNameMap[normalizedName]) {
+        // First occurrence - use this as the canonical name
+        brandNameMap[normalizedName] = brand.name;
+      }
+      // Map this brand ID to the canonical name
+      brandIdToCanonicalName[brand.id] = brandNameMap[normalizedName];
+    });
+
+    // Create brand lookup with canonical names
     const brandMap: Record<number, string> = {};
     allBrands.forEach((brand: { id: number; name: string }) => {
-      brandMap[brand.id] = brand.name;
+      brandMap[brand.id] = brandIdToCanonicalName[brand.id];
     });
+    
+    const uniqueBrandCount = Object.keys(brandNameMap).length;
+    if (uniqueBrandCount < allBrands.length) {
+      console.log(`⚠️ Merged ${allBrands.length - uniqueBrandCount} duplicate brands (case-insensitive). Total unique brands: ${uniqueBrandCount}`);
+    }
 
     // STEP 3: Get all product templates with their attribute lines
     const productTemplatesPayload = {
@@ -213,7 +233,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           password,
           'product.template.attribute.line',
           'search_read',
-          [[['id', 'in', allAttributeLineIds], ['attribute_id', '=', merkAttributeId]]],
+          [[['id', 'in', allAttributeLineIds], ['attribute_id', 'in', merkAttributeIds]]],
           { fields: ['id', 'attribute_id', 'value_ids', 'product_tmpl_id'], limit: 20000 },
         ],
       },
@@ -226,7 +246,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     const attributeLinesJson = await attributeLinesRes.json();
     const attributeLines = attributeLinesJson.result || [];
-    console.log(`✅ Found ${attributeLines.length} MERK attribute lines`);
+    console.log(`✅ Found ${attributeLines.length} brand attribute lines`);
 
     // Map product_tmpl_id to brand IDs
     const templateToBrand: Record<number, number> = {};
@@ -365,18 +385,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       summerRegular: {},
     };
 
+    // Track orphaned brands for logging
+    const orphanedBrandIds = new Set<number>();
+
     // Initialize brand metrics
-    const initBrandMetrics = (brandId: number): BrandMetrics => ({
-      brandId,
-      brandName: brandMap[brandId] || 'Unknown',
-      revenue: 0,
-      cost: 0,
-      margin: 0,
-      profitPercentage: 0,
-      quantitySold: 0,
-      avgSellingPrice: 0,
-      productCount: 0,
-    });
+    const initBrandMetrics = (brandId: number): BrandMetrics => {
+      const brandName = brandMap[brandId];
+      if (!brandName) {
+        orphanedBrandIds.add(brandId);
+      }
+      return {
+        brandId,
+        brandName: brandName || 'Unknown',
+        revenue: 0,
+        cost: 0,
+        margin: 0,
+        profitPercentage: 0,
+        quantitySold: 0,
+        avgSellingPrice: 0,
+        productCount: 0,
+      };
+    };
 
     // Track unique products per brand per period
     const periodProductSets: Record<string, Record<number, Set<number>>> = {
@@ -440,12 +469,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     });
 
+    if (orphanedBrandIds.size > 0) {
+      console.warn(`⚠️ Found ${orphanedBrandIds.size} orphaned brand IDs (products with deleted/invalid brand references): [${Array.from(orphanedBrandIds).join(', ')}]`);
+      console.warn('These products are shown as "Unknown" brand. Check these brand IDs in Odoo.');
+    }
+    
     console.log('✅ Brand performance calculated successfully!');
+
+    // Create unique brand list with canonical names
+    const uniqueBrandList = Object.entries(brandNameMap).map(([, canonicalName]) => {
+      // Find the first brand ID that matches this canonical name
+      const brandEntry = allBrands.find((b: { id: number; name: string }) => 
+        brandIdToCanonicalName[b.id] === canonicalName
+      );
+      return {
+        id: brandEntry?.id || 0,
+        name: canonicalName,
+      };
+    });
 
     const response: BrandPerformanceResponse = {
       year,
       periods,
-      brandList: allBrands.map((b: { id: number; name: string }) => ({ id: b.id, name: b.name })),
+      brandList: uniqueBrandList,
       totalRevenue,
     };
 

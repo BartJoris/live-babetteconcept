@@ -76,7 +76,7 @@ export default function BrandInventoryPage() {
   const [data, setData] = useState<BrandInventoryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'sellThrough' | 'stockValue' | 'totalSold'>('sellThrough');
-  const [expandedBrand, setExpandedBrand] = useState<number | null>(null);
+  const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -117,14 +117,14 @@ export default function BrandInventoryPage() {
     }
   }, [uid, password, selectedYear, selectedSeason, fetchData]);
 
-  // Aggregate data across selected seasons
+  // Aggregate data across selected seasons (merge duplicates by name)
   const aggregatedBrands = useMemo(() => {
     if (!data) return [];
 
-    const brands: BrandInventoryMetrics[] = [];
+    const brandsByName: Record<string, BrandInventoryMetrics> = {};
     
     if (selectedSeason === 'both') {
-      // Merge winter and summer data
+      // Merge winter and summer data by brand name
       const allBrandIds = new Set([
         ...Object.keys(data.seasons.winter).map(Number),
         ...Object.keys(data.seasons.summer).map(Number),
@@ -133,48 +133,96 @@ export default function BrandInventoryPage() {
       allBrandIds.forEach(brandId => {
         const winter = data.seasons.winter[brandId];
         const summer = data.seasons.summer[brandId];
+        const brandName = winter?.brandName || summer?.brandName || 'Unknown';
         
         if (winter || summer) {
-          const combined: BrandInventoryMetrics = {
-            brandId,
-            brandName: winter?.brandName || summer?.brandName || 'Unknown',
-            currentStock: (winter?.currentStock || 0) + (summer?.currentStock || 0),
-            openingStock: (winter?.openingStock || 0) + (summer?.openingStock || 0),
-            stockIn: (winter?.stockIn || 0) + (summer?.stockIn || 0),
-            stockInPurchases: (winter?.stockInPurchases || 0) + (summer?.stockInPurchases || 0),
-            stockInAdjustments: (winter?.stockInAdjustments || 0) + (summer?.stockInAdjustments || 0),
-            stockOut: (winter?.stockOut || 0) + (summer?.stockOut || 0),
-            stockOutSales: (winter?.stockOutSales || 0) + (summer?.stockOutSales || 0),
-            stockOutAdjustments: (winter?.stockOutAdjustments || 0) + (summer?.stockOutAdjustments || 0),
-            soldRegular: (winter?.soldRegular || 0) + (summer?.soldRegular || 0),
-            soldSales: (winter?.soldSales || 0) + (summer?.soldSales || 0),
-            totalSold: (winter?.totalSold || 0) + (summer?.totalSold || 0),
-            sellThroughRate: 0,
-            stockValue: (winter?.stockValue || 0) + (summer?.stockValue || 0),
-            calculatedClosing: (winter?.calculatedClosing || 0) + (summer?.calculatedClosing || 0),
-            stockDiscrepancy: (winter?.stockDiscrepancy || 0) + (summer?.stockDiscrepancy || 0),
-            status: 'dead',
-            productCount: Math.max(winter?.productCount || 0, summer?.productCount || 0),
-          };
+          if (!brandsByName[brandName]) {
+            brandsByName[brandName] = {
+              brandId,
+              brandName,
+              currentStock: 0,
+              openingStock: 0,
+              stockIn: 0,
+              stockInPurchases: 0,
+              stockInAdjustments: 0,
+              stockOut: 0,
+              stockOutSales: 0,
+              stockOutAdjustments: 0,
+              soldRegular: 0,
+              soldSales: 0,
+              totalSold: 0,
+              sellThroughRate: 0,
+              stockValue: 0,
+              calculatedClosing: 0,
+              stockDiscrepancy: 0,
+              status: 'dead',
+              productCount: 0,
+            };
+          }
           
-          const availableStock = combined.openingStock + combined.stockIn;
-          combined.sellThroughRate = availableStock > 0 
-            ? (combined.totalSold / availableStock) * 100 
-            : 0;
-
-          if (combined.sellThroughRate >= 80) combined.status = 'hit';
-          else if (combined.sellThroughRate >= 60) combined.status = 'good';
-          else if (combined.sellThroughRate >= 40) combined.status = 'slow';
-          else combined.status = 'dead';
-
-          brands.push(combined);
+          // Add data from this brandId (combines winter + summer)
+          const winterData = winter || null;
+          const summerData = summer || null;
+          
+          brandsByName[brandName].currentStock += (winterData?.currentStock || 0) + (summerData?.currentStock || 0);
+          brandsByName[brandName].openingStock += (winterData?.openingStock || 0) + (summerData?.openingStock || 0);
+          brandsByName[brandName].stockIn += (winterData?.stockIn || 0) + (summerData?.stockIn || 0);
+          brandsByName[brandName].stockInPurchases += (winterData?.stockInPurchases || 0) + (summerData?.stockInPurchases || 0);
+          brandsByName[brandName].stockInAdjustments += (winterData?.stockInAdjustments || 0) + (summerData?.stockInAdjustments || 0);
+          brandsByName[brandName].stockOut += (winterData?.stockOut || 0) + (summerData?.stockOut || 0);
+          brandsByName[brandName].stockOutSales += (winterData?.stockOutSales || 0) + (summerData?.stockOutSales || 0);
+          brandsByName[brandName].stockOutAdjustments += (winterData?.stockOutAdjustments || 0) + (summerData?.stockOutAdjustments || 0);
+          brandsByName[brandName].soldRegular += (winterData?.soldRegular || 0) + (summerData?.soldRegular || 0);
+          brandsByName[brandName].soldSales += (winterData?.soldSales || 0) + (summerData?.soldSales || 0);
+          brandsByName[brandName].totalSold += (winterData?.totalSold || 0) + (summerData?.totalSold || 0);
+          brandsByName[brandName].stockValue += (winterData?.stockValue || 0) + (summerData?.stockValue || 0);
+          brandsByName[brandName].calculatedClosing += (winterData?.calculatedClosing || 0) + (summerData?.calculatedClosing || 0);
+          brandsByName[brandName].stockDiscrepancy += (winterData?.stockDiscrepancy || 0) + (summerData?.stockDiscrepancy || 0);
+          brandsByName[brandName].productCount = Math.max(brandsByName[brandName].productCount, winterData?.productCount || 0, summerData?.productCount || 0);
         }
       });
     } else {
-      // Single season
+      // Single season - merge by brand name
       const seasonData = data.seasons[selectedSeason];
-      Object.values(seasonData).forEach(metrics => brands.push(metrics));
+      Object.entries(seasonData).forEach(([, metrics]) => {
+        const brandName = metrics.brandName;
+        
+        if (!brandsByName[brandName]) {
+          brandsByName[brandName] = { ...metrics };
+        } else {
+          // Merge duplicate brand
+          brandsByName[brandName].currentStock += metrics.currentStock;
+          brandsByName[brandName].openingStock += metrics.openingStock;
+          brandsByName[brandName].stockIn += metrics.stockIn;
+          brandsByName[brandName].stockInPurchases += metrics.stockInPurchases;
+          brandsByName[brandName].stockInAdjustments += metrics.stockInAdjustments;
+          brandsByName[brandName].stockOut += metrics.stockOut;
+          brandsByName[brandName].stockOutSales += metrics.stockOutSales;
+          brandsByName[brandName].stockOutAdjustments += metrics.stockOutAdjustments;
+          brandsByName[brandName].soldRegular += metrics.soldRegular;
+          brandsByName[brandName].soldSales += metrics.soldSales;
+          brandsByName[brandName].totalSold += metrics.totalSold;
+          brandsByName[brandName].stockValue += metrics.stockValue;
+          brandsByName[brandName].calculatedClosing += metrics.calculatedClosing;
+          brandsByName[brandName].stockDiscrepancy += metrics.stockDiscrepancy;
+          brandsByName[brandName].productCount = Math.max(brandsByName[brandName].productCount, metrics.productCount);
+        }
+      });
     }
+
+    // Recalculate derived metrics for merged brands
+    const brands = Object.values(brandsByName);
+    brands.forEach(brand => {
+      const availableStock = brand.openingStock + brand.stockIn;
+      brand.sellThroughRate = availableStock > 0 
+        ? (brand.totalSold / availableStock) * 100 
+        : 0;
+
+      if (brand.sellThroughRate >= 80) brand.status = 'hit';
+      else if (brand.sellThroughRate >= 60) brand.status = 'good';
+      else if (brand.sellThroughRate >= 40) brand.status = 'slow';
+      else brand.status = 'dead';
+    });
 
     // Sort
     brands.sort((a, b) => {
@@ -425,10 +473,11 @@ export default function BrandInventoryPage() {
                       const hasDiscrepancy = Math.abs(brand.stockDiscrepancy) > 0.1;
                       
                       return (
-                        <React.Fragment key={brand.brandId}>
+                        <React.Fragment key={brand.brandName}>
                           <tr 
                             className={`${rowBg} hover:bg-blue-50 cursor-pointer`}
-                            onClick={() => setExpandedBrand(expandedBrand === brand.brandId ? null : brand.brandId)}
+                            onClick={() => setExpandedBrand(expandedBrand === brand.brandName ? null : brand.brandName)}
+                            title="Klik om details te zien"
                           >
                             <td className="px-3 py-2 font-medium border-b">
                               {idx + 1}. {brand.brandName}
@@ -470,7 +519,7 @@ export default function BrandInventoryPage() {
                               €{formatBE(brand.stockValue)}
                             </td>
                           </tr>
-                          {expandedBrand === brand.brandId && (
+                          {expandedBrand === brand.brandName && (
                             <tr className="bg-blue-50">
                               <td colSpan={10} className="px-6 py-4 border-b">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

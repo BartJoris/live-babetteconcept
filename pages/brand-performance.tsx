@@ -71,7 +71,7 @@ export default function BrandPerformancePage() {
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'profit' | 'revenue' | 'margin' | 'quantity'>('profit');
   const [minRevenue, setMinRevenue] = useState<number>(0);
-  const [expandedBrand, setExpandedBrand] = useState<number | null>(null);
+  const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -112,11 +112,11 @@ export default function BrandPerformancePage() {
     }
   }, [uid, password, selectedYear, fetchData]);
 
-  // Aggregate brand data across all periods
+  // Aggregate brand data across all periods (merge duplicates by name)
   const aggregatedBrands = useMemo(() => {
     if (!data) return [];
 
-    const brandTotals: Record<number, {
+    const brandTotals: Record<string, {
       brandId: number;
       brandName: string;
       totalRevenue: number;
@@ -137,56 +137,79 @@ export default function BrandPerformancePage() {
       summerRegular: BrandMetrics | null;
     }> = {};
 
-    // Initialize with all brands that have sales
+    // Initialize with all brands that have sales (group by name to merge duplicates)
     const allBrandIds = new Set<number>();
     Object.values(data.periods).forEach(period => {
       Object.keys(period).forEach(brandId => allBrandIds.add(Number(brandId)));
     });
 
-    allBrandIds.forEach(brandId => {
-      const brandName = data.brandList.find(b => b.id === brandId)?.name || 'Unknown';
-      brandTotals[brandId] = {
-        brandId,
-        brandName,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalMargin: 0,
-        totalQuantity: 0,
-        winterRevenue: 0,
-        winterCost: 0,
-        winterMargin: 0,
-        winterQuantity: 0,
-        summerRevenue: 0,
-        summerCost: 0,
-        summerMargin: 0,
-        summerQuantity: 0,
-        winterSales: data.periods.winterSales[brandId] || null,
-        winterRegular: data.periods.winterRegular[brandId] || null,
-        summerSales: data.periods.summerSales[brandId] || null,
-        summerRegular: data.periods.summerRegular[brandId] || null,
-      };
-    });
 
-    // Aggregate totals
+    // Aggregate totals (merge by brand name to handle duplicates)
     Object.entries(data.periods).forEach(([periodKey, period]) => {
       Object.entries(period).forEach(([brandIdStr, metrics]) => {
         const brandId = Number(brandIdStr);
-        brandTotals[brandId].totalRevenue += metrics.revenue;
-        brandTotals[brandId].totalCost += metrics.cost;
-        brandTotals[brandId].totalMargin += metrics.margin;
-        brandTotals[brandId].totalQuantity += metrics.quantitySold;
+        const brandName = data.brandList.find(b => b.id === brandId)?.name || 'Unknown';
+        
+        if (!brandTotals[brandName]) {
+          // This shouldn't happen, but handle it just in case
+          brandTotals[brandName] = {
+            brandId,
+            brandName,
+            totalRevenue: 0,
+            totalCost: 0,
+            totalMargin: 0,
+            totalQuantity: 0,
+            winterRevenue: 0,
+            winterCost: 0,
+            winterMargin: 0,
+            winterQuantity: 0,
+            summerRevenue: 0,
+            summerCost: 0,
+            summerMargin: 0,
+            summerQuantity: 0,
+            winterSales: null,
+            winterRegular: null,
+            summerSales: null,
+            summerRegular: null,
+          };
+        }
+        
+        brandTotals[brandName].totalRevenue += metrics.revenue;
+        brandTotals[brandName].totalCost += metrics.cost;
+        brandTotals[brandName].totalMargin += metrics.margin;
+        brandTotals[brandName].totalQuantity += metrics.quantitySold;
+        
+        // Store period metrics (merge if duplicates exist)
+        const periodMetricsKey = periodKey as 'winterSales' | 'winterRegular' | 'summerSales' | 'summerRegular';
+        if (!brandTotals[brandName][periodMetricsKey]) {
+          brandTotals[brandName][periodMetricsKey] = { ...metrics };
+        } else {
+          // Merge with existing period data
+          const existing = brandTotals[brandName][periodMetricsKey]!;
+          existing.revenue += metrics.revenue;
+          existing.cost += metrics.cost;
+          existing.margin += metrics.margin;
+          existing.quantitySold += metrics.quantitySold;
+          existing.productCount += metrics.productCount;
+          if (metrics.profitPercentage > 0) {
+            existing.profitPercentage = (existing.margin / existing.revenue) * 100;
+          }
+          if (metrics.avgSellingPrice > 0) {
+            existing.avgSellingPrice = existing.revenue / existing.quantitySold;
+          }
+        }
         
         // Aggregate by season
         if (periodKey === 'winterSales' || periodKey === 'winterRegular') {
-          brandTotals[brandId].winterRevenue += metrics.revenue;
-          brandTotals[brandId].winterCost += metrics.cost;
-          brandTotals[brandId].winterMargin += metrics.margin;
-          brandTotals[brandId].winterQuantity += metrics.quantitySold;
+          brandTotals[brandName].winterRevenue += metrics.revenue;
+          brandTotals[brandName].winterCost += metrics.cost;
+          brandTotals[brandName].winterMargin += metrics.margin;
+          brandTotals[brandName].winterQuantity += metrics.quantitySold;
         } else if (periodKey === 'summerSales' || periodKey === 'summerRegular') {
-          brandTotals[brandId].summerRevenue += metrics.revenue;
-          brandTotals[brandId].summerCost += metrics.cost;
-          brandTotals[brandId].summerMargin += metrics.margin;
-          brandTotals[brandId].summerQuantity += metrics.quantitySold;
+          brandTotals[brandName].summerRevenue += metrics.revenue;
+          brandTotals[brandName].summerCost += metrics.cost;
+          brandTotals[brandName].summerMargin += metrics.margin;
+          brandTotals[brandName].summerQuantity += metrics.quantitySold;
         }
       });
     });
@@ -522,8 +545,12 @@ export default function BrandPerformancePage() {
                       const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                       
                       return (
-                        <React.Fragment key={brand.brandId}>
-                          <tr className={`${rowBg} hover:bg-blue-50 cursor-pointer`} onClick={() => setExpandedBrand(expandedBrand === brand.brandId ? null : brand.brandId)}>
+                        <React.Fragment key={brand.brandName}>
+                          <tr 
+                            className={`${rowBg} hover:bg-blue-50 cursor-pointer`} 
+                            onClick={() => setExpandedBrand(expandedBrand === brand.brandName ? null : brand.brandName)}
+                            title="Klik om details te zien"
+                          >
                             <td className="px-3 py-2 font-medium border-b">
                               {idx + 1}. {brand.brandName}
                             </td>
@@ -565,7 +592,7 @@ export default function BrandPerformancePage() {
                               {brand.summerRegular ? `€${formatBE(brand.summerRegular.revenue)}` : '-'}
                             </td>
                           </tr>
-                          {expandedBrand === brand.brandId && (
+                          {expandedBrand === brand.brandName && (
                             <tr className="bg-blue-50">
                               <td colSpan={11} className="px-6 py-4 border-b">
                                 <div className="grid grid-cols-4 gap-4">
