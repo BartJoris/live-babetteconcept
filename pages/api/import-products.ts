@@ -278,6 +278,7 @@ export default async function handler(
 
             const updateData: Record<string, unknown> = {
               standard_price: csvVariant.price,
+              weight: 0.2, // Default weight 0.2kg for all variants
             };
 
             // Only set barcode if it doesn't exist elsewhere

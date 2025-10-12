@@ -1257,6 +1257,7 @@ export default function ProductImport() {
                         <div>Variant {idx + 1}: Size {v.size}</div>
                         <div>Barcode: {v.ean}</div>
                         <div>Cost Price: €{v.price}</div>
+                        <div>Weight: 0.2 kg</div>
                       </div>
                     ))}
                   </div>
