@@ -10,7 +10,7 @@ interface ParsedProduct {
   variants: ProductVariant[];
   suggestedBrand?: string;
   selectedBrand?: { id: number; name: string };
-  category?: { id: number; name: string };
+  category?: { id: number; name: string; display_name?: string };
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
 }
@@ -32,13 +32,12 @@ interface Brand {
 interface Category {
   id: number;
   name: string;
-  display_name: string;
+  display_name?: string;
   complete_name?: string;
 }
 
 export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [csvData, setCsvData] = useState('');
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -48,9 +47,9 @@ export default function ProductImport() {
   const [batchBrand, setBatchBrand] = useState('');
   const [batchCategory, setBatchCategory] = useState('');
   const [loading, setLoading] = useState(false);
-  const [importResults, setImportResults] = useState<any>(null);
+  const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
-  const [apiPreviewData, setApiPreviewData] = useState<any>(null);
+  const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -66,6 +65,7 @@ export default function ProductImport() {
   useEffect(() => {
     fetchBrands();
     fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-fetch when reaching categories step
@@ -76,6 +76,7 @@ export default function ProductImport() {
     if (currentStep === 4 && (publicCategories.length === 0 || productTags.length === 0)) {
       fetchCategories();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   const getCredentials = () => {
@@ -149,7 +150,6 @@ export default function ProductImport() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      setCsvData(text);
       parseCSV(text);
     };
     reader.readAsText(file);
@@ -164,7 +164,7 @@ export default function ProductImport() {
 
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(';');
-      const row: any = {};
+      const row: Record<string, string> = {};
       headers.forEach((header, idx) => {
         row[header.trim()] = values[idx]?.trim() || '';
       });
@@ -674,7 +674,7 @@ export default function ProductImport() {
                   )}
                   {!loading && (brands.length === 0 || internalCategories.length === 0) && (
                     <div className="mt-2 text-sm text-yellow-700">
-                      ⚠️ Data nog niet geladen. Klik op "🔄 Vernieuw Data" om te laden.
+                      ⚠️ Data nog niet geladen. Klik op &quot;🔄 Vernieuw Data&quot; om te laden.
                     </div>
                   )}
                 </div>
@@ -709,7 +709,7 @@ export default function ProductImport() {
                   {/* Batch Category */}
                   <div className="border rounded p-4">
                     <h3 className="font-bold mb-3">
-                      📂 Interne Categorie (Batch) ({internalCategories.filter(c => c.display_name.includes('Kleding')).length} beschikbaar)
+                      📂 Interne Categorie (Batch) ({internalCategories.filter(c => c.display_name?.includes('Kleding')).length} beschikbaar)
                     </h3>
                     <select
                       value={batchCategory}
@@ -718,7 +718,7 @@ export default function ProductImport() {
                     >
                       <option value="">Selecteer interne categorie...</option>
                       {internalCategories
-                        .filter(c => c.display_name.includes('Kleding'))
+                        .filter(c => c.display_name?.includes('Kleding'))
                         .map(cat => (
                           <option key={cat.id} value={cat.id}>
                             {cat.display_name}
@@ -794,10 +794,10 @@ export default function ProductImport() {
                             >
                               <option value="">Selecteer...</option>
                               {internalCategories
-                                .filter(c => c.display_name.includes('Kleding'))
+                                .filter(c => c.display_name?.includes('Kleding'))
                                 .map(cat => (
                                   <option key={cat.id} value={cat.id}>
-                                    {cat.display_name.split(' / ').slice(-2).join(' / ')}
+                                    {cat.display_name?.split(' / ').slice(-2).join(' / ') || cat.name}
                                   </option>
                                 ))}
                             </select>
@@ -959,7 +959,7 @@ export default function ProductImport() {
                               <div className="text-xs text-gray-500">{product.reference}</div>
                             </td>
                             <td className="p-2">{product.selectedBrand?.name || '-'}</td>
-                            <td className="p-2 text-xs">{product.category?.display_name.split(' / ').slice(-1)[0] || '-'}</td>
+                            <td className="p-2 text-xs">{product.category?.display_name?.split(' / ').slice(-1)[0] || product.category?.name || '-'}</td>
                             <td className="p-2">
                               {product.publicCategories.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
@@ -1038,7 +1038,7 @@ export default function ProductImport() {
                         <div>
                           <div className="font-bold">{product.name}</div>
                           <div className="text-sm text-gray-600">
-                            {product.variants.length} varianten • {product.selectedBrand?.name} • {product.category?.display_name.split(' / ').slice(-1)[0]}
+                            {product.variants.length} varianten • {product.selectedBrand?.name} • {product.category?.display_name?.split(' / ').slice(-1)[0] || product.category?.name}
                           </div>
                           {product.publicCategories.length > 0 && (
                             <div className="flex gap-1 mt-1">
@@ -1093,13 +1093,13 @@ export default function ProductImport() {
                   <div className="bg-green-50 border border-green-200 rounded p-4">
                     <div className="text-green-600 text-sm mb-1">Succesvol</div>
                     <div className="text-3xl font-bold">
-                      {importResults.results?.filter((r: any) => r.success).length || 0}
+                      {importResults.results?.filter((r) => r.success).length || 0}
                     </div>
                   </div>
                   <div className="bg-red-50 border border-red-200 rounded p-4">
                     <div className="text-red-600 text-sm mb-1">Mislukt</div>
                     <div className="text-3xl font-bold">
-                      {importResults.results?.filter((r: any) => !r.success).length || 0}
+                      {importResults.results?.filter((r) => !r.success).length || 0}
                     </div>
                   </div>
                   <div className="bg-blue-50 border border-blue-200 rounded p-4">
@@ -1121,7 +1121,7 @@ export default function ProductImport() {
                       </tr>
                     </thead>
                     <tbody>
-                      {importResults.results?.map((result: any, idx: number) => (
+                      {importResults.results?.map((result, idx: number) => (
                         <tr key={idx} className="border-b">
                           <td className="p-2">
                             {result.success ? (
@@ -1199,10 +1199,10 @@ export default function ProductImport() {
                   <div><strong>Merk:</strong> {apiPreviewData.product.selectedBrand?.name}</div>
                   <div><strong>Categorie:</strong> {apiPreviewData.product.category?.display_name}</div>
                   {apiPreviewData.product.publicCategories.length > 0 && (
-                    <div><strong>Public Categorieën:</strong> {apiPreviewData.product.publicCategories.map((c: any) => c.name).join(', ')}</div>
+                    <div><strong>Public Categorieën:</strong> {apiPreviewData.product.publicCategories.map((c) => c.name).join(', ')}</div>
                   )}
                   {apiPreviewData.product.productTags.length > 0 && (
-                    <div><strong>Product Tags:</strong> {apiPreviewData.product.productTags.map((t: any) => t.name).join(', ')}</div>
+                    <div><strong>Product Tags:</strong> {apiPreviewData.product.productTags.map((t) => t.name).join(', ')}</div>
                   )}
                 </div>
               </div>
@@ -1221,8 +1221,8 @@ export default function ProductImport() {
                         categ_id: apiPreviewData.product.category?.id,
                         list_price: apiPreviewData.product.variants[0]?.rrp,
                         type: 'product',
-                        public_categ_ids: [[6, 0, apiPreviewData.product.publicCategories.map((c: any) => c.id)]],
-                        product_tag_ids: [[6, 0, apiPreviewData.product.productTags.map((t: any) => t.id)]],
+                        public_categ_ids: [[6, 0, apiPreviewData.product.publicCategories.map((c) => c.id)]],
+                        product_tag_ids: [[6, 0, apiPreviewData.product.productTags.map((t) => t.id)]],
                       }
                     }, null, 2)}
                   </pre>
@@ -1242,7 +1242,7 @@ export default function ProductImport() {
                     Step 3: Add Size Attribute
                   </summary>
                   <pre className="p-3 text-xs overflow-x-auto bg-gray-50">
-                    Sizes: {apiPreviewData.product.variants.map((v: any) => v.size).join(', ')}
+                    Sizes: {apiPreviewData.product.variants.map((v) => v.size).join(', ')}
                   </pre>
                 </details>
 
@@ -1251,7 +1251,7 @@ export default function ProductImport() {
                     Step 4: Update {apiPreviewData.product.variants.length} Variants (Barcodes & Prices)
                   </summary>
                   <div className="p-3 text-xs overflow-x-auto bg-gray-50">
-                    {apiPreviewData.product.variants.map((v: any, idx: number) => (
+                    {apiPreviewData.product.variants.map((v, idx: number) => (
                       <div key={idx} className="mb-2 p-2 border rounded">
                         <div>Variant {idx + 1}: Size {v.size}</div>
                         <div>Barcode: {v.ean}</div>

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Navigation from '../components/Navigation';
 
+// Type definition for product with brand issues (future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ProductWithIssue = {
   productId: number;
   templateId: number;
@@ -25,7 +27,16 @@ export default function BrandDiagnosticsPage() {
   const router = useRouter();
   const [uid, setUid] = useState<number | null>(null);
   const [password, setPassword] = useState<string>('');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ 
+    success: boolean; 
+    summary: { 
+      totalProducts: number;
+      productsWithBrand: number;
+      productsWithoutBrand: number;
+      productsWithOrphanedBrand: number;
+      duplicateBrandCount: number;
+    }
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

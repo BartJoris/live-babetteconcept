@@ -3,8 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
 
-async function callOdoo(uid: number, password: string, model: string, method: string, args: any[], kwargs?: any) {
-  const executeArgs = [ODOO_DB, uid, password, model, method, args];
+async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
+  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
   if (kwargs) executeArgs.push(kwargs);
 
   const payload = {
@@ -57,9 +57,9 @@ export default async function handler(
 
     console.log(`✅ Found ${merkAttributes.length} MERK attributes`);
 
-    const merkAttributeIds = merkAttributes.map((attr: any) => attr.id);
+    const merkAttributeIds = merkAttributes.map((attr: { id: number }) => attr.id);
     const attributeIdToName: Record<number, string> = {};
-    merkAttributes.forEach((attr: any) => {
+    merkAttributes.forEach((attr: { id: number; name: string }) => {
       attributeIdToName[attr.id] = attr.name;
     });
 
@@ -76,26 +76,27 @@ export default async function handler(
     console.log(`✅ Found ${brandValues.length} brand values`);
 
     // Format the brands with source information
-    const brands = brandValues.map((brand: any) => ({
+    const brands = brandValues.map((brand: { id: number; name: string; attribute_id: [number, string] }) => ({
       id: brand.id,
       name: brand.name,
       source: attributeIdToName[brand.attribute_id[0]] || 'Unknown',
-    })).sort((a: any, b: any) => a.name.localeCompare(b.name));
+    })).sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       success: true,
       brands,
       summary: {
         total: brands.length,
-        attributes: merkAttributes.map((a: any) => ({ id: a.id, name: a.name })),
+        attributes: merkAttributes.map((a: { id: number; name: string }) => ({ id: a.id, name: a.name })),
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Fetch brands error:', error);
+    const err = error as { message?: string };
     return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch brands',
+      error: err.message || 'Failed to fetch brands',
     });
   }
 }

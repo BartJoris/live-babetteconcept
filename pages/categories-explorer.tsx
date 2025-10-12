@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
 export default function CategoriesExplorer() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ success: boolean; summary: Record<string, number>; internalCategories: unknown[]; publicCategories: unknown[]; productTags: unknown[]; posCategories: unknown[]; error?: string; publicCategoriesError?: unknown; productTagsError?: unknown; sampleProductWithPublicCategs?: unknown; sampleProductsWithTags?: unknown } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('internal');
 
@@ -13,7 +13,20 @@ export default function CategoriesExplorer() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/debug-categories');
+      const uid = localStorage.getItem('odoo_uid');
+      const password = localStorage.getItem('odoo_pass');
+      
+      if (!uid || !password) {
+        console.error('No Odoo credentials found');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/debug-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, password }),
+      });
       const result = await response.json();
       setData(result);
       console.log('Categories data:', result);
@@ -24,7 +37,7 @@ export default function CategoriesExplorer() {
     }
   };
 
-  const downloadJSON = (dataObj: any, filename: string) => {
+  const downloadJSON = (dataObj: unknown, filename: string) => {
     const blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -166,7 +179,7 @@ export default function CategoriesExplorer() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.internalCategories.map((cat: any) => (
+                        {(data.internalCategories as Array<{ id: number; name: string; display_name: string; parent_id?: [number, string] | false }>).map((cat) => (
                           <tr key={cat.id} className="border-b hover:bg-gray-50">
                             <td className="p-2">{cat.id}</td>
                             <td className="p-2 font-medium">{cat.name}</td>
@@ -201,10 +214,10 @@ export default function CategoriesExplorer() {
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h3 className="font-bold text-yellow-800 mb-2">⚠️ No Public Categories Found</h3>
                       <p className="text-sm text-yellow-700 mb-3">
-                        This could mean public categories don't exist or there's an access issue.
+                        This could mean public categories don&apos;t exist or there&apos;s an access issue.
                       </p>
                       
-                      {data.publicCategoriesError && (
+                      {Boolean(data.publicCategoriesError) && (
                         <details className="mt-3">
                           <summary className="cursor-pointer font-medium">Error Details</summary>
                           <pre className="mt-2 text-xs bg-white p-3 rounded overflow-x-auto">
@@ -213,14 +226,14 @@ export default function CategoriesExplorer() {
                         </details>
                       )}
 
-                      {data.sampleProductWithPublicCategs && data.sampleProductWithPublicCategs.length > 0 && (
+                      {data.sampleProductWithPublicCategs && Array.isArray(data.sampleProductWithPublicCategs) && data.sampleProductWithPublicCategs.length > 0 ? (
                         <details className="mt-3">
                           <summary className="cursor-pointer font-medium">Sample Products with Public Category IDs</summary>
                           <pre className="mt-2 text-xs bg-white p-3 rounded overflow-x-auto">
                             {JSON.stringify(data.sampleProductWithPublicCategs, null, 2)}
                           </pre>
                         </details>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -233,9 +246,9 @@ export default function CategoriesExplorer() {
                             <th className="p-2 text-left">Parent</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {data.publicCategories.map((cat: any) => (
-                            <tr key={cat.id} className="border-b hover:bg-gray-50">
+                      <tbody>
+                        {(data.publicCategories as Array<{ id: number; name: string; display_name: string; parent_id?: [number, string] | false }>).map((cat) => (
+                          <tr key={cat.id} className="border-b hover:bg-gray-50">
                               <td className="p-2">{cat.id}</td>
                               <td className="p-2 font-medium">{cat.name}</td>
                               <td className="p-2 text-xs text-gray-600">{cat.display_name}</td>
@@ -273,7 +286,7 @@ export default function CategoriesExplorer() {
                         Product tags may not exist in this Odoo installation or the model name is different.
                       </p>
                       
-                      {data.productTagsError && (
+                      {Boolean(data.productTagsError) && (
                         <details className="mt-3">
                           <summary className="cursor-pointer font-medium">Error Details</summary>
                           <pre className="mt-2 text-xs bg-white p-3 rounded overflow-x-auto">
@@ -282,14 +295,14 @@ export default function CategoriesExplorer() {
                         </details>
                       )}
 
-                      {data.sampleProductsWithTags && data.sampleProductsWithTags.length > 0 && (
+                      {data.sampleProductsWithTags && Array.isArray(data.sampleProductsWithTags) && data.sampleProductsWithTags.length > 0 ? (
                         <details className="mt-3">
                           <summary className="cursor-pointer font-medium">Sample Products with Tag IDs</summary>
                           <pre className="mt-2 text-xs bg-white p-3 rounded overflow-x-auto">
                             {JSON.stringify(data.sampleProductsWithTags, null, 2)}
                           </pre>
                         </details>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -300,9 +313,9 @@ export default function CategoriesExplorer() {
                             <th className="p-2 text-left">Name</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {data.productTags.map((tag: any) => (
-                            <tr key={tag.id} className="border-b hover:bg-gray-50">
+                      <tbody>
+                        {(data.productTags as Array<{ id: number; name: string }>).map((tag) => (
+                          <tr key={tag.id} className="border-b hover:bg-gray-50">
                               <td className="p-2">{tag.id}</td>
                               <td className="p-2 font-medium">{tag.name}</td>
                             </tr>
@@ -336,7 +349,7 @@ export default function CategoriesExplorer() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.posCategories.map((cat: any) => (
+                        {(data.posCategories as Array<{ id: number; name: string; parent_id?: [number, string] | false }>).map((cat) => (
                           <tr key={cat.id} className="border-b hover:bg-gray-50">
                             <td className="p-2">{cat.id}</td>
                             <td className="p-2 font-medium">{cat.name}</td>

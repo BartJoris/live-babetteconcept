@@ -4,7 +4,29 @@ import Head from 'next/head';
 export default function ProductDebug() {
   const [productId, setProductId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ 
+    success: boolean; 
+    productId: number; 
+    template: Record<string, unknown>; 
+    variants?: Array<{ 
+      id: number; 
+      display_name: string; 
+      barcode?: string; 
+      standard_price: number; 
+      lst_price: number; 
+      qty_available: number 
+    }>;
+    attributeLines?: Array<{
+      id: number;
+      display_name: string;
+      value_count: number;
+      attribute_id: [number, string];
+    }>;
+    publicCategories?: Array<{
+      id: number;
+      display_name: string;
+    }>;
+  } | null>(null);
   const [error, setError] = useState('');
 
   const fetchProduct = async () => {
@@ -13,12 +35,19 @@ export default function ProductDebug() {
       return;
     }
 
+    const uid = localStorage.getItem('odoo_uid');
+    const password = localStorage.getItem('odoo_pass');
+    if (!uid || !password) {
+      setError('No Odoo credentials found');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setData(null);
 
     try {
-      const response = await fetch(`/api/product-debug?id=${productId}`);
+      const response = await fetch(`/api/product-debug?id=${productId}&uid=${uid}&password=${encodeURIComponent(password)}`);
       const result = await response.json();
 
       if (result.success) {
@@ -26,8 +55,9 @@ export default function ProductDebug() {
       } else {
         setError(result.error || 'Failed to fetch product');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch product');
+    } catch (err) {
+      const error = err as { message?: string };
+      setError(error.message || 'Failed to fetch product');
     } finally {
       setLoading(false);
     }
@@ -106,11 +136,11 @@ export default function ProductDebug() {
                 </div>
                 <div className="bg-white rounded-lg shadow p-4">
                   <div className="text-gray-600 text-sm mb-1">Price</div>
-                  <div className="text-2xl font-bold">€{data.template?.list_price}</div>
+                  <div className="text-2xl font-bold">€{String(data.template?.list_price || 0)}</div>
                 </div>
                 <div className="bg-white rounded-lg shadow p-4">
                   <div className="text-gray-600 text-sm mb-1">Cost Price</div>
-                  <div className="text-2xl font-bold">€{data.template?.standard_price || 0}</div>
+                  <div className="text-2xl font-bold">€{String(data.template?.standard_price || 0)}</div>
                 </div>
               </div>
 
@@ -136,15 +166,15 @@ export default function ProductDebug() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-700">Name:</span>{' '}
-                    <span className="text-gray-900">{data.template?.name}</span>
+                    <span className="text-gray-900">{String(data.template?.name || '')}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Category:</span>{' '}
-                    <span className="text-gray-900">{data.template?.categ_id?.[1]}</span>
+                    <span className="text-gray-900">{String((data.template?.categ_id as [number, string] | undefined)?.[1] || '')}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Type:</span>{' '}
-                    <span className="text-gray-900">{data.template?.type}</span>
+                    <span className="text-gray-900">{String(data.template?.type || '')}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Published:</span>{' '}
@@ -152,11 +182,11 @@ export default function ProductDebug() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Public Categories:</span>{' '}
-                    <span className="text-gray-900">{data.template?.public_categ_ids?.length || 0} assigned</span>
+                    <span className="text-gray-900">{((data.template?.public_categ_ids as number[] | undefined)?.length || 0)} assigned</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Product Tags:</span>{' '}
-                    <span className="text-gray-900">{data.template?.product_tag_ids?.length || 0} assigned</span>
+                    <span className="text-gray-900">{((data.template?.product_tag_ids as number[] | undefined)?.length || 0)} assigned</span>
                   </div>
                 </div>
               </div>
@@ -178,7 +208,7 @@ export default function ProductDebug() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.variants.map((variant: any) => (
+                        {data.variants.map((variant) => (
                           <tr key={variant.id} className="border-b">
                             <td className="p-2">{variant.id}</td>
                             <td className="p-2 font-medium">{variant.display_name}</td>
@@ -210,7 +240,7 @@ export default function ProductDebug() {
               {data.attributeLines && data.attributeLines.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-xl font-bold mb-4">Attributes</h2>
-                  {data.attributeLines.map((attr: any) => (
+                  {data.attributeLines.map((attr) => (
                     <div key={attr.id} className="mb-4 pb-4 border-b last:border-0">
                       <div className="font-bold text-gray-900">{attr.display_name}</div>
                       <div className="text-sm text-gray-600 mt-1">
@@ -225,7 +255,7 @@ export default function ProductDebug() {
               {data.publicCategories && data.publicCategories.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-xl font-bold mb-4">Public/eCommerce Categories</h2>
-                  {data.publicCategories.map((cat: any) => (
+                  {data.publicCategories.map((cat) => (
                     <div key={cat.id} className="mb-2">
                       <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm">
                         {cat.id} - {cat.display_name}

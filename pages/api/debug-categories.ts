@@ -3,8 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
 
-async function callOdoo(uid: number, password: string, model: string, method: string, args: any[], kwargs?: any) {
-  const executeArgs = [ODOO_DB, uid, password, model, method, args];
+async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
+  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
   if (kwargs) executeArgs.push(kwargs);
 
   const payload = {
@@ -50,8 +50,8 @@ export default async function handler(
     console.log(`✅ Found ${internalCategories.length} internal categories`);
 
     // Fetch Public/eCommerce Categories
-    let publicCategories: any[] = [];
-    let publicCategoriesError = null;
+    let publicCategories: unknown[] = [];
+    let publicCategoriesError: { code: number; message: string; data: unknown } | null = null;
 
     try {
       // Strategy: Find sample products with public categories, then fetch those specific categories
@@ -66,7 +66,7 @@ export default async function handler(
 
       if (sampleProducts && sampleProducts.length > 0) {
         const categoryIds = new Set<number>();
-        sampleProducts.forEach((p: any) => {
+        sampleProducts.forEach((p: { public_categ_ids?: number[] }) => {
           if (p.public_categ_ids && Array.isArray(p.public_categ_ids)) {
             p.public_categ_ids.forEach((id: number) => categoryIds.add(id));
           }
@@ -87,12 +87,13 @@ export default async function handler(
           console.log(`✅ Fetched ${publicCategories.length} public categories`);
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching public categories:', error);
+      const err = error as { code?: number; message?: string; data?: unknown };
       publicCategoriesError = {
-        code: error.code || 500,
-        message: error.message || 'Unknown error',
-        data: error.data || {},
+        code: err.code || 500,
+        message: err.message || 'Unknown error',
+        data: err.data || {},
       };
     }
 
@@ -108,8 +109,8 @@ export default async function handler(
     console.log(`✅ Found ${posCategories.length} POS categories`);
 
     // Fetch Product Tags
-    let productTags: any[] = [];
-    let productTagsError = null;
+    let productTags: unknown[] = [];
+    let productTagsError: { code: number; message: string; data: unknown } | null = null;
 
     try {
       // Try different possible model names for product tags
@@ -129,7 +130,7 @@ export default async function handler(
 
           if (sampleProducts && sampleProducts.length > 0) {
             const tagIds = new Set<number>();
-            sampleProducts.forEach((p: any) => {
+            sampleProducts.forEach((p: { product_tag_ids?: number[] }) => {
               if (p.product_tag_ids && Array.isArray(p.product_tag_ids)) {
                 p.product_tag_ids.forEach((id: number) => tagIds.add(id));
               }
@@ -149,23 +150,24 @@ export default async function handler(
                 );
                 console.log(`✅ Fetched ${productTags.length} product tags from model: ${modelName}`);
                 break;
-              } catch (modelError) {
+              } catch {
                 console.log(`Model ${modelName} failed, trying next...`);
                 continue;
               }
             }
           }
-        } catch (error) {
+        } catch {
           console.log(`Model ${modelName} not accessible`);
           continue;
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching product tags:', error);
+      const err = error as { code?: number; message?: string; data?: unknown };
       productTagsError = {
-        code: error.code || 500,
-        message: error.message || 'Unknown error',
-        data: error.data || {},
+        code: err.code || 500,
+        message: err.message || 'Unknown error',
+        data: err.data || {},
       };
     }
 
@@ -206,11 +208,12 @@ export default async function handler(
       sampleProductsWithTags,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Debug categories error:', error);
+    const err = error as { message?: string };
     return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch categories',
+      error: err.message || 'Failed to fetch categories',
     });
   }
 }

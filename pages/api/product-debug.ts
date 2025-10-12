@@ -1,5 +1,28 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { callOdooMethod } from '../../lib/odoo';
+
+const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
+const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
+
+async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[]) {
+  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
+
+  const payload = {
+    jsonrpc: '2.0',
+    method: 'call',
+    params: { service: 'object', method: 'execute_kw', args: executeArgs },
+    id: Date.now(),
+  };
+
+  const response = await fetch(ODOO_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await response.json();
+  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
+  return json.result;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -9,10 +32,14 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { id } = req.query;
+  const { id, uid, password } = req.query;
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'Product ID is required' });
+  }
+
+  if (!uid || !password || typeof uid !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Missing uid or password' });
   }
 
   try {
@@ -21,7 +48,9 @@ export default async function handler(
     console.log(`🔍 Fetching product template ${productId}...`);
 
     // Fetch the product template  
-    const template = await callOdooMethod(
+    const template = await callOdoo(
+      parseInt(uid),
+      password,
       'product.template',
       'read',
       [[productId]]
@@ -39,7 +68,9 @@ export default async function handler(
     // Fetch attribute lines
     let attributeLines = [];
     if (productTemplate.attribute_line_ids && productTemplate.attribute_line_ids.length > 0) {
-      attributeLines = await callOdooMethod(
+      attributeLines = await callOdoo(
+        parseInt(uid),
+        password,
         'product.template.attribute.line',
         'read',
         [productTemplate.attribute_line_ids]
@@ -49,7 +80,9 @@ export default async function handler(
     // Fetch product variants
     let variants = [];
     if (productTemplate.product_variant_ids && productTemplate.product_variant_ids.length > 0) {
-      variants = await callOdooMethod(
+      variants = await callOdoo(
+        parseInt(uid),
+        password,
         'product.product',
         'read',
         [productTemplate.product_variant_ids]
@@ -59,7 +92,9 @@ export default async function handler(
     // Fetch category
     let category = null;
     if (productTemplate.categ_id && productTemplate.categ_id[0]) {
-      const categoryResult = await callOdooMethod(
+      const categoryResult = await callOdoo(
+        parseInt(uid),
+        password,
         'product.category',
         'read',
         [[productTemplate.categ_id[0]]]
@@ -73,7 +108,9 @@ export default async function handler(
     let publicCategories = [];
     if (productTemplate.public_categ_ids && productTemplate.public_categ_ids.length > 0) {
       try {
-        publicCategories = await callOdooMethod(
+        publicCategories = await callOdoo(
+          parseInt(uid),
+          password,
           'product.public.category',
           'read',
           [productTemplate.public_categ_ids]
@@ -98,11 +135,12 @@ export default async function handler(
       publicCategories,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Product debug error:', error);
+    const err = error as { message?: string };
     return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch product',
+      error: err.message || 'Failed to fetch product',
     });
   }
 }

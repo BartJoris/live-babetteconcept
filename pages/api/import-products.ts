@@ -3,8 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
 
-async function callOdoo(uid: number, password: string, model: string, method: string, args: any[], kwargs?: any) {
-  const executeArgs = [ODOO_DB, uid, password, model, method, args];
+async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
+  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
   if (kwargs) executeArgs.push(kwargs);
 
   const payload = {
@@ -90,7 +90,7 @@ export default async function handler(
 
         // Step 1: Create Product Template
         console.log('Step 1: Creating product template...');
-        const templateData: any = {
+        const templateData: Record<string, unknown> = {
           name: product.name,
           categ_id: product.category.id,
           list_price: product.variants[0].rrp,
@@ -275,7 +275,7 @@ export default async function handler(
               [[['barcode', '=', csvVariant.ean]]]
             );
 
-            const updateData: any = {
+            const updateData: Record<string, unknown> = {
               standard_price: csvVariant.price,
             };
 
@@ -318,12 +318,13 @@ export default async function handler(
           message: `Created template ${templateId} with ${variantsResult.length} variants`,
         });
 
-      } catch (productError: any) {
+      } catch (productError) {
         console.error(`❌ Error processing ${product.reference}:`, productError);
+        const err = productError as { message?: string };
         results.push({
           success: false,
           reference: product.reference,
-          message: productError.message || String(productError),
+          message: err.message || String(productError),
         });
       }
     }
@@ -341,11 +342,12 @@ export default async function handler(
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Import error:', error);
+    const err = error as { message?: string };
     return res.status(500).json({
       success: false,
-      error: error.message || 'Import failed',
+      error: err.message || 'Import failed',
     });
   }
 }

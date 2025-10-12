@@ -42,7 +42,7 @@ type BrandDiagnosticsResponse = {
     totalProducts: number;
   }>;
   validBrands: Array<{ id: number; name: string; source: string; productCount: number }>;
-  attributeIds: Record<string, number>; // 'MERK' -> 18, 'Merk 1' -> 7
+  attributeIds: Record<number, string>; // 18 -> 'MERK', 7 -> 'Merk 1'
   summary: {
     totalProducts: number;
     productsWithBrand: number;
@@ -160,7 +160,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const duplicateBrandNames = Object.entries(brandNameGroups)
       .filter(([, variants]) => variants.length > 1)
-      .map(([normalizedName, variants]) => ({
+      .map(([, variants]) => ({
         canonicalName: variants[0].name,
         variants,
         totalProducts: 0, // Will be filled later
