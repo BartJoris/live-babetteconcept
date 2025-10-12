@@ -1220,7 +1220,8 @@ export default function ProductImport() {
                         name: apiPreviewData.product.name,
                         categ_id: apiPreviewData.product.category?.id,
                         list_price: apiPreviewData.product.variants[0]?.rrp,
-                        type: 'product',
+                        type: 'consu',
+                        weight: 0.2,
                         public_categ_ids: [[6, 0, apiPreviewData.product.publicCategories.map((c) => c.id)]],
                         product_tag_ids: [[6, 0, apiPreviewData.product.productTags.map((t) => t.id)]],
                       }

@@ -97,6 +97,7 @@ export default async function handler(
           standard_price: product.variants[0].price,
           type: 'consu', // Odoo 19 uses 'consu' for consumable products
           default_code: product.reference,
+          weight: 0.2, // Default weight 0.2kg for all products
         };
 
         // Add public categories if any
