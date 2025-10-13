@@ -427,6 +427,14 @@ export default function ProductImport() {
                   Kies hoe je productgegevens wilt importeren. Meerdere formaten worden ondersteund.
                 </p>
 
+                {/* Automatic Defaults Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-bold text-blue-900 mb-2">✨ Automatische Standaardinstellingen</h3>
+                  <p className="text-xs text-blue-800 mb-2">
+                    Alle producten krijgen automatisch: <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong> • <strong>Babette. website</strong>
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
                     <div className="text-4xl mb-3">📄</div>
@@ -904,6 +912,40 @@ export default function ProductImport() {
                 <p className="text-gray-600 mb-6">
                   Review wat er aangemaakt wordt voordat je importeert.
                 </p>
+
+                {/* Automatic Defaults Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-bold text-blue-900 mb-3">ℹ️ Automatische Standaardinstellingen</h3>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Alle geïmporteerde producten krijgen automatisch de volgende instellingen:
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Productsoort:</span>{' '}
+                      <span className="text-gray-900">Verbruiksartikel</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Gewicht:</span>{' '}
+                      <span className="text-gray-900">0,20 kg (per variant)</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Kassa:</span>{' '}
+                      <span className="text-green-600">✓ Kan verkocht worden</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Website:</span>{' '}
+                      <span className="text-green-600">✓ Babette. (gepubliceerd)</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Facturatiebeleid:</span>{' '}
+                      <span className="text-gray-900">Geleverde hoeveelheden</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Voorraad bijhouden:</span>{' '}
+                      <span className="text-blue-600">Beheerd via categorie</span>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="border-2 border-blue-200 rounded p-4">

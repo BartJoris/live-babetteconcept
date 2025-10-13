@@ -134,12 +134,25 @@ When you import a product, the system creates:
   categ_id: 210, // Internal category
   list_price: 54.00, // RRP from CSV
   standard_price: 21.60, // Cost price from CSV
-  type: "product",
+  type: "consu", // Verbruiksartikel
   default_code: "225-2003-103", // Reference
+  weight: 0.2, // Default 0.2kg
+  available_in_pos: true, // ✓ Kassa enabled
+  website_id: 1, // Website: Babette.
+  website_published: true, // ✓ Kan gekocht worden
   public_categ_ids: [[6, 0, [336, 447]]], // eCommerce categories
   product_tag_ids: [[6, 0, [7]]], // Product labels
 }
 ```
+
+### ✨ Automatic Defaults Applied:
+All imported products automatically get:
+- ✅ **Productsoort**: Verbruiksartikel (consumable)
+- ✅ **Gewicht**: 0,20 kg (per variant)
+- ✅ **Kassa**: ✓ Kan verkocht worden
+- ✅ **Website**: Babette. (gepubliceerd)
+- ✅ **Facturatiebeleid**: Geleverde hoeveelheden
+- ✅ **Voorraad bijhouden**: Via categorie-instellingen
 
 ### 2. Brand Attribute (MERK)
 - Creates attribute line with selected brand
