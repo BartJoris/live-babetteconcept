@@ -431,7 +431,7 @@ export default function ProductImport() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <h3 className="font-bold text-blue-900 mb-2">✨ Automatische Standaardinstellingen</h3>
                   <p className="text-xs text-blue-800 mb-2">
-                    Alle producten krijgen automatisch: <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong> • <strong>Babette. website</strong>
+                    Alle producten krijgen automatisch: <strong>Voorraad Product</strong> • <strong>Voorraad bijhouden ✓</strong> • <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong>
                   </p>
                 </div>
 
@@ -922,11 +922,15 @@ export default function ProductImport() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Productsoort:</span>{' '}
-                      <span className="text-gray-900">Verbruiksartikel</span>
+                      <span className="text-gray-900">Voorraad Product</span>
                     </div>
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Gewicht:</span>{' '}
                       <span className="text-gray-900">0,20 kg (per variant)</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Voorraad bijhouden:</span>{' '}
+                      <span className="text-green-600">✓ Ingeschakeld</span>
                     </div>
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Kassa:</span>{' '}
@@ -939,10 +943,6 @@ export default function ProductImport() {
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Facturatiebeleid:</span>{' '}
                       <span className="text-gray-900">Geleverde hoeveelheden</span>
-                    </div>
-                    <div className="bg-white rounded p-2">
-                      <span className="font-medium text-gray-700">Voorraad bijhouden:</span>{' '}
-                      <span className="text-blue-600">Beheerd via categorie</span>
                     </div>
                   </div>
                 </div>
@@ -1262,7 +1262,7 @@ export default function ProductImport() {
                         name: apiPreviewData.product.name,
                         categ_id: apiPreviewData.product.category?.id,
                         list_price: apiPreviewData.product.variants[0]?.rrp,
-                        type: 'consu',
+                        type: 'product',
                         weight: 0.2,
                         available_in_pos: true,
                         website_id: 1,

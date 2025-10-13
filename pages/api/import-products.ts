@@ -95,7 +95,7 @@ export default async function handler(
           categ_id: product.category.id,
           list_price: product.variants[0].rrp,
           standard_price: product.variants[0].price,
-          type: 'consu', // Odoo 19 uses 'consu' for consumable products
+          type: 'product', // Storable product (enables inventory tracking)
           default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
           available_in_pos: true, // Kan verkocht worden in Kassa
