@@ -37,27 +37,47 @@ export default async function handler(
     
     try {
       console.log('📦 Loading pdf-parse dynamically...');
+      
+      // Mock DOMMatrix to prevent errors in serverless environment
+      if (typeof DOMMatrix === 'undefined') {
+        console.log('📦 Creating DOMMatrix polyfill for serverless environment...');
+        (globalThis as { DOMMatrix?: unknown }).DOMMatrix = function() {
+          return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+        };
+      }
+      
       const pdfModule = await import('pdf-parse');
       const { PDFParse } = pdfModule;
       console.log('📦 PDFParse loaded, creating parser...');
       
       const parser = new PDFParse(pdfData);
       console.log('📦 Extracting text from PDF...');
-      const textResult = await parser.getText();
-      console.log('📦 getText result type:', typeof textResult, 'value:', textResult);
       
-      // getText returns pages array, we need to join them
-      if (Array.isArray(textResult)) {
-        pdfText = textResult.map(page => page.text || page).join('\n');
-      } else if (textResult && typeof textResult === 'object' && textResult.text) {
-        pdfText = textResult.text;
+      const textResult = await parser.getText();
+      console.log('📦 getText result type:', typeof textResult);
+      
+      // getText returns object with pages array and text property
+      if (textResult && typeof textResult === 'object') {
+        if (textResult.text) {
+          pdfText = textResult.text;
+          console.log('📦 Using result.text');
+        } else if (textResult.pages && Array.isArray(textResult.pages)) {
+          pdfText = textResult.pages.map((page: { text?: string }) => page.text || '').join('\n');
+          console.log('📦 Using result.pages');
+        } else if (Array.isArray(textResult)) {
+          pdfText = textResult.map((page: { text?: string } | string) => 
+            typeof page === 'string' ? page : (page.text || '')
+          ).join('\n');
+          console.log('📦 Using array result');
+        }
       } else {
         pdfText = String(textResult || '');
+        console.log('📦 Using string conversion');
       }
       
       console.log(`✅ Extracted ${pdfText.length} characters from PDF`);
       if (pdfText.length > 0) {
-        console.log('📝 PDF Text (first 1500 chars):\n', pdfText.substring(0, 1500));
+        console.log('📝 First line:', pdfText.split('\n')[0]);
       }
     } catch (pdfError) {
       console.error('❌ pdf-parse failed:', pdfError);

@@ -166,37 +166,41 @@ export default function ProductImport() {
     reader.readAsText(file);
   };
 
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePriceCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('pdf', file);
-
-    try {
-      setLoading(true);
-      const response = await fetch('/api/parse-price-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-      if (result.success && result.prices) {
-        const priceMap = new Map<string, number>();
-        Object.entries(result.prices).forEach(([sku, price]) => {
-          priceMap.set(sku, price as number);
-        });
-        setPdfPrices(priceMap);
-        console.log(`✅ Loaded ${priceMap.size} prices from PDF`);
-      } else {
-        alert('Fout bij het parsen van PDF: ' + (result.error || 'Onbekende fout'));
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.trim().split('\n');
+      
+      if (lines.length < 2) {
+        alert('CSV bestand is leeg of ongeldig');
+        return;
       }
-    } catch (error) {
-      console.error('PDF upload error:', error);
-      alert('Fout bij uploaden van PDF');
-    } finally {
-      setLoading(false);
-    }
+
+      const priceMap = new Map<string, number>();
+      
+      // Skip header line, parse data lines
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length >= 2) {
+          const sku = parts[0].trim();
+          const priceStr = parts[1].trim();
+          const price = parseFloat(priceStr.replace(',', '.'));
+          
+          if (sku && !isNaN(price) && price > 0) {
+            priceMap.set(sku, price);
+          }
+        }
+      }
+      
+      setPdfPrices(priceMap);
+      console.log(`✅ Loaded ${priceMap.size} prices from CSV`);
+      alert(`✅ ${priceMap.size} prijzen geladen uit CSV`);
+    };
+    reader.readAsText(file);
   };
 
   const parseAo76CSV = (text: string) => {
@@ -725,36 +729,45 @@ export default function ProductImport() {
                         </div>
 
                         <div className="border-2 border-orange-400 rounded-lg p-6 text-center">
-                          <div className="text-4xl mb-3">📋</div>
-                          <h3 className="font-bold mb-2">PDF Prijslijst</h3>
+                          <div className="text-4xl mb-3">💰</div>
+                          <h3 className="font-bold mb-2">Prijzen CSV</h3>
                           <p className="text-sm text-gray-600 mb-4">Cost prices (optional)</p>
                           <input
                             type="file"
-                            accept=".pdf"
-                            onChange={handlePdfUpload}
+                            accept=".csv"
+                            onChange={handlePriceCsvUpload}
                             className="hidden"
-                            id="pdf-upload"
+                            id="price-csv-upload"
                           />
                           <label
-                            htmlFor="pdf-upload"
+                            htmlFor="price-csv-upload"
                             className={`px-4 py-2 rounded cursor-pointer inline-block ${
                               pdfPrices.size > 0 
                                 ? 'bg-green-600 text-white hover:bg-green-700' 
                                 : 'bg-orange-600 text-white hover:bg-orange-700'
                             }`}
                           >
-                            {pdfPrices.size > 0 ? `✓ ${pdfPrices.size} prijzen geladen` : 'Kies PDF'}
+                            {pdfPrices.size > 0 ? `✓ ${pdfPrices.size} prijzen geladen` : 'Kies Prijzen CSV'}
                           </label>
+                          <div className="mt-3">
+                            <a
+                              href="/pdf-to-csv-converter"
+                              target="_blank"
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              📄 PDF naar CSV converter →
+                            </a>
+                          </div>
                         </div>
                       </div>
 
                       {pdfPrices.size > 0 && (
                         <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
                           <p className="text-green-800 font-medium">
-                            ✅ PDF prijslijst geladen: {pdfPrices.size} SKU prijzen beschikbaar
+                            ✅ Prijzen CSV geladen: {pdfPrices.size} SKU prijzen beschikbaar
                           </p>
                           <p className="text-xs text-green-700 mt-1">
-                            Kostprijzen uit PDF worden gebruikt in plaats van CSV prijzen waar beschikbaar
+                            Kostprijzen uit prijzen CSV worden gebruikt in plaats van product CSV prijzen waar beschikbaar
                           </p>
                         </div>
                       )}
