@@ -98,6 +98,9 @@ export default async function handler(
           type: 'consu', // Odoo 19 uses 'consu' for consumable products
           default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
+          available_in_pos: true, // Kan verkocht worden in Kassa
+          website_id: 1, // Website: Babette.
+          website_published: true, // Kan gekocht worden (online)
         };
 
         // Add public categories if any
