@@ -29,6 +29,7 @@ interface ProductVariant {
   size: string;
   quantity: number;
   ean: string;
+  sku?: string; // Internal Reference / SKU for variant
   price: number;
   rrp: number;
 }
@@ -44,6 +45,7 @@ interface ParsedProduct {
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
   originalName?: string;
+  isFavorite: boolean;
 }
 
 export default async function handler(
@@ -106,6 +108,7 @@ export default async function handler(
           website_published: true, // Kan gekocht worden (online)
           purchase_ok: false, // Kan NIET gekocht worden (inkoop uitgeschakeld)
           out_of_stock_message: '<p>Verkocht!</p><p><br></p>', // Bericht bij geen voorraad
+          is_favorite: product.isFavorite, // Favoriet product
         };
 
         // Add public categories if any
@@ -285,7 +288,7 @@ export default async function handler(
               continue;
             }
 
-            console.log(`Updating variant: Size ${sizeName}, Barcode ${csvVariant.ean}`);
+            console.log(`Updating variant: Size ${sizeName}, Barcode ${csvVariant.ean}, SKU ${csvVariant.sku || 'N/A'}`);
 
             // Check if barcode already exists
             const existingBarcode = await callOdoo(
@@ -300,6 +303,11 @@ export default async function handler(
               standard_price: csvVariant.price,
               weight: 0.2, // Default weight 0.2kg for all variants
             };
+
+            // Set SKU/Internal Reference if available
+            if (csvVariant.sku) {
+              updateData.default_code = csvVariant.sku;
+            }
 
             // Only set barcode if it doesn't exist elsewhere
             if (!existingBarcode || existingBarcode.length === 0) {

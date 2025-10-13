@@ -15,6 +15,7 @@ interface ParsedProduct {
   category?: { id: number; name: string; display_name?: string };
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
+  isFavorite: boolean; // Editable favorite flag
 }
 
 interface ProductVariant {
@@ -242,6 +243,7 @@ export default function ProductImport() {
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
+          isFavorite: true, // Default to favorite
         };
       }
 
@@ -334,6 +336,7 @@ export default function ProductImport() {
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
+          isFavorite: true, // Default to favorite
         };
       }
 
@@ -411,6 +414,14 @@ export default function ProductImport() {
     setParsedProducts(products =>
       products.map(p =>
         p.reference === productRef ? { ...p, name: newName } : p
+      )
+    );
+  };
+
+  const toggleProductFavorite = (productRef: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef ? { ...p, isFavorite: !p.isFavorite } : p
       )
     );
   };
@@ -932,10 +943,21 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                   placeholder="Product naam..."
                                 />
                               </div>
-                              <div className="text-sm text-gray-600">
-                                <span className="bg-gray-100 px-2 py-1 rounded text-xs font-medium">{product.reference}</span>
-                                <span className="mx-2">•</span>
-                                <span className="text-xs">{product.color}</span>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <div>
+                                  <span className="bg-gray-100 px-2 py-1 rounded text-xs font-medium">{product.reference}</span>
+                                  <span className="mx-2">•</span>
+                                  <span className="text-xs">{product.color}</span>
+                                </div>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={product.isFavorite}
+                                    onChange={() => toggleProductFavorite(product.reference)}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-xs font-medium">⭐ Favoriet</span>
+                                </label>
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
                                 {product.variants.length} varianten • Verkoopprijs: €{product.variants[0]?.rrp.toFixed(2)}
