@@ -35,9 +35,35 @@ export default function BrandDiagnosticsPage() {
       productsWithoutBrand: number;
       productsWithOrphanedBrand: number;
       duplicateBrandCount: number;
-    }
+      productsWithSuggestions?: number;
+      productsWithExactMatch?: number;
+    };
+    productsWithoutBrand?: Array<{
+      templateId: number;
+      templateName: string;
+      currentStock: number;
+      suggestedBrandName?: string;
+      suggestedBrandId?: number;
+      suggestedBrandSource?: string;
+      matchConfidence?: 'exact' | 'fuzzy' | 'none';
+    }>;
+    brandSuggestions?: Array<{
+      suggestedBrandName: string;
+      matchedBrandId: number | null;
+      matchedBrandName: string | null;
+      matchedBrandSource: string | null;
+      matchConfidence: string;
+      products: Array<{
+        templateId: number;
+        templateName: string;
+      }>;
+      totalStock: number;
+    }>;
+    validBrands?: Array<{ id: number; name: string; source: string }>;
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedForTest, setSelectedForTest] = useState<number | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -78,6 +104,78 @@ export default function BrandDiagnosticsPage() {
     }
   }, [uid, password, fetchData]);
 
+  const testBrandAssignment = async (templateId: number, brandId: number, brandSource: string) => {
+    if (!uid || !password) return;
+    
+    setUpdating(true);
+    try {
+      const response = await fetch('/api/assign-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          password,
+          templateIds: [templateId],
+          brandId,
+          brandSource,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Test succesvol! Product ID ${templateId} bijgewerkt met merk.`);
+        fetchData(); // Reload data
+      } else {
+        alert(`❌ Test mislukt: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error testing brand assignment:', error);
+      alert('❌ Fout bij test');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const bulkAssignBrand = async (templateIds: number[], brandId: number, brandSource: string) => {
+    if (!uid || !password) return;
+    
+    const confirmed = confirm(
+      `Weet je zeker dat je ${templateIds.length} producten wilt bijwerken met deze merk?\n\nDit kan niet ongedaan worden gemaakt.`
+    );
+    
+    if (!confirmed) return;
+
+    setUpdating(true);
+    try {
+      const response = await fetch('/api/assign-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          password,
+          templateIds,
+          brandId,
+          brandSource,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Succesvol! ${result.updated} van ${templateIds.length} producten bijgewerkt.`);
+        fetchData(); // Reload data
+      } else {
+        alert(`❌ Bulk update mislukt: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error bulk assigning brand:', error);
+      alert('❌ Fout bij bulk update');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <Navigation />
@@ -98,7 +196,7 @@ export default function BrandDiagnosticsPage() {
             <p className="text-center py-12">⏳ Gegevens laden...</p>
           ) : data ? (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-blue-600 text-xs font-medium mb-1">Totaal Producten</p>
                   <p className="text-3xl font-bold text-blue-900">{data.summary?.totalProducts || 0}</p>
@@ -111,12 +209,136 @@ export default function BrandDiagnosticsPage() {
                   <p className="text-orange-600 text-xs font-medium mb-1">⚠️ Zonder Merk</p>
                   <p className="text-3xl font-bold text-orange-900">{data.summary?.productsWithoutBrand || 0}</p>
                 </div>
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <p className="text-purple-600 text-xs font-medium mb-1">🤖 AI Suggesties</p>
+                  <p className="text-3xl font-bold text-purple-900">{data.summary?.productsWithSuggestions || 0}</p>
+                </div>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm">Brand diagnostics loaded. Full feature coming back soon!</p>
-                <p className="text-xs text-gray-600 mt-2">This page will show brand suggestions and assignment tools.</p>
-              </div>
+              {/* Products Without Brand with AI Suggestions */}
+              {data.productsWithoutBrand && data.productsWithoutBrand.length > 0 && (
+                <div className="mt-6">
+                  <h2 className="text-xl font-bold mb-4">
+                    🤖 AI Merk Suggesties ({data.summary?.productsWithSuggestions || 0} met suggesties)
+                  </h2>
+                  
+                  {data.brandSuggestions?.filter(group => group.matchedBrandId).map((group, idx) => (
+                    <div key={idx} className="border rounded-lg p-4 mb-4 bg-white">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-bold text-lg">
+                            {group.suggestedBrandName}
+                            {group.matchConfidence === 'exact' && (
+                              <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">✓ Exact Match</span>
+                            )}
+                            {group.matchConfidence === 'fuzzy' && (
+                              <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">~ Fuzzy Match</span>
+                            )}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Gevonden merk: <strong>{group.matchedBrandName}</strong> ({group.matchedBrandSource})
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {group.products.length} producten • {group.totalStock} stuks voorraad
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const firstProduct = group.products[0];
+                              if (group.matchedBrandId && firstProduct) {
+                                setSelectedForTest(firstProduct.templateId);
+                                testBrandAssignment(
+                                  firstProduct.templateId,
+                                  group.matchedBrandId,
+                                  group.matchedBrandSource || 'MERK'
+                                );
+                              }
+                            }}
+                            disabled={updating || !group.matchedBrandId}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 text-sm"
+                          >
+                            🧪 Test met 1 Product
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (group.matchedBrandId) {
+                                const templateIds = group.products.map(p => p.templateId);
+                                bulkAssignBrand(
+                                  templateIds,
+                                  group.matchedBrandId,
+                                  group.matchedBrandSource || 'MERK'
+                                );
+                              }
+                            }}
+                            disabled={updating || !group.matchedBrandId}
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 text-sm"
+                          >
+                            ✅ Update Alle ({group.products.length})
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Product List */}
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                          Toon {group.products.length} producten
+                        </summary>
+                        <div className="mt-3 space-y-1">
+                          {group.products.map((product) => (
+                            <div
+                              key={product.templateId}
+                              className={`text-sm p-2 rounded ${
+                                selectedForTest === product.templateId ? 'bg-blue-100' : 'bg-gray-50'
+                              }`}
+                            >
+                              <span className="font-medium">{product.templateName}</span>
+                              <span className="text-gray-500 ml-2">(ID: {product.templateId})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  ))}
+
+                  {/* Products without suggestions */}
+                  {data.productsWithoutBrand.filter(p => !p.suggestedBrandName).length > 0 && (
+                    <div className="border rounded-lg p-4 bg-yellow-50">
+                      <h3 className="font-bold text-lg mb-3">
+                        ⚠️ Geen AI Suggestie ({data.productsWithoutBrand.filter(p => !p.suggestedBrandName).length} producten)
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Deze producten hebben geen duidelijke merknaam in de titel. Handmatige toewijzing vereist.
+                      </p>
+                      <details>
+                        <summary className="cursor-pointer text-sm font-medium hover:text-gray-900">
+                          Toon producten zonder suggestie
+                        </summary>
+                        <div className="mt-3 space-y-1">
+                          {data.productsWithoutBrand
+                            .filter(p => !p.suggestedBrandName)
+                            .map((product) => (
+                              <div key={product.templateId} className="text-sm p-2 rounded bg-white">
+                                <span className="font-medium">{product.templateName}</span>
+                                <span className="text-gray-500 ml-2">(ID: {product.templateId})</span>
+                                <span className="text-gray-400 ml-2">• {product.currentStock} stuks</span>
+                              </div>
+                            ))}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {data.productsWithoutBrand && data.productsWithoutBrand.length === 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                  <div className="text-4xl mb-3">🎉</div>
+                  <h3 className="text-xl font-bold text-green-900 mb-2">Alle Producten Hebben een Merk!</h3>
+                  <p className="text-green-700">Er zijn geen producten zonder merk gevonden.</p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-center py-12 text-gray-500">Geen data beschikbaar</p>
