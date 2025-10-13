@@ -98,6 +98,7 @@ export default async function handler(
           type: 'product', // Storable product (enables inventory tracking)
           default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
+          tracking: 'none', // No serial/lot tracking, but inventory is tracked
           available_in_pos: true, // Kan verkocht worden in Kassa
           website_id: 1, // Website: Babette.
           website_published: true, // Kan gekocht worden (online)
