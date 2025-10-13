@@ -1262,7 +1262,6 @@ export default function ProductImport() {
                         name: apiPreviewData.product.name,
                         categ_id: apiPreviewData.product.category?.id,
                         list_price: apiPreviewData.product.variants[0]?.rrp,
-                        detailed_type: 'consu',
                         type: 'consu',
                         is_storable: true,
                         weight: 0.2,
