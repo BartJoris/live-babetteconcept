@@ -95,6 +95,7 @@ export default async function handler(
           categ_id: product.category.id,
           list_price: product.variants[0].rrp,
           standard_price: product.variants[0].price,
+          detailed_type: 'product', // Odoo 19 uses detailed_type for storable products
           type: 'product', // Storable product (enables inventory tracking)
           default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
