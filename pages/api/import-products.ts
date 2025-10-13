@@ -95,9 +95,9 @@ export default async function handler(
           categ_id: product.category.id,
           list_price: product.variants[0].rrp,
           standard_price: product.variants[0].price,
-          detailed_type: 'product', // Odoo 19 uses detailed_type for storable products
-          type: 'product', // Storable product (enables inventory tracking)
-          is_storable: true, // Enable "Voorraad bijhouden" checkbox
+          detailed_type: 'consu', // Consumable product type
+          type: 'consu', // Verbruiksartikel
+          is_storable: true, // Enable "Voorraad bijhouden" checkbox (can track inventory even for consumables)
           default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
           tracking: 'none', // No serial/lot tracking, but inventory is tracked

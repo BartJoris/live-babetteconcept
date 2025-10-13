@@ -431,7 +431,7 @@ export default function ProductImport() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <h3 className="font-bold text-blue-900 mb-2">✨ Automatische Standaardinstellingen</h3>
                   <p className="text-xs text-blue-800 mb-2">
-                    Alle producten krijgen automatisch: <strong>Voorraad Product</strong> • <strong>Voorraad bijhouden ✓</strong> • <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong>
+                    Alle producten krijgen automatisch: <strong>Verbruiksartikel</strong> • <strong>Voorraad bijhouden ✓</strong> • <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong>
                   </p>
                 </div>
 
@@ -922,7 +922,7 @@ export default function ProductImport() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Productsoort:</span>{' '}
-                      <span className="text-gray-900">Voorraad Product</span>
+                      <span className="text-gray-900">Verbruiksartikel</span>
                     </div>
                     <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Gewicht:</span>{' '}
@@ -1262,8 +1262,8 @@ export default function ProductImport() {
                         name: apiPreviewData.product.name,
                         categ_id: apiPreviewData.product.category?.id,
                         list_price: apiPreviewData.product.variants[0]?.rrp,
-                        detailed_type: 'product',
-                        type: 'product',
+                        detailed_type: 'consu',
+                        type: 'consu',
                         is_storable: true,
                         weight: 0.2,
                         tracking: 'none',
