@@ -17,11 +17,13 @@ interface ParsedProduct {
 
 interface ProductVariant {
   size: string;
-  quantity: number;
+  quantity: number; // Editable stock quantity (default 0)
   ean: string;
   price: number;
   rrp: number;
 }
+
+type VendorType = 'ao76' | 'lenewblack' | null;
 
 interface Brand {
   id: number;
@@ -38,6 +40,7 @@ interface Category {
 
 export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -47,14 +50,14 @@ export default function ProductImport() {
   const [batchBrand, setBatchBrand] = useState('');
   const [batchCategory, setBatchCategory] = useState('');
   const [loading, setLoading] = useState(false);
-  const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
+  const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
     { id: 2, name: 'Mapping', icon: '🗺️' },
-    { id: 3, name: 'Selectie', icon: '☑️' },
+    { id: 3, name: 'Voorraad', icon: '📦' },
     { id: 4, name: 'Categorieën', icon: '📁' },
     { id: 5, name: 'Preview', icon: '👁️' },
     { id: 6, name: 'Test', icon: '🧪' },
@@ -150,12 +153,16 @@ export default function ProductImport() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      parseCSV(text);
+      if (selectedVendor === 'ao76') {
+        parseAo76CSV(text);
+      } else if (selectedVendor === 'lenewblack') {
+        parseLeNewBlackCSV(text);
+      }
     };
     reader.readAsText(file);
   };
 
-  const parseCSV = (text: string) => {
+  const parseAo76CSV = (text: string) => {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return;
 
@@ -204,10 +211,103 @@ export default function ProductImport() {
 
       products[reference].variants.push({
         size: row['Size'] || row['size'] || '',
-        quantity: parseInt(row['Quantity'] || row['quantity'] || '0'),
+        quantity: 0, // Default stock to 0 (editable by user)
         ean: row['EAN barcode'] || row['barcode'] || '',
         price: parsePrice(row['Price'] || row['price'] || '0'),
         rrp: parsePrice(row['RRP'] || row['rrp'] || '0'),
+      });
+    }
+
+    const productList = Object.values(products);
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  const parseLeNewBlackCSV = (text: string) => {
+    // Le New Black format parser
+    // First line is order reference, skip it and start from line 2 (headers)
+    const lines = text.trim().split('\n');
+    if (lines.length < 3) return; // Need at least: order ref, headers, and 1 data row
+
+    // Skip first line (order reference), use second line as headers
+    const headers = lines[1].split(';');
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Start from line 3 (index 2) for data rows
+    for (let i = 2; i < lines.length; i++) {
+      const values = lines[i].split(';');
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header.trim()] = values[idx]?.trim() || '';
+      });
+
+      // Le New Black format uses 'Product reference' as the grouping key
+      const reference = row['Product reference'] || row['SKU'];
+      if (!reference) continue;
+
+      if (!products[reference]) {
+        // Product name includes color at the end (e.g., "Bear fleece jacket Cookie")
+        const fullName = row['Product name'] || '';
+        const color = row['Color name'] || '';
+        const description = row['Description'] || '';
+        const brandName = row['Brand name'] || '';
+        
+        // Helper function to capitalize first letter of each word (Title Case)
+        const toTitleCase = (str: string) => {
+          return str.toLowerCase().split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+        };
+        
+        // Helper function to capitalize only first letter (Sentence case)
+        const toSentenceCase = (str: string) => {
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        // Format: "Hello Simone - Bear fleece jacket cookie"
+        // Brand name: Title Case (all words capitalized)
+        // Product name: Sentence case (only first word capitalized)
+        const formattedBrandName = brandName ? toTitleCase(brandName) : '';
+        const formattedProductName = fullName ? toSentenceCase(fullName) : '';
+        const combinedName = formattedBrandName 
+          ? `${formattedBrandName} - ${formattedProductName}` 
+          : formattedProductName;
+        
+        // Try to detect brand
+        const nameLower = brandName.toLowerCase() || fullName.toLowerCase();
+        const suggestedBrand = brands.find(b => 
+          nameLower.includes(b.name.toLowerCase())
+        );
+
+        products[reference] = {
+          reference,
+          name: combinedName,
+          material: description, // Use description as material field
+          color: color,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+        };
+      }
+
+      const parsePrice = (str: string) => {
+        if (!str) return 0;
+        // Le New Black uses comma as decimal separator (European format)
+        return parseFloat(str.replace(',', '.'));
+      };
+
+      const netAmount = parsePrice(row['Net amount'] || '0');
+
+      products[reference].variants.push({
+        size: row['Size name'] || '',
+        quantity: 0, // Default stock to 0 (editable by user)
+        ean: row['EAN13'] || '',
+        price: netAmount, // Net amount is the wholesale/cost price
+        rrp: netAmount * 2.5, // Calculate suggested retail price (2.5x markup) - user can edit
       });
     }
 
@@ -225,6 +325,44 @@ export default function ProductImport() {
       newSelected.add(reference);
     }
     setSelectedProducts(newSelected);
+  };
+
+  const updateVariantQuantity = (productRef: string, variantIndex: number, newQuantity: number) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef
+          ? {
+              ...p,
+              variants: p.variants.map((v, idx) =>
+                idx === variantIndex ? { ...v, quantity: newQuantity } : v
+              ),
+            }
+          : p
+      )
+    );
+  };
+
+  const updateVariantField = (productRef: string, variantIndex: number, field: keyof ProductVariant, value: string | number) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef
+          ? {
+              ...p,
+              variants: p.variants.map((v, idx) =>
+                idx === variantIndex ? { ...v, [field]: value } : v
+              ),
+            }
+          : p
+      )
+    );
+  };
+
+  const updateProductName = (productRef: string, newName: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef ? { ...p, name: newName } : p
+      )
+    );
   };
 
   const applyBatchBrand = () => {
@@ -424,54 +562,160 @@ export default function ProductImport() {
               <div>
                 <h2 className="text-2xl font-bold mb-4">📤 Upload Product Data</h2>
                 <p className="text-gray-600 mb-6">
-                  Kies hoe je productgegevens wilt importeren. Meerdere formaten worden ondersteund.
+                  Selecteer eerst de leverancier en upload dan de productgegevens.
                 </p>
 
-                {/* Automatic Defaults Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-bold text-blue-900 mb-2">✨ Automatische Standaardinstellingen</h3>
-                  <p className="text-xs text-blue-800 mb-2">
-                    Alle producten krijgen automatisch: <strong>Verbruiksartikel</strong> • <strong>Voorraad bijhouden ✓</strong> • <strong>Gewicht 0,20kg</strong> • <strong>Kassa ✓</strong> • <strong>Website gepubliceerd ✓</strong>
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
-                    <div className="text-4xl mb-3">📄</div>
-                    <h3 className="font-bold mb-2">CSV File</h3>
-                    <p className="text-sm text-gray-600 mb-4">Comma/semicolon separated</p>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="csv-upload"
-                    />
-                    <label
-                      htmlFor="csv-upload"
-                      className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
+                {/* Vendor Selection */}
+                <div className="mb-8">
+                  <h3 className="font-bold text-lg mb-4">1️⃣ Selecteer Leverancier</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setSelectedVendor('ao76')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'ao76'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
                     >
-                      Kies bestand
-                    </label>
-                  </div>
+                      <div className="text-4xl mb-3">🏷️</div>
+                      <h3 className="font-bold mb-2">Ao76</h3>
+                      <p className="text-sm text-gray-600">
+                        Standaard format met EAN, Reference, Description, Size
+                      </p>
+                      {selectedVendor === 'ao76' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
 
-                  <div className="border-2 border-gray-300 rounded-lg p-6 text-center opacity-50">
-                    <div className="text-4xl mb-3">📊</div>
-                    <h3 className="font-bold mb-2">Excel</h3>
-                    <p className="text-sm text-gray-600 mb-4">.xlsx, .xls</p>
-                    <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed">
-                      Coming soon
+                    <button
+                      onClick={() => setSelectedVendor('lenewblack')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'lenewblack'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🎨</div>
+                      <h3 className="font-bold mb-2">Le New Black</h3>
+                      <p className="text-sm text-gray-600">
+                        Order export met Brand name, Product reference, EAN13, Net amount
+                      </p>
+                      {selectedVendor === 'lenewblack' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                  <h4 className="font-bold text-yellow-800 mb-2">⚠️ Verwacht CSV Formaat:</h4>
-                  <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+                {/* File Upload */}
+                {selectedVendor && (
+                  <>
+                    <div className="mb-6">
+                      <h3 className="font-bold text-lg mb-4">2️⃣ Upload Bestand</h3>
+                      
+                      {/* Automatic Defaults Info */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <h3 className="font-bold text-blue-900 mb-3">✨ Automatische Standaardinstellingen</h3>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Productsoort:</span>{' '}
+                            <span className="text-gray-900">Verbruiksartikel</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Gewicht:</span>{' '}
+                            <span className="text-gray-900">0,20 kg</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Voorraad bijhouden:</span>{' '}
+                            <span className="text-green-600">✓ Ingeschakeld</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Kassa:</span>{' '}
+                            <span className="text-green-600">✓ Verkopen</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Website:</span>{' '}
+                            <span className="text-green-600">✓ Gepubliceerd</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Inkoop:</span>{' '}
+                            <span className="text-red-600">✗ Uitgeschakeld</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Voorraad:</span>{' '}
+                            <span className="text-gray-900">0 (instelbaar)</span>
+                          </div>
+                          <div className="bg-white rounded p-2">
+                            <span className="font-medium text-gray-700">Out of stock bericht:</span>{' '}
+                            <span className="text-gray-900">Verkocht!</span>
+                          </div>
+                        </div>
+                        {selectedVendor === 'lenewblack' && (
+                          <p className="text-xs text-blue-800 mt-3 border-t border-blue-300 pt-2">
+                            <strong>Le New Black specifiek:</strong> Verkoopprijs wordt automatisch berekend als <strong>2.5x de inkoopprijs</strong>. Je kunt dit later aanpassen in stap 3.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
+                          <div className="text-4xl mb-3">📄</div>
+                          <h3 className="font-bold mb-2">CSV File</h3>
+                          <p className="text-sm text-gray-600 mb-4">Comma/semicolon separated</p>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="csv-upload"
+                          />
+                          <label
+                            htmlFor="csv-upload"
+                            className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
+                          >
+                            Kies bestand
+                          </label>
+                        </div>
+
+                        <div className="border-2 border-gray-300 rounded-lg p-6 text-center opacity-50">
+                          <div className="text-4xl mb-3">📊</div>
+                          <h3 className="font-bold mb-2">Excel</h3>
+                          <p className="text-sm text-gray-600 mb-4">.xlsx, .xls</p>
+                          <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed">
+                            Coming soon
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Format Preview */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                      <h4 className="font-bold text-yellow-800 mb-2">
+                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : 'Le New Black'}:
+                      </h4>
+                      {selectedVendor === 'ao76' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
 {`EAN barcode;Reference;Description;Quality;Colour;Size;Quantity;Price;RRP;HS code
 5400562408965;225-2003-103;silas t-shirt;50% recycled cotton;natural;04;1;21.6;54;6109100010`}
-                  </pre>
-                </div>
+                        </pre>
+                      ) : (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+{`order-2995931-20251013
+Brand name;Collection;Product name;Product reference;Color name;Description;Size name;EAN13;SKU;Quantity;Net amount;Currency
+Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large jacket...;3Y;3701153659547;AW25-BFLJC-3Y;1;65,00;EUR
+
+→ Wordt: "Hello Simone - Bear fleece jacket cookie"`}
+                        </pre>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {!selectedVendor && (
+                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-8 text-center">
+                    <p className="text-gray-600">👆 Selecteer eerst een leverancier om te beginnen</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -510,7 +754,7 @@ export default function ProductImport() {
                         <th className="p-2 text-left">Materiaal</th>
                         <th className="p-2 text-left">Kleur</th>
                         <th className="p-2 text-left">Varianten</th>
-                        <th className="p-2 text-left">RRP</th>
+                        <th className="p-2 text-left">Verkoopprijs</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,12 +792,12 @@ export default function ProductImport() {
               </div>
             )}
 
-            {/* Step 3: Selection */}
+            {/* Step 3: Selection & Stock */}
             {currentStep === 3 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">☑️ Selecteer Producten</h2>
+                <h2 className="text-2xl font-bold mb-4">☑️ Selecteer Producten & Voorraad</h2>
                 <p className="text-gray-600 mb-4">
-                  Kies welke producten je wilt importeren. Je kunt later per product de categorie kiezen.
+                  Kies welke producten je wilt importeren en stel de voorraad in per variant (standaard: 0).
                 </p>
 
                 <div className="flex gap-3 mb-6">
@@ -574,61 +818,124 @@ export default function ProductImport() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100 sticky top-0">
-                      <tr>
-                        <th className="p-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedCount === parsedProducts.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedProducts(new Set(parsedProducts.map(p => p.reference)));
-                              } else {
-                                setSelectedProducts(new Set());
-                              }
-                            }}
-                          />
-                        </th>
-                        <th className="p-2 text-left">Product</th>
-                        <th className="p-2 text-left">Materiaal</th>
-                        <th className="p-2 text-left">Sizes</th>
-                        <th className="p-2 text-left">Kostprijs</th>
-                        <th className="p-2 text-left">RRP</th>
-                        <th className="p-2 text-left">Stock</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedProducts.map(product => (
-                        <tr
-                          key={product.reference}
-                          className={`border-b ${selectedProducts.has(product.reference) ? 'bg-blue-50' : ''}`}
-                        >
-                          <td className="p-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedProducts.has(product.reference)}
-                              onChange={() => toggleProduct(product.reference)}
-                            />
-                          </td>
-                          <td className="p-2">
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-gray-500">{product.reference}</div>
-                          </td>
-                          <td className="p-2 text-xs">{product.material}</td>
-                          <td className="p-2">
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                              {product.variants.length}
-                            </span>
-                          </td>
-                          <td className="p-2">€{product.variants[0]?.price.toFixed(2)}</td>
-                          <td className="p-2">€{product.variants[0]?.rrp.toFixed(2)}</td>
-                          <td className="p-2">{product.variants.reduce((s, v) => s + v.quantity, 0)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                  {parsedProducts.map(product => (
+                    <div
+                      key={product.reference}
+                      className={`border rounded-lg p-4 ${
+                        selectedProducts.has(product.reference) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      }`}
+                    >
+                      {/* Product Header */}
+                      <div className="flex items-start gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.has(product.reference)}
+                          onChange={() => toggleProduct(product.reference)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <div className="mb-2">
+                                <label className="text-xs text-gray-600 font-medium">Product Naam</label>
+                                <input
+                                  type="text"
+                                  value={product.name}
+                                  onChange={(e) => updateProductName(product.reference, e.target.value)}
+                                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-base font-bold focus:border-blue-500 focus:outline-none"
+                                  placeholder="Product naam..."
+                                />
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                <span className="bg-gray-100 px-2 py-1 rounded text-xs font-medium">{product.reference}</span>
+                                <span className="mx-2">•</span>
+                                <span className="text-xs">{product.color}</span>
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {product.variants.length} varianten • Verkoopprijs: €{product.variants[0]?.rrp.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Variants Table */}
+                          <div className="mt-4 overflow-x-auto">
+                            <table className="w-full text-sm border-t">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="p-2 text-left">Maat</th>
+                                  <th className="p-2 text-left">EAN</th>
+                                  <th className="p-2 text-left">Kostprijs</th>
+                                  <th className="p-2 text-left">Verkoopprijs</th>
+                                  <th className="p-2 text-left">Voorraad</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {product.variants.map((variant, idx) => (
+                                  <tr key={idx} className="border-b">
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={variant.size}
+                                        onChange={(e) => updateVariantField(product.reference, idx, 'size', e.target.value)}
+                                        className="w-16 border rounded px-2 py-1 text-center text-xs font-medium"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={variant.ean}
+                                        onChange={(e) => updateVariantField(product.reference, idx, 'ean', e.target.value)}
+                                        className="w-full border rounded px-2 py-1 text-xs"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <div className="flex items-center">
+                                        <span className="mr-1">€</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={variant.price}
+                                          onChange={(e) => updateVariantField(product.reference, idx, 'price', parseFloat(e.target.value) || 0)}
+                                          className="w-20 border rounded px-2 py-1 text-right"
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="p-2">
+                                      <div className="flex items-center">
+                                        <span className="mr-1">€</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={variant.rrp}
+                                          onChange={(e) => updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
+                                          className="w-20 border rounded px-2 py-1 text-right"
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={variant.quantity}
+                                        onChange={(e) => {
+                                          const newQty = parseInt(e.target.value) || 0;
+                                          updateVariantQuantity(product.reference, idx, newQty);
+                                        }}
+                                        className="w-20 border rounded px-2 py-1 text-center"
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-between mt-6">
@@ -941,6 +1248,14 @@ export default function ProductImport() {
                       <span className="text-green-600">✓ Babette. (gepubliceerd)</span>
                     </div>
                     <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Inkoop:</span>{' '}
+                      <span className="text-red-600">✗ Uitgeschakeld</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <span className="font-medium text-gray-700">Out of stock bericht:</span>{' '}
+                      <span className="text-gray-900">&quot;Verkocht!&quot;</span>
+                    </div>
+                    <div className="bg-white rounded p-2">
                       <span className="font-medium text-gray-700">Facturatiebeleid:</span>{' '}
                       <span className="text-gray-900">Geleverde hoeveelheden</span>
                     </div>
@@ -987,7 +1302,7 @@ export default function ProductImport() {
                         <th className="p-2 text-left">Categorie</th>
                         <th className="p-2 text-left">eCommerce Cat.</th>
                         <th className="p-2 text-left">Varianten</th>
-                        <th className="p-2 text-left">RRP</th>
+                        <th className="p-2 text-left">Verkoopprijs</th>
                         <th className="p-2 text-left">Status</th>
                       </tr>
                     </thead>
@@ -1156,8 +1471,8 @@ export default function ProductImport() {
                     <thead className="bg-gray-100">
                       <tr>
                         <th className="p-2 text-left">Status</th>
-                        <th className="p-2 text-left">Reference</th>
-                        <th className="p-2 text-left">Template ID</th>
+                        <th className="p-2 text-left">Product Naam</th>
+                        <th className="p-2 text-left">Product ID</th>
                         <th className="p-2 text-left">Varianten</th>
                         <th className="p-2 text-left">Bericht</th>
                       </tr>
@@ -1172,7 +1487,10 @@ export default function ProductImport() {
                               <span className="text-red-600">❌ Error</span>
                             )}
                           </td>
-                          <td className="p-2">{result.reference}</td>
+                          <td className="p-2">
+                            <div className="font-medium">{result.name || result.reference}</div>
+                            <div className="text-xs text-gray-500">{result.reference}</div>
+                          </td>
                           <td className="p-2">
                             {result.templateId ? (
                               <a
@@ -1198,6 +1516,7 @@ export default function ProductImport() {
                   <button
                     onClick={() => {
                       setCurrentStep(1);
+                      setSelectedVendor(null);
                       setParsedProducts([]);
                       setSelectedProducts(new Set());
                       setImportResults(null);

@@ -103,6 +103,8 @@ export default async function handler(
           available_in_pos: true, // Kan verkocht worden in Kassa
           website_id: 1, // Website: Babette.
           website_published: true, // Kan gekocht worden (online)
+          purchase_ok: false, // Kan NIET gekocht worden (inkoop uitgeschakeld)
+          out_of_stock_message: '<p>Verkocht!</p><p><br></p>', // Bericht bij geen voorraad
         };
 
         // Add public categories if any
@@ -118,6 +120,18 @@ export default async function handler(
         const templateResult = await callOdoo(parseInt(uid), password, 'product.template', 'create', [templateData]);
         const templateId = templateResult;
         console.log(`✅ Template created: ID ${templateId}`);
+
+        // Fetch display_name from the created product
+        const templateInfo = await callOdoo(
+          parseInt(uid),
+          password,
+          'product.template',
+          'read',
+          [[templateId]],
+          { fields: ['display_name'] }
+        );
+        const displayName = templateInfo && templateInfo.length > 0 ? templateInfo[0].display_name : product.name;
+        console.log(`📝 Display name: ${displayName}`);
 
         // Step 2: Get MERK attribute
         console.log('Step 2: Adding brand attribute...');
@@ -319,6 +333,7 @@ export default async function handler(
         results.push({
           success: true,
           reference: product.reference,
+          name: displayName,
           templateId,
           variantsCreated: variantsResult.length,
           variantsUpdated: updatedCount,
@@ -331,6 +346,7 @@ export default async function handler(
         results.push({
           success: false,
           reference: product.reference,
+          name: product.name,
           message: err.message || String(productError),
         });
       }

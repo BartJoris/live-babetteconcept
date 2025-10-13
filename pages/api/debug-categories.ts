@@ -49,44 +49,21 @@ export default async function handler(
     );
     console.log(`✅ Found ${internalCategories.length} internal categories`);
 
-    // Fetch Public/eCommerce Categories
+    // Fetch Public/eCommerce Categories - ALL categories
     let publicCategories: unknown[] = [];
     let publicCategoriesError: { code: number; message: string; data: unknown } | null = null;
 
     try {
-      // Strategy: Find sample products with public categories, then fetch those specific categories
-      const sampleProducts = await callOdoo(
+      // Fetch ALL public categories instead of just those from sample products
+      publicCategories = await callOdoo(
         parseInt(uid),
         password,
-        'product.template',
+        'product.public.category',
         'search_read',
-        [[['id', 'in', [6758, 7004]]]],
-        { fields: ['id', 'name', 'public_categ_ids'] }
+        [[]], // Empty domain = fetch all
+        { fields: ['id', 'name', 'display_name', 'parent_id'] }
       );
-
-      if (sampleProducts && sampleProducts.length > 0) {
-        const categoryIds = new Set<number>();
-        sampleProducts.forEach((p: { public_categ_ids?: number[] }) => {
-          if (p.public_categ_ids && Array.isArray(p.public_categ_ids)) {
-            p.public_categ_ids.forEach((id: number) => categoryIds.add(id));
-          }
-        });
-
-        console.log(`Found ${categoryIds.size} public category IDs from sample products`);
-
-        if (categoryIds.size > 0) {
-          // Note: product.public.category doesn't have complete_name field, only name and display_name
-          publicCategories = await callOdoo(
-            parseInt(uid),
-            password,
-            'product.public.category',
-            'search_read',
-            [[['id', 'in', Array.from(categoryIds)]]],
-            { fields: ['id', 'name', 'display_name', 'parent_id'] }
-          );
-          console.log(`✅ Fetched ${publicCategories.length} public categories`);
-        }
-      }
+      console.log(`✅ Fetched ${publicCategories.length} public categories (all)`);
     } catch (error) {
       console.error('Error fetching public categories:', error);
       const err = error as { code?: number; message?: string; data?: unknown };
@@ -108,7 +85,7 @@ export default async function handler(
     );
     console.log(`✅ Found ${posCategories.length} POS categories`);
 
-    // Fetch Product Tags
+    // Fetch Product Tags - ALL tags
     let productTags: unknown[] = [];
     let productTagsError: { code: number; message: string; data: unknown } | null = null;
 
@@ -118,46 +95,19 @@ export default async function handler(
       
       for (const modelName of possibleModels) {
         try {
-          // First check if model exists by trying to fetch from sample products
-          const sampleProducts = await callOdoo(
+          // Fetch ALL tags instead of just from sample products
+          productTags = await callOdoo(
             parseInt(uid),
             password,
-            'product.template',
+            modelName,
             'search_read',
-            [[['id', 'in', [6758, 7004]]]],
-            { fields: ['id', 'name', 'product_tag_ids'] }
+            [[]], // Empty domain = fetch all
+            { fields: ['id', 'name'] }
           );
-
-          if (sampleProducts && sampleProducts.length > 0) {
-            const tagIds = new Set<number>();
-            sampleProducts.forEach((p: { product_tag_ids?: number[] }) => {
-              if (p.product_tag_ids && Array.isArray(p.product_tag_ids)) {
-                p.product_tag_ids.forEach((id: number) => tagIds.add(id));
-              }
-            });
-
-            console.log(`Found ${tagIds.size} product tag IDs from sample products`);
-
-            if (tagIds.size > 0) {
-              try {
-                productTags = await callOdoo(
-                  parseInt(uid),
-                  password,
-                  modelName,
-                  'search_read',
-                  [[['id', 'in', Array.from(tagIds)]]],
-                  { fields: ['id', 'name'] }
-                );
-                console.log(`✅ Fetched ${productTags.length} product tags from model: ${modelName}`);
-                break;
-              } catch {
-                console.log(`Model ${modelName} failed, trying next...`);
-                continue;
-              }
-            }
-          }
+          console.log(`✅ Fetched ${productTags.length} product tags from model: ${modelName}`);
+          break; // Success, exit loop
         } catch {
-          console.log(`Model ${modelName} not accessible`);
+          console.log(`Model ${modelName} failed or not accessible, trying next...`);
           continue;
         }
       }
