@@ -132,7 +132,7 @@ export default async function handler(
             const handleLower = p.handle.toLowerCase();
             // Check if reference appears in title or handle
             return titleLower.includes(productRefLower) || handleLower.includes(productRefLower);
-          });
+          }) || null;
           
           if (matchedProduct) {
             console.log(`✅ [MATCH] Found exact match by reference "${productReference}": ${matchedProduct.title}`);

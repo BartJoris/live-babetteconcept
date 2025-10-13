@@ -42,9 +42,7 @@ export default async function handler(
       console.log('📦 PDFParse loaded, creating parser...');
       
       const parser = new PDFParse(pdfData);
-      console.log('📦 Loading PDF...');
-      await parser.load();
-      console.log('📦 Extracting text...');
+      console.log('📦 Extracting text from PDF...');
       const textResult = await parser.getText();
       console.log('📦 getText result type:', typeof textResult, 'value:', textResult);
       
