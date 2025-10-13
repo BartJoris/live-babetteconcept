@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 
 // Types
 interface ParsedProduct {
   reference: string;
   name: string;
+  originalName?: string; // Original product name from CSV (for image search)
   material: string;
   color: string;
   variants: ProductVariant[];
@@ -19,6 +21,7 @@ interface ProductVariant {
   size: string;
   quantity: number; // Editable stock quantity (default 0)
   ean: string;
+  sku?: string; // SKU for matching with PDF prices
   price: number;
   rrp: number;
 }
@@ -41,6 +44,7 @@ interface Category {
 export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
+  const [pdfPrices, setPdfPrices] = useState<Map<string, number>>(new Map());
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -162,6 +166,39 @@ export default function ProductImport() {
     reader.readAsText(file);
   };
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+      setLoading(true);
+      const response = await fetch('/api/parse-price-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success && result.prices) {
+        const priceMap = new Map<string, number>();
+        Object.entries(result.prices).forEach(([sku, price]) => {
+          priceMap.set(sku, price as number);
+        });
+        setPdfPrices(priceMap);
+        console.log(`✅ Loaded ${priceMap.size} prices from PDF`);
+      } else {
+        alert('Fout bij het parsen van PDF: ' + (result.error || 'Onbekende fout'));
+      }
+    } catch (error) {
+      console.error('PDF upload error:', error);
+      alert('Fout bij uploaden van PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const parseAo76CSV = (text: string) => {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return;
@@ -193,6 +230,7 @@ export default function ProductImport() {
         products[reference] = {
           reference,
           name: name.toLowerCase(),
+          originalName: name, // Store original name for image search
           material,
           color,
           variants: [],
@@ -284,6 +322,7 @@ export default function ProductImport() {
         products[reference] = {
           reference,
           name: combinedName,
+          originalName: fullName, // Store original name for image search
           material: description, // Use description as material field
           color: color,
           variants: [],
@@ -302,12 +341,19 @@ export default function ProductImport() {
 
       const netAmount = parsePrice(row['Net amount'] || '0');
 
+      const sku = row['SKU'] || '';
+      
+      // Check if we have a price from PDF for this SKU
+      const pdfPrice = sku && pdfPrices.has(sku) ? pdfPrices.get(sku)! : null;
+      const costPrice = pdfPrice || netAmount; // Use PDF price if available, otherwise CSV price
+      
       products[reference].variants.push({
         size: row['Size name'] || '',
         quantity: 0, // Default stock to 0 (editable by user)
         ean: row['EAN13'] || '',
-        price: netAmount, // Net amount is the wholesale/cost price
-        rrp: netAmount * 2.5, // Calculate suggested retail price (2.5x markup) - user can edit
+        sku: sku, // Store SKU for PDF price matching
+        price: costPrice, // Use PDF price if available, otherwise Net amount from CSV
+        rrp: netAmount * 2.5, // Calculate suggested retail price from CSV net amount
       });
     }
 
@@ -568,7 +614,7 @@ export default function ProductImport() {
                 {/* Vendor Selection */}
                 <div className="mb-8">
                   <h3 className="font-bold text-lg mb-4">1️⃣ Selecteer Leverancier</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <button
                       onClick={() => setSelectedVendor('ao76')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
@@ -605,6 +651,7 @@ export default function ProductImport() {
                       )}
                     </button>
                   </div>
+
                 </div>
 
                 {/* File Upload */}
@@ -657,11 +704,11 @@ export default function ProductImport() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">📄</div>
                           <h3 className="font-bold mb-2">CSV File</h3>
-                          <p className="text-sm text-gray-600 mb-4">Comma/semicolon separated</p>
+                          <p className="text-sm text-gray-600 mb-4">Product data (required)</p>
                           <input
                             type="file"
                             accept=".csv"
@@ -673,19 +720,44 @@ export default function ProductImport() {
                             htmlFor="csv-upload"
                             className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
                           >
-                            Kies bestand
+                            Kies CSV
                           </label>
                         </div>
 
-                        <div className="border-2 border-gray-300 rounded-lg p-6 text-center opacity-50">
-                          <div className="text-4xl mb-3">📊</div>
-                          <h3 className="font-bold mb-2">Excel</h3>
-                          <p className="text-sm text-gray-600 mb-4">.xlsx, .xls</p>
-                          <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed">
-                            Coming soon
-                          </button>
+                        <div className="border-2 border-orange-400 rounded-lg p-6 text-center">
+                          <div className="text-4xl mb-3">📋</div>
+                          <h3 className="font-bold mb-2">PDF Prijslijst</h3>
+                          <p className="text-sm text-gray-600 mb-4">Cost prices (optional)</p>
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handlePdfUpload}
+                            className="hidden"
+                            id="pdf-upload"
+                          />
+                          <label
+                            htmlFor="pdf-upload"
+                            className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                              pdfPrices.size > 0 
+                                ? 'bg-green-600 text-white hover:bg-green-700' 
+                                : 'bg-orange-600 text-white hover:bg-orange-700'
+                            }`}
+                          >
+                            {pdfPrices.size > 0 ? `✓ ${pdfPrices.size} prijzen geladen` : 'Kies PDF'}
+                          </label>
                         </div>
                       </div>
+
+                      {pdfPrices.size > 0 && (
+                        <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
+                          <p className="text-green-800 font-medium">
+                            ✅ PDF prijslijst geladen: {pdfPrices.size} SKU prijzen beschikbaar
+                          </p>
+                          <p className="text-xs text-green-700 mt-1">
+                            Kostprijzen uit PDF worden gebruikt in plaats van CSV prijzen waar beschikbaar
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Format Preview */}
@@ -890,7 +962,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                       />
                                     </td>
                                     <td className="p-2">
-                                      <div className="flex items-center">
+                                      <div className="flex items-center gap-1">
                                         <span className="mr-1">€</span>
                                         <input
                                           type="number"
@@ -898,8 +970,13 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                           min="0"
                                           value={variant.price}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'price', parseFloat(e.target.value) || 0)}
-                                          className="w-20 border rounded px-2 py-1 text-right"
+                                          className={`w-20 border rounded px-2 py-1 text-right ${
+                                            variant.sku && pdfPrices.has(variant.sku) ? 'border-orange-400 bg-orange-50' : ''
+                                          }`}
                                         />
+                                        {variant.sku && pdfPrices.has(variant.sku) && (
+                                          <span className="text-xs text-orange-600" title="Prijs uit PDF">📋</span>
+                                        )}
                                       </div>
                                     </td>
                                     <td className="p-2">
@@ -1262,6 +1339,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   </div>
                 </div>
 
+
                 <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="border-2 border-blue-200 rounded p-4">
                     <div className="text-blue-600 text-sm mb-1">Product Templates</div>
@@ -1525,6 +1603,13 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   >
                     🔄 Nieuwe Import
                   </button>
+                  
+                  <Link
+                    href="/product-images-import"
+                    className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                  >
+                    📸 Upload Afbeeldingen
+                  </Link>
                 </div>
               </div>
             )}

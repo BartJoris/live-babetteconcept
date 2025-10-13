@@ -43,6 +43,7 @@ interface ParsedProduct {
   category?: { id: number; name: string };
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
+  originalName?: string;
 }
 
 export default async function handler(

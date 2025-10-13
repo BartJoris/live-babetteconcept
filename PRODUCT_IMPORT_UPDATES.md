@@ -2,7 +2,15 @@
 
 ## Changes Summary
 
-### 1. **Fully Editable Product & Variant Fields**
+### 1. **Automatic eCommerce Image Import** 🆕
+- **Vendor Website URL**: Enter the vendor's website URL to automatically download product images
+- **Automatic Download**: System searches for products on vendor website and downloads images (usually 1-3 per product)
+- **Direct Upload to Odoo**: Images are automatically uploaded to Odoo as `product.image` records
+- **Supports Shopify**: Currently optimized for Shopify stores (like Hello Simone)
+- **Shows in Results**: Import results table shows how many images were uploaded per product
+- **Completely Optional**: Leave URL empty to skip image import
+
+### 2. **Fully Editable Product & Variant Fields**
 - **Default Stock**: All products now default to **0 voorraad** (stock quantity)
 - **Product Name Editable**: Product names can be edited at the product level (highlighted input field)
 - **All Variant Fields Editable**: Users can now edit ALL variant fields before import:
@@ -14,7 +22,7 @@
 - **Location**: Field editing is available in **Step 3: Voorraad** (previously just "Selectie")
 - **UI**: Each product shows an expandable card with editable product name and a table with all variants, where every field can be adjusted using input fields
 
-### 2. **Multi-Vendor Support**
+### 3. **Multi-Vendor Support**
 - **Vendor Selection**: Step 1 now requires selecting a vendor before file upload
 - **Supported Vendors**:
   - **Ao76**: Original format (EAN barcode, Reference, Description, Quality, Colour, Size, Quantity, Price, RRP)
@@ -22,7 +30,7 @@
     - **Special handling**: First line is order reference (skipped)
     - **RRP Calculation**: Automatically calculates retail price as 2.5x wholesale price (editable)
 
-### 3. **Vendor-Specific Parsers**
+### 4. **Vendor-Specific Parsers**
 - `parseAo76CSV()`: Handles Ao76 CSV format with semicolon separators
 - `parseLeNewBlackCSV()`: Handles Le New Black CSV format (adjustable based on actual format)
 - Easy to extend: Add new parsers by creating new functions and adding vendor types
@@ -33,6 +41,9 @@
 
 1. **Step 1: Upload**
    - Select your vendor (Ao76 or Le New Black)
+   - **Enter vendor website URL** (optional) - for automatic image downloading
+     - Example: `https://www.hellosimone.fr/`
+     - System will automatically search for products and download images
    - Upload the CSV file matching the vendor's format
    - Format preview is shown based on selected vendor
    - View automatic defaults that will be applied to all products
@@ -82,6 +93,13 @@ type VendorType = 'ao76' | 'lenewblack' | null;
 
 ### Modified Interface:
 ```typescript
+interface ParsedProduct {
+  reference: string;
+  name: string; // Formatted name for Odoo
+  originalName?: string; // Original name from CSV (used for image search)
+  // ... other fields
+}
+
 interface ProductVariant {
   size: string;
   quantity: number; // Now editable, defaults to 0
@@ -90,6 +108,13 @@ interface ProductVariant {
   rrp: number;
 }
 ```
+
+### New API Endpoints:
+- `/api/fetch-product-images`: Fetches and uploads product images from vendor website
+  - Searches Shopify stores by product name
+  - Downloads images (up to 3)
+  - Converts to base64 and uploads to Odoo
+  - Returns count of successfully uploaded images
 
 ### New Functions:
 - `parseAo76CSV(text: string)`: Parses Ao76 format
@@ -183,6 +208,101 @@ To add a new vendor:
 - This means you'll see categories like "Merken / Hello Simone" and any other category in your system
 - Previously only a limited subset based on sample products was shown
 - First time loading may take slightly longer due to fetching complete lists
+
+### Automatic Image Import 📸
+
+#### Debug Tool Available! 🐛
+**Before importing**, use the **Image Fetch Debug Tool** to test if products can be found:
+- Access via: `/image-fetch-debug` or click "🐛 Test Image Matching" button in Step 1
+- Test product reference and name matching
+- Preview images before import
+- See all available products on vendor website
+- Identify products that won't be found automatically
+
+#### How It Works:
+1. **Enter Vendor Website URL** in Step 1 (e.g., `https://www.hellosimone.fr/`)
+2. **System automatically searches** for each product using a smart 2-strategy approach:
+   - **Strategy 1 (Primary)**: Search by **Product Reference** (e.g., "AW25-BFLJC")
+     - Most accurate - usually finds exactly 1 match
+     - Searches in both product title and URL handle
+     - Fetches up to 500 products (2 pages) to maximize coverage
+   - **Strategy 2 (Fallback)**: Search by **Original Product Name** from CSV
+     - Used if reference search finds no matches
+     - For Le New Black: "Bear fleece jacket Cookie" (original), NOT "Hello Simone - Bear fleece jacket cookie" (formatted)
+     - May find multiple matches - uses first one
+3. **Downloads images** (usually 1-3 per product) from the matched product
+4. **Uploads to Odoo** as `product.image` records linked to the product template
+5. **Shows results** in import results table with image count per product
+
+#### Supported Platforms:
+- **Shopify stores** (like Hello Simone) - fully supported
+  - Uses Shopify's products.json API
+  - Searches by product reference first (most accurate)
+  - Falls back to product name if needed
+  - Downloads first 3 images per product
+- Other platforms can be added with custom parsers
+
+#### When Images Are Fetched:
+- **During full import** (not in test mode)
+- After product template and variants are created
+- Runs for each product automatically if URL is provided
+- Failures don't stop the import - product is still created
+
+#### Benefits:
+- ⏱️ **Saves hours of manual work** - no need to manually download and upload images
+- 🎯 **Automatic matching** - finds products by reference or name
+- 🖼️ **Multiple images** - downloads up to 3 images per product
+- ✅ **Reliable** - continues even if some images fail
+- 📊 **Transparent** - see exactly how many images were uploaded per product
+- 🐛 **Debug tool** - test matching before import
+
+#### Troubleshooting: Product Not Found
+
+If a product can't be found on the website (e.g., `AW25-MIBPLS`):
+
+1. **Use Debug Tool** (`/image-fetch-debug`):
+   - Load all products from vendor website
+   - Search by reference (e.g., `AW25-MIBPLS`)
+   - See if product exists and what its exact name/handle is
+
+2. **Common Reasons**:
+   - Product not yet published on website
+   - Different reference format (website might use different SKU)
+   - Product in different collection or out of stock
+   - Website only shows subset of products
+
+3. **Solutions**:
+   - **Import continues anyway** - products are created in Odoo without images
+   - Add images manually later in Odoo
+   - Update product name in CSV to match website exactly
+   - Skip vendor URL to disable image import for this batch
+
+#### Search Strategy Example:
+
+**CSV Input:**
+```
+Product reference: AW25-BFLJC
+Product name: Bear fleece jacket Cookie
+```
+
+**Search Process:**
+1. ✅ Search hellosimone.fr for reference `"AW25-BFLJC"`
+2. ✅ Found 1 exact match (title: "Bear fleece jacket Cookie - AW25-BFLJC")
+3. ✅ Extract 3 images from product
+4. ✅ Upload to Odoo
+
+**If reference fails:**
+1. ⚠️ Search by reference found 0 matches
+2. 🔄 Fallback: Search by name `"Bear fleece jacket Cookie"`
+3. ✅ Found match
+4. ✅ Download and upload images
+
+#### Example Output:
+```
+Product: Hello Simone - Bear fleece jacket cookie
+Varianten: 4
+Afbeeldingen: 📸 3
+```
 
 ### Le New Black Specific Notes:
 - **Order Reference Line**: The first line contains an order reference (e.g., `order-2995931-20251013`) and is automatically skipped
