@@ -60,10 +60,18 @@ export default function BrandDiagnosticsPage() {
       totalStock: number;
     }>;
     validBrands?: Array<{ id: number; name: string; source: string }>;
+    attributeIds?: Record<number, string>; // Maps attribute ID to name (18 -> 'MERK', etc.)
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedForTest, setSelectedForTest] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
+
+  // Helper to get attribute ID from source name
+  const getAttributeId = (sourceName: string): number | null => {
+    if (!data?.attributeIds) return null;
+    const entry = Object.entries(data.attributeIds).find(([, name]) => name === sourceName);
+    return entry ? parseInt(entry[0]) : null;
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -107,6 +115,12 @@ export default function BrandDiagnosticsPage() {
   const testBrandAssignment = async (templateId: number, brandId: number, brandSource: string) => {
     if (!uid || !password) return;
     
+    const attributeId = getAttributeId(brandSource);
+    if (!attributeId) {
+      alert(`❌ Kon attribute ID niet vinden voor ${brandSource}`);
+      return;
+    }
+    
     setUpdating(true);
     try {
       const response = await fetch('/api/assign-brand', {
@@ -117,7 +131,8 @@ export default function BrandDiagnosticsPage() {
           password,
           templateIds: [templateId],
           brandId,
-          brandSource,
+          attributeId,
+          testMode: true,
         }),
       });
 
@@ -140,6 +155,12 @@ export default function BrandDiagnosticsPage() {
   const bulkAssignBrand = async (templateIds: number[], brandId: number, brandSource: string) => {
     if (!uid || !password) return;
     
+    const attributeId = getAttributeId(brandSource);
+    if (!attributeId) {
+      alert(`❌ Kon attribute ID niet vinden voor ${brandSource}`);
+      return;
+    }
+    
     const confirmed = confirm(
       `Weet je zeker dat je ${templateIds.length} producten wilt bijwerken met deze merk?\n\nDit kan niet ongedaan worden gemaakt.`
     );
@@ -156,14 +177,14 @@ export default function BrandDiagnosticsPage() {
           password,
           templateIds,
           brandId,
-          brandSource,
+          attributeId,
         }),
       });
 
       const result = await response.json();
       
       if (result.success) {
-        alert(`✅ Succesvol! ${result.updated} van ${templateIds.length} producten bijgewerkt.`);
+        alert(`✅ Succesvol! ${result.processed} van ${templateIds.length} producten bijgewerkt.`);
         fetchData(); // Reload data
       } else {
         alert(`❌ Bulk update mislukt: ${result.error}`);
@@ -337,7 +358,7 @@ export default function BrandDiagnosticsPage() {
                   <div className="text-4xl mb-3">🎉</div>
                   <h3 className="text-xl font-bold text-green-900 mb-2">Alle Producten Hebben een Merk!</h3>
                   <p className="text-green-700">Er zijn geen producten zonder merk gevonden.</p>
-                </div>
+              </div>
               )}
             </div>
           ) : (
