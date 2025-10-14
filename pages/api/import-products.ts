@@ -39,6 +39,7 @@ interface ParsedProduct {
   name: string;
   material: string;
   color: string;
+  ecommerceDescription?: string;
   variants: ProductVariant[];
   selectedBrand?: { id: number; name: string };
   category?: { id: number; name: string };
@@ -110,6 +111,11 @@ export default async function handler(
           out_of_stock_message: '<p>Verkocht!</p><p><br></p>', // Bericht bij geen voorraad
           is_favorite: product.isFavorite, // Favoriet product
         };
+
+        // Add ecommerce description if available
+        if (product.ecommerceDescription) {
+          templateData.description_ecommerce = product.ecommerceDescription;
+        }
 
         // Add public categories if any
         if (product.publicCategories && product.publicCategories.length > 0) {

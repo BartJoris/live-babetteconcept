@@ -9,6 +9,7 @@ interface ParsedProduct {
   originalName?: string; // Original product name from CSV (for image search)
   material: string;
   color: string;
+  ecommerceDescription?: string; // Description for ecommerce/website
   variants: ProductVariant[];
   suggestedBrand?: string;
   selectedBrand?: { id: number; name: string };
@@ -54,6 +55,8 @@ export default function ProductImport() {
   const [productTags, setProductTags] = useState<Category[]>([]);
   const [batchBrand, setBatchBrand] = useState('');
   const [batchCategory, setBatchCategory] = useState('');
+  const [batchPublicCategories, setBatchPublicCategories] = useState<number[]>([]);
+  const [batchProductTags, setBatchProductTags] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
@@ -238,6 +241,7 @@ export default function ProductImport() {
           originalName: name, // Store original name for image search
           material,
           color,
+          ecommerceDescription: name, // Store description for ecommerce (Ao76 uses name as description)
           variants: [],
           suggestedBrand: suggestedBrand?.name,
           selectedBrand: suggestedBrand,
@@ -331,6 +335,7 @@ export default function ProductImport() {
           originalName: fullName, // Store original name for image search
           material: description, // Use description as material field
           color: color,
+          ecommerceDescription: description, // Store description for ecommerce
           variants: [],
           suggestedBrand: suggestedBrand?.name,
           selectedBrand: suggestedBrand,
@@ -449,6 +454,76 @@ export default function ProductImport() {
       products.map(p =>
         selectedProducts.has(p.reference)
           ? { ...p, category }
+          : p
+      )
+    );
+  };
+
+  const addBatchPublicCategory = (categoryId: string) => {
+    const id = parseInt(categoryId);
+    if (!batchPublicCategories.includes(id)) {
+      setBatchPublicCategories([...batchPublicCategories, id]);
+    }
+  };
+
+  const removeBatchPublicCategory = (categoryId: number) => {
+    setBatchPublicCategories(batchPublicCategories.filter(id => id !== categoryId));
+  };
+
+  const applyBatchPublicCategories = () => {
+    if (batchPublicCategories.length === 0) return;
+    
+    const categoriesToAdd = publicCategories.filter(c => 
+      batchPublicCategories.includes(c.id)
+    );
+
+    setParsedProducts(products =>
+      products.map(p =>
+        selectedProducts.has(p.reference)
+          ? {
+              ...p,
+              publicCategories: [
+                ...p.publicCategories,
+                ...categoriesToAdd.filter(cat => 
+                  !p.publicCategories.some(pc => pc.id === cat.id)
+                )
+              ]
+            }
+          : p
+      )
+    );
+  };
+
+  const addBatchProductTag = (tagId: string) => {
+    const id = parseInt(tagId);
+    if (!batchProductTags.includes(id)) {
+      setBatchProductTags([...batchProductTags, id]);
+    }
+  };
+
+  const removeBatchProductTag = (tagId: number) => {
+    setBatchProductTags(batchProductTags.filter(id => id !== tagId));
+  };
+
+  const applyBatchProductTags = () => {
+    if (batchProductTags.length === 0) return;
+    
+    const tagsToAdd = productTags.filter(t => 
+      batchProductTags.includes(t.id)
+    );
+
+    setParsedProducts(products =>
+      products.map(p =>
+        selectedProducts.has(p.reference)
+          ? {
+              ...p,
+              productTags: [
+                ...p.productTags,
+                ...tagsToAdd.filter(tag => 
+                  !p.productTags.some(pt => pt.id === tag.id)
+                )
+              ]
+            }
           : p
       )
     );
@@ -1160,6 +1235,130 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                       Toepassen op Alles
                     </button>
                   </div>
+                </div>
+
+                {/* Batch Public Categories */}
+                <div className="border-2 border-blue-300 rounded-lg p-4 mb-6">
+                  <h3 className="font-bold mb-3">
+                    🛍️ eCommerce Categorieën (Batch - Meerdere mogelijk) ({publicCategories.length} beschikbaar)
+                  </h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Selecteer meerdere eCommerce categorieën om toe te voegen aan alle geselecteerde producten
+                  </p>
+                  
+                  {/* Selected Categories Display */}
+                  {batchPublicCategories.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3 p-2 bg-blue-50 rounded">
+                      {batchPublicCategories.map(catId => {
+                        const cat = publicCategories.find(c => c.id === catId);
+                        if (!cat) return null;
+                        return (
+                          <span
+                            key={catId}
+                            className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                          >
+                            {cat.display_name || cat.name}
+                            <button
+                              onClick={() => removeBatchPublicCategory(catId)}
+                              className="hover:bg-blue-600 rounded-full px-1"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Category Selector */}
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addBatchPublicCategory(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="w-full border rounded p-2 mb-3"
+                  >
+                    <option value="">+ Voeg eCommerce categorie toe...</option>
+                    {publicCategories
+                      .filter(c => !batchPublicCategories.includes(c.id))
+                      .map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.display_name || cat.name}
+                        </option>
+                      ))}
+                  </select>
+
+                  <button
+                    onClick={applyBatchPublicCategories}
+                    disabled={batchPublicCategories.length === 0}
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-300 font-medium"
+                  >
+                    Toepassen op {selectedProducts.size} Geselecteerde Producten
+                  </button>
+                </div>
+
+                {/* Batch Product Tags */}
+                <div className="border-2 border-purple-300 rounded-lg p-4 mb-6">
+                  <h3 className="font-bold mb-3">
+                    🏷️ Productlabels (Batch - Meerdere mogelijk) ({productTags.length} beschikbaar)
+                  </h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Selecteer meerdere productlabels om toe te voegen aan alle geselecteerde producten
+                  </p>
+                  
+                  {/* Selected Tags Display */}
+                  {batchProductTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3 p-2 bg-purple-50 rounded">
+                      {batchProductTags.map(tagId => {
+                        const tag = productTags.find(t => t.id === tagId);
+                        if (!tag) return null;
+                        return (
+                          <span
+                            key={tagId}
+                            className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                          >
+                            {tag.name}
+                            <button
+                              onClick={() => removeBatchProductTag(tagId)}
+                              className="hover:bg-purple-600 rounded-full px-1"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Tag Selector */}
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addBatchProductTag(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="w-full border rounded p-2 mb-3"
+                  >
+                    <option value="">+ Voeg productlabel toe...</option>
+                    {productTags
+                      .filter(t => !batchProductTags.includes(t.id))
+                      .map(tag => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                  </select>
+
+                  <button
+                    onClick={applyBatchProductTags}
+                    disabled={batchProductTags.length === 0}
+                    className="w-full bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:bg-gray-300 font-medium"
+                  >
+                    Toepassen op {selectedProducts.size} Geselecteerde Producten
+                  </button>
                 </div>
 
                 {/* Per Product Assignment */}
