@@ -28,7 +28,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | null;
 
 interface Brand {
   id: number;
@@ -47,6 +47,9 @@ export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
   const [pdfPrices, setPdfPrices] = useState<Map<string, number>>(new Map());
+  const [websitePrices, setWebsitePrices] = useState<Map<string, number>>(new Map());
+  const [playupUsername, setPlayupUsername] = useState('');
+  const [playupPassword, setPlayupPassword] = useState('');
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -61,6 +64,7 @@ export default function ProductImport() {
   const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; currentProduct?: string } | null>(null);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -76,6 +80,13 @@ export default function ProductImport() {
   useEffect(() => {
     fetchBrands();
     fetchCategories();
+    
+    // Load Play UP credentials from localStorage
+    const savedPlayupUser = localStorage.getItem('playup_username');
+    const savedPlayupPass = localStorage.getItem('playup_password');
+    if (savedPlayupUser) setPlayupUsername(savedPlayupUser);
+    if (savedPlayupPass) setPlayupPassword(savedPlayupPass);
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -165,6 +176,8 @@ export default function ProductImport() {
         parseAo76CSV(text);
       } else if (selectedVendor === 'lenewblack') {
         parseLeNewBlackCSV(text);
+      } else if (selectedVendor === 'playup') {
+        parsePlayUpCSV(text);
       }
     };
     reader.readAsText(file);
@@ -373,6 +386,161 @@ export default function ProductImport() {
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
+  };
+
+  const parsePlayUpCSV = (text: string) => {
+    // Play UP format parser
+    // CSV format: Article,Color,Description,Size,Quantity,Price
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return;
+
+    const headers = lines[0].split(',');
+    const products: { [key: string]: ParsedProduct } = {};
+
+    for (let i = 1; i < lines.length; i++) {
+      // Handle quoted fields (descriptions may contain commas)
+      const values: string[] = [];
+      let currentValue = '';
+      let inQuotes = false;
+      
+      for (const char of lines[i]) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue);
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      values.push(currentValue); // Push last value
+      
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header.trim()] = values[idx]?.trim() || '';
+      });
+
+      const article = row['Article'] || '';
+      const color = row['Color'] || '';
+      const description = row['Description'] || '';
+      const size = row['Size'] || '';
+      const quantity = parseInt(row['Quantity'] || '0');
+      const price = parseFloat(row['Price'] || '0');
+
+      if (!article) continue;
+
+      // Use article-color as reference (unique product identifier)
+      const reference = `${article}-${color}`;
+
+      if (!products[reference]) {
+        // Format product name: "Play Up - Description"
+        const toSentenceCase = (str: string) => {
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `Play Up - ${toSentenceCase(description)}`;
+        
+        // Try to detect brand (should be Play Up)
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('play up')
+        );
+
+        products[reference] = {
+          reference,
+          name: formattedName,
+          originalName: description,
+          material: color, // Store color as material
+          color: color,
+          ecommerceDescription: description,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: true,
+        };
+      }
+
+      // Check if we have a website price for this article
+      const websitePrice = websitePrices.has(article) ? websitePrices.get(article)! : null;
+      const costPrice = websitePrice || price; // Use website price if available, otherwise CSV price
+      
+      products[reference].variants.push({
+        size: size,
+        quantity: quantity, // Use quantity from CSV
+        ean: '', // Play UP doesn't provide EAN in PDF
+        sku: `${article}-${color}-${size}`, // Construct SKU
+        price: costPrice,
+        rrp: price * 2.4, // Calculate retail price (adjust multiplier as needed)
+      });
+    }
+
+    const productList = Object.values(products);
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  const fetchPlayUpPrices = async () => {
+    if (!playupUsername || !playupPassword) {
+      alert('Vul eerst Play UP credentials in');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Get unique article codes from parsed products
+      const articleCodes = Array.from(new Set(
+        parsedProducts.flatMap(p => p.variants.map(v => v.sku?.split('-')[0] || ''))
+      )).filter(code => code);
+
+      const response = await fetch('/api/playup-fetch-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: playupUsername,
+          password: playupPassword,
+          articleCodes,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.prices) {
+        const priceMap = new Map<string, number>();
+        Object.entries(result.prices).forEach(([code, price]) => {
+          priceMap.set(code, price as number);
+        });
+        
+        setWebsitePrices(priceMap);
+        
+        // Update products with website prices
+        setParsedProducts(products =>
+          products.map(p => ({
+            ...p,
+            variants: p.variants.map(v => {
+              const articleCode = v.sku?.split('-')[0] || '';
+              const websitePrice = priceMap.get(articleCode);
+              return websitePrice ? { ...v, price: websitePrice } : v;
+            }),
+          }))
+        );
+        
+        // Save credentials
+        localStorage.setItem('playup_username', playupUsername);
+        localStorage.setItem('playup_password', playupPassword);
+        
+        alert(`✅ ${result.count} prijzen opgehaald van Play UP website`);
+      } else {
+        alert('Fout bij ophalen prijzen: ' + (result.error || 'Onbekende fout'));
+      }
+    } catch (error) {
+      console.error('Error fetching Play UP prices:', error);
+      alert('Fout bij ophalen Play UP prijzen');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleProduct = (reference: string) => {
@@ -609,23 +777,62 @@ export default function ProductImport() {
         ? [apiPreviewData.product]
         : parsedProducts.filter(p => selectedProducts.has(p.reference));
 
-      const response = await fetch('/api/import-products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products: productsToImport,
-          testMode,
-          uid,
-          password,
-        }),
-      });
+      // Client-side batch processing to avoid Vercel timeout
+      const results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; variantsUpdated?: number; message?: string }> = [];
+      
+      setImportProgress({ current: 0, total: productsToImport.length });
 
-      const result = await response.json();
-      setImportResults(result);
+      for (let i = 0; i < productsToImport.length; i++) {
+        const product = productsToImport[i];
+        setImportProgress({ 
+          current: i + 1, 
+          total: productsToImport.length,
+          currentProduct: product.name
+        });
+
+        try {
+          // Import one product at a time to stay under Vercel's 10s timeout
+          const response = await fetch('/api/import-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              products: [product], // Single product
+              testMode,
+              uid,
+              password,
+            }),
+          });
+
+          const result = await response.json();
+          
+          if (result.success && result.results && result.results.length > 0) {
+            results.push(result.results[0]);
+          } else {
+            results.push({
+              success: false,
+              reference: product.reference,
+              name: product.name,
+              message: result.error || 'Unknown error',
+            });
+          }
+        } catch (error) {
+          console.error(`Error importing ${product.reference}:`, error);
+          results.push({
+            success: false,
+            reference: product.reference,
+            name: product.name,
+            message: String(error),
+          });
+        }
+      }
+
+      setImportProgress(null);
+      setImportResults({ success: true, results });
       setCurrentStep(7);
     } catch (error) {
       console.error('Import error:', error);
       alert('Import failed: ' + error);
+      setImportProgress(null);
     } finally {
       setLoading(false);
     }
@@ -704,7 +911,7 @@ export default function ProductImport() {
                 {/* Vendor Selection */}
                 <div className="mb-8">
                   <h3 className="font-bold text-lg mb-4">1️⃣ Selecteer Leverancier</h3>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-3 gap-4 mb-4">
                     <button
                       onClick={() => setSelectedVendor('ao76')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
@@ -737,6 +944,24 @@ export default function ProductImport() {
                         Order export met Brand name, Product reference, EAN13, Net amount
                       </p>
                       {selectedVendor === 'lenewblack' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('playup')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'playup'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🎮</div>
+                      <h3 className="font-bold mb-2">Play UP</h3>
+                      <p className="text-sm text-gray-600">
+                        PDF factuur + website prijzen met authenticatie
+                      </p>
+                      {selectedVendor === 'playup' && (
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
@@ -857,19 +1082,72 @@ export default function ProductImport() {
                           </p>
                         </div>
                       )}
+
+                      {/* Play UP Website Credentials */}
+                      {selectedVendor === 'playup' && (
+                        <div className="border-2 border-purple-300 rounded-lg p-6 mb-4">
+                          <h3 className="font-bold text-lg mb-4">🔐 Play UP Website Login</h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Inloggegevens voor pro.playupstore.com om actuele prijzen op te halen
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Email/Username</label>
+                              <input
+                                type="text"
+                                value={playupUsername}
+                                onChange={(e) => setPlayupUsername(e.target.value)}
+                                placeholder="your@email.com"
+                                className="w-full border rounded px-3 py-2"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Password</label>
+                              <input
+                                type="password"
+                                value={playupPassword}
+                                onChange={(e) => setPlayupPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full border rounded px-3 py-2"
+                              />
+                            </div>
+                          </div>
+
+                          {websitePrices.size > 0 && (
+                            <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
+                              <p className="text-green-800 font-medium">
+                                ✅ Website prijzen geladen: {websitePrices.size} artikelen
+                              </p>
+                            </div>
+                          )}
+
+                          <button
+                            onClick={fetchPlayUpPrices}
+                            disabled={!playupUsername || !playupPassword || parsedProducts.length === 0 || loading}
+                            className="w-full bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 font-medium"
+                          >
+                            {loading ? '⏳ Bezig...' : '🌐 Haal Prijzen Op van Website'}
+                          </button>
+                          
+                          <p className="text-xs text-gray-500 mt-2">
+                            💡 Credentials worden lokaal opgeslagen voor toekomstig gebruik
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-800 mb-2">
-                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : 'Le New Black'}:
+                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : 'Play UP'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
 {`EAN barcode;Reference;Description;Quality;Colour;Size;Quantity;Price;RRP;HS code
 5400562408965;225-2003-103;silas t-shirt;50% recycled cotton;natural;04;1;21.6;54;6109100010`}
                         </pre>
-                      ) : (
+                      ) : selectedVendor === 'lenewblack' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
 {`order-2995931-20251013
 Brand name;Collection;Product name;Product reference;Color name;Description;Size name;EAN13;SKU;Quantity;Net amount;Currency
@@ -877,6 +1155,26 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
 → Wordt: "Hello Simone - Bear fleece jacket cookie"`}
                         </pre>
+                      ) : (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+{`Article,Color,Description,Size,Quantity,Price
+1AR11002,P6179,"RIB LS T-SHIRT - 100% OGCO",3M,1,12.39
+1AR11002,P6179,"RIB LS T-SHIRT - 100% OGCO",6M,1,12.39
+
+→ Wordt: "Play Up - Rib ls t-shirt - 100% ogco"
+→ Gebruik Play UP PDF Converter om factuur PDF naar CSV te converteren`}
+                        </pre>
+                      )}
+                      {selectedVendor === 'playup' && (
+                        <div className="mt-3">
+                          <a
+                            href="/playup-pdf-converter"
+                            target="_blank"
+                            className="text-sm text-blue-600 hover:underline font-medium"
+                          >
+                            🎮 Open Play UP PDF Converter →
+                          </a>
+                        </div>
                       )}
                     </div>
                   </>
@@ -1850,6 +2148,36 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
           </div>
         </div>
       </div>
+
+      {/* Import Progress Modal */}
+      {importProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold mb-4">🚀 Importeren...</h3>
+            <div className="mb-4">
+              <div className="flex justify-between text-sm mb-2">
+                <span>Product {importProgress.current} van {importProgress.total}</span>
+                <span>{Math.round((importProgress.current / importProgress.total) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div 
+                  className="bg-blue-600 h-4 transition-all duration-300"
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+            {importProgress.currentProduct && (
+              <div className="text-sm text-gray-600 mb-4">
+                <div className="font-medium mb-1">Huidige product:</div>
+                <div className="bg-gray-50 p-2 rounded">{importProgress.currentProduct}</div>
+              </div>
+            )}
+            <div className="text-xs text-gray-500">
+              ⏱️ Dit kan enkele minuten duren. Sluit dit venster niet.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* API Preview Modal */}
       {showApiPreview && apiPreviewData && (
