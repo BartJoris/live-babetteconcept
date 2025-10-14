@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 
@@ -43,6 +43,83 @@ interface Category {
   complete_name?: string;
 }
 
+// Searchable Select Component
+interface SearchableSelectProps {
+  options: Array<{ id: number; label: string }>;
+  value: number | string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+function SearchableSelect({ options, value, onChange, placeholder = 'Selecteer...', className = '' }: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Get selected option label
+  const selectedOption = value ? options.find(opt => opt.id.toString() === value.toString()) : null;
+  const displayValue = selectedOption ? selectedOption.label : '';
+
+  // Filter options based on search
+  const filteredOptions = options.filter(opt =>
+    opt.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (optionId: number) => {
+    onChange(optionId.toString());
+    setIsOpen(false);
+    setSearch('');
+    inputRef.current?.blur(); // Remove focus after selection
+  };
+
+  return (
+    <div ref={wrapperRef} className={`relative ${className}`}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={isOpen ? search : displayValue}
+        onChange={(e) => setSearch(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        onClick={() => setIsOpen(true)}
+        placeholder={placeholder}
+        className="w-full border-2 border-gray-300 rounded px-3 py-2 text-sm font-medium cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+        autoComplete="off"
+      />
+      {isOpen && (
+        <div className="absolute z-50 w-full min-w-max mt-1 bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+          {filteredOptions.length === 0 ? (
+            <div className="p-3 text-sm text-gray-500 text-center">Geen resultaten voor &quot;{search}&quot;</div>
+          ) : (
+            filteredOptions.map(option => (
+              <div
+                key={option.id}
+                onClick={() => handleSelect(option.id)}
+                className="px-3 py-2 text-sm hover:bg-blue-500 hover:text-white cursor-pointer border-b last:border-b-0 transition-colors"
+              >
+                {option.label}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
@@ -60,6 +137,13 @@ export default function ProductImport() {
   const [batchCategory, setBatchCategory] = useState('');
   const [batchPublicCategories, setBatchPublicCategories] = useState<number[]>([]);
   const [batchProductTags, setBatchProductTags] = useState<number[]>([]);
+  
+  // Search filters for dropdowns
+  const [brandSearch, setBrandSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [publicCategorySearch, setPublicCategorySearch] = useState('');
+  const [productTagSearch, setProductTagSearch] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
@@ -260,7 +344,7 @@ export default function ProductImport() {
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
-          isFavorite: true, // Default to favorite
+          isFavorite: false, // Default to not favorite
         };
       }
 
@@ -354,7 +438,7 @@ export default function ProductImport() {
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
-          isFavorite: true, // Default to favorite
+          isFavorite: false, // Default to not favorite
         };
       }
 
@@ -458,7 +542,7 @@ export default function ProductImport() {
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
-          isFavorite: true,
+          isFavorite: false,
         };
       }
 
@@ -1485,18 +1569,36 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   <div className="border rounded p-4">
                     <h3 className="font-bold mb-3">🏷️ Merk (Batch) ({brands.length} beschikbaar)</h3>
                     <p className="text-xs text-gray-600 mb-2">Merken kunnen duplicaten zijn tussen MERK en Merk 1 attributen</p>
+                    
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      placeholder="🔍 Type om te zoeken..."
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                      className="w-full border rounded p-2 mb-2 text-sm"
+                    />
+                    
+                    {/* Filtered Dropdown */}
                     <select
                       value={batchBrand}
                       onChange={(e) => setBatchBrand(e.target.value)}
                       className="w-full border rounded p-2 mb-2"
+                      size={5}
                     >
                       <option value="">Selecteer merk...</option>
-                      {brands.map(brand => (
-                        <option key={brand.id} value={brand.id}>
-                          {brand.name} ({brand.source})
-                        </option>
-                      ))}
+                      {brands
+                        .filter(brand => 
+                          brandSearch === '' || 
+                          brand.name.toLowerCase().includes(brandSearch.toLowerCase())
+                        )
+                        .map(brand => (
+                          <option key={brand.id} value={brand.id}>
+                            {brand.name} ({brand.source})
+                          </option>
+                        ))}
                     </select>
+                    
                     <button
                       onClick={applyBatchBrand}
                       disabled={!batchBrand}
@@ -1511,20 +1613,38 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     <h3 className="font-bold mb-3">
                       📂 Interne Categorie (Batch) ({internalCategories.filter(c => c.display_name?.includes('Kleding')).length} beschikbaar)
                     </h3>
+                    
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      placeholder="🔍 Type om te zoeken..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="w-full border rounded p-2 mb-2 text-sm"
+                    />
+                    
+                    {/* Filtered Dropdown */}
                     <select
                       value={batchCategory}
                       onChange={(e) => setBatchCategory(e.target.value)}
                       className="w-full border rounded p-2 mb-2"
+                      size={5}
                     >
                       <option value="">Selecteer interne categorie...</option>
                       {internalCategories
                         .filter(c => c.display_name?.includes('Kleding'))
+                        .filter(cat =>
+                          categorySearch === '' ||
+                          cat.display_name?.toLowerCase().includes(categorySearch.toLowerCase()) ||
+                          cat.name?.toLowerCase().includes(categorySearch.toLowerCase())
+                        )
                         .map(cat => (
                           <option key={cat.id} value={cat.id}>
                             {cat.display_name}
                           </option>
                         ))}
                     </select>
+                    
                     <button
                       onClick={applyBatchCategory}
                       disabled={!batchCategory}
@@ -1568,19 +1688,35 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     </div>
                   )}
 
+                  {/* Search Input */}
+                  <input
+                    type="text"
+                    placeholder="🔍 Type om te zoeken (bijv. Hello Simone)..."
+                    value={publicCategorySearch}
+                    onChange={(e) => setPublicCategorySearch(e.target.value)}
+                    className="w-full border rounded p-2 mb-2 text-sm"
+                  />
+
                   {/* Category Selector */}
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
                         addBatchPublicCategory(e.target.value);
                         e.target.value = '';
+                        setPublicCategorySearch(''); // Clear search after selection
                       }
                     }}
                     className="w-full border rounded p-2 mb-3"
+                    size={5}
                   >
                     <option value="">+ Voeg eCommerce categorie toe...</option>
                     {publicCategories
                       .filter(c => !batchPublicCategories.includes(c.id))
+                      .filter(cat =>
+                        publicCategorySearch === '' ||
+                        cat.display_name?.toLowerCase().includes(publicCategorySearch.toLowerCase()) ||
+                        cat.name?.toLowerCase().includes(publicCategorySearch.toLowerCase())
+                      )
                       .map(cat => (
                         <option key={cat.id} value={cat.id}>
                           {cat.display_name || cat.name}
@@ -1630,19 +1766,34 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     </div>
                   )}
 
+                  {/* Search Input */}
+                  <input
+                    type="text"
+                    placeholder="🔍 Type om te zoeken..."
+                    value={productTagSearch}
+                    onChange={(e) => setProductTagSearch(e.target.value)}
+                    className="w-full border rounded p-2 mb-2 text-sm"
+                  />
+
                   {/* Tag Selector */}
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
                         addBatchProductTag(e.target.value);
                         e.target.value = '';
+                        setProductTagSearch(''); // Clear search after selection
                       }
                     }}
                     className="w-full border rounded p-2 mb-3"
+                    size={5}
                   >
                     <option value="">+ Voeg productlabel toe...</option>
                     {productTags
                       .filter(t => !batchProductTags.includes(t.id))
+                      .filter(tag =>
+                        productTagSearch === '' ||
+                        tag.name?.toLowerCase().includes(productTagSearch.toLowerCase())
+                      )
                       .map(tag => (
                         <option key={tag.id} value={tag.id}>
                           {tag.name}
@@ -1661,72 +1812,68 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                 {/* Per Product Assignment */}
                 <h3 className="font-bold mb-3">Per Product Categorieën</h3>
-                <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100 sticky top-0">
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                  <p className="text-sm text-blue-800">
+                    💡 <strong>Tip:</strong> Klik op een veld en begin te typen om te zoeken. Bijvoorbeeld: typ &quot;hello&quot; om &quot;Hello Simone&quot; te vinden. Klik op de match om te selecteren.
+                  </p>
+                </div>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto border rounded-lg pb-80">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-gray-200 sticky top-0">
                       <tr>
-                        <th className="p-2 text-left">Product</th>
-                        <th className="p-2 text-left">Merk</th>
-                        <th className="p-2 text-left">Interne Categorie</th>
-                        <th className="p-2 text-left">eCommerce Cat.</th>
-                        <th className="p-2 text-left">Productlabels</th>
+                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Product</th>
+                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Merk</th>
+                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Interne Categorie</th>
+                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">eCommerce Cat.</th>
+                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Productlabels</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parsedProducts.filter(p => selectedProducts.has(p.reference)).map(product => (
-                        <tr key={product.reference} className="border-b">
-                          <td className="p-2">
+                        <tr key={product.reference} className="border-b hover:bg-gray-50">
+                          <td className="p-3 bg-gray-50">
                             <div className="font-medium">{product.name}</div>
                             <div className="text-xs text-gray-500">{product.reference}</div>
                           </td>
-                          <td className="p-2">
-                            <select
+                          <td className="p-3">
+                            <SearchableSelect
+                              options={brands.map(b => ({ id: b.id, label: `${b.name} (${b.source})` }))}
                               value={product.selectedBrand?.id || ''}
-                              onChange={(e) => {
-                                const brand = brands.find(b => b.id.toString() === e.target.value);
+                              onChange={(value) => {
+                                const brand = brands.find(b => b.id.toString() === value);
                                 setParsedProducts(products =>
                                   products.map(p =>
                                     p.reference === product.reference ? { ...p, selectedBrand: brand } : p
                                   )
                                 );
                               }}
-                              className="w-full border rounded p-1 text-xs"
-                            >
-                              <option value="">Selecteer...</option>
-                              {brands.map(brand => (
-                                <option key={brand.id} value={brand.id}>
-                                  {brand.name} ({brand.source})
-                                </option>
-                              ))}
-                            </select>
+                              placeholder="Selecteer merk..."
+                            />
                             {product.suggestedBrand && !product.selectedBrand && (
                               <div className="text-xs text-gray-500 mt-1">💡 Suggestie: {product.suggestedBrand}</div>
                             )}
                           </td>
-                          <td className="p-2">
-                            <select
+                          <td className="p-3">
+                            <SearchableSelect
+                              options={internalCategories
+                                .filter(c => c.display_name?.includes('Kleding'))
+                                .map(cat => ({ 
+                                  id: cat.id, 
+                                  label: cat.display_name?.split(' / ').slice(-2).join(' / ') || cat.name 
+                                }))}
                               value={product.category?.id || ''}
-                              onChange={(e) => {
-                                const category = internalCategories.find(c => c.id.toString() === e.target.value);
+                              onChange={(value) => {
+                                const category = internalCategories.find(c => c.id.toString() === value);
                                 setParsedProducts(products =>
                                   products.map(p =>
                                     p.reference === product.reference ? { ...p, category } : p
                                   )
                                 );
                               }}
-                              className="w-full border rounded p-1 text-xs"
-                            >
-                              <option value="">Selecteer...</option>
-                              {internalCategories
-                                .filter(c => c.display_name?.includes('Kleding'))
-                                .map(cat => (
-                                  <option key={cat.id} value={cat.id}>
-                                    {cat.display_name?.split(' / ').slice(-2).join(' / ') || cat.name}
-                                  </option>
-                                ))}
-                            </select>
+                              placeholder="Selecteer categorie..."
+                            />
                           </td>
-                          <td className="p-2">
+                          <td className="p-3">
                             <div className="flex flex-wrap gap-1 mb-1">
                               {product.publicCategories.map(cat => (
                                 <span
@@ -1743,26 +1890,20 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                 </span>
                               ))}
                             </div>
-                            <select
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  addPublicCategory(product.reference, e.target.value);
-                                  e.target.value = '';
+                            <SearchableSelect
+                              options={publicCategories
+                                .filter(c => !product.publicCategories.some(pc => pc.id === c.id))
+                                .map(cat => ({ id: cat.id, label: cat.display_name || cat.name }))}
+                              value=""
+                              onChange={(value) => {
+                                if (value) {
+                                  addPublicCategory(product.reference, value);
                                 }
                               }}
-                              className="w-full border rounded p-1 text-xs"
-                            >
-                              <option value="">+ Toevoegen...</option>
-                              {publicCategories
-                                .filter(c => !product.publicCategories.some(pc => pc.id === c.id))
-                                .map(cat => (
-                                  <option key={cat.id} value={cat.id}>
-                                    {cat.display_name || cat.name}
-                                  </option>
-                                ))}
-                            </select>
+                              placeholder="+ Toevoegen..."
+                            />
                           </td>
-                          <td className="p-2">
+                          <td className="p-3">
                             <div className="flex flex-wrap gap-1 mb-1">
                               {product.productTags.map(tag => (
                                 <span
@@ -1779,24 +1920,18 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                 </span>
                               ))}
                             </div>
-                            <select
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  addProductTag(product.reference, e.target.value);
-                                  e.target.value = '';
+                            <SearchableSelect
+                              options={productTags
+                                .filter(t => !product.productTags.some(pt => pt.id === t.id))
+                                .map(tag => ({ id: tag.id, label: tag.name }))}
+                              value=""
+                              onChange={(value) => {
+                                if (value) {
+                                  addProductTag(product.reference, value);
                                 }
                               }}
-                              className="w-full border rounded p-1 text-xs"
-                            >
-                              <option value="">+ Voeg label toe...</option>
-                              {productTags
-                                .filter(t => !product.productTags.some(pt => pt.id === t.id))
-                                .map(tag => (
-                                  <option key={tag.id} value={tag.id}>
-                                    {tag.name}
-                                  </option>
-                                ))}
-                            </select>
+                              placeholder="+ Voeg label toe..."
+                            />
                           </td>
                         </tr>
                       ))}
