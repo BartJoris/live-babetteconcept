@@ -72,15 +72,15 @@ export default function PdfToCsvConverter() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               📄→📊 PDF Prijslijst naar CSV Converter
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Converteer een leverancier factuur PDF naar een CSV bestand met SKU en Unit Price
             </p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-8">
             <div className="mb-6">
-              <h2 className="text-xl font-bold mb-4">Upload PDF Factuur</h2>
-              <p className="text-sm text-gray-600 mb-4">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Upload PDF Factuur</h2>
+              <p className="text-sm text-gray-800 mb-4">
                 Upload een PDF factuur met SKU codes en prijzen (zoals Hello Simone facturen)
               </p>
               
@@ -114,7 +114,7 @@ export default function PdfToCsvConverter() {
                     </p>
                   </div>
 
-                  <h3 className="font-bold mb-3">Preview (eerste 20 regels):</h3>
+                  <h3 className="font-bold text-gray-900 mb-3">Preview (eerste 20 regels):</h3>
                   <div className="bg-gray-50 border rounded p-4 overflow-x-auto">
                     <pre className="text-xs font-mono">
                       {csvData.split('\n').slice(0, 21).join('\n')}
@@ -147,7 +147,7 @@ export default function PdfToCsvConverter() {
                 </div>
 
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded p-4">
-                  <h4 className="font-bold text-blue-900 mb-2">📝 Volgende Stappen:</h4>
+                  <h4 className="font-bold text-blue-900 text-gray-900 mb-2">📝 Volgende Stappen:</h4>
                   <ol className="text-sm text-blue-800 list-decimal ml-5 space-y-1">
                     <li>Download het gegenereerde CSV bestand</li>
                     <li>Ga naar Product Import</li>
@@ -159,7 +159,7 @@ export default function PdfToCsvConverter() {
             )}
 
             <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded p-4">
-              <h4 className="font-bold text-yellow-800 mb-2">ℹ️ Verwacht PDF Formaat:</h4>
+              <h4 className="font-bold text-yellow-800 text-gray-900 mb-2">ℹ️ Verwacht PDF Formaat:</h4>
               <p className="text-sm text-yellow-700 mb-2">
                 De PDF moet een factuur zijn met regels in dit formaat:
               </p>

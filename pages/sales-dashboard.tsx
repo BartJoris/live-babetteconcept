@@ -120,7 +120,7 @@ export default function SalesDashboard() {
       <div className="p-4 sm:p-8">
         <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl sm:text-2xl font-bold">🧾 Kassa {getUniekeDatums()}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🧾 Kassa {getUniekeDatums()}</h1>
           <button
             onClick={fetchSales}
             className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
@@ -134,13 +134,13 @@ export default function SalesDashboard() {
         {!loading && data && (
           <>
             <div className="mb-6 space-y-1 text-sm sm:text-base">
-              <p className="text-gray-600">📦 Aantal verkopen: <strong>{data.orders.length}</strong></p>
-              <p className="text-gray-600">💶 Totale omzet: <strong>€ {data.total.toFixed(2)}</strong></p>
+              <p className="text-gray-800">📦 Aantal verkopen: <strong>{data.orders.length}</strong></p>
+              <p className="text-gray-800">💶 Totale omzet: <strong>€ {data.total.toFixed(2)}</strong></p>
             </div>
 
             {/* Desktop table view */}
             <table className="hidden sm:table w-full text-left border-t border-gray-200 mb-4">
-              <thead className="text-gray-600 uppercase text-sm">
+              <thead className="text-gray-800 uppercase text-sm">
                 <tr>
                   <th className="py-2">Tijd</th>
                   <th className="py-2">Klant</th>

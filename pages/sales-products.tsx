@@ -168,7 +168,7 @@ export default function SalesProductsPage() {
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold">🏷️ Sales Product Analytics</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🏷️ Sales Product Analytics</h1>
             <div className="flex gap-2 items-center">
               <select
                 value={selectedMonth.split('-')[0]}
@@ -322,7 +322,7 @@ export default function SalesProductsPage() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-green-800 font-semibold">
                                 {day.sales_percentage.toFixed(1)}%
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                                 {day.order_count}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-800 font-semibold">
@@ -356,7 +356,7 @@ export default function SalesProductsPage() {
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
                       <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold">Producten verkocht op {formatDate(selectedDate)}</h2>
+                        <h2 className="text-xl font-bold text-gray-900">Producten verkocht op {formatDate(selectedDate)}</h2>
                         <button
                           onClick={() => setSelectedDate(null)}
                           className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -435,13 +435,13 @@ export default function SalesProductsPage() {
                             <tbody className="bg-white divide-y divide-gray-200">
                               {dayDetails.map((product, index) => (
                                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">
                                     {formatTime(product.order_time)}
                                   </td>
                                   <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {product.name}
                                   </td>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">
                                     {product.category}
                                   </td>
                                   <td className="px-4 py-2 whitespace-nowrap text-sm">
@@ -456,7 +456,7 @@ export default function SalesProductsPage() {
                                   <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                                     {product.qty}
                                   </td>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">
                                     € {product.price_unit.toFixed(2)}
                                   </td>
                                   <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold">
@@ -466,7 +466,7 @@ export default function SalesProductsPage() {
                                         : product.price_subtotal / product.qty;
                                       const hasDiscount = discountedPrice < product.price_unit;
                                       return (
-                                        <span className={hasDiscount ? 'text-green-700' : 'text-gray-600'}>
+                                        <span className={hasDiscount ? 'text-green-700' : 'text-gray-800'}>
                                           € {discountedPrice.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                       );

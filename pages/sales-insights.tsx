@@ -331,7 +331,7 @@ export default function SalesInsightsPage() {
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold">📊 Verkoop Inzichten</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📊 Verkoop Inzichten</h1>
           <div className="flex gap-2 items-center">
             <select
               value={selectedMonth.split('-')[0]}
@@ -481,7 +481,7 @@ export default function SalesInsightsPage() {
                               € {day.afternoon_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               <span className="text-xs text-gray-500 block">({day.afternoon_orders} orders)</span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                               € {(day.total_amount / day.order_count).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             {marginAvailable && (

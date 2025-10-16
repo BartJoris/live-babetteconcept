@@ -118,14 +118,14 @@ export default function ImageFetchDebug() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               🐛 Image Fetch Debug Tool
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Test product matching and image fetching from vendor websites
             </p>
           </div>
 
           {/* Configuration */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">1️⃣ Configure Vendor Website</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">1️⃣ Configure Vendor Website</h2>
             
             <div className="mb-4">
               <label className="block font-medium text-gray-700 mb-2">
@@ -164,7 +164,7 @@ export default function ImageFetchDebug() {
           {/* Search */}
           {allProducts.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">2️⃣ Search Products</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">2️⃣ Search Products</h2>
               
               <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded p-3">
                 <p className="text-sm text-yellow-800">
@@ -264,16 +264,16 @@ export default function ImageFetchDebug() {
           {/* Results */}
           {matchedProducts.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-bold mb-4">📸 Matched Products & Images</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">📸 Matched Products & Images</h2>
               
               <div className="space-y-6">
                 {matchedProducts.map((product, idx) => (
                   <div key={idx} className="border rounded-lg p-4">
                     <div className="mb-3">
-                      <h3 className="text-lg font-bold">{product.title}</h3>
-                      <p className="text-sm text-gray-600">Handle: {product.handle}</p>
+                      <h3 className="text-lg font-bold text-gray-900">{product.title}</h3>
+                      <p className="text-sm text-gray-800">Handle: {product.handle}</p>
                       {product.variants && product.variants.length > 0 && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-800">
                           Variants: {product.variants.length}
                           {product.variants[0]?.sku && ` (SKU: ${product.variants[0].sku})`}
                         </p>
@@ -282,7 +282,7 @@ export default function ImageFetchDebug() {
 
                     {product.images && product.images.length > 0 ? (
                       <div>
-                        <h4 className="font-medium mb-2">
+                        <h4 className="font-medium mb-2 text-gray-900">
                           📸 Images ({product.images.length} found, {Math.min(3, product.images.length)} will be imported)
                         </h4>
                         <div className="grid grid-cols-3 gap-4">
@@ -327,7 +327,7 @@ export default function ImageFetchDebug() {
           {/* All Products List */}
           {allProducts.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
-              <h2 className="text-xl font-bold mb-4">📋 All Products on Website ({allProducts.length})</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">📋 All Products on Website ({allProducts.length})</h2>
               
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
@@ -344,7 +344,7 @@ export default function ImageFetchDebug() {
                       <tr key={idx} className="border-b hover:bg-gray-50">
                         <td className="p-2 text-gray-500">{idx + 1}</td>
                         <td className="p-2 font-medium">{product.title}</td>
-                        <td className="p-2 text-xs text-gray-600">{product.handle}</td>
+                        <td className="p-2 text-xs text-gray-800">{product.handle}</td>
                         <td className="p-2">
                           {product.images?.length || 0 > 0 ? (
                             <span className="text-green-600">📸 {product.images?.length}</span>

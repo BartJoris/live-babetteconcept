@@ -367,7 +367,7 @@ export default function DailyComparePage() {
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold mb-4">📅 Dagelijkse Vergelijking</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">📅 Dagelijkse Vergelijking</h1>
           <div className="flex flex-wrap gap-4 items-center mb-2">
             {selectedPeriods.map((p, idx) => (
               <div key={idx} className="flex gap-2 items-center bg-gray-50 px-3 py-2 rounded-lg border">
@@ -401,7 +401,7 @@ export default function DailyComparePage() {
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     activeTab === 'cumulative'
                       ? 'bg-white text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-blue-600'
+                      : 'text-gray-800 hover:text-blue-600'
                   }`}
                 >
                   📈 Cumulatief
@@ -411,7 +411,7 @@ export default function DailyComparePage() {
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     activeTab === 'daily'
                       ? 'bg-white text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-blue-600'
+                      : 'text-gray-800 hover:text-blue-600'
                   }`}
                 >
                   📊 Dagelijks
@@ -430,7 +430,7 @@ export default function DailyComparePage() {
                   <p className={`text-2xl font-bold ${performanceStats.difference >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {performanceStats.difference >= 0 ? '+' : ''}€{formatBE(Math.abs(performanceStats.difference))} 
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-800">
                     {performanceStats.difference >= 0 ? 'voorsprong' : 'achterstand'} vs {performanceStats.period2Label}
                   </p>
                 </div>
@@ -439,7 +439,7 @@ export default function DailyComparePage() {
                   <p className="text-lg font-bold text-green-800">
                     €{formatBE(performanceStats.avgDaily1)}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-800">
                     vs €{formatBE(performanceStats.avgDaily2)} 
                     <span className={`ml-1 ${performanceStats.avgPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       ({performanceStats.avgPercentage >= 0 ? '+' : ''}{performanceStats.avgPercentage.toFixed(1)}%)
@@ -451,7 +451,7 @@ export default function DailyComparePage() {
                   <p className="text-lg font-bold text-purple-800">
                     €{formatBE(performanceStats.projectedTotal1)}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-800">
                     vs €{formatBE(performanceStats.projectedTotal2)} maandeinde
                   </p>
                 </div>
@@ -460,7 +460,7 @@ export default function DailyComparePage() {
                   <p className={`text-2xl font-bold ${performanceStats.projectedDifference >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {performanceStats.projectedDifference >= 0 ? '+' : ''}€{formatBE(Math.abs(performanceStats.projectedDifference))}
                   </p>
-                  <p className="text-sm text-gray-600">als trend doorzet</p>
+                  <p className="text-sm text-gray-800">als trend doorzet</p>
                 </div>
               </div>
             )}

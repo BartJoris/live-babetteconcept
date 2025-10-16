@@ -298,7 +298,7 @@ export default function BrandInventoryPage() {
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">📦 Voorraad Analyse</h1>
+            <h1 className="text-2xl font-bold text-gray-900">📦 Voorraad Analyse</h1>
             <div className="flex gap-4 items-center">
               <label className="flex items-center gap-2">
                 <span className="font-medium">Jaar:</span>
@@ -394,7 +394,7 @@ export default function BrandInventoryPage() {
               {/* Charts */}
               <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h3 className="font-semibold mb-3">Sell-through per Merk (Top 10)</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900">Sell-through per Merk (Top 10)</h3>
                   <Bar
                     data={sellThroughChartData}
                     options={{
@@ -411,7 +411,7 @@ export default function BrandInventoryPage() {
                   />
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h3 className="font-semibold mb-3">Status Verdeling</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900">Status Verdeling</h3>
                   {statusDistributionData && (
                     <Doughnut
                       data={statusDistributionData}
@@ -440,7 +440,7 @@ export default function BrandInventoryPage() {
                     <option value="totalSold">Totaal Verkocht</option>
                   </select>
                 </label>
-                <span className="text-gray-600">
+                <span className="text-gray-800">
                   {aggregatedBrands.length} merken
                 </span>
               </div>
@@ -527,15 +527,15 @@ export default function BrandInventoryPage() {
                                     <h4 className="font-semibold text-blue-900 mb-3">📥 Inkomende Voorraad</h4>
                                     <div className="space-y-2 text-sm">
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Opening voorraad:</span>
+                                        <span className="text-gray-800">Opening voorraad:</span>
                                         <span className="font-semibold">{brand.openingStock}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Aankopen:</span>
+                                        <span className="text-gray-800">Aankopen:</span>
                                         <span className="text-green-700 font-semibold">+{brand.stockInPurchases}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Aanpassingen in:</span>
+                                        <span className="text-gray-800">Aanpassingen in:</span>
                                         <span className="text-blue-700">+{brand.stockInAdjustments}</span>
                                       </div>
                                       <div className="flex justify-between border-t pt-2 font-semibold">
@@ -549,19 +549,19 @@ export default function BrandInventoryPage() {
                                     <h4 className="font-semibold text-red-900 mb-3">📤 Uitgaande Voorraad</h4>
                                     <div className="space-y-2 text-sm">
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">POS Verkopen:</span>
+                                        <span className="text-gray-800">POS Verkopen:</span>
                                         <span className="text-red-700 font-semibold">-{brand.stockOutSales}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">└─ Regular:</span>
+                                        <span className="text-gray-800">└─ Regular:</span>
                                         <span className="text-gray-700">{brand.soldRegular}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">└─ Solden:</span>
+                                        <span className="text-gray-800">└─ Solden:</span>
                                         <span className="text-orange-700">{brand.soldSales}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Aanpassingen uit:</span>
+                                        <span className="text-gray-800">Aanpassingen uit:</span>
                                         <span className="text-red-700">-{brand.stockOutAdjustments}</span>
                                       </div>
                                       <div className="flex justify-between border-t pt-2 font-semibold">
@@ -575,15 +575,15 @@ export default function BrandInventoryPage() {
                                     <h4 className="font-semibold text-purple-900 mb-3">📊 Voorraad Validatie</h4>
                                     <div className="space-y-2 text-sm">
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Berekend slot:</span>
+                                        <span className="text-gray-800">Berekend slot:</span>
                                         <span className="font-semibold">{brand.calculatedClosing}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Werkelijk slot:</span>
+                                        <span className="text-gray-800">Werkelijk slot:</span>
                                         <span className="font-semibold">{brand.currentStock}</span>
                                       </div>
                                       <div className="flex justify-between border-t pt-2">
-                                        <span className="text-gray-600">Verschil:</span>
+                                        <span className="text-gray-800">Verschil:</span>
                                         <span className={`font-bold ${hasDiscrepancy ? 'text-red-700' : 'text-green-700'}`}>
                                           {brand.stockDiscrepancy > 0 ? '+' : ''}{brand.stockDiscrepancy.toFixed(1)}
                                           {hasDiscrepancy && ' ⚠️'}
@@ -591,11 +591,11 @@ export default function BrandInventoryPage() {
                                       </div>
                                       <div className="mt-3 pt-3 border-t">
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Voorraadwaarde:</span>
+                                          <span className="text-gray-800">Voorraadwaarde:</span>
                                           <span className="font-semibold">€{formatBE(brand.stockValue)}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Sell-through:</span>
+                                          <span className="text-gray-800">Sell-through:</span>
                                           <span className={`font-semibold ${statusConfig.color}`}>
                                             {brand.sellThroughRate.toFixed(1)}%
                                           </span>

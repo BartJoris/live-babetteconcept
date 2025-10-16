@@ -83,7 +83,7 @@ export default function CategoriesExplorer() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               🔍 Categories Explorer
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Explore all available categories in your Odoo system
             </p>
           </div>
@@ -91,19 +91,19 @@ export default function CategoriesExplorer() {
           {/* Summary Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="text-gray-600 text-sm mb-1">📁 Internal Categories</div>
+              <div className="text-gray-800 text-sm mb-1">📁 Internal Categories</div>
               <div className="text-3xl font-bold">{data.summary.internalCategories}</div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="text-gray-600 text-sm mb-1">🌐 Public Categories</div>
+              <div className="text-gray-800 text-sm mb-1">🌐 Public Categories</div>
               <div className="text-3xl font-bold">{data.summary.publicCategories}</div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="text-gray-600 text-sm mb-1">🏷️ Product Tags</div>
+              <div className="text-gray-800 text-sm mb-1">🏷️ Product Tags</div>
               <div className="text-3xl font-bold">{data.summary.productTags}</div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="text-gray-600 text-sm mb-1">💰 POS Categories</div>
+              <div className="text-gray-800 text-sm mb-1">💰 POS Categories</div>
               <div className="text-3xl font-bold">{data.summary.posCategories}</div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function CategoriesExplorer() {
                   className={`px-6 py-3 font-medium ${
                     activeTab === 'internal'
                       ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-gray-800 hover:text-gray-900'
                   }`}
                 >
                   📁 Internal ({data.summary.internalCategories})
@@ -127,7 +127,7 @@ export default function CategoriesExplorer() {
                   className={`px-6 py-3 font-medium ${
                     activeTab === 'public'
                       ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-gray-800 hover:text-gray-900'
                   }`}
                 >
                   🌐 Public ({data.summary.publicCategories})
@@ -137,7 +137,7 @@ export default function CategoriesExplorer() {
                   className={`px-6 py-3 font-medium ${
                     activeTab === 'tags'
                       ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-gray-800 hover:text-gray-900'
                   }`}
                 >
                   🏷️ Tags ({data.summary.productTags})
@@ -147,7 +147,7 @@ export default function CategoriesExplorer() {
                   className={`px-6 py-3 font-medium ${
                     activeTab === 'pos'
                       ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-gray-800 hover:text-gray-900'
                   }`}
                 >
                   💰 POS ({data.summary.posCategories})
@@ -160,7 +160,7 @@ export default function CategoriesExplorer() {
               {activeTab === 'internal' && (
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Internal Categories (product.category)</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Internal Categories (product.category)</h2>
                     <button
                       onClick={() => downloadJSON(data.internalCategories, 'internal-categories.json')}
                       className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -183,7 +183,7 @@ export default function CategoriesExplorer() {
                           <tr key={cat.id} className="border-b hover:bg-gray-50">
                             <td className="p-2">{cat.id}</td>
                             <td className="p-2 font-medium">{cat.name}</td>
-                            <td className="p-2 text-xs text-gray-600">{cat.display_name}</td>
+                            <td className="p-2 text-xs text-gray-800">{cat.display_name}</td>
                             <td className="p-2 text-xs">
                               {cat.parent_id ? `${cat.parent_id[0]} - ${cat.parent_id[1]}` : '-'}
                             </td>
@@ -199,7 +199,7 @@ export default function CategoriesExplorer() {
               {activeTab === 'public' && (
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Public/eCommerce Categories (product.public.category)</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Public/eCommerce Categories (product.public.category)</h2>
                     {data.publicCategories.length > 0 && (
                       <button
                         onClick={() => downloadJSON(data.publicCategories, 'public-categories.json')}
@@ -212,7 +212,7 @@ export default function CategoriesExplorer() {
 
                   {data.publicCategories.length === 0 ? (
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                      <h3 className="font-bold text-yellow-800 mb-2">⚠️ No Public Categories Found</h3>
+                      <h3 className="font-bold text-yellow-800 text-gray-900 mb-2">⚠️ No Public Categories Found</h3>
                       <p className="text-sm text-yellow-700 mb-3">
                         This could mean public categories don&apos;t exist or there&apos;s an access issue.
                       </p>
@@ -251,7 +251,7 @@ export default function CategoriesExplorer() {
                           <tr key={cat.id} className="border-b hover:bg-gray-50">
                               <td className="p-2">{cat.id}</td>
                               <td className="p-2 font-medium">{cat.name}</td>
-                              <td className="p-2 text-xs text-gray-600">{cat.display_name}</td>
+                              <td className="p-2 text-xs text-gray-800">{cat.display_name}</td>
                               <td className="p-2 text-xs">
                                 {cat.parent_id ? `${cat.parent_id[0]} - ${cat.parent_id[1]}` : '-'}
                               </td>
@@ -268,7 +268,7 @@ export default function CategoriesExplorer() {
               {activeTab === 'tags' && (
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Product Template Tags</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Product Template Tags</h2>
                     {data.productTags.length > 0 && (
                       <button
                         onClick={() => downloadJSON(data.productTags, 'product-tags.json')}
@@ -281,7 +281,7 @@ export default function CategoriesExplorer() {
 
                   {data.productTags.length === 0 ? (
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                      <h3 className="font-bold text-yellow-800 mb-2">⚠️ No Product Tags Found</h3>
+                      <h3 className="font-bold text-yellow-800 text-gray-900 mb-2">⚠️ No Product Tags Found</h3>
                       <p className="text-sm text-yellow-700 mb-3">
                         Product tags may not exist in this Odoo installation or the model name is different.
                       </p>
@@ -331,7 +331,7 @@ export default function CategoriesExplorer() {
               {activeTab === 'pos' && (
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">POS Categories (pos.category)</h2>
+                    <h2 className="text-xl font-bold text-gray-900">POS Categories (pos.category)</h2>
                     <button
                       onClick={() => downloadJSON(data.posCategories, 'pos-categories.json')}
                       className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"

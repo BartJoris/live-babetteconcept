@@ -257,7 +257,7 @@ export default function DashboardPage() {
       <div className="p-4">
         <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl sm:text-2xl font-bold">🧾 POS Verkoopoverzicht</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🧾 POS Verkoopoverzicht</h1>
             <button
               onClick={fetchSales}
               className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
@@ -304,7 +304,7 @@ export default function DashboardPage() {
                     className="w-full px-4 py-2 flex justify-between items-center"
                   >
                     <span>{new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', { timeZone: 'Europe/Brussels' })}</span>
-                    <span className="text-sm text-gray-600">{order.partner || '-'}</span>
+                    <span className="text-sm text-gray-800">{order.partner || '-'}</span>
                     <span className="font-bold text-blue-800">€ {order.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </button>
 
@@ -319,7 +319,7 @@ export default function DashboardPage() {
                               <tr key={index} className="border-t border-gray-200">
                                 <td className="font-semibold pr-2 py-1">{line.product_name}</td>
                                 {line.qty > 1 && (
-                                  <td className="text-right text-gray-600 whitespace-nowrap px-2">
+                                  <td className="text-right text-gray-800 whitespace-nowrap px-2">
                                     {line.qty} × € {line.price_unit.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </td>
                                 )}
@@ -339,7 +339,7 @@ export default function DashboardPage() {
           </>
         ) : lastSession ? (
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">❌ Geen actieve POS-sessie gevonden</p>
+            <p className="text-gray-800 mb-4">❌ Geen actieve POS-sessie gevonden</p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 mb-3">
                 Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>

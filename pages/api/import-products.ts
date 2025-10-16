@@ -296,15 +296,6 @@ export default async function handler(
 
             console.log(`Updating variant: Size ${sizeName}, Barcode ${csvVariant.ean}, SKU ${csvVariant.sku || 'N/A'}`);
 
-            // Check if barcode already exists
-            const existingBarcode = await callOdoo(
-              parseInt(uid),
-              password,
-              'product.product',
-              'search',
-              [[['barcode', '=', csvVariant.ean]]]
-            );
-
             const updateData: Record<string, unknown> = {
               standard_price: csvVariant.price,
               weight: 0.2, // Default weight 0.2kg for all variants
@@ -315,14 +306,15 @@ export default async function handler(
               updateData.default_code = csvVariant.sku;
             }
 
-            // Only set barcode if it doesn't exist elsewhere
-            if (!existingBarcode || existingBarcode.length === 0) {
+            // Always set barcode from CSV for new imports
+            if (csvVariant.ean && csvVariant.ean.trim()) {
               updateData.barcode = csvVariant.ean;
-            } else {
-              console.log(`⚠️ Barcode ${csvVariant.ean} already exists, skipping`);
+              console.log(`📌 Setting barcode: ${csvVariant.ean}`);
             }
 
+            console.log(`Updating variant ${odooVariant.id}:`, JSON.stringify(updateData));
             await callOdoo(parseInt(uid), password, 'product.product', 'write', [[odooVariant.id], updateData]);
+            console.log(`✅ Updated variant`);
 
             // Update stock if quantity > 0
             if (csvVariant.quantity > 0) {

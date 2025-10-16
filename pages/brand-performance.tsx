@@ -323,7 +323,7 @@ export default function BrandPerformancePage() {
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">🏷️ Merkprestaties</h1>
+            <h1 className="text-2xl font-bold text-gray-900">🏷️ Merkprestaties</h1>
             <div className="flex gap-4 items-center">
               <label className="flex items-center gap-2">
                 <span className="font-medium">Jaar:</span>
@@ -382,7 +382,7 @@ export default function BrandPerformancePage() {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-blue-200">
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-800">
                     <strong>Let op:</strong> Alle bedragen zijn exclusief 21% BTW. Kosten zijn gebaseerd op de Kostprijs in Odoo.
                   </p>
                 </div>
@@ -419,7 +419,7 @@ export default function BrandPerformancePage() {
               {/* Charts */}
               <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h3 className="font-semibold mb-3">Omzet per Periode (Top 10)</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900">Omzet per Periode (Top 10)</h3>
                   <Bar
                     data={revenueChartData}
                     options={{
@@ -433,7 +433,7 @@ export default function BrandPerformancePage() {
                   />
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h3 className="font-semibold mb-3">Marktaandeel (Top 8)</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900">Marktaandeel (Top 8)</h3>
                   <Pie
                     data={marketShareData}
                     options={{
@@ -459,7 +459,7 @@ export default function BrandPerformancePage() {
 
               <div className="mb-8">
                 <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h3 className="font-semibold mb-3">Winstmarge % (Top 10)</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900">Winstmarge % (Top 10)</h3>
                   <Line
                     data={profitMarginChartData}
                     options={{
@@ -501,7 +501,7 @@ export default function BrandPerformancePage() {
                     placeholder="0"
                   />
                 </label>
-                <span className="text-gray-600">
+                <span className="text-gray-800">
                   {aggregatedBrands.length} merken weergegeven
                 </span>
               </div>
@@ -607,13 +607,13 @@ export default function BrandPerformancePage() {
                                       <div key={period} className="bg-white p-3 rounded border">
                                         <p className="font-semibold text-sm mb-2">{PERIOD_LABELS[period]}</p>
                                         <div className="space-y-1 text-xs">
-                                          <p><span className="text-gray-600">Omzet:</span> <span className="font-semibold">€{formatBE(metrics.revenue)}</span></p>
-                                          <p><span className="text-gray-600">Kosten:</span> €{formatBE(metrics.cost)}</p>
-                                          <p><span className="text-gray-600">Winst:</span> <span className="text-green-700 font-semibold">€{formatBE(metrics.margin)}</span></p>
-                                          <p><span className="text-gray-600">Marge:</span> {metrics.profitPercentage.toFixed(1)}%</p>
-                                          <p><span className="text-gray-600">Verkocht:</span> {metrics.quantitySold} stuks</p>
-                                          <p><span className="text-gray-600">Producten:</span> {metrics.productCount}</p>
-                                          <p><span className="text-gray-600">Gem. prijs:</span> €{formatBE(metrics.avgSellingPrice)}</p>
+                                          <p><span className="text-gray-800">Omzet:</span> <span className="font-semibold">€{formatBE(metrics.revenue)}</span></p>
+                                          <p><span className="text-gray-800">Kosten:</span> €{formatBE(metrics.cost)}</p>
+                                          <p><span className="text-gray-800">Winst:</span> <span className="text-green-700 font-semibold">€{formatBE(metrics.margin)}</span></p>
+                                          <p><span className="text-gray-800">Marge:</span> {metrics.profitPercentage.toFixed(1)}%</p>
+                                          <p><span className="text-gray-800">Verkocht:</span> {metrics.quantitySold} stuks</p>
+                                          <p><span className="text-gray-800">Producten:</span> {metrics.productCount}</p>
+                                          <p><span className="text-gray-800">Gem. prijs:</span> €{formatBE(metrics.avgSellingPrice)}</p>
                                         </div>
                                       </div>
                                     );

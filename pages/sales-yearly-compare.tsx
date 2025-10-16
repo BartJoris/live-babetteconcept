@@ -194,7 +194,7 @@ export default function SalesComparePage() {
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold">📈 Verkoop Vergelijken</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📈 Verkoop Vergelijken</h1>
           <div className="flex gap-2 items-center">
             <label className="mr-2 font-medium">Jaren:</label>
             {allYears.map(y => (

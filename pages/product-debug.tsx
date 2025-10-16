@@ -91,7 +91,7 @@ export default function ProductDebug() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               🔍 Product Debug
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Inspect complete product structure from Odoo
             </p>
           </div>
@@ -127,19 +127,19 @@ export default function ProductDebug() {
               {/* Summary Cards */}
               <div className="grid grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg shadow p-4">
-                  <div className="text-gray-600 text-sm mb-1">Product ID</div>
+                  <div className="text-gray-800 text-sm mb-1">Product ID</div>
                   <div className="text-2xl font-bold">{data.productId}</div>
                 </div>
                 <div className="bg-white rounded-lg shadow p-4">
-                  <div className="text-gray-600 text-sm mb-1">Variants</div>
+                  <div className="text-gray-800 text-sm mb-1">Variants</div>
                   <div className="text-2xl font-bold">{data.variants?.length || 0}</div>
                 </div>
                 <div className="bg-white rounded-lg shadow p-4">
-                  <div className="text-gray-600 text-sm mb-1">Price</div>
+                  <div className="text-gray-800 text-sm mb-1">Price</div>
                   <div className="text-2xl font-bold">€{String(data.template?.list_price || 0)}</div>
                 </div>
                 <div className="bg-white rounded-lg shadow p-4">
-                  <div className="text-gray-600 text-sm mb-1">Cost Price</div>
+                  <div className="text-gray-800 text-sm mb-1">Cost Price</div>
                   <div className="text-2xl font-bold">€{String(data.template?.standard_price || 0)}</div>
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default function ProductDebug() {
 
               {/* Template Info */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4">Product Template</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Product Template</h2>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-700">Name:</span>{' '}
@@ -194,7 +194,7 @@ export default function ProductDebug() {
               {/* Variants */}
               {data.variants && data.variants.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold mb-4">Variants ({data.variants.length})</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Variants ({data.variants.length})</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100">
@@ -239,11 +239,11 @@ export default function ProductDebug() {
               {/* Attribute Lines */}
               {data.attributeLines && data.attributeLines.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold mb-4">Attributes</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Attributes</h2>
                   {data.attributeLines.map((attr) => (
                     <div key={attr.id} className="mb-4 pb-4 border-b last:border-0">
                       <div className="font-bold text-gray-900">{attr.display_name}</div>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-sm text-gray-800 mt-1">
                         {attr.value_count} values • Attribute ID: {attr.attribute_id[0]}
                       </div>
                     </div>
@@ -254,7 +254,7 @@ export default function ProductDebug() {
               {/* Public Categories */}
               {data.publicCategories && data.publicCategories.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold mb-4">Public/eCommerce Categories</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Public/eCommerce Categories</h2>
                   {data.publicCategories.map((cat) => (
                     <div key={cat.id} className="mb-2">
                       <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm">

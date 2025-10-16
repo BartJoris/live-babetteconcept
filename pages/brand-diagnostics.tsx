@@ -203,7 +203,7 @@ export default function BrandDiagnosticsPage() {
       <div className="p-4">
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">🔍 Merk Diagnostiek</h1>
+            <h1 className="text-2xl font-bold text-gray-900">🔍 Merk Diagnostiek</h1>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -239,7 +239,7 @@ export default function BrandDiagnosticsPage() {
               {/* Products Without Brand with AI Suggestions */}
               {data.productsWithoutBrand && data.productsWithoutBrand.length > 0 && (
                 <div className="mt-6">
-                  <h2 className="text-xl font-bold mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">
                     🤖 AI Merk Suggesties ({data.summary?.productsWithSuggestions || 0} met suggesties)
                   </h2>
                   
@@ -247,7 +247,7 @@ export default function BrandDiagnosticsPage() {
                     <div key={idx} className="border rounded-lg p-4 mb-4 bg-white">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-bold text-lg">
+                          <h3 className="font-bold text-lg text-gray-900">
                             {group.suggestedBrandName}
                             {group.matchConfidence === 'exact' && (
                               <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">✓ Exact Match</span>
@@ -256,7 +256,7 @@ export default function BrandDiagnosticsPage() {
                               <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">~ Fuzzy Match</span>
                             )}
                           </h3>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-800">
                             Gevonden merk: <strong>{group.matchedBrandName}</strong> ({group.matchedBrandSource})
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
@@ -303,7 +303,7 @@ export default function BrandDiagnosticsPage() {
 
                       {/* Product List */}
                       <details className="mt-3">
-                        <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                        <summary className="cursor-pointer text-sm text-gray-800 hover:text-gray-900">
                           Toon {group.products.length} producten
                         </summary>
                         <div className="mt-3 space-y-1">
@@ -326,10 +326,10 @@ export default function BrandDiagnosticsPage() {
                   {/* Products without suggestions */}
                   {data.productsWithoutBrand.filter(p => !p.suggestedBrandName).length > 0 && (
                     <div className="border rounded-lg p-4 bg-yellow-50">
-                      <h3 className="font-bold text-lg mb-3">
+                      <h3 className="font-bold text-lg text-gray-900 mb-3">
                         ⚠️ Geen AI Suggestie ({data.productsWithoutBrand.filter(p => !p.suggestedBrandName).length} producten)
                       </h3>
-                      <p className="text-sm text-gray-600 mb-3">
+                      <p className="text-sm text-gray-800 mb-3">
                         Deze producten hebben geen duidelijke merknaam in de titel. Handmatige toewijzing vereist.
                       </p>
                       <details>
@@ -356,7 +356,7 @@ export default function BrandDiagnosticsPage() {
               {data.productsWithoutBrand && data.productsWithoutBrand.length === 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
                   <div className="text-4xl mb-3">🎉</div>
-                  <h3 className="text-xl font-bold text-green-900 mb-2">Alle Producten Hebben een Merk!</h3>
+                  <h3 className="text-xl font-bold text-green-900 text-gray-900 mb-2">Alle Producten Hebben een Merk!</h3>
                   <p className="text-green-700">Er zijn geen producten zonder merk gevonden.</p>
               </div>
               )}

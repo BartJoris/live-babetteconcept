@@ -28,7 +28,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | null;
 
 interface Brand {
   id: number;
@@ -96,19 +96,19 @@ function SearchableSelect({ options, value, onChange, placeholder = 'Selecteer..
         onFocus={() => setIsOpen(true)}
         onClick={() => setIsOpen(true)}
         placeholder={placeholder}
-        className="w-full border-2 border-gray-300 rounded px-3 py-2 text-sm font-medium cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+        className="w-full border-2 border-gray-300 rounded px-3 py-2 text-sm font-medium cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 placeholder-gray-600"
         autoComplete="off"
       />
       {isOpen && (
         <div className="absolute z-50 w-full min-w-max mt-1 bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-80 overflow-y-auto">
           {filteredOptions.length === 0 ? (
-            <div className="p-3 text-sm text-gray-500 text-center">Geen resultaten voor &quot;{search}&quot;</div>
+            <div className="p-3 text-sm text-gray-700 text-center">Geen resultaten voor &quot;{search}&quot;</div>
           ) : (
             filteredOptions.map(option => (
               <div
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
-                className="px-3 py-2 text-sm hover:bg-blue-500 hover:text-white cursor-pointer border-b last:border-b-0 transition-colors"
+                className="px-3 py-2 text-sm text-gray-900 hover:bg-blue-500 hover:text-white cursor-pointer border-b last:border-b-0 transition-colors"
               >
                 {option.label}
               </div>
@@ -149,6 +149,7 @@ export default function ProductImport() {
   const [showApiPreview, setShowApiPreview] = useState(false);
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; currentProduct?: string } | null>(null);
+  const [imageImportResults, setImageImportResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -262,6 +263,8 @@ export default function ProductImport() {
         parseLeNewBlackCSV(text);
       } else if (selectedVendor === 'playup') {
         parsePlayUpCSV(text);
+      } else if (selectedVendor === 'floss') {
+        parseFlossCSV(text);
       }
     };
     reader.readAsText(file);
@@ -476,12 +479,33 @@ export default function ProductImport() {
     // Play UP format parser
     // CSV format: Article,Color,Description,Size,Quantity,Price
     const lines = text.trim().split('\n');
-    if (lines.length < 2) return;
+    
+    console.log(`📦 Parsing Play UP CSV...`);
+    console.log(`📦 Total lines: ${lines.length}`);
+    console.log(`📦 First line: ${lines[0]}`);
+    console.log(`📦 Second line: ${lines[1]}`);
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough lines in CSV');
+      alert('CSV file is empty or invalid');
+      return;
+    }
 
-    const headers = lines[0].split(',');
+    const headers = lines[0].split(',').map(h => h.trim());
     const products: { [key: string]: ParsedProduct } = {};
 
+    console.log(`📦 Headers: ${JSON.stringify(headers)}`);
+    
+    // Validate headers
+    if (!headers.includes('Article') || !headers.includes('Description')) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Invalid CSV format. Expected headers: Article,Color,Description,Size,Quantity,Price');
+      return;
+    }
+
     for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue; // Skip empty lines
+      
       // Handle quoted fields (descriptions may contain commas)
       const values: string[] = [];
       let currentValue = '';
@@ -501,7 +525,7 @@ export default function ProductImport() {
       
       const row: Record<string, string> = {};
       headers.forEach((header, idx) => {
-        row[header.trim()] = values[idx]?.trim() || '';
+        row[header] = (values[idx] || '').trim();
       });
 
       const article = row['Article'] || '';
@@ -511,7 +535,10 @@ export default function ProductImport() {
       const quantity = parseInt(row['Quantity'] || '0');
       const price = parseFloat(row['Price'] || '0');
 
-      if (!article) continue;
+      if (!article) {
+        console.log(`⚠️ Skipping line ${i}: no article code`);
+        continue;
+      }
 
       // Use article-color as reference (unique product identifier)
       const reference = `${article}-${color}`;
@@ -544,6 +571,8 @@ export default function ProductImport() {
           productTags: [],
           isFavorite: false,
         };
+        
+        console.log(`➕ Created product: ${reference} - ${formattedName}`);
       }
 
       // Check if we have a website price for this article
@@ -558,12 +587,439 @@ export default function ProductImport() {
         price: costPrice,
         rrp: price * 2.4, // Calculate retail price (adjust multiplier as needed)
       });
+      
+      console.log(`  Added variant: ${size} (qty: ${quantity}, price: €${costPrice.toFixed(2)})`);
+    }
+
+    const productList = Object.values(products);
+    console.log(`✅ Parsed ${productList.length} products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  const parseFlossCSV = (text: string) => {
+    // Flöss format parser
+    // Semicolon-separated format with headers on line 2
+    // Handles multi-line quoted fields (company info, descriptions with newlines)
+    
+    console.log(`🌸 Parsing Flöss CSV...`);
+    
+    // Parse CSV properly handling quoted fields with semicolons and newlines
+    const parseCSVLine = (text: string): string[][] => {
+      const rows: string[][] = [];
+      let currentRow: string[] = [];
+      let currentField = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            currentField += '"';
+            i++; // Skip next quote
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ';' && !inQuotes) {
+          // End of field
+          currentRow.push(currentField.trim());
+          currentField = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          // End of row (only if not in quotes)
+          if (currentField || currentRow.length > 0) {
+            currentRow.push(currentField.trim());
+            if (currentRow.some(f => f)) { // Only add non-empty rows
+              rows.push(currentRow);
+              currentRow = [];
+            }
+            currentField = '';
+          }
+          // Skip \r\n combination
+          if (char === '\r' && nextChar === '\n') {
+            i++;
+          }
+        } else if (char !== '\r') {
+          // Regular character
+          currentField += char;
+        }
+      }
+      
+      // Add final field and row
+      if (currentField || currentRow.length > 0) {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(f => f)) {
+          rows.push(currentRow);
+        }
+      }
+      
+      return rows;
+    };
+    
+    const rows = parseCSVLine(text);
+    
+    console.log(`🌸 Total parsed rows: ${rows.length}`);
+    if (rows.length > 0) console.log(`🌸 First row: ${rows[0][0]}`);
+    if (rows.length > 1) console.log(`🌸 Second row (headers): ${rows[1].slice(0, 5).join(';')}`);
+    
+    if (rows.length < 3) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Row 0 is "Table 1", Row 1 is headers, Row 2+ is data
+    const headers = rows[1];
+    const products: { [key: string]: ParsedProduct } = {};
+
+    console.log(`🌸 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Validate headers
+    if (!headers.includes('Style No') || !headers.includes('Style Name')) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Style No, Style Name, Barcode, Wholesale Price EUR, Recommended Retail Price EUR');
+      return;
+    }
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    for (let i = 2; i < rows.length; i++) {
+      const values = rows[i];
+      if (!values || values.length === 0) continue;
+      
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] || '';
+      });
+
+      const styleNo = row['Style No'] || '';
+      const styleName = row['Style Name'] || '';
+      const color = row['Color'] || '';
+      const size = row['Size'] || '';
+      const quantity = parseInt(row['Qty'] || '0');
+      const barcode = row['Barcode'] || '';
+      const quality = row['Quality'] || '';
+      const description = row['Description'] || '';
+      
+      // Skip rows that are clearly not product rows
+      if (!styleNo || !/^F\d+/.test(styleNo) || !styleName) {
+        if (styleNo) {
+          console.log(`⚠️ Skipping row ${i}: invalid Style No "${styleNo}"`);
+        }
+        continue;
+      }
+      
+      const price = parsePrice(row['Wholesale Price EUR'] || '0');
+      const rrp = parsePrice(row['Recommended Retail Price EUR'] || '0');
+
+      // Use styleNo as reference
+      const reference = styleNo;
+
+      if (!products[reference]) {
+        // Format product name to match Le New Black convention
+        const toSentenceCase = (str: string) => {
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const brandName = 'Flöss';
+        const productNameWithColor = `${toSentenceCase(styleName)} - ${toSentenceCase(color)}`;
+        const formattedName = `${brandName} - ${productNameWithColor}`;
+        
+        // Auto-detect Flöss brand
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss')
+        );
+
+        products[reference] = {
+          reference,
+          name: formattedName,
+          originalName: styleName,
+          material: quality,
+          color: color,
+          ecommerceDescription: description,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+        };
+        
+        console.log(`➕ Created product: ${reference} - ${formattedName}`);
+      }
+      
+      products[reference].variants.push({
+        size: size,
+        quantity: quantity,
+        ean: barcode,
+        price: price,
+        rrp: rrp,
+      });
     }
 
     const productList = Object.values(products);
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
+  };
+
+  const fetchPlayUpImages = async () => {
+    if (!playupUsername || !playupPassword) {
+      alert('Vul eerst Play UP credentials in');
+      return;
+    }
+
+    const { uid, password } = getCredentials();
+    if (!uid || !password) {
+      alert('Geen Odoo credentials gevonden');
+      return;
+    }
+
+    if (!importResults || !importResults.results) {
+      alert('Geen import resultaten gevonden');
+      return;
+    }
+
+    setLoading(true);
+    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+    // Get successful products with Template IDs
+    const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
+
+    for (const result of successfulProducts) {
+      // Find the original parsed product to get description and color
+      const originalProduct = parsedProducts.find(p => p.reference === result.reference);
+      if (!originalProduct) continue;
+
+      try {
+        console.log(`Fetching images for: ${result.name}`);
+        
+        const response = await fetch('/api/fetch-playup-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productDescription: originalProduct.ecommerceDescription || originalProduct.originalName || originalProduct.name,
+            colorCode: originalProduct.color,
+            colorName: originalProduct.material, // Color name might be stored here
+            templateId: result.templateId,
+            playupUsername,
+            playupPassword,
+            odooUid: uid,
+            odooPassword: password,
+          }),
+        });
+
+        const imageResult = await response.json();
+        
+        results.push({
+          reference: result.reference,
+          success: imageResult.success,
+          imagesUploaded: imageResult.imagesUploaded || 0,
+          error: imageResult.error,
+        });
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+      } catch (error) {
+        results.push({
+          reference: result.reference,
+          success: false,
+          imagesUploaded: 0,
+          error: String(error),
+        });
+      }
+    }
+
+    setImageImportResults(results);
+    setLoading(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const totalImages = results.reduce((sum, r) => sum + (r.imagesUploaded || 0), 0);
+    alert(`✅ Image import complete!\n${successCount}/${results.length} products\n${totalImages} total images uploaded`);
+  };
+
+  const fetchFlossImages = async (imageFolder: File[]) => {
+    if (imageFolder.length === 0) {
+      alert('Geen afbeeldingen geselecteerd');
+      return;
+    }
+
+    if (!importResults || !importResults.results) {
+      alert('Geen import resultaten gevonden');
+      return;
+    }
+
+    const { uid, password } = getCredentials();
+    if (!uid || !password) {
+      alert('Geen Odoo credentials gevonden');
+      return;
+    }
+
+    setLoading(true);
+    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+    try {
+      // Get successful products with Template IDs
+      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
+
+      // Create mapping from Style No to Template ID
+      const styleNoToTemplateId: Record<string, number> = {};
+      for (const result of successfulProducts) {
+        if (result.templateId) {
+          styleNoToTemplateId[result.reference] = result.templateId;
+        }
+      }
+
+      console.log(`🌸 Processing ${imageFolder.length} images...`);
+
+      // Read and convert images
+      const imagesToUpload: Array<{ base64: string; filename: string; styleNo: string }> = [];
+      
+      for (const file of imageFolder) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          // Extract Style No from filename
+          // Format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"
+          const styleNoMatch = file.name.match(/^([F\d]+)\s*-/);
+          const styleNo = styleNoMatch ? styleNoMatch[1] : '';
+
+          if (!styleNo) {
+            console.log(`⚠️ Could not extract Style No from: ${file.name}`);
+            continue;
+          }
+
+          if (!styleNoToTemplateId[styleNo]) {
+            console.log(`⚠️ No template ID found for style ${styleNo}`);
+            continue;
+          }
+
+          imagesToUpload.push({
+            base64,
+            filename: file.name,
+            styleNo,
+          });
+
+          console.log(`✅ Loaded image: ${file.name} (Style No: ${styleNo})`);
+        } catch (error) {
+          console.error(`❌ Error reading file ${file.name}:`, error);
+        }
+      }
+
+      if (imagesToUpload.length === 0) {
+        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. F10625 - ...)');
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🌸 Uploading ${imagesToUpload.length} images...`);
+
+      // Upload images in batches to avoid exceeding request size limits
+      // Each image is typically 1-3MB in base64, so we process 2 per batch to stay well under limits
+      const BATCH_SIZE = 2; // Process 2 images per request
+      const batches = [];
+      
+      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
+        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
+      
+      // Log total size estimate
+      let totalSize = 0;
+      for (const img of imagesToUpload) {
+        totalSize += img.base64.length;
+      }
+      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+      
+      let totalUploaded = 0;
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        let batchSize = 0;
+        for (const img of batch) {
+          batchSize += img.base64.length;
+        }
+        console.log(`🌸 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
+        
+        // Upload batch
+        const response = await fetch('/api/floss-upload-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: batch,
+            styleNoToTemplateId,
+            odooUid: uid,
+            odooPassword: password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
+          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
+        }
+
+        const imageResult = await response.json();
+        
+        if (!imageResult.success) {
+          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
+          for (const result of imageResult.results || []) {
+            results.push({
+              reference: result.styleNo,
+              success: false,
+              imagesUploaded: 0,
+              error: result.error || 'Unknown error',
+            });
+          }
+        } else {
+          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded}/${imageResult.totalImages} uploaded`);
+          totalUploaded += imageResult.imagesUploaded;
+          
+          if (imageResult.results) {
+            for (const result of imageResult.results) {
+              results.push({
+                reference: result.styleNo,
+                success: result.success,
+                imagesUploaded: result.success ? 1 : 0,
+                error: result.error,
+              });
+            }
+          }
+        }
+      }
+      
+      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
+      setImageImportResults(results);
+      setLoading(false);
+      setCurrentStep(7);
+
+    } catch (error) {
+      console.error('❌ Error uploading images:', error);
+      alert(`❌ Error: ${String(error)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchPlayUpPrices = async () => {
@@ -574,10 +1030,20 @@ export default function ProductImport() {
 
     setLoading(true);
     try {
-      // Get unique article codes from parsed products
-      const articleCodes = Array.from(new Set(
-        parsedProducts.flatMap(p => p.variants.map(v => v.sku?.split('-')[0] || ''))
-      )).filter(code => code);
+      // Get unique products with article codes and descriptions
+      const uniqueProducts = Array.from(
+        new Map(
+          parsedProducts.map(p => [
+            p.variants[0]?.sku?.split('-')[0] || p.reference,
+            {
+              article: p.variants[0]?.sku?.split('-')[0] || p.reference,
+              description: p.ecommerceDescription || p.material || p.originalName || '',
+            }
+          ])
+        ).values()
+      ).filter(p => p.article && p.description);
+
+      console.log(`🎮 Fetching prices for ${uniqueProducts.length} unique products...`);
 
       const response = await fetch('/api/playup-fetch-prices', {
         method: 'POST',
@@ -585,7 +1051,7 @@ export default function ProductImport() {
         body: JSON.stringify({
           username: playupUsername,
           password: playupPassword,
-          articleCodes,
+          products: uniqueProducts,
         }),
       });
 
@@ -615,7 +1081,17 @@ export default function ProductImport() {
         localStorage.setItem('playup_username', playupUsername);
         localStorage.setItem('playup_password', playupPassword);
         
-        alert(`✅ ${result.count} prijzen opgehaald van Play UP website`);
+        let message = `✅ ${result.count} van ${uniqueProducts.length} prijzen opgehaald van Play UP website\n\n`;
+        
+        if (result.notFound && result.notFound.length > 0) {
+          message += `⚠️ Niet gevonden (${result.notFound.length}):\n`;
+          message += result.notFound.slice(0, 10).join('\n');
+          if (result.notFound.length > 10) {
+            message += `\n... en ${result.notFound.length - 10} meer`;
+          }
+        }
+        
+        alert(message);
       } else {
         alert('Fout bij ophalen prijzen: ' + (result.error || 'Onbekende fout'));
       }
@@ -944,7 +1420,7 @@ export default function ProductImport() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               📦 Product Import Wizard
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Import producten van leveranciers in bulk met validatie en preview
             </p>
           </div>
@@ -987,15 +1463,15 @@ export default function ProductImport() {
             {/* Step 1: Upload */}
             {currentStep === 1 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">📤 Upload Product Data</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">📤 Upload Product Data</h2>
+                <p className="text-gray-800 mb-6 font-medium">
                   Selecteer eerst de leverancier en upload dan de productgegevens.
                 </p>
 
                 {/* Vendor Selection */}
                 <div className="mb-8">
-                  <h3 className="font-bold text-lg mb-4">1️⃣ Selecteer Leverancier</h3>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <h3 className="font-bold text-lg text-gray-900 mb-4">1️⃣ Selecteer Leverancier</h3>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
                     <button
                       onClick={() => setSelectedVendor('ao76')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
@@ -1005,8 +1481,8 @@ export default function ProductImport() {
                       }`}
                     >
                       <div className="text-4xl mb-3">🏷️</div>
-                      <h3 className="font-bold mb-2">Ao76</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Ao76</h3>
+                      <p className="text-sm text-gray-800">
                         Standaard format met EAN, Reference, Description, Size
                       </p>
                       {selectedVendor === 'ao76' && (
@@ -1023,8 +1499,8 @@ export default function ProductImport() {
                       }`}
                     >
                       <div className="text-4xl mb-3">🎨</div>
-                      <h3 className="font-bold mb-2">Le New Black</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Le New Black</h3>
+                      <p className="text-sm text-gray-800">
                         Order export met Brand name, Product reference, EAN13, Net amount
                       </p>
                       {selectedVendor === 'lenewblack' && (
@@ -1041,11 +1517,29 @@ export default function ProductImport() {
                       }`}
                     >
                       <div className="text-4xl mb-3">🎮</div>
-                      <h3 className="font-bold mb-2">Play UP</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Play UP</h3>
+                      <p className="text-sm text-gray-800">
                         PDF factuur + website prijzen met authenticatie
                       </p>
                       {selectedVendor === 'playup' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('floss')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'floss'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌸</div>
+                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Flöss</h3>
+                      <p className="text-sm text-gray-800">
+                        Style Details met Style No, Quality, Barcode, Prijzen
+                      </p>
+                      {selectedVendor === 'floss' && (
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
@@ -1057,11 +1551,11 @@ export default function ProductImport() {
                 {selectedVendor && (
                   <>
                     <div className="mb-6">
-                      <h3 className="font-bold text-lg mb-4">2️⃣ Upload Bestand</h3>
+                      <h3 className="font-bold text-lg text-gray-900 mb-4">2️⃣ Upload Bestand</h3>
                       
                       {/* Automatic Defaults Info */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h3 className="font-bold text-blue-900 mb-3">✨ Automatische Standaardinstellingen</h3>
+                        <h3 className="font-bold text-blue-900 text-gray-900 mb-3">✨ Automatische Standaardinstellingen</h3>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-white rounded p-2">
                             <span className="font-medium text-gray-700">Productsoort:</span>{' '}
@@ -1106,8 +1600,8 @@ export default function ProductImport() {
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">📄</div>
-                          <h3 className="font-bold mb-2">CSV File</h3>
-                          <p className="text-sm text-gray-600 mb-4">Product data (required)</p>
+                          <h3 className="font-bold text-gray-900 mb-2 text-gray-900">CSV File</h3>
+                          <p className="text-sm text-gray-800 mb-4 font-medium">Product data (required)</p>
                           <input
                             type="file"
                             accept=".csv"
@@ -1125,8 +1619,8 @@ export default function ProductImport() {
 
                         <div className="border-2 border-orange-400 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
-                          <h3 className="font-bold mb-2">Prijzen CSV</h3>
-                          <p className="text-sm text-gray-600 mb-4">Cost prices (optional)</p>
+                          <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Prijzen CSV</h3>
+                          <p className="text-sm text-gray-800 mb-4 font-medium">Cost prices (optional)</p>
                           <input
                             type="file"
                             accept=".csv"
@@ -1148,7 +1642,7 @@ export default function ProductImport() {
                             <a
                               href="/pdf-to-csv-converter"
                               target="_blank"
-                              className="text-xs text-blue-600 hover:underline"
+                              className="text-xs text-blue-600 hover:underline font-medium"
                             >
                               📄 PDF naar CSV converter →
                             </a>
@@ -1170,8 +1664,8 @@ export default function ProductImport() {
                       {/* Play UP Website Credentials */}
                       {selectedVendor === 'playup' && (
                         <div className="border-2 border-purple-300 rounded-lg p-6 mb-4">
-                          <h3 className="font-bold text-lg mb-4">🔐 Play UP Website Login</h3>
-                          <p className="text-sm text-gray-600 mb-4">
+                          <h3 className="font-bold text-lg text-gray-900 mb-4">🔐 Play UP Website Login</h3>
+                          <p className="text-sm text-gray-800 mb-4 font-medium">
                             Inloggegevens voor pro.playupstore.com om actuele prijzen op te halen
                           </p>
                           
@@ -1223,30 +1717,40 @@ export default function ProductImport() {
 
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                      <h4 className="font-bold text-yellow-800 mb-2">
-                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : 'Play UP'}:
+                      <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
+                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
-                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`EAN barcode;Reference;Description;Quality;Colour;Size;Quantity;Price;RRP;HS code
 5400562408965;225-2003-103;silas t-shirt;50% recycled cotton;natural;04;1;21.6;54;6109100010`}
                         </pre>
                       ) : selectedVendor === 'lenewblack' ? (
-                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`order-2995931-20251013
 Brand name;Collection;Product name;Product reference;Color name;Description;Size name;EAN13;SKU;Quantity;Net amount;Currency
 Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large jacket...;3Y;3701153659547;AW25-BFLJC-3Y;1;65,00;EUR
 
 → Wordt: "Hello Simone - Bear fleece jacket cookie"`}
                         </pre>
-                      ) : (
-                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto">
+                      ) : selectedVendor === 'playup' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`Article,Color,Description,Size,Quantity,Price
 1AR11002,P6179,"RIB LS T-SHIRT - 100% OGCO",3M,1,12.39
 1AR11002,P6179,"RIB LS T-SHIRT - 100% OGCO",6M,1,12.39
 
 → Wordt: "Play Up - Rib ls t-shirt - 100% ogco"
 → Gebruik Play UP PDF Converter om factuur PDF naar CSV te converteren`}
+                        </pre>
+                      ) : (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Table 1
+Style No;Style Name;Brand;Type;Category;Quality;Color;Size;Qty;Barcode;...;Wholesale Price EUR;Recommended Retail Price EUR
+F10625;Apple Knit Cardigan;Flöss Aps;Cardigan;;100% Cotton;Red Apple;68/6M;1;5715777018640;...;22,00;55,00
+F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6M;1;5715777019197;...;22,00;55,00
+
+→ Product: F10625 - Apple knit cardigan - Red Apple
+→ Variant: Maat 68/6M, EAN: 5715777018640, Prijs: €22,00, RRP: €55,00`}
                         </pre>
                       )}
                       {selectedVendor === 'playup' && (
@@ -1266,7 +1770,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                 {!selectedVendor && (
                   <div className="bg-gray-50 border border-gray-300 rounded-lg p-8 text-center">
-                    <p className="text-gray-600">👆 Selecteer eerst een leverancier om te beginnen</p>
+                    <p className="text-gray-800">👆 Selecteer eerst een leverancier om te beginnen</p>
                   </div>
                 )}
               </div>
@@ -1275,7 +1779,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 2: Mapping */}
             {currentStep === 2 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">🗺️ Field Mapping & Validation</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">🗺️ Field Mapping & Validation</h2>
                 <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
                   <p className="text-green-800 font-medium">
                     {parsedProducts.length} rijen geïmporteerd, gegroepeerd in {parsedProducts.length} producten
@@ -1284,54 +1788,70 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="border rounded p-4">
-                    <div className="text-gray-600 text-sm">Totaal Rijen</div>
-                    <div className="text-3xl font-bold">{parsedProducts.reduce((s, p) => s + p.variants.length, 0)}</div>
+                    <div className="text-gray-900 text-sm font-semibold">Totaal Rijen</div>
+                    <div className="text-3xl font-bold text-gray-900">{parsedProducts.reduce((s, p) => s + p.variants.length, 0)}</div>
                   </div>
                   <div className="border rounded p-4">
-                    <div className="text-gray-600 text-sm">Unieke Producten</div>
-                    <div className="text-3xl font-bold">{parsedProducts.length}</div>
+                    <div className="text-gray-900 text-sm font-semibold">Unieke Producten</div>
+                    <div className="text-3xl font-bold text-gray-900">{parsedProducts.length}</div>
                   </div>
                   <div className="border rounded p-4">
-                    <div className="text-gray-600 text-sm">Totaal Varianten</div>
-                    <div className="text-3xl font-bold">{parsedProducts.reduce((s, p) => s + p.variants.length, 0)}</div>
+                    <div className="text-gray-900 text-sm font-semibold">Totaal Varianten</div>
+                    <div className="text-3xl font-bold text-gray-900">{parsedProducts.reduce((s, p) => s + p.variants.length, 0)}</div>
                   </div>
                 </div>
 
-                <h3 className="font-bold mb-3">Product Groepen Preview</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="p-2 text-left">Reference</th>
-                        <th className="p-2 text-left">Naam</th>
-                        <th className="p-2 text-left">Materiaal</th>
-                        <th className="p-2 text-left">Kleur</th>
-                        <th className="p-2 text-left">Varianten</th>
-                        <th className="p-2 text-left">Verkoopprijs</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedProducts.slice(0, 10).map(product => (
-                        <tr key={product.reference} className="border-b">
-                          <td className="p-2">{product.reference}</td>
-                          <td className="p-2">{product.name}</td>
-                          <td className="p-2 text-xs">{product.material}</td>
-                          <td className="p-2">{product.color}</td>
-                          <td className="p-2">{product.variants.length}</td>
-                          <td className="p-2">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                <h3 className="font-bold text-lg text-gray-900 mb-3">Product Groepen Preview</h3>
+                <div className="border rounded-lg bg-white overflow-hidden flex flex-col" style={{ maxHeight: '600px' }}>
+                  {/* Table Header */}
+                  <div className="overflow-x-auto flex-shrink-0">
+                    <table className="w-full text-sm border-collapse">
+                      <thead className="bg-blue-600 text-white sticky top-0 z-10">
+                        <tr>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700">Reference</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700">Naam</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700">Materiaal</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700">Kleur</th>
+                          <th className="p-3 text-center font-semibold border-b border-blue-700">Varianten</th>
+                          <th className="p-3 text-right font-semibold border-b border-blue-700">Verkoopprijs</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                    </table>
+                  </div>
+
+                  {/* Table Body with Scroll */}
+                  <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <tbody>
+                        {parsedProducts.map((product, idx) => (
+                          <tr 
+                            key={product.reference} 
+                            className={`border-b transition-colors ${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                            } hover:bg-blue-50`}
+                          >
+                            <td className="p-3 font-mono text-xs bg-gray-100 font-bold text-gray-900">{product.reference}</td>
+                            <td className="p-3 font-medium text-gray-900 max-w-xs truncate">{product.name}</td>
+                            <td className="p-3 text-xs text-gray-900 max-w-xs truncate">{product.material}</td>
+                            <td className="p-3 text-sm text-gray-900">{product.color}</td>
+                            <td className="p-3 text-center font-semibold text-blue-600">{product.variants.length}</td>
+                            <td className="p-3 text-right font-bold text-green-600">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Footer with Count */}
+                  <div className="flex-shrink-0 bg-gray-100 p-3 border-t text-sm text-gray-700 font-medium">
+                    📊 Totaal: <strong>{parsedProducts.length} producten</strong> met <strong>{parsedProducts.reduce((s, p) => s + p.variants.length, 0)} varianten</strong>
+                  </div>
                 </div>
-                {parsedProducts.length > 10 && (
-                  <p className="text-center text-gray-500 mt-3">... en {parsedProducts.length - 10} meer producten</p>
-                )}
 
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
                   >
                     ← Terug
                   </button>
@@ -1348,8 +1868,8 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 3: Selection & Stock */}
             {currentStep === 3 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">☑️ Selecteer Producten & Voorraad</h2>
-                <p className="text-gray-600 mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">☑️ Selecteer Producten & Voorraad</h2>
+                <p className="text-gray-800 mb-4 font-medium">
                   Kies welke producten je wilt importeren en stel de voorraad in per variant (standaard: 0).
                 </p>
 
@@ -1365,6 +1885,20 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                   >
                     ✗ Alles Deselecteren
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Set all variant quantities to 0
+                      setParsedProducts(products =>
+                        products.map(product => ({
+                          ...product,
+                          variants: product.variants.map(v => ({ ...v, quantity: 0 }))
+                        }))
+                      );
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    📦 Voorraad 0
                   </button>
                   <div className="ml-auto bg-blue-50 px-4 py-2 rounded">
                     <strong>{selectedCount}</strong> producten geselecteerd ({totalVariants} varianten)
@@ -1391,16 +1925,16 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1">
                               <div className="mb-2">
-                                <label className="text-xs text-gray-600 font-medium">Product Naam</label>
+                                <label className="text-xs text-gray-800 font-medium">Product Naam</label>
                                 <input
                                   type="text"
                                   value={product.name}
                                   onChange={(e) => updateProductName(product.reference, e.target.value)}
-                                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-base font-bold focus:border-blue-500 focus:outline-none"
+                                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-base font-bold text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                                   placeholder="Product naam..."
                                 />
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-4 text-sm text-gray-800">
                                 <div>
                                   <span className="bg-gray-100 px-2 py-1 rounded text-xs font-medium">{product.reference}</span>
                                   <span className="mx-2">•</span>
@@ -1416,7 +1950,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                   <span className="text-xs font-medium">⭐ Favoriet</span>
                                 </label>
                               </div>
-                              <div className="text-sm text-gray-500 mt-1">
+                              <div className="text-sm text-gray-800 mt-1 font-medium">
                                 {product.variants.length} varianten • Verkoopprijs: €{product.variants[0]?.rrp.toFixed(2)}
                               </div>
                             </div>
@@ -1427,33 +1961,33 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                             <table className="w-full text-sm border-t">
                               <thead className="bg-gray-100">
                                 <tr>
-                                  <th className="p-2 text-left">Maat</th>
-                                  <th className="p-2 text-left">EAN</th>
-                                  <th className="p-2 text-left">Kostprijs</th>
-                                  <th className="p-2 text-left">Verkoopprijs</th>
-                                  <th className="p-2 text-left">Voorraad</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">Maat</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">EAN</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">Kostprijs</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">Verkoopprijs</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">Voorraad</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {product.variants.map((variant, idx) => (
                                   <tr key={idx} className="border-b">
-                                    <td className="p-2">
+                                    <td className="p-2 text-gray-900">
                                       <input
                                         type="text"
                                         value={variant.size}
                                         onChange={(e) => updateVariantField(product.reference, idx, 'size', e.target.value)}
-                                        className="w-16 border rounded px-2 py-1 text-center text-xs font-medium"
+                                        className="w-16 border rounded px-2 py-1 text-center text-xs font-medium text-gray-900"
                                       />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 text-gray-900">
                                       <input
                                         type="text"
                                         value={variant.ean}
                                         onChange={(e) => updateVariantField(product.reference, idx, 'ean', e.target.value)}
-                                        className="w-full border rounded px-2 py-1 text-xs"
+                                        className="w-full border rounded px-2 py-1 text-xs text-gray-900"
                                       />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 text-gray-900">
                                       <div className="flex items-center gap-1">
                                         <span className="mr-1">€</span>
                                         <input
@@ -1462,7 +1996,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                           min="0"
                                           value={variant.price}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'price', parseFloat(e.target.value) || 0)}
-                                          className={`w-20 border rounded px-2 py-1 text-right ${
+                                          className={`w-20 border rounded px-2 py-1 text-right text-gray-900 ${
                                             variant.sku && pdfPrices.has(variant.sku) ? 'border-orange-400 bg-orange-50' : ''
                                           }`}
                                         />
@@ -1471,7 +2005,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                         )}
                                       </div>
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 text-gray-900">
                                       <div className="flex items-center">
                                         <span className="mr-1">€</span>
                                         <input
@@ -1480,11 +2014,11 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                           min="0"
                                           value={variant.rrp}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
-                                          className="w-20 border rounded px-2 py-1 text-right"
+                                          className="w-20 border rounded px-2 py-1 text-right text-gray-900"
                                         />
                                       </div>
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 text-gray-900">
                                       <input
                                         type="number"
                                         min="0"
@@ -1493,7 +2027,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                           const newQty = parseInt(e.target.value) || 0;
                                           updateVariantQuantity(product.reference, idx, newQty);
                                         }}
-                                        className="w-20 border rounded px-2 py-1 text-center"
+                                        className="w-20 border rounded px-2 py-1 text-center text-gray-900"
                                       />
                                     </td>
                                   </tr>
@@ -1510,14 +2044,13 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
                   >
                     ← Terug
                   </button>
                   <button
                     onClick={() => setCurrentStep(4)}
-                    disabled={selectedCount === 0}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     Volgende: Categorieën →
                   </button>
@@ -1528,8 +2061,8 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 4: Categories */}
             {currentStep === 4 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">📁 Categorieën Toewijzen</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">📁 Categorieën Toewijzen</h2>
+                <p className="text-gray-800 mb-6">
                   Wijs interne categorie (verplicht) en eCommerce categorieën (optioneel, meerdere mogelijk) toe.
                 </p>
 
@@ -1567,8 +2100,8 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {/* Batch Brand */}
                   <div className="border rounded p-4">
-                    <h3 className="font-bold mb-3">🏷️ Merk (Batch) ({brands.length} beschikbaar)</h3>
-                    <p className="text-xs text-gray-600 mb-2">Merken kunnen duplicaten zijn tussen MERK en Merk 1 attributen</p>
+                    <h3 className="font-bold text-gray-900 mb-3">🏷️ Merk (Batch) ({brands.length} beschikbaar)</h3>
+                    <p className="text-xs text-gray-800 mb-2">Merken kunnen duplicaten zijn tussen MERK en Merk 1 attributen</p>
                     
                     {/* Search Input */}
                     <input
@@ -1576,14 +2109,14 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                       placeholder="🔍 Type om te zoeken..."
                       value={brandSearch}
                       onChange={(e) => setBrandSearch(e.target.value)}
-                      className="w-full border rounded p-2 mb-2 text-sm"
+                      className="w-full border rounded p-2 mb-2 text-sm text-gray-900 placeholder-gray-600"
                     />
                     
                     {/* Filtered Dropdown */}
                     <select
                       value={batchBrand}
                       onChange={(e) => setBatchBrand(e.target.value)}
-                      className="w-full border rounded p-2 mb-2"
+                      className="w-full border rounded p-2 mb-2 text-gray-900 bg-white"
                       size={5}
                     >
                       <option value="">Selecteer merk...</option>
@@ -1599,6 +2132,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                         ))}
                     </select>
                     
+                    
                     <button
                       onClick={applyBatchBrand}
                       disabled={!batchBrand}
@@ -1610,7 +2144,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                   {/* Batch Category */}
                   <div className="border rounded p-4">
-                    <h3 className="font-bold mb-3">
+                    <h3 className="font-bold text-gray-900 mb-3">
                       📂 Interne Categorie (Batch) ({internalCategories.filter(c => c.display_name?.includes('Kleding')).length} beschikbaar)
                     </h3>
                     
@@ -1620,14 +2154,14 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                       placeholder="🔍 Type om te zoeken..."
                       value={categorySearch}
                       onChange={(e) => setCategorySearch(e.target.value)}
-                      className="w-full border rounded p-2 mb-2 text-sm"
+                      className="w-full border rounded p-2 mb-2 text-sm text-gray-900 placeholder-gray-600"
                     />
                     
                     {/* Filtered Dropdown */}
                     <select
                       value={batchCategory}
                       onChange={(e) => setBatchCategory(e.target.value)}
-                      className="w-full border rounded p-2 mb-2"
+                      className="w-full border rounded p-2 mb-2 text-gray-900 bg-white"
                       size={5}
                     >
                       <option value="">Selecteer interne categorie...</option>
@@ -1657,10 +2191,10 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                 {/* Batch Public Categories */}
                 <div className="border-2 border-blue-300 rounded-lg p-4 mb-6">
-                  <h3 className="font-bold mb-3">
+                  <h3 className="font-bold text-gray-900 mb-3">
                     🛍️ eCommerce Categorieën (Batch - Meerdere mogelijk) ({publicCategories.length} beschikbaar)
                   </h3>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="text-xs text-gray-800 mb-3">
                     Selecteer meerdere eCommerce categorieën om toe te voegen aan alle geselecteerde producten
                   </p>
                   
@@ -1694,7 +2228,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     placeholder="🔍 Type om te zoeken (bijv. Hello Simone)..."
                     value={publicCategorySearch}
                     onChange={(e) => setPublicCategorySearch(e.target.value)}
-                    className="w-full border rounded p-2 mb-2 text-sm"
+                    className="w-full border rounded p-2 mb-2 text-sm text-gray-900 placeholder-gray-600"
                   />
 
                   {/* Category Selector */}
@@ -1706,7 +2240,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                         setPublicCategorySearch(''); // Clear search after selection
                       }
                     }}
-                    className="w-full border rounded p-2 mb-3"
+                    className="w-full border rounded p-2 mb-3 text-gray-900 bg-white"
                     size={5}
                   >
                     <option value="">+ Voeg eCommerce categorie toe...</option>
@@ -1735,10 +2269,10 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
                 {/* Batch Product Tags */}
                 <div className="border-2 border-purple-300 rounded-lg p-4 mb-6">
-                  <h3 className="font-bold mb-3">
+                  <h3 className="font-bold text-gray-900 mb-3">
                     🏷️ Productlabels (Batch - Meerdere mogelijk) ({productTags.length} beschikbaar)
                   </h3>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="text-xs text-gray-800 mb-3">
                     Selecteer meerdere productlabels om toe te voegen aan alle geselecteerde producten
                   </p>
                   
@@ -1772,7 +2306,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                     placeholder="🔍 Type om te zoeken..."
                     value={productTagSearch}
                     onChange={(e) => setProductTagSearch(e.target.value)}
-                    className="w-full border rounded p-2 mb-2 text-sm"
+                    className="w-full border rounded p-2 mb-2 text-sm text-gray-900 placeholder-gray-600"
                   />
 
                   {/* Tag Selector */}
@@ -1784,7 +2318,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                         setProductTagSearch(''); // Clear search after selection
                       }
                     }}
-                    className="w-full border rounded p-2 mb-3"
+                    className="w-full border rounded p-2 mb-3 text-gray-900 bg-white"
                     size={5}
                   >
                     <option value="">+ Voeg productlabel toe...</option>
@@ -1811,7 +2345,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 </div>
 
                 {/* Per Product Assignment */}
-                <h3 className="font-bold mb-3">Per Product Categorieën</h3>
+                <h3 className="font-bold text-gray-900 mb-3">Per Product Categorieën</h3>
                 <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
                   <p className="text-sm text-blue-800">
                     💡 <strong>Tip:</strong> Klik op een veld en begin te typen om te zoeken. Bijvoorbeeld: typ &quot;hello&quot; om &quot;Hello Simone&quot; te vinden. Klik op de match om te selecteren.
@@ -1821,19 +2355,19 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   <table className="w-full text-sm border-collapse">
                     <thead className="bg-gray-200 sticky top-0">
                       <tr>
-                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Product</th>
-                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Merk</th>
-                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Interne Categorie</th>
-                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">eCommerce Cat.</th>
-                        <th className="p-3 text-left font-bold border-b-2 border-gray-300">Productlabels</th>
+                        <th className="p-3 text-left font-bold text-gray-900 border-b-2 border-gray-300">Product</th>
+                        <th className="p-3 text-left font-bold text-gray-900 border-b-2 border-gray-300">Merk</th>
+                        <th className="p-3 text-left font-bold text-gray-900 border-b-2 border-gray-300">Interne Categorie</th>
+                        <th className="p-3 text-left font-bold text-gray-900 border-b-2 border-gray-300">eCommerce Cat.</th>
+                        <th className="p-3 text-left font-bold text-gray-900 border-b-2 border-gray-300">Productlabels</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parsedProducts.filter(p => selectedProducts.has(p.reference)).map(product => (
                         <tr key={product.reference} className="border-b hover:bg-gray-50">
                           <td className="p-3 bg-gray-50">
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-gray-500">{product.reference}</div>
+                            <div className="font-medium text-gray-900">{product.name}</div>
+                            <div className="text-xs text-gray-700">{product.reference}</div>
                           </td>
                           <td className="p-3">
                             <SearchableSelect
@@ -1850,7 +2384,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                               placeholder="Selecteer merk..."
                             />
                             {product.suggestedBrand && !product.selectedBrand && (
-                              <div className="text-xs text-gray-500 mt-1">💡 Suggestie: {product.suggestedBrand}</div>
+                              <div className="text-xs text-gray-700 mt-1 font-medium">💡 Suggestie: {product.suggestedBrand}</div>
                             )}
                           </td>
                           <td className="p-3">
@@ -1942,7 +2476,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(3)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
                   >
                     ← Terug
                   </button>
@@ -1959,14 +2493,14 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 5: Preview */}
             {currentStep === 5 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">👁️ Preview Import</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">👁️ Preview Import</h2>
+                <p className="text-gray-800 mb-6">
                   Review wat er aangemaakt wordt voordat je importeert.
                 </p>
 
                 {/* Automatic Defaults Info */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-bold text-blue-900 mb-3">ℹ️ Automatische Standaardinstellingen</h3>
+                  <h3 className="font-bold text-blue-900 text-gray-900 mb-3">ℹ️ Automatische Standaardinstellingen</h3>
                   <p className="text-sm text-blue-800 mb-3">
                     Alle geïmporteerde producten krijgen automatisch de volgende instellingen:
                   </p>
@@ -2042,13 +2576,13 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="p-2 text-left">Product</th>
-                        <th className="p-2 text-left">Merk</th>
-                        <th className="p-2 text-left">Categorie</th>
-                        <th className="p-2 text-left">eCommerce Cat.</th>
-                        <th className="p-2 text-left">Varianten</th>
-                        <th className="p-2 text-left">Verkoopprijs</th>
-                        <th className="p-2 text-left">Status</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Product</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Merk</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Categorie</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">eCommerce Cat.</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Varianten</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Verkoopprijs</th>
+                        <th className="p-2 text-left text-gray-900 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2056,12 +2590,12 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                         const ready = product.selectedBrand && product.category;
                         return (
                           <tr key={product.reference} className="border-b">
-                            <td className="p-2">
+                            <td className="p-2 text-gray-900">
                               <div className="font-medium">{product.name}</div>
-                              <div className="text-xs text-gray-500">{product.reference}</div>
+                              <div className="text-xs text-gray-700">{product.reference}</div>
                             </td>
-                            <td className="p-2">{product.selectedBrand?.name || '-'}</td>
-                            <td className="p-2 text-xs">{product.category?.display_name?.split(' / ').slice(-1)[0] || product.category?.name || '-'}</td>
+                            <td className="p-2 text-gray-900">{product.selectedBrand?.name || '-'}</td>
+                            <td className="p-2 text-xs text-gray-900">{product.category?.display_name?.split(' / ').slice(-1)[0] || product.category?.name || '-'}</td>
                             <td className="p-2">
                               {product.publicCategories.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
@@ -2071,20 +2605,20 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                                     </span>
                                   ))}
                                   {product.publicCategories.length > 2 && (
-                                    <span className="text-xs text-gray-500">+{product.publicCategories.length - 2}</span>
+                                    <span className="text-xs text-gray-700 font-medium">+{product.publicCategories.length - 2}</span>
                                   )}
                                 </div>
                               ) : (
                                 '-'
                               )}
                             </td>
-                            <td className="p-2">{product.variants.length}</td>
-                            <td className="p-2">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                            <td className="p-2 text-gray-900">{product.variants.length}</td>
+                            <td className="p-2 text-gray-900">€{product.variants[0]?.rrp.toFixed(2)}</td>
                             <td className="p-2">
                               {ready ? (
-                                <span className="text-green-600">✓ Ready</span>
+                                <span className="text-green-600 font-semibold">✓ Ready</span>
                               ) : (
-                                <span className="text-red-600">✗ Incomplete</span>
+                                <span className="text-red-600 font-semibold">✗ Incomplete</span>
                               )}
                             </td>
                           </tr>
@@ -2097,7 +2631,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(4)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
                   >
                     ← Terug
                   </button>
@@ -2128,8 +2662,8 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 6: Test */}
             {currentStep === 6 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">🧪 Test Mode</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">🧪 Test Mode</h2>
+                <p className="text-gray-800 mb-6">
                   Selecteer een product om eerst te testen voordat je de bulk import uitvoert.
                 </p>
 
@@ -2139,7 +2673,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                       <div className="flex justify-between items-center">
                         <div>
                           <div className="font-bold">{product.name}</div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-800">
                             {product.variants.length} varianten • {product.selectedBrand?.name} • {product.category?.display_name?.split(' / ').slice(-1)[0] || product.category?.name}
                           </div>
                           {product.publicCategories.length > 0 && (
@@ -2166,7 +2700,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(5)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
                   >
                     ← Terug
                   </button>
@@ -2187,7 +2721,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
             {/* Step 7: Results */}
             {currentStep === 7 && importResults && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   {importResults.success ? '✅ Import Voltooid!' : '⚠️ Import Resultaten'}
                 </h2>
 
@@ -2210,7 +2744,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                   </div>
                 </div>
 
-                <h3 className="font-bold mb-3">Import Details</h3>
+                <h3 className="font-bold text-gray-900 mb-3">Import Details</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100">
@@ -2233,8 +2767,8 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                             )}
                           </td>
                           <td className="p-2">
-                            <div className="font-medium">{result.name || result.reference}</div>
-                            <div className="text-xs text-gray-500">{result.reference}</div>
+                            <div className="font-medium text-gray-900">{result.name || result.reference}</div>
+                            <div className="text-xs text-gray-700">{result.reference}</div>
                           </td>
                           <td className="p-2">
                             {result.templateId ? (
@@ -2250,12 +2784,152 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                             )}
                           </td>
                           <td className="p-2">{result.variantsCreated || 0}</td>
-                          <td className="p-2 text-xs text-gray-600">{result.message}</td>
+                          <td className="p-2 text-xs text-gray-800">{result.message}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Image Import for Play UP */}
+                {selectedVendor === 'playup' && imageImportResults.length === 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
+                    <h3 className="font-bold text-blue-900 text-gray-900 mb-3">🖼️ Afbeeldingen Importeren (Optioneel)</h3>
+                    <p className="text-sm text-blue-800 mb-4">
+                      Nu kun je automatisch afbeeldingen ophalen van de Play UP website voor de succesvol geïmporteerde producten.
+                    </p>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Play UP website credentials (al ingevuld als je prijzen hebt opgehaald)</li>
+                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                      </ul>
+                    </div>
+                    
+                    {playupUsername && playupPassword ? (
+                      <button
+                        onClick={async () => {
+                          await fetchPlayUpImages();
+                        }}
+                        disabled={loading}
+                        className="w-full bg-purple-600 text-white px-6 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 font-bold"
+                      >
+                        {loading ? '⏳ Bezig met afbeeldingen ophalen...' : '🖼️ Start Image Import'}
+                      </button>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                        <p className="text-sm text-yellow-800">
+                          ⚠️ Play UP credentials niet gevonden. Gebruik de <Link href="/playup-images-import" className="underline font-bold">Image Import pagina</Link> om handmatig af te handelen.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Image Import for Flöss */}
+                {selectedVendor === 'floss' && imageImportResults.length === 0 && (
+                  <div className="bg-purple-50 border border-purple-200 rounded p-6 mb-6">
+                    <h3 className="font-bold text-purple-900 text-gray-900 mb-3">🌸 Afbeeldingen Importeren (Optioneel)</h3>
+                    <p className="text-sm text-purple-800 mb-4">
+                      Upload afbeeldingen van je Flöss order folder voor de succesvol geïmporteerde producten.
+                    </p>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Bestandsnamen moeten beginnen met Style No (bijv. F10625 - Apple Knit Cardigan - Red Apple - Main.jpg)</li>
+                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
+                      </ul>
+                    </div>
+
+                    <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center mb-4">
+                      <div className="text-4xl mb-3">📁</div>
+                      <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
+                      <p className="text-sm text-purple-700 mb-4">Klik om meerdere afbeeldingen uit je Flöss order folder te selecteren</p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const files = Array.from(e.target.files);
+                            console.log(`📁 Selected ${files.length} images`);
+                            
+                            // Group and show summary
+                            const styleNos = new Set(
+                              files.map(f => {
+                                const match = f.name.match(/^([F\d]+)\s*-/);
+                                return match ? match[1] : null;
+                              }).filter(Boolean)
+                            );
+                            
+                            if (styleNos.size === 0) {
+                              alert('⚠️ Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. F10625 - ...)');
+                              return;
+                            }
+
+                            alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${styleNos.size} producten\n\nKlik op "Upload Images" om te beginnen`);
+                            
+                            // Start upload
+                            fetchFlossImages(files);
+                          }
+                        }}
+                        className="hidden"
+                        id="floss-images-upload"
+                      />
+                      <label
+                        htmlFor="floss-images-upload"
+                        className="bg-purple-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
+                      >
+                        📁 Selecteer Afbeeldingen
+                      </label>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
+                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Flöss order in een keer selecteren. Het systeem matcher ze automatisch op Style No.</p>
+                      <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> F10625 - Apple Knit Cardigan - Red Apple - Main.jpg</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Import Results */}
+                {imageImportResults.length > 0 && (
+                  <div className="bg-white border rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-4 text-lg">🖼️ Afbeeldingen Import Resultaten</h3>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="bg-green-50 border border-green-200 rounded p-3">
+                        <div className="text-green-600 text-sm mb-1">Successful</div>
+                        <div className="text-2xl font-bold">
+                          {imageImportResults.filter((r) => r.success).length}
+                        </div>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded p-3">
+                        <div className="text-red-600 text-sm mb-1">Failed</div>
+                        <div className="text-2xl font-bold">
+                          {imageImportResults.filter((r) => !r.success).length}
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                        <div className="text-blue-600 text-sm mb-1">Total Images</div>
+                        <div className="text-2xl font-bold">
+                          {imageImportResults.reduce((sum, r) => sum + (r.imagesUploaded || 0), 0)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-800">
+                      {imageImportResults.filter(r => r.success).map(r => (
+                        <div key={r.reference} className="py-1">
+                          ✅ {r.reference}: {r.imagesUploaded} afbeeldingen
+                        </div>
+                      ))}
+                      {imageImportResults.filter(r => !r.success).map(r => (
+                        <div key={r.reference} className="py-1 text-red-600">
+                          ❌ {r.reference}: {r.error}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-6">
                   <button
@@ -2265,18 +2939,28 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
                       setParsedProducts([]);
                       setSelectedProducts(new Set());
                       setImportResults(null);
+                      setImageImportResults([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     🔄 Nieuwe Import
                   </button>
                   
-                  <Link
-                    href="/product-images-import"
-                    className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                  >
-                    📸 Upload Afbeeldingen
-                  </Link>
+                  {selectedVendor === 'playup' ? (
+                    <Link
+                      href="/playup-images-import"
+                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                    >
+                      🎮 Upload Play UP Afbeeldingen
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/product-images-import"
+                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                    >
+                      📸 Upload Afbeeldingen
+                    </Link>
+                  )}
                 </div>
               </div>
             )}
@@ -2288,7 +2972,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
       {importProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold mb-4">🚀 Importeren...</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">🚀 Importeren...</h3>
             <div className="mb-4">
               <div className="flex justify-between text-sm mb-2">
                 <span>Product {importProgress.current} van {importProgress.total}</span>
@@ -2302,7 +2986,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
               </div>
             </div>
             {importProgress.currentProduct && (
-              <div className="text-sm text-gray-600 mb-4">
+              <div className="text-sm text-gray-800 mb-4">
                 <div className="font-medium mb-1">Huidige product:</div>
                 <div className="bg-gray-50 p-2 rounded">{importProgress.currentProduct}</div>
               </div>
@@ -2319,7 +3003,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto w-full">
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">📋 API Call Preview - Production Safety Check</h3>
+              <h3 className="text-xl font-bold text-gray-900">📋 API Call Preview - Production Safety Check</h3>
               <button
                 onClick={() => setShowApiPreview(false)}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -2335,7 +3019,7 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
               </div>
 
               <div className="mb-6">
-                <h4 className="font-bold mb-2">📦 Product Informatie:</h4>
+                <h4 className="font-bold text-gray-900 mb-2">📦 Product Informatie:</h4>
                 <div className="bg-gray-50 p-3 rounded text-sm">
                   <div><strong>Naam:</strong> {apiPreviewData.product.name}</div>
                   <div><strong>Varianten:</strong> {apiPreviewData.product.variants.length}</div>

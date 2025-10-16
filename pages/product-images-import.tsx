@@ -338,7 +338,7 @@ export default function ProductImagesImport() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               📸 Product Images Import
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               Upload afbeeldingen van leverancier website naar bestaande producten in Odoo
             </p>
           </div>
@@ -346,7 +346,7 @@ export default function ProductImagesImport() {
           {/* Step 1: Upload CSV */}
           {currentStep === 1 && (
             <div className="bg-white rounded-lg shadow-sm p-8">
-              <h2 className="text-2xl font-bold mb-4">1️⃣ Upload Product CSV</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">1️⃣ Upload Product CSV</h2>
               
               <div className="mb-6">
                 <label className="block font-medium text-gray-700 mb-2">
@@ -363,7 +363,7 @@ export default function ProductImagesImport() {
 
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                 <div className="text-4xl mb-3">📄</div>
-                <h3 className="font-bold mb-2">Upload Le New Black CSV</h3>
+                <h3 className="font-bold text-gray-900 mb-2">Upload Le New Black CSV</h3>
                 <input
                   type="file"
                   accept=".csv"
@@ -384,7 +384,7 @@ export default function ProductImagesImport() {
           {/* Step 2: Fetch from Website */}
           {currentStep === 2 && (
             <div className="bg-white rounded-lg shadow-sm p-8">
-              <h2 className="text-2xl font-bold mb-4">2️⃣ Match Products met Website</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">2️⃣ Match Products met Website</h2>
               
               <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
                 <p className="text-blue-800">
@@ -413,7 +413,7 @@ export default function ProductImagesImport() {
           {/* Step 3: Review Matches & Select */}
           {currentStep === 3 && (
             <div className="bg-white rounded-lg shadow-sm p-8">
-              <h2 className="text-2xl font-bold mb-4">3️⃣ Selecteer Producten voor Image Upload</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">3️⃣ Selecteer Producten voor Image Upload</h2>
               
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-green-50 border border-green-200 rounded p-4">
@@ -451,7 +451,7 @@ export default function ProductImagesImport() {
               {/* Products with Images */}
               {matchedWithImages.length > 0 && (
                 <>
-                  <h3 className="font-bold text-lg mb-3 text-green-700">✅ Producten met Afbeeldingen ({matchedWithImages.length})</h3>
+                  <h3 className="font-bold text-lg text-gray-900 mb-3 text-green-700">✅ Producten met Afbeeldingen ({matchedWithImages.length})</h3>
                   <div className="space-y-4 mb-8">
                     {matchedWithImages.map(product => (
                       <div key={product.reference} className={`border rounded-lg p-4 ${selectedProducts.has(product.reference) ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
@@ -464,7 +464,7 @@ export default function ProductImagesImport() {
                           />
                           <div className="flex-1">
                             <div className="font-bold">{product.name}</div>
-                            <div className="text-sm text-gray-600">{product.reference}</div>
+                            <div className="text-sm text-gray-800">{product.reference}</div>
                             <div className="text-xs text-blue-600 mt-1">
                               Match: {product.vendorMatch?.title} ({product.matchStrategy === 'reference' ? '🎯 Reference' : '📝 Name'})
                             </div>
@@ -495,7 +495,7 @@ export default function ProductImagesImport() {
               {/* Products without Images */}
               {matchedWithoutImages.length > 0 && (
                 <>
-                  <h3 className="font-bold text-lg mb-3 text-yellow-700">⚠️ Gevonden maar geen Afbeeldingen ({matchedWithoutImages.length})</h3>
+                  <h3 className="font-bold text-lg text-gray-900 mb-3 text-yellow-700">⚠️ Gevonden maar geen Afbeeldingen ({matchedWithoutImages.length})</h3>
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-8">
                     {matchedWithoutImages.map(p => (
                       <div key={p.reference} className="text-sm text-yellow-800">
@@ -509,7 +509,7 @@ export default function ProductImagesImport() {
               {/* Unmatched Products */}
               {unmatchedProducts.length > 0 && (
                 <>
-                  <h3 className="font-bold text-lg mb-3 text-red-700">❌ Niet Gevonden op Website ({unmatchedProducts.length})</h3>
+                  <h3 className="font-bold text-lg text-gray-900 mb-3 text-red-700">❌ Niet Gevonden op Website ({unmatchedProducts.length})</h3>
                   <div className="bg-red-50 border border-red-200 rounded p-4 mb-8">
                     {unmatchedProducts.map(p => (
                       <div key={p.reference} className="text-sm text-red-800">
@@ -541,7 +541,7 @@ export default function ProductImagesImport() {
           {/* Step 4: Results */}
           {currentStep === 4 && (
             <div className="bg-white rounded-lg shadow-sm p-8">
-              <h2 className="text-2xl font-bold mb-4">✅ Upload Voltooid!</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">✅ Upload Voltooid!</h2>
               
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-green-50 border border-green-200 rounded p-4">
@@ -582,7 +582,7 @@ export default function ProductImagesImport() {
                             '-'
                           )}
                         </td>
-                        <td className="p-2 text-xs text-gray-600">{result.error || 'Success'}</td>
+                        <td className="p-2 text-xs text-gray-800">{result.error || 'Success'}</td>
                       </tr>
                     ))}
                   </tbody>
