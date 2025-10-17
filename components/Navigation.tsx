@@ -4,6 +4,10 @@ import Link from 'next/link';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isInzichtenOpen, setIsInzichtenOpen] = useState(false);
+  const [isImporterenOpen, setIsImporterenOpen] = useState(false);
+  const [mobileInzichtenOpen, setMobileInzichtenOpen] = useState(false);
+  const [mobileImporterenOpen, setMobileImporterenOpen] = useState(false);
   const router = useRouter();
 
   const toggleMenu = () => {
@@ -12,6 +16,8 @@ export default function Navigation() {
 
   const closeMenu = () => {
     setIsMenuOpen(false);
+    setMobileInzichtenOpen(false);
+    setMobileImporterenOpen(false);
   };
 
   const handleLogout = () => {
@@ -22,6 +28,15 @@ export default function Navigation() {
   };
 
   const isActive = (path: string) => router.pathname === path;
+  
+  const isInzichtenActive = () => {
+    return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-insights', 
+            '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics'].includes(router.pathname);
+  };
+  
+  const isImporterenActive = () => {
+    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import'].includes(router.pathname);
+  };
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -35,7 +50,7 @@ export default function Navigation() {
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-4">
             <Link 
               href="/dashboard" 
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -46,96 +61,92 @@ export default function Navigation() {
             >
               Dashboard
             </Link>
-            <Link 
-              href="/sales-yearly-compare" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/sales-yearly-compare') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
+            
+            {/* Inzichten Dropdown */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsInzichtenOpen(true)}
+              onMouseLeave={() => setIsInzichtenOpen(false)}
             >
-              Jaarlijkse Vergelijking
-            </Link>
-            <Link 
-              href="/sales-monthly-compare" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/sales-monthly-compare') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
+              <button
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                  isInzichtenActive() 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                Inzichten
+                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isInzichtenOpen && (
+                <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link href="/sales-yearly-compare" className={`block px-4 py-2 text-sm ${isActive('/sales-yearly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Jaarlijkse Vergelijking
+                    </Link>
+                    <Link href="/sales-monthly-compare" className={`block px-4 py-2 text-sm ${isActive('/sales-monthly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Maandelijkse Vergelijking
+                    </Link>
+                    <Link href="/sales-insights" className={`block px-4 py-2 text-sm ${isActive('/sales-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Verkoop Inzichten
+                    </Link>
+                    <Link href="/sales-products" className={`block px-4 py-2 text-sm ${isActive('/sales-products') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Solden
+                    </Link>
+                    <Link href="/brand-performance" className={`block px-4 py-2 text-sm ${isActive('/brand-performance') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Merkprestaties
+                    </Link>
+                    <Link href="/brand-inventory" className={`block px-4 py-2 text-sm ${isActive('/brand-inventory') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Voorraad
+                    </Link>
+                    <Link href="/brand-diagnostics" className={`block px-4 py-2 text-sm ${isActive('/brand-diagnostics') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Diagnostiek
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Importeren producten Dropdown */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsImporterenOpen(true)}
+              onMouseLeave={() => setIsImporterenOpen(false)}
             >
-              Maandelijkse Vergelijking
-            </Link>
-            <Link 
-              href="/sales-insights" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/sales-insights') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              Verkoop Inzichten
-            </Link>
-            <Link 
-              href="/sales-products" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/sales-products') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              Solden
-            </Link>
-            <Link 
-              href="/brand-performance" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/brand-performance') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              Merkprestaties
-            </Link>
-            <Link 
-              href="/brand-inventory" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/brand-inventory') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              Voorraad
-            </Link>
-            <Link 
-              href="/brand-diagnostics" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/brand-diagnostics') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              🔍 Diagnostiek
-            </Link>
-            <Link 
-              href="/product-import" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/product-import') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              📦 Import
-            </Link>
-            <Link 
-              href="/product-cleanup" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/product-cleanup') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              🗑️ Opschonen
-            </Link>
+              <button
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                  isImporterenActive() 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                Importeren producten
+                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isImporterenOpen && (
+                <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link href="/product-import" className={`block px-4 py-2 text-sm ${isActive('/product-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Import
+                    </Link>
+                    <Link href="/product-cleanup" className={`block px-4 py-2 text-sm ${isActive('/product-cleanup') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Opschonen
+                    </Link>
+                    <Link href="/playup-image-matcher" className={`block px-4 py-2 text-sm ${isActive('/playup-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Match
+                    </Link>
+                    <Link href="/playup-images-import" className={`block px-4 py-2 text-sm ${isActive('/playup-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Playup Images
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleLogout}
               className="px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
@@ -193,114 +204,191 @@ export default function Navigation() {
           >
             Dashboard
           </Link>
-          <Link
-            href="/sales-yearly-compare"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/sales-yearly-compare')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Jaarlijkse Vergelijking
-          </Link>
-          <Link
-            href="/sales-monthly-compare"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/sales-monthly-compare')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Maandelijkse Vergelijking
-          </Link>
-          <Link
-            href="/sales-insights"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/sales-insights')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Verkoop Inzichten
-          </Link>
-          <Link
-            href="/sales-products"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/sales-products')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Solden
-          </Link>
-          <Link
-            href="/brand-performance"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/brand-performance')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Merkprestaties
-          </Link>
-          <Link
-            href="/brand-inventory"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/brand-inventory')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Voorraad
-          </Link>
-          <Link
-            href="/brand-diagnostics"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/brand-diagnostics')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            🔍 Diagnostiek
-          </Link>
-          <Link
-            href="/product-import"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/product-import')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            📦 Import
-          </Link>
-          <Link 
-            href="/product-cleanup" 
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/product-cleanup') 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            🗑️ Opschonen
-          </Link>
-          <button
-            onClick={() => {
-              closeMenu();
-              handleLogout();
-            }}
-            className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-          >
-            Uitloggen
-          </button>
+          
+          {/* Inzichten Section */}
+          <div className="pt-2">
+            <button
+              onClick={() => setMobileInzichtenOpen(!mobileInzichtenOpen)}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isInzichtenActive()
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <span>Inzichten</span>
+              <svg 
+                className={`h-5 w-5 transform transition-transform ${mobileInzichtenOpen ? 'rotate-180' : ''}`}
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {mobileInzichtenOpen && (
+              <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/sales-yearly-compare"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-yearly-compare')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Jaarlijkse Vergelijking
+                </Link>
+                <Link
+                  href="/sales-monthly-compare"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-monthly-compare')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Maandelijkse Vergelijking
+                </Link>
+                <Link
+                  href="/sales-insights"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-insights')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Verkoop Inzichten
+                </Link>
+                <Link
+                  href="/sales-products"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-products')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Solden
+                </Link>
+                <Link
+                  href="/brand-performance"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/brand-performance')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Merkprestaties
+                </Link>
+                <Link
+                  href="/brand-inventory"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/brand-inventory')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Voorraad
+                </Link>
+                <Link
+                  href="/brand-diagnostics"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/brand-diagnostics')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Diagnostiek
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Importeren producten Section */}
+          <div className="pt-2">
+            <button
+              onClick={() => setMobileImporterenOpen(!mobileImporterenOpen)}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isImporterenActive()
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <span>Importeren producten</span>
+              <svg 
+                className={`h-5 w-5 transform transition-transform ${mobileImporterenOpen ? 'rotate-180' : ''}`}
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {mobileImporterenOpen && (
+              <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/product-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/product-import')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Import
+                </Link>
+                <Link 
+                  href="/product-cleanup" 
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/product-cleanup') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Opschonen
+                </Link>
+                <Link
+                  href="/playup-image-matcher"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/playup-image-matcher') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Match
+                </Link>
+                <Link
+                  href="/playup-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/playup-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Playup Images
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                closeMenu();
+                handleLogout();
+              }}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+            >
+              Uitloggen
+            </button>
+          </div>
         </div>
       </div>
     </nav>

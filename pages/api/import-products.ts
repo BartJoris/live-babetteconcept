@@ -47,6 +47,8 @@ interface ParsedProduct {
   productTags: Array<{ id: number; name: string }>;
   originalName?: string;
   isFavorite: boolean;
+  sizeAttribute?: string; // Manually selected size attribute
+  images?: string[]; // Image URLs or base64 data URLs
 }
 
 export default async function handler(
@@ -160,22 +162,65 @@ export default async function handler(
 
         const merkAttributeId = merkAttrResult[0].id;
 
-        // Step 3: Get or create MAAT Kinderen attribute
-        console.log('Step 3: Adding size attribute...');
+        // Step 3: Determine which size attribute to use based on the product's sizes
+        console.log('Step 3: Determining size attribute...');
+        
+        // Determine the appropriate size attribute based on the variants
+        const determineSizeAttribute = (variants: ProductVariant[]): string => {
+          // Check first variant to determine category
+          const firstSize = variants[0].size;
+          
+          // Baby sizes: ends with "maand" or is a month number with M (3M, 6M, etc.)
+          if (firstSize.includes('maand') || /^\d+\s*M$/i.test(firstSize)) {
+            return "MAAT Baby's";
+          }
+          
+          // Teen sizes: ends with "jaar" and number >= 10, or Y sizes >= 10 (including 16Y, 18Y)
+          if (firstSize.includes('jaar')) {
+            const match = firstSize.match(/^(\d+)\s*jaar/i);
+            if (match && parseInt(match[1]) >= 10) {
+              return 'MAAT Tieners';
+            }
+          }
+          if (/^(\d+)\s*Y$/i.test(firstSize)) {
+            const match = firstSize.match(/^(\d+)\s*Y$/i);
+            if (match && parseInt(match[1]) >= 10) {
+              return 'MAAT Tieners';  // Covers 10Y, 12Y, 14Y, 16Y, 18Y
+            }
+          }
+          
+          // Kids sizes: ends with "jaar" and number < 10, or Y sizes < 10
+          if (firstSize.includes('jaar') || /^\d+\s*Y$/i.test(firstSize)) {
+            return 'MAAT Kinderen';
+          }
+          
+          // Adult sizes: XS, S, M, L, XL (default to kids if not sure)
+          if (/^(XS|S|M|L|XL)$/i.test(firstSize)) {
+            return 'MAAT Volwassenen';
+          }
+          
+          // Default fallback
+          return 'MAAT Kinderen';
+        };
+        
+        // Use user-selected attribute if provided, otherwise auto-detect
+        const sizeAttributeName = product.sizeAttribute || determineSizeAttribute(product.variants);
+        console.log(`Using size attribute: ${sizeAttributeName}${product.sizeAttribute ? ' (user-selected)' : ' (auto-detected)'}`);
+        
         const maatAttrResult = await callOdoo(
           parseInt(uid),
           password,
           'product.attribute',
           'search_read',
-          [[['name', '=', 'MAAT Kinderen']]],
+          [[['name', '=', sizeAttributeName]]],
           { fields: ['id', 'name'] }
         );
 
         let maatAttributeId;
         if (!maatAttrResult || maatAttrResult.length === 0) {
-          console.log('Creating MAAT Kinderen attribute...');
+          console.log(`Creating ${sizeAttributeName} attribute...`);
           maatAttributeId = await callOdoo(parseInt(uid), password, 'product.attribute', 'create', [{
-            name: 'MAAT Kinderen',
+            name: sizeAttributeName,
             display_type: 'radio',
           }]);
         } else {
@@ -337,6 +382,63 @@ export default async function handler(
 
         console.log(`✅ Updated ${updatedCount}/${variantsResult.length} variants`);
 
+        // Step 8: Upload images if any
+        let imagesUploaded = 0;
+        if (product.images && product.images.length > 0) {
+          console.log(`Step 8: Uploading ${product.images.length} images...`);
+          
+          for (let i = 0; i < product.images.length; i++) {
+            try {
+              const imageData = product.images[i];
+              
+              // Extract base64 data (handle both URLs and data URLs)
+              let base64Data = '';
+              if (imageData.startsWith('data:image')) {
+                // It's a data URL (e.g., from file upload)
+                base64Data = imageData.split(',')[1];
+              } else if (imageData.startsWith('http')) {
+                // It's a URL - fetch and convert to base64
+                console.log(`  Fetching image from URL: ${imageData.substring(0, 60)}...`);
+                const imageResponse = await fetch(imageData);
+                if (imageResponse.ok) {
+                  const buffer = await imageResponse.arrayBuffer();
+                  base64Data = Buffer.from(buffer).toString('base64');
+                } else {
+                  console.warn(`  ⚠️ Failed to fetch image: ${imageResponse.status}`);
+                  continue;
+                }
+              } else {
+                console.warn(`  ⚠️ Invalid image data format`);
+                continue;
+              }
+
+              // First image: set as product template's main image
+              if (i === 0) {
+                console.log(`  Setting first image as main product image...`);
+                await callOdoo(parseInt(uid), password, 'product.template', 'write', [
+                  [templateId],
+                  { image_1920: base64Data }
+                ]);
+                imagesUploaded++;
+                console.log(`  ✅ Main image set (Image 1/${product.images.length})`);
+              } else {
+                // Additional images: create as product.image records
+                await callOdoo(parseInt(uid), password, 'product.image', 'create', [{
+                  name: `${product.name} - Image ${i + 1}`,
+                  product_tmpl_id: templateId,
+                  image_1920: base64Data,
+                }]);
+                imagesUploaded++;
+                console.log(`  ✅ Image ${i + 1}/${product.images.length} uploaded`);
+              }
+            } catch (imageError) {
+              console.error(`  ❌ Error uploading image ${i + 1}:`, imageError);
+            }
+          }
+          
+          console.log(`✅ Uploaded ${imagesUploaded}/${product.images.length} images`);
+        }
+
         results.push({
           success: true,
           reference: product.reference,
@@ -344,7 +446,8 @@ export default async function handler(
           templateId,
           variantsCreated: variantsResult.length,
           variantsUpdated: updatedCount,
-          message: `Created template ${templateId} with ${variantsResult.length} variants`,
+          imagesUploaded,
+          message: `Created template ${templateId} with ${variantsResult.length} variants${imagesUploaded > 0 ? ` and ${imagesUploaded} images` : ''}`,
         });
 
       } catch (productError) {

@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
-import Navigation from '../components/Navigation';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -318,7 +317,6 @@ export default function BrandPerformancePage() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navigation />
       <div className="p-4">
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           {/* Header */}
@@ -330,7 +328,7 @@ export default function BrandPerformancePage() {
                 <select
                   value={selectedYear}
                   onChange={e => setSelectedYear(Number(e.target.value))}
-                  className="border rounded px-3 py-2"
+                  className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                 >
                   {years.map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -483,7 +481,7 @@ export default function BrandPerformancePage() {
                   <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value as 'profit' | 'revenue' | 'margin' | 'quantity')}
-                    className="border rounded px-3 py-2"
+                    className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                   >
                     <option value="profit">Winst</option>
                     <option value="revenue">Omzet</option>
@@ -511,32 +509,32 @@ export default function BrandPerformancePage() {
                 <table className="w-full border border-gray-200 rounded-lg text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left border-b font-semibold" rowSpan={2}>Merk</th>
-                      <th className="px-3 py-2 text-center border-b font-semibold bg-purple-50" colSpan={3}>
+                      <th className="px-3 py-2 text-left border-b font-semibold text-gray-900" rowSpan={2}>Merk</th>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900 bg-purple-50" colSpan={3}>
                         📊 Jaar Totaal
                       </th>
-                      <th className="px-3 py-2 text-center border-b font-semibold bg-blue-50" colSpan={2}>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900 bg-blue-50" colSpan={2}>
                         ❄️ Winter Totaal
                       </th>
-                      <th className="px-3 py-2 text-center border-b font-semibold bg-orange-50" colSpan={2}>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900 bg-orange-50" colSpan={2}>
                         ☀️ Zomer Totaal
                       </th>
-                      <th className="px-3 py-2 text-center border-b font-semibold" colSpan={4}>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900" colSpan={4}>
                         Detail Per Periode
                       </th>
                     </tr>
                     <tr className="bg-gray-100 text-xs">
-                      <th className="px-2 py-1 text-right border-b bg-purple-50">Omzet</th>
-                      <th className="px-2 py-1 text-right border-b bg-purple-50">Winst</th>
-                      <th className="px-2 py-1 text-right border-b bg-purple-50">Marge %</th>
-                      <th className="px-2 py-1 text-right border-b bg-blue-50">Omzet</th>
-                      <th className="px-2 py-1 text-right border-b bg-blue-50">Winst</th>
-                      <th className="px-2 py-1 text-right border-b bg-orange-50">Omzet</th>
-                      <th className="px-2 py-1 text-right border-b bg-orange-50">Winst</th>
-                      <th className="px-2 py-1 text-center border-b">Wintersolden</th>
-                      <th className="px-2 py-1 text-center border-b">Winter Reg.</th>
-                      <th className="px-2 py-1 text-center border-b">Zomersolden</th>
-                      <th className="px-2 py-1 text-center border-b">Zomer Reg.</th>
+                      <th className="px-2 py-1 text-right border-b bg-purple-50 text-gray-900">Omzet</th>
+                      <th className="px-2 py-1 text-right border-b bg-purple-50 text-gray-900">Winst</th>
+                      <th className="px-2 py-1 text-right border-b bg-purple-50 text-gray-900">Marge %</th>
+                      <th className="px-2 py-1 text-right border-b bg-blue-50 text-gray-900">Omzet</th>
+                      <th className="px-2 py-1 text-right border-b bg-blue-50 text-gray-900">Winst</th>
+                      <th className="px-2 py-1 text-right border-b bg-orange-50 text-gray-900">Omzet</th>
+                      <th className="px-2 py-1 text-right border-b bg-orange-50 text-gray-900">Winst</th>
+                      <th className="px-2 py-1 text-center border-b text-gray-900">Wintersolden</th>
+                      <th className="px-2 py-1 text-center border-b text-gray-900">Winter Reg.</th>
+                      <th className="px-2 py-1 text-center border-b text-gray-900">Zomersolden</th>
+                      <th className="px-2 py-1 text-center border-b text-gray-900">Zomer Reg.</th>
                     </tr>
                   </thead>
                   <tbody>

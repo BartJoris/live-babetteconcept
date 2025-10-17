@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import Navigation from '../components/Navigation';
 
 // Type definition for product with brand issues (future use)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -199,7 +198,6 @@ export default function BrandDiagnosticsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navigation />
       <div className="p-4">
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">

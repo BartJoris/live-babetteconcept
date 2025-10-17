@@ -86,20 +86,82 @@ export default async function handler(
     console.log(`📝 First 30 lines:`);
     lines.slice(0, 30).forEach((line, idx) => console.log(`  ${idx}: ${line}`));
 
-    // Size columns to look for (Play UP uses these standard sizes)
-    const sizeColumns = ['3M', '6M', '9M', '12M', '18M', '24M', '36M', '3Y', '4Y', '5Y', '6Y', '8Y', '10Y', '12Y', '14Y'];
+    // Detect table headers to determine which size columns are present
+    // Different tables have different size ranges
+    let currentSizeColumns: string[] = [];
+    
+    const detectTableType = (line: string): string[] | null => {
+      // Look for size column headers in the line
+      // Baby/toddler tables: 3M, 6M, 9M, 12M, 18M, 24M, 36M
+      if (line.includes('3M') && line.includes('6M') && line.includes('9M')) {
+        // Check if it goes up to 36M or just 12M
+        if (line.includes('36M') || line.includes('24M')) {
+          console.log('   🔍 Detected BABY/TODDLER table (M sizes)');
+          return ['3M', '6M', '9M', '12M', '18M', '24M', '36M'];
+        } else {
+          console.log('   🔍 Detected SHORT BABY table (M sizes)');
+          return ['0M', '1M', '3M', '6M', '9M', '12M'];
+        }
+      }
+      // Kids tables: 3Y, 4Y, 5Y, 6Y, 8Y, 10Y, 12Y, 14Y
+      if (line.includes('3Y') && line.includes('4Y') && line.includes('5Y')) {
+        console.log('   🔍 Detected KIDS table (Y sizes)');
+        return ['3Y', '4Y', '5Y', '6Y', '8Y', '10Y', '12Y', '14Y'];
+      }
+      // Adult tables: XS, S, M, L
+      if (line.includes('XS') && line.includes(' S ') && line.includes(' M ') && line.includes(' L')) {
+        console.log('   🔍 Detected ADULT table (XS/S/M/L sizes)');
+        return ['XS', 'S', 'M', 'L', 'XL'];
+      }
+      return null;
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      
+      // Check if this line is a table header
+      const detectedSizes = detectTableType(line);
+      if (detectedSizes) {
+        currentSizeColumns = detectedSizes;
+        console.log(`📊 Table header detected at line ${i}: ${currentSizeColumns.join(', ')}`);
+        continue;
+      }
       
       // Look for product header lines: Article code + Color code + Description
       // Example: "1AR11002 P6179 RIB LS T-SHIRT - 100% OGCO"
       const articleMatch = line.match(/^(\d[A-Z0-9]{6,})\s+([A-Z0-9]{4,})\s+(.+)/);
       
       if (articleMatch) {
+        if (currentSizeColumns.length === 0) {
+          console.log(`⚠️ WARNING: Found product at line ${i} but no table header detected yet. Skipping: ${line}`);
+          continue;
+        }
+        
         const article = articleMatch[1];
         const color = articleMatch[2];
-        const description = articleMatch[3].trim();
+        let description = articleMatch[3].trim();
+        
+        // Clean description: remove material composition that contains percentages
+        // Examples:
+        // "STRIPED JERSEY LS T- - 50% OGCO/50%" -> "STRIPED JERSEY LS T"
+        // "RIB LS T-SHIRT - 100% OGCO" -> "RIB LS T-SHIRT"
+        // "DENIM JUMPSUIT - 100% CO" -> "DENIM JUMPSUIT"
+        
+        const originalDescription = description;
+        
+        // Remove everything from the last dash that includes a percentage onwards
+        // Use a more aggressive approach: find last " - " followed by text containing %
+        const dashIndex = description.lastIndexOf(' - ');
+        if (dashIndex !== -1) {
+          const afterDash = description.substring(dashIndex + 3); // +3 to skip " - "
+          if (afterDash.includes('%') || /\d+%/.test(afterDash)) {
+            description = description.substring(0, dashIndex).trim();
+            // Trim any trailing dashes
+            description = description.replace(/[\s\-]+$/, '').trim();
+            console.log(`   📝 Cleaned description from: "${originalDescription}"`);
+            console.log(`   📝 Cleaned description to: "${description}"`);
+          }
+        }
         
         console.log(`\n🔍 Found article: ${article} ${color}`);
         console.log(`   Description: ${description}`);
@@ -158,15 +220,16 @@ export default async function handler(
           }
           
           console.log(`   Quantity values: ${JSON.stringify(quantityValues)}`);
+          console.log(`   Using size columns: ${JSON.stringify(currentSizeColumns)}`);
           
           // Map quantities to size columns
-          for (let s = 0; s < Math.min(quantityValues.length, sizeColumns.length); s++) {
+          for (let s = 0; s < Math.min(quantityValues.length, currentSizeColumns.length); s++) {
             const qty = quantityValues[s];
             if (qty !== '-' && !isNaN(parseInt(qty))) {
               const quantity = parseInt(qty);
               if (quantity > 0) {
-                sizes[sizeColumns[s]] = quantity;
-                console.log(`     ${sizeColumns[s]}: ${quantity}`);
+                sizes[currentSizeColumns[s]] = quantity;
+                console.log(`     ${currentSizeColumns[s]}: ${quantity}`);
               }
             }
           }
@@ -192,6 +255,22 @@ export default async function handler(
 
     console.log(`✅ Extracted ${products.length} products from PDF`);
 
+    // Convert sizes to Dutch format
+    const convertSizeToDutch = (size: string): string => {
+      // Month sizes: 0M, 1M, 3M, 6M, 9M, 12M, 18M, 24M, 36M
+      if (size.endsWith('M') && !isNaN(parseInt(size.slice(0, -1)))) {
+        const months = size.slice(0, -1);
+        return `${months} maand`;
+      }
+      // Year sizes: 3Y, 4Y, 5Y, 6Y, 8Y, 10Y, 12Y, 14Y
+      if (size.endsWith('Y') && !isNaN(parseInt(size.slice(0, -1)))) {
+        const years = size.slice(0, -1);
+        return `${years} jaar`;
+      }
+      // Adult sizes: XS, S, M, L, XL (keep as-is)
+      return size;
+    };
+
     // Convert to CSV format
     // Header: Article,Color,Description,Size,Quantity,Price
     let csv = 'Article,Color,Description,Size,Quantity,Price\n';
@@ -199,7 +278,8 @@ export default async function handler(
     
     for (const product of products) {
       for (const [size, quantity] of Object.entries(product.sizes)) {
-        csv += `${product.article},${product.color},"${product.description}",${size},${quantity},${product.price.toFixed(2)}\n`;
+        const dutchSize = convertSizeToDutch(size);
+        csv += `${product.article},${product.color},"${product.description}",${dutchSize},${quantity},${product.price.toFixed(2)}\n`;
         variantCount++;
       }
     }

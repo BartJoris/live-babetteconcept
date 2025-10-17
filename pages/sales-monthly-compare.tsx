@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { Line } from 'react-chartjs-2';
-import Navigation from '../components/Navigation';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -363,7 +362,6 @@ export default function DailyComparePage() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navigation />
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="mb-6">
@@ -371,12 +369,12 @@ export default function DailyComparePage() {
           <div className="flex flex-wrap gap-4 items-center mb-2">
             {selectedPeriods.map((p, idx) => (
               <div key={idx} className="flex gap-2 items-center bg-gray-50 px-3 py-2 rounded-lg border">
-                <select value={p.year} onChange={e => updatePeriod(idx, Number(e.target.value), p.month)} className="border rounded px-2 py-1">
+                <select value={p.year} onChange={e => updatePeriod(idx, Number(e.target.value), p.month)} className="border border-gray-300 rounded px-2 py-1 text-gray-900 font-medium bg-white">
                   {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map(y => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
-                <select value={p.month} onChange={e => updatePeriod(idx, p.year, Number(e.target.value))} className="border rounded px-2 py-1">
+                <select value={p.month} onChange={e => updatePeriod(idx, p.year, Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-gray-900 font-medium bg-white">
                   {MONTH_LABELS.map((m, midx) => (
                     <option key={midx + 1} value={midx + 1}>{m}</option>
                   ))}
@@ -430,7 +428,7 @@ export default function DailyComparePage() {
                   <p className={`text-2xl font-bold ${performanceStats.difference >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {performanceStats.difference >= 0 ? '+' : ''}€{formatBE(Math.abs(performanceStats.difference))} 
                   </p>
-                  <p className="text-sm text-gray-800">
+                  <p className="text-sm text-gray-900 font-medium">
                     {performanceStats.difference >= 0 ? 'voorsprong' : 'achterstand'} vs {performanceStats.period2Label}
                   </p>
                 </div>
@@ -439,7 +437,7 @@ export default function DailyComparePage() {
                   <p className="text-lg font-bold text-green-800">
                     €{formatBE(performanceStats.avgDaily1)}
                   </p>
-                  <p className="text-sm text-gray-800">
+                  <p className="text-sm text-gray-900 font-medium">
                     vs €{formatBE(performanceStats.avgDaily2)} 
                     <span className={`ml-1 ${performanceStats.avgPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       ({performanceStats.avgPercentage >= 0 ? '+' : ''}{performanceStats.avgPercentage.toFixed(1)}%)
@@ -451,7 +449,7 @@ export default function DailyComparePage() {
                   <p className="text-lg font-bold text-purple-800">
                     €{formatBE(performanceStats.projectedTotal1)}
                   </p>
-                  <p className="text-sm text-gray-800">
+                  <p className="text-sm text-gray-900 font-medium">
                     vs €{formatBE(performanceStats.projectedTotal2)} maandeinde
                   </p>
                 </div>
@@ -460,14 +458,14 @@ export default function DailyComparePage() {
                   <p className={`text-2xl font-bold ${performanceStats.projectedDifference >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {performanceStats.projectedDifference >= 0 ? '+' : ''}€{formatBE(Math.abs(performanceStats.projectedDifference))}
                   </p>
-                  <p className="text-sm text-gray-800">als trend doorzet</p>
+                  <p className="text-sm text-gray-900 font-medium">als trend doorzet</p>
                 </div>
               </div>
             )}
 
             {/* Grafiek */}
             <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-2">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">
                 {activeTab === 'daily' ? 'Omzet & Marge per dag' : 'Cumulatieve Omzet'}
               </h2>
               <Line
@@ -515,12 +513,12 @@ export default function DailyComparePage() {
               <table className="w-full border border-gray-200 rounded-lg">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left">Dag</th>
+                    <th className="px-4 py-2 text-left text-gray-900 font-semibold">Dag</th>
                     {selectedPeriods.map((p, idx) => (
-                      <th key={idx + '-omzet'} className="px-4 py-2 text-left">Omzet {MONTH_LABELS[p.month - 1]} {p.year}</th>
+                      <th key={idx + '-omzet'} className="px-4 py-2 text-left text-gray-900 font-semibold">Omzet {MONTH_LABELS[p.month - 1]} {p.year}</th>
                     ))}
                     {marginAvailable && selectedPeriods.map((p, idx) => (
-                      <th key={idx + '-marge'} className="px-4 py-2 text-left">Marge {MONTH_LABELS[p.month - 1]} {p.year}</th>
+                      <th key={idx + '-marge'} className="px-4 py-2 text-left text-gray-900 font-semibold">Marge {MONTH_LABELS[p.month - 1]} {p.year}</th>
                     ))}
                   </tr>
                 </thead>
@@ -544,10 +542,10 @@ export default function DailyComparePage() {
                         
                                                   return (
                             <tr key={dayIdx} className={baseRowClassName}>
-                            <td className="px-4 py-2 font-medium">
+                            <td className="px-4 py-2 font-medium text-gray-900">
                               {dayNumber}
                               {selectedPeriods.map((p, idx) => (
-                                <div key={idx} className="text-xs text-gray-500">
+                                <div key={idx} className="text-xs text-gray-700 font-normal">
                                   {getWeekday(p.year, p.month, dayNumber)} {p.year}
                                 </div>
                               ))}
@@ -559,7 +557,7 @@ export default function DailyComparePage() {
                               // Bepaal cel kleur op basis van dit specifieke jaar
                               const isWeekendDay = isWeekend(p.year, p.month, dayNumber);
                               const isHoliday = isBelgianHoliday(p.year, p.month, dayNumber);
-                              let cellClassName = 'px-4 py-2';
+                              let cellClassName = 'px-4 py-2 text-gray-800';
                               
                               if (isHoliday) {
                                 cellClassName += ' bg-red-100'; // Feestdag
@@ -568,7 +566,7 @@ export default function DailyComparePage() {
                               }
                               
                               if (isMaxOmzet) {
-                                cellClassName += ' font-bold underline';
+                                cellClassName += ' font-bold underline text-gray-900';
                               }
                               
                               return (
@@ -584,7 +582,7 @@ export default function DailyComparePage() {
                               // Bepaal cel kleur op basis van dit specifieke jaar
                               const isWeekendDay = isWeekend(p.year, p.month, dayNumber);
                               const isHoliday = isBelgianHoliday(p.year, p.month, dayNumber);
-                              let cellClassName = 'px-4 py-2 text-green-800';
+                              let cellClassName = 'px-4 py-2 text-green-800 font-medium';
                               
                               if (isHoliday) {
                                 cellClassName += ' bg-red-100'; // Feestdag
@@ -608,12 +606,12 @@ export default function DailyComparePage() {
                     })()}
                     {/* Total Row */}
                     <tr className="bg-blue-100 font-bold border-t-2 border-gray-300">
-                      <td className="px-4 py-2">Totaal</td>
+                      <td className="px-4 py-2 text-gray-900">Totaal</td>
                       {selectedPeriods.map((p, idx) => {
                         const periodData = compareData[`${p.year}-${p.month}`];
                         const periodOmzetTotal = periodData?.omzet.reduce((sum, val) => sum + val, 0) || 0;
                         return (
-                          <td key={idx + '-omzet-total'} className="px-4 py-2">{formatBE(periodOmzetTotal)}</td>
+                          <td key={idx + '-omzet-total'} className="px-4 py-2 text-gray-900">{formatBE(periodOmzetTotal)}</td>
                         );
                       })}
                       {marginAvailable && selectedPeriods.map((p, idx) => {

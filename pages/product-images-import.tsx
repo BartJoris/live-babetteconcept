@@ -27,6 +27,7 @@ export default function ProductImagesImport() {
   const [vendorProducts, setVendorProducts] = useState<VendorProduct[]>([]);
   const [matchedProducts, setMatchedProducts] = useState<MatchedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploadResults, setUploadResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
 
@@ -323,9 +324,25 @@ export default function ProductImagesImport() {
     setSelectedProducts(newSelected);
   };
 
-  const matchedWithImages = matchedProducts.filter(p => p.vendorMatch && p.vendorMatch.images?.length > 0);
-  const matchedWithoutImages = matchedProducts.filter(p => p.vendorMatch && (!p.vendorMatch.images || p.vendorMatch.images.length === 0));
-  const unmatchedProducts = matchedProducts.filter(p => !p.vendorMatch);
+  // Filter products based on search query
+  const filterBySearch = (products: MatchedProduct[]) => {
+    if (!searchQuery.trim()) return products;
+    const query = searchQuery.toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(query) ||
+      p.reference.toLowerCase().includes(query) ||
+      p.originalName.toLowerCase().includes(query) ||
+      p.vendorMatch?.title.toLowerCase().includes(query)
+    );
+  };
+
+  const allMatchedWithImages = matchedProducts.filter(p => p.vendorMatch && p.vendorMatch.images?.length > 0);
+  const allMatchedWithoutImages = matchedProducts.filter(p => p.vendorMatch && (!p.vendorMatch.images || p.vendorMatch.images.length === 0));
+  const allUnmatchedProducts = matchedProducts.filter(p => !p.vendorMatch);
+
+  const matchedWithImages = filterBySearch(allMatchedWithImages);
+  const matchedWithoutImages = filterBySearch(allMatchedWithoutImages);
+  const unmatchedProducts = filterBySearch(allUnmatchedProducts);
 
   return (
     <>
@@ -416,24 +433,52 @@ export default function ProductImagesImport() {
             <div className="bg-white rounded-lg shadow-sm p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">3️⃣ Selecteer Producten voor Image Upload</h2>
               
+              {/* Search Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔍 Zoek producten
+                </label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full border-2 border-gray-300 rounded px-4 py-2 text-gray-900"
+                  placeholder="Zoek op naam, referentie, of leverancier product..."
+                />
+                {searchQuery && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Toont {matchedWithImages.length + matchedWithoutImages.length + unmatchedProducts.length} van {allMatchedWithImages.length + allMatchedWithoutImages.length + allUnmatchedProducts.length} producten
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-green-50 border border-green-200 rounded p-4">
                   <div className="text-green-600 text-sm mb-1">Met Afbeeldingen</div>
                   <div className="text-3xl font-bold">{matchedWithImages.length}</div>
+                  {searchQuery && matchedWithImages.length !== allMatchedWithImages.length && (
+                    <div className="text-xs text-gray-600 mt-1">van {allMatchedWithImages.length}</div>
+                  )}
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                   <div className="text-yellow-600 text-sm mb-1">Gevonden zonder Afbeeldingen</div>
                   <div className="text-3xl font-bold">{matchedWithoutImages.length}</div>
+                  {searchQuery && matchedWithoutImages.length !== allMatchedWithoutImages.length && (
+                    <div className="text-xs text-gray-600 mt-1">van {allMatchedWithoutImages.length}</div>
+                  )}
                 </div>
                 <div className="bg-red-50 border border-red-200 rounded p-4">
                   <div className="text-red-600 text-sm mb-1">Niet Gevonden</div>
                   <div className="text-3xl font-bold">{unmatchedProducts.length}</div>
+                  {searchQuery && unmatchedProducts.length !== allUnmatchedProducts.length && (
+                    <div className="text-xs text-gray-600 mt-1">van {allUnmatchedProducts.length}</div>
+                  )}
                 </div>
               </div>
 
               <div className="flex gap-3 mb-6">
                 <button
-                  onClick={() => setSelectedProducts(new Set(matchedWithImages.map(p => p.reference)))}
+                  onClick={() => setSelectedProducts(new Set(allMatchedWithImages.map(p => p.reference)))}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                 >
                   ✓ Selecteer Alles met Afbeeldingen
@@ -445,7 +490,7 @@ export default function ProductImagesImport() {
                   ✗ Deselecteer Alles
                 </button>
                 <div className="ml-auto bg-blue-50 px-4 py-2 rounded">
-                  <strong>{selectedProducts.size}</strong> producten geselecteerd
+                  <strong>{selectedProducts.size}</strong> van <strong>{matchedProducts.length}</strong> producten geselecteerd
                 </div>
               </div>
 

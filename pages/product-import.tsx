@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Types
 interface ParsedProduct {
@@ -17,6 +18,9 @@ interface ParsedProduct {
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
   isFavorite: boolean; // Editable favorite flag
+  sizeAttribute?: string; // Manually editable size attribute (MAAT Baby's, MAAT Kinderen, etc.)
+  images?: string[]; // Image URLs (for Play UP and other vendors)
+  imagesFetched?: boolean; // Whether images have been fetched from website
 }
 
 interface ProductVariant {
@@ -120,6 +124,56 @@ function SearchableSelect({ options, value, onChange, placeholder = 'Selecteer..
   );
 }
 
+// Utility function to determine size attribute based on product variants or size string
+function determineSizeAttribute(input: ProductVariant[] | string): string {
+  // Handle string input
+  if (typeof input === 'string') {
+    const size = input;
+    if (!size) return 'MAAT Kinderen';
+    
+    // Baby sizes: ends with "maand" or month numbers (3M, 6M, etc.)
+    if (size.includes('maand') || /^\d+\s*M$/i.test(size)) {
+      return "MAAT Baby's";
+    }
+    
+    // Teen sizes: "jaar" with number >= 10, or Y sizes >= 10 (including 16Y, 18Y)
+    if (size.includes('jaar')) {
+      const match = size.match(/^(\d+)\s*jaar/i);
+      if (match && parseInt(match[1]) >= 10) {
+        return 'MAAT Tieners';
+      }
+    }
+    if (/^(\d+)\s*Y$/i.test(size)) {
+      const match = size.match(/^(\d+)\s*Y$/i);
+      if (match && parseInt(match[1]) >= 10) {
+        return 'MAAT Tieners';  // Covers 10Y, 12Y, 14Y, 16Y, 18Y
+      }
+    }
+    
+    // Kids sizes: "jaar" with number < 10, or Y sizes < 10
+    if (size.includes('jaar') || /^\d+\s*Y$/i.test(size)) {
+      return 'MAAT Kinderen';
+    }
+    
+    // Adult sizes: XS, S, M, L, XL
+    if (/^(XS|S|M|L|XL)$/i.test(size)) {
+      return 'MAAT Volwassenen';
+    }
+    
+    return 'MAAT Kinderen';
+  }
+  
+  // Handle array input
+  const variants = input;
+  if (variants.length === 0) return 'MAAT Kinderen'; // Default fallback
+  
+  const firstSize = variants[0]?.size;
+  if (!firstSize) return 'MAAT Kinderen'; // Safety check
+  
+  // Delegate to string version
+  return determineSizeAttribute(firstSize);
+}
+
 export default function ProductImport() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
@@ -171,6 +225,34 @@ export default function ProductImport() {
     const savedPlayupPass = localStorage.getItem('playup_password');
     if (savedPlayupUser) setPlayupUsername(savedPlayupUser);
     if (savedPlayupPass) setPlayupPassword(savedPlayupPass);
+    
+    // Check for matched images from image matcher
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const vendor = urlParams.get('vendor');
+      const withImages = urlParams.get('withImages');
+      
+      if (vendor === 'playup' && withImages === 'true') {
+        const matchedData = sessionStorage.getItem('playup_matched_images');
+        if (matchedData) {
+          try {
+            const data = JSON.parse(matchedData);
+            console.log('📸 Loading matched images from Image Matcher...');
+            
+            // Set vendor to playup
+            setSelectedVendor('playup');
+            
+            // Load products with images
+            loadMatchedProducts(data);
+            
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem('playup_matched_images');
+          } catch (error) {
+            console.error('Error loading matched images:', error);
+          }
+        }
+      }
+    }
     
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -307,6 +389,90 @@ export default function ProductImport() {
     reader.readAsText(file);
   };
 
+  const loadMatchedProducts = (data: {
+    csvProducts: Array<{
+      article: string;
+      color: string;
+      description: string;
+      size: string;
+      quantity: number;
+      price: number;
+    }>;
+    matchedProducts: Array<{
+      article: string;
+      color: string;
+      description: string;
+      imageCount: number;
+      images: string[];
+    }>;
+  }) => {
+    try {
+      // Create a map of article+color to images
+      const imageMap = new Map<string, string[]>();
+      data.matchedProducts.forEach(mp => {
+        const key = `${mp.article}_${mp.color}`;
+        imageMap.set(key, mp.images);
+      });
+
+      // Group CSV products by article+color to create products with variants
+      const productMap = new Map<string, ParsedProduct>();
+
+      data.csvProducts.forEach(csvProduct => {
+        const key = `${csvProduct.article}_${csvProduct.color}`;
+        
+        if (!productMap.has(key)) {
+          // Create new product
+          const sizeAttr = determineSizeAttribute(csvProduct.size);
+          const images = imageMap.get(key) || [];
+          
+          productMap.set(key, {
+            reference: csvProduct.article,
+            name: `Play Up - ${csvProduct.description} - ${csvProduct.article}`,
+            originalName: csvProduct.description,
+            material: csvProduct.color,
+            color: csvProduct.color,
+            ecommerceDescription: csvProduct.description,
+            variants: [],
+            suggestedBrand: 'Play Up',
+            publicCategories: [],
+            productTags: [],
+            isFavorite: false,
+            sizeAttribute: sizeAttr,
+            images: images,
+            imagesFetched: images.length > 0,
+          });
+        }
+
+        // Add variant
+        const product = productMap.get(key)!;
+        product.variants.push({
+          size: csvProduct.size,
+          quantity: csvProduct.quantity || 0,
+          ean: '',
+          price: csvProduct.price,
+          rrp: 0,
+        });
+      });
+
+      const products = Array.from(productMap.values());
+      setParsedProducts(products);
+      
+      // Show notification
+      const withImages = products.filter(p => p.images && p.images.length > 0).length;
+      const totalImages = products.reduce((sum, p) => sum + (p.images?.length || 0), 0);
+      
+      alert(`✅ Loaded ${products.length} products from Image Matcher\n📸 ${withImages} products with images\n🖼️ ${totalImages} total images`);
+      
+      // Go to step 1.5 (image management)
+      setCurrentStep(1.5);
+      
+      console.log(`✅ Loaded ${products.length} products with ${totalImages} images`);
+    } catch (error) {
+      console.error('Error loading matched products:', error);
+      alert('Error loading matched products. Please try again.');
+    }
+  };
+
   const parseAo76CSV = (text: string) => {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return;
@@ -359,7 +525,7 @@ export default function ProductImport() {
 
       products[reference].variants.push({
         size: row['Size'] || row['size'] || '',
-        quantity: 0, // Default stock to 0 (editable by user)
+        quantity: parseInt(row['Quantity'] || row['quantity'] || '0'), // Use quantity from CSV
         ean: row['EAN barcode'] || row['barcode'] || '',
         price: parsePrice(row['Price'] || row['price'] || '0'),
         rrp: parsePrice(row['RRP'] || row['rrp'] || '0'),
@@ -367,6 +533,10 @@ export default function ProductImport() {
     }
 
     const productList = Object.values(products);
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
@@ -470,6 +640,10 @@ export default function ProductImport() {
     }
 
     const productList = Object.values(products);
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
@@ -544,13 +718,9 @@ export default function ProductImport() {
       const reference = `${article}-${color}`;
 
       if (!products[reference]) {
-        // Format product name: "Play Up - Description"
-        const toSentenceCase = (str: string) => {
-          const lower = str.toLowerCase();
-          return lower.charAt(0).toUpperCase() + lower.slice(1);
-        };
-        
-        const formattedName = `Play Up - ${toSentenceCase(description)}`;
+        // Format product name: "Play Up - DESCRIPTION - COLOR"
+        // Keep description in uppercase and add color code
+        const formattedName = `Play Up - ${description} - ${color}`;
         
         // Try to detect brand (should be Play Up)
         const suggestedBrand = brands.find(b => 
@@ -594,9 +764,15 @@ export default function ProductImport() {
     const productList = Object.values(products);
     console.log(`✅ Parsed ${productList.length} products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
     
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
-    setCurrentStep(2);
+    // Don't automatically go to step 2 - stay on step 1 so user can fetch website prices
+    // setCurrentStep(2);
   };
 
   const parseFlossCSV = (text: string) => {
@@ -768,85 +944,13 @@ export default function ProductImport() {
     }
 
     const productList = Object.values(products);
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
-  };
-
-  const fetchPlayUpImages = async () => {
-    if (!playupUsername || !playupPassword) {
-      alert('Vul eerst Play UP credentials in');
-      return;
-    }
-
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
-      alert('Geen Odoo credentials gevonden');
-      return;
-    }
-
-    if (!importResults || !importResults.results) {
-      alert('Geen import resultaten gevonden');
-      return;
-    }
-
-    setLoading(true);
-    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
-
-    // Get successful products with Template IDs
-    const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
-
-    for (const result of successfulProducts) {
-      // Find the original parsed product to get description and color
-      const originalProduct = parsedProducts.find(p => p.reference === result.reference);
-      if (!originalProduct) continue;
-
-      try {
-        console.log(`Fetching images for: ${result.name}`);
-        
-        const response = await fetch('/api/fetch-playup-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productDescription: originalProduct.ecommerceDescription || originalProduct.originalName || originalProduct.name,
-            colorCode: originalProduct.color,
-            colorName: originalProduct.material, // Color name might be stored here
-            templateId: result.templateId,
-            playupUsername,
-            playupPassword,
-            odooUid: uid,
-            odooPassword: password,
-          }),
-        });
-
-        const imageResult = await response.json();
-        
-        results.push({
-          reference: result.reference,
-          success: imageResult.success,
-          imagesUploaded: imageResult.imagesUploaded || 0,
-          error: imageResult.error,
-        });
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-      } catch (error) {
-        results.push({
-          reference: result.reference,
-          success: false,
-          imagesUploaded: 0,
-          error: String(error),
-        });
-      }
-    }
-
-    setImageImportResults(results);
-    setLoading(false);
-
-    const successCount = results.filter(r => r.success).length;
-    const totalImages = results.reduce((sum, r) => sum + (r.imagesUploaded || 0), 0);
-    alert(`✅ Image import complete!\n${successCount}/${results.length} products\n${totalImages} total images uploaded`);
   };
 
   const fetchFlossImages = async (imageFolder: File[]) => {
@@ -1103,6 +1207,59 @@ export default function ProductImport() {
     }
   };
 
+  const handleManualImageUpload = (productReference: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      alert('Selecteer alleen afbeeldingen (jpg, png, etc.)');
+      return;
+    }
+
+    // Convert files to data URLs for preview and storage
+    const promises = imageFiles.map(file => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result;
+          if (typeof result === 'string') {
+            resolve(result);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(promises)
+      .then(dataUrls => {
+        setParsedProducts(products =>
+          products.map(p =>
+            p.reference === productReference
+              ? { ...p, images: [...(p.images || []), ...dataUrls] }
+              : p
+          )
+        );
+      })
+      .catch(error => {
+        console.error('Error uploading images:', error);
+        alert('Fout bij uploaden van afbeeldingen');
+      });
+  };
+
+  const removeProductImage = (productReference: string, imageIndex: number) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productReference
+          ? { ...p, images: p.images?.filter((_, idx) => idx !== imageIndex) }
+          : p
+      )
+    );
+  };
+
+
   const toggleProduct = (reference: string) => {
     const newSelected = new Set(selectedProducts);
     if (newSelected.has(reference)) {
@@ -1155,6 +1312,14 @@ export default function ProductImport() {
     setParsedProducts(products =>
       products.map(p =>
         p.reference === productRef ? { ...p, isFavorite: !p.isFavorite } : p
+      )
+    );
+  };
+
+  const updateProductSizeAttribute = (productRef: string, newAttribute: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef ? { ...p, sizeAttribute: newAttribute } : p
       )
     );
   };
@@ -1388,6 +1553,28 @@ export default function ProductImport() {
 
       setImportProgress(null);
       setImportResults({ success: true, results });
+      
+      // Save Play UP import results to sessionStorage for image upload
+      if (selectedVendor === 'playup') {
+        const playupResults = results
+          .filter(r => r.success && r.templateId)
+          .map(r => ({
+            reference: r.reference || '', // Full reference: "1AR11003-R324G"
+            colorCode: r.reference?.split('-')[1] || '', // Extract color code (e.g., "R324G")
+            description: r.name?.split(' - ')[1] || '', // Extract description from name
+            name: r.name || '',
+            templateId: r.templateId || 0,
+          }));
+        
+        if (typeof window !== 'undefined' && playupResults.length > 0) {
+          sessionStorage.setItem('playup_import_results', JSON.stringify(playupResults));
+          console.log(`💾 Saved ${playupResults.length} Play UP products to session for image upload`);
+          playupResults.forEach(r => {
+            console.log(`   - ${r.reference} → Template ${r.templateId}`);
+          });
+        }
+      }
+      
       setCurrentStep(7);
     } catch (error) {
       console.error('Import error:', error);
@@ -1700,17 +1887,51 @@ export default function ProductImport() {
                             </div>
                           )}
 
-                          <button
-                            onClick={fetchPlayUpPrices}
-                            disabled={!playupUsername || !playupPassword || parsedProducts.length === 0 || loading}
-                            className="w-full bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 font-medium"
-                          >
-                            {loading ? '⏳ Bezig...' : '🌐 Haal Prijzen Op van Website'}
-                          </button>
+                          {parsedProducts.length === 0 && (
+                            <div className="bg-yellow-50 border border-yellow-300 rounded p-3 mb-3">
+                              <p className="text-yellow-800 text-sm font-medium">
+                                ⚠️ Upload eerst een Product CSV bestand hierboven om prijzen op te kunnen halen
+                              </p>
+                            </div>
+                          )}
                           
-                          <p className="text-xs text-gray-500 mt-2">
-                            💡 Credentials worden lokaal opgeslagen voor toekomstig gebruik
-                          </p>
+                          {parsedProducts.length > 0 && (
+                            <div className="bg-blue-50 border border-blue-300 rounded p-3 mb-3">
+                              <p className="text-blue-800 text-sm font-medium">
+                                ✅ CSV geladen: {parsedProducts.length} producten geparsed
+                              </p>
+                              <p className="text-blue-700 text-xs mt-1">
+                                Je kunt nu optioneel prijzen ophalen van de Play UP website, of direct doorgaan naar import
+                              </p>
+                            </div>
+                          )}
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={fetchPlayUpPrices}
+                              disabled={!playupUsername || !playupPassword || parsedProducts.length === 0 || loading}
+                              className="bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
+                            >
+                              {loading ? '⏳ Bezig...' : '💰 Haal Prijzen Op'}
+                            </button>
+                            
+                            <button
+                              onClick={() => setCurrentStep(2)}
+                              disabled={parsedProducts.length === 0}
+                              className="bg-green-600 text-white px-4 py-3 rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
+                            >
+                              ➡️ Ga Verder
+                            </button>
+                          </div>
+                          
+                          <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-4">
+                            <p className="text-xs text-blue-800">
+                              📸 <strong>Images:</strong> Upload via <strong>🖼️ Upload Play UP Afbeeldingen</strong> button after import
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              💡 Credentials worden lokaal opgeslagen voor toekomstig gebruik
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1773,6 +1994,178 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     <p className="text-gray-800">👆 Selecteer eerst een leverancier om te beginnen</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Step 1.5: Play UP Image Management (only for Play UP vendor) */}
+            {currentStep === 1.5 && selectedVendor === 'playup' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">📸 Manage Product Images</h2>
+                
+                {/* Statistics */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-green-50 border border-green-200 rounded p-4">
+                    <div className="text-green-600 text-sm mb-1">Met Afbeeldingen</div>
+                    <div className="text-3xl font-bold">
+                      {parsedProducts.filter(p => p.images && p.images.length > 0).length}
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                    <div className="text-yellow-600 text-sm mb-1">Zonder Afbeeldingen</div>
+                    <div className="text-3xl font-bold">
+                      {parsedProducts.filter(p => !p.images || p.images.length === 0).length}
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                    <div className="text-blue-600 text-sm mb-1">Totaal Afbeeldingen</div>
+                    <div className="text-3xl font-bold">
+                      {parsedProducts.reduce((sum, p) => sum + (p.images?.length || 0), 0)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Banner for Local Images */}
+                {parsedProducts.some(p => p.images?.some(img => img.startsWith('/'))) && (
+                  <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-6">
+                    <h3 className="font-bold text-blue-900 mb-2">📁 Local Images Ready</h3>
+                    <p className="text-sm text-blue-800 mb-3">
+                      Images from the matcher are stored locally. Upload them manually using the &quot;📁 Upload Foto&apos;s&quot; button below each product.
+                    </p>
+                    <p className="text-xs text-blue-700 bg-blue-100 rounded p-2">
+                      💡 <strong>Tip:</strong> Images are in <code className="bg-blue-200 px-1 rounded">~/Downloads/Play_Up_Matched_Images/</code>
+                    </p>
+                  </div>
+                )}
+
+                {/* Products Grid */}
+                <div className="space-y-4 mb-6 max-h-[600px] overflow-y-auto">
+                  {parsedProducts.map((product) => (
+                    <div key={product.reference} className="bg-white border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-bold text-gray-900">{product.name}</h3>
+                          <p className="text-sm text-gray-600">{product.reference}</p>
+                        </div>
+                        <div className={`px-3 py-1 rounded text-sm font-medium ${
+                          product.images && product.images.length > 0
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {product.images && product.images.length > 0 
+                            ? `✅ ${product.images.length} foto&apos;s` 
+                            : '⚠️ Geen foto&apos;s'}
+                        </div>
+                      </div>
+
+                      {/* Image Preview Grid */}
+                      {product.images && product.images.length > 0 && (
+                        <div className="mb-3">
+                          {product.images.some(img => img.startsWith('/') || img.startsWith('file://')) ? (
+                            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4">
+                              <div className="text-sm font-medium text-gray-700 mb-2">
+                                📸 {product.images.length} image{product.images.length !== 1 ? 's' : ''} matched:
+                              </div>
+                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                                {product.images.map((imageUrl, idx) => {
+                                  const filename = imageUrl.split('/').pop();
+                                  return (
+                                    <div key={idx} className="flex items-center justify-between text-xs bg-white rounded px-2 py-1 border">
+                                      <span className="text-gray-700 font-mono">{filename}</span>
+                                      <button
+                                        onClick={() => removeProductImage(product.reference, idx)}
+                                        className="text-red-600 hover:text-red-800 font-bold"
+                                        title="Verwijder"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-6 gap-2">
+                              {product.images.map((imageUrl, idx) => (
+                                <div key={idx} className="relative aspect-square bg-gray-100 rounded overflow-hidden border group">
+                                  <Image
+                                    src={imageUrl}
+                                    alt={`${product.name} ${idx + 1}`}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized={imageUrl.startsWith('data:')}
+                                  />
+                                  <button
+                                    onClick={() => removeProductImage(product.reference, idx)}
+                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    title="Verwijder deze foto"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manual Upload */}
+                      <div className="flex gap-2">
+                        <label className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 cursor-pointer inline-block">
+                          📁 Upload Foto&apos;s
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={(e) => handleManualImageUpload(product.reference, e.target.files)}
+                            className="hidden"
+                          />
+                        </label>
+                        {product.images && product.images.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setParsedProducts(products =>
+                                products.map(p =>
+                                  p.reference === product.reference ? { ...p, images: [] } : p
+                                )
+                              );
+                            }}
+                            className="text-sm px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          >
+                            🗑️ Verwijder Alle Foto&apos;s
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex gap-3 justify-between">
+                  <button
+                    onClick={() => setCurrentStep(1)}
+                    className="px-6 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
+                  >
+                    ⬅️ Terug
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Clear all images and continue
+                        setParsedProducts(products => products.map(p => ({ ...p, images: [] })));
+                        setCurrentStep(2);
+                      }}
+                      className="px-6 py-3 bg-yellow-600 text-white rounded hover:bg-yellow-700 font-medium"
+                    >
+                      ⏭️ Zonder Afbeeldingen
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(2)}
+                      className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                    >
+                      ➡️ Ga Verder
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1935,10 +2328,24 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                 />
                               </div>
                               <div className="flex items-center gap-4 text-sm text-gray-800">
-                                <div>
+                                <div className="flex items-center gap-2">
                                   <span className="bg-gray-100 px-2 py-1 rounded text-xs font-medium">{product.reference}</span>
-                                  <span className="mx-2">•</span>
+                                  <span>•</span>
                                   <span className="text-xs">{product.color}</span>
+                                  <span>•</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs">📏</span>
+                                    <select
+                                      value={product.sizeAttribute || determineSizeAttribute(product.variants)}
+                                      onChange={(e) => updateProductSizeAttribute(product.reference, e.target.value)}
+                                      className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium border-purple-300 border focus:border-purple-500 focus:outline-none cursor-pointer"
+                                    >
+                                      <option value="MAAT Baby's">MAAT Baby&apos;s</option>
+                                      <option value="MAAT Kinderen">MAAT Kinderen</option>
+                                      <option value="MAAT Tieners">MAAT Tieners</option>
+                                      <option value="MAAT Volwassenen">MAAT Volwassenen</option>
+                                    </select>
+                                  </div>
                                 </div>
                                 <label className="flex items-center gap-2 cursor-pointer">
                                   <input
@@ -2793,36 +3200,26 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
 
                 {/* Image Import for Play UP */}
                 {selectedVendor === 'playup' && imageImportResults.length === 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-blue-900 text-gray-900 mb-3">🖼️ Afbeeldingen Importeren (Optioneel)</h3>
-                    <p className="text-sm text-blue-800 mb-4">
-                      Nu kun je automatisch afbeeldingen ophalen van de Play UP website voor de succesvol geïmporteerde producten.
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
                     </p>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
                       <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Play UP website credentials (al ingevuld als je prijzen hebt opgehaald)</li>
-                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                        <li>The same CSV you just imported</li>
+                        <li>Local images from <code className="bg-gray-100 px-1 rounded">~/Downloads/Play_Up_Matched_Images/</code></li>
+                        <li>The app will automatically match them!</li>
                       </ul>
                     </div>
                     
-                    {playupUsername && playupPassword ? (
-                      <button
-                        onClick={async () => {
-                          await fetchPlayUpImages();
-                        }}
-                        disabled={loading}
-                        className="w-full bg-purple-600 text-white px-6 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 font-bold"
-                      >
-                        {loading ? '⏳ Bezig met afbeeldingen ophalen...' : '🖼️ Start Image Import'}
-                      </button>
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                        <p className="text-sm text-yellow-800">
-                          ⚠️ Play UP credentials niet gevonden. Gebruik de <Link href="/playup-images-import" className="underline font-bold">Image Import pagina</Link> om handmatig af te handelen.
-                        </p>
-                      </div>
-                    )}
+                    <Link
+                      href="/playup-images-import"
+                      className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all"
+                    >
+                      🖼️ Upload Play UP Afbeeldingen →
+                    </Link>
                   </div>
                 )}
 

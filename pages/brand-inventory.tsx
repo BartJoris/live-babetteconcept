@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
-import Navigation from '../components/Navigation';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -293,7 +292,6 @@ export default function BrandInventoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navigation />
       <div className="p-4">
         <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
           {/* Header */}
@@ -305,7 +303,7 @@ export default function BrandInventoryPage() {
                 <select
                   value={selectedYear}
                   onChange={e => setSelectedYear(Number(e.target.value))}
-                  className="border rounded px-3 py-2"
+                  className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                 >
                   {years.map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -317,7 +315,7 @@ export default function BrandInventoryPage() {
                   <select
                     value={selectedSeason}
                     onChange={e => setSelectedSeason(e.target.value as 'winter' | 'summer' | 'both')}
-                    className="border rounded px-3 py-2"
+                    className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                   >
                   <option value="both">Beide</option>
                   <option value="winter">❄️ Winter</option>
@@ -433,7 +431,7 @@ export default function BrandInventoryPage() {
                   <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value as 'sellThrough' | 'stockValue' | 'totalSold')}
-                    className="border rounded px-3 py-2"
+                    className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                   >
                     <option value="sellThrough">Sell-through %</option>
                     <option value="stockValue">Voorraadwaarde</option>
@@ -450,20 +448,20 @@ export default function BrandInventoryPage() {
                 <table className="w-full border border-gray-200 rounded-lg text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left border-b" rowSpan={2}>Merk</th>
-                      <th className="px-3 py-2 text-center border-b" rowSpan={2}>Status</th>
-                      <th className="px-3 py-2 text-center border-b bg-blue-50" colSpan={3}>Voorraadbeweging</th>
-                      <th className="px-3 py-2 text-center border-b bg-green-50" colSpan={2}>Verkoop</th>
-                      <th className="px-3 py-2 text-right border-b" rowSpan={2}>Huidige Voorraad</th>
-                      <th className="px-3 py-2 text-right border-b" rowSpan={2}>Sell-through %</th>
-                      <th className="px-3 py-2 text-right border-b" rowSpan={2}>Voorraadwaarde</th>
+                      <th className="px-3 py-2 text-left border-b font-semibold text-gray-900" rowSpan={2}>Merk</th>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900" rowSpan={2}>Status</th>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900 bg-blue-50" colSpan={3}>Voorraadbeweging</th>
+                      <th className="px-3 py-2 text-center border-b font-semibold text-gray-900 bg-green-50" colSpan={2}>Verkoop</th>
+                      <th className="px-3 py-2 text-right border-b font-semibold text-gray-900" rowSpan={2}>Huidige Voorraad</th>
+                      <th className="px-3 py-2 text-right border-b font-semibold text-gray-900" rowSpan={2}>Sell-through %</th>
+                      <th className="px-3 py-2 text-right border-b font-semibold text-gray-900" rowSpan={2}>Voorraadwaarde</th>
                     </tr>
                     <tr className="bg-gray-100 text-xs">
-                      <th className="px-2 py-1 text-right border-b bg-blue-50">Opening</th>
-                      <th className="px-2 py-1 text-right border-b bg-blue-50">Inkoop</th>
-                      <th className="px-2 py-1 text-right border-b bg-blue-50">Verkocht</th>
-                      <th className="px-2 py-1 text-right border-b bg-green-50">Regular</th>
-                      <th className="px-2 py-1 text-right border-b bg-green-50">Solden</th>
+                      <th className="px-2 py-1 text-right border-b bg-blue-50 text-gray-900">Opening</th>
+                      <th className="px-2 py-1 text-right border-b bg-blue-50 text-gray-900">Inkoop</th>
+                      <th className="px-2 py-1 text-right border-b bg-blue-50 text-gray-900">Verkocht</th>
+                      <th className="px-2 py-1 text-right border-b bg-green-50 text-gray-900">Regular</th>
+                      <th className="px-2 py-1 text-right border-b bg-green-50 text-gray-900">Solden</th>
                     </tr>
                   </thead>
                   <tbody>

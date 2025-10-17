@@ -4,7 +4,6 @@ import { useRouter } from 'next/router';
 // Voor eenvoudige grafiek (optioneel):
 // npm install chart.js react-chartjs-2
 import { Line } from 'react-chartjs-2';
-import Navigation from '../components/Navigation';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -190,7 +189,6 @@ export default function SalesComparePage() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navigation />
       <div className="p-4">
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6">
         <div className="flex justify-between items-center mb-6">
@@ -220,7 +218,7 @@ export default function SalesComparePage() {
           <>
             {/* Grafiek */}
             <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-2">Omzet &amp; Marge per maand</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Omzet &amp; Marge per maand</h2>
               <Line
                 data={chartData}
                 options={{
@@ -245,34 +243,34 @@ export default function SalesComparePage() {
               <table className="w-full border border-gray-200 rounded-lg">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left">Maand</th>
+                    <th className="px-4 py-2 text-left text-gray-900 font-semibold">Maand</th>
                     {selectedYears.map(y => (
-                      <th key={y + '-omzet'} className="px-4 py-2 text-left">Omzet {y}</th>
+                      <th key={y + '-omzet'} className="px-4 py-2 text-left text-gray-900 font-semibold">Omzet {y}</th>
                     ))}
                     {marginAvailable && selectedYears.map(y => (
-                      <th key={y + '-marge'} className="px-4 py-2 text-left">Marge {y}</th>
+                      <th key={y + '-marge'} className="px-4 py-2 text-left text-gray-900 font-semibold">Marge {y}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {MONTHS.map((m, idx) => (
                     <tr key={m} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-2 font-medium">{MONTH_LABELS[idx]}</td>
+                      <td className="px-4 py-2 font-medium text-gray-900">{MONTH_LABELS[idx]}</td>
                       {selectedYears.map(y => (
-                        <td key={y + '-omzet-' + m} className="px-4 py-2">{formatBE(compareData[y]?.[m]?.omzet || 0)}</td>
+                        <td key={y + '-omzet-' + m} className="px-4 py-2 text-gray-800">{formatBE(compareData[y]?.[m]?.omzet || 0)}</td>
                       ))}
                       {marginAvailable && selectedYears.map(y => (
-                        <td key={y + '-marge-' + m} className="px-4 py-2 text-green-800">{typeof compareData[y]?.[m]?.marge === 'number' ? formatBE(compareData[y][m].marge!) : '-'}</td>
+                        <td key={y + '-marge-' + m} className="px-4 py-2 text-green-800 font-medium">{typeof compareData[y]?.[m]?.marge === 'number' ? formatBE(compareData[y][m].marge!) : '-'}</td>
                       ))}
                     </tr>
                   ))}
                   {/* Year Total Row */}
                   <tr className="bg-blue-100 font-bold border-t-2 border-gray-300">
-                    <td className="px-4 py-2">Totaal</td>
+                    <td className="px-4 py-2 text-gray-900">Totaal</td>
                     {selectedYears.map(y => {
                       const yearOmzetTotal = MONTHS.reduce((sum, m) => sum + (compareData[y]?.[m]?.omzet || 0), 0);
                       return (
-                        <td key={y + '-omzet-total'} className="px-4 py-2">{formatBE(yearOmzetTotal)}</td>
+                        <td key={y + '-omzet-total'} className="px-4 py-2 text-gray-900">{formatBE(yearOmzetTotal)}</td>
                       );
                     })}
                     {marginAvailable && selectedYears.map(y => {
