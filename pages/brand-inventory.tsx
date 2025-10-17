@@ -89,7 +89,7 @@ export default function BrandInventoryPage() {
         router.push('/');
       }
     }
-  }, [router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = useCallback(async () => {
     if (!uid || !password) return;

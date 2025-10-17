@@ -61,7 +61,7 @@ export default function SalesProductsPage() {
         router.push('/');
       }
     }
-  }, [router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set default month to current month
   useEffect(() => {

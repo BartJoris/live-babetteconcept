@@ -53,7 +53,7 @@ export default function DashboardPage() {
         router.push('/');
       }
     }
-  }, [router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 
 interface ParsedProduct {
   reference: string;
@@ -472,11 +473,13 @@ export default function ProductImagesImport() {
                             {product.vendorMatch?.images && (
                               <div className="mt-3 flex gap-2">
                                 {product.vendorMatch.images.slice(0, 3).map((img, idx) => (
-                                  <img 
+                                  <Image 
                                     key={idx}
                                     src={img.src} 
                                     alt=""
                                     className="w-24 h-24 object-cover rounded border"
+                                    width={96}
+                                    height={96}
                                   />
                                 ))}
                                 <div className="text-xs text-gray-500 self-center">

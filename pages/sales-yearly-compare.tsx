@@ -63,7 +63,7 @@ export default function SalesComparePage() {
         router.push('/');
       }
     }
-  }, [router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bepaal alle jaren met data (optioneel: hardcoded 2022-2025)
   useEffect(() => {

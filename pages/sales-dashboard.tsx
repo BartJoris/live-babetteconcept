@@ -46,7 +46,7 @@ export default function SalesDashboard() {
         router.push('/');
       }
     }
-  }, [router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSales = useCallback(async () => {
     if (!uid || !password) return;

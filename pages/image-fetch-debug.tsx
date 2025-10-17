@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 
 interface Product {
   title: string;
@@ -288,10 +289,12 @@ export default function ImageFetchDebug() {
                         <div className="grid grid-cols-3 gap-4">
                           {product.images.slice(0, 3).map((img, imgIdx) => (
                             <div key={imgIdx} className="border rounded p-2">
-                              <img 
+                              <Image 
                                 src={img.src} 
                                 alt={`${product.title} - Image ${imgIdx + 1}`}
                                 className="w-full h-48 object-cover rounded mb-2"
+                                width={300}
+                                height={192}
                               />
                               <p className="text-xs text-gray-500 break-all">
                                 {img.src.split('/').pop()}
