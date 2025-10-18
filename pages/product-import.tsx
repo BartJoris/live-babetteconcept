@@ -181,6 +181,16 @@ export default function ProductImport() {
   const [websitePrices, setWebsitePrices] = useState<Map<string, number>>(new Map());
   const [playupUsername, setPlayupUsername] = useState('');
   const [playupPassword, setPlayupPassword] = useState('');
+  const [eanProducts, setEANProducts] = useState<Array<{
+    reference: string;
+    description: string;
+    size: string;
+    colourCode: string;
+    colourDescription: string;
+    price: string;
+    retailPrice: string;
+    eanCode: string;
+  }>>([]);
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -649,6 +659,190 @@ export default function ProductImport() {
     setCurrentStep(2);
   };
 
+  // Helper function to format Play Up product descriptions with smart capitalization
+  const formatDescription = (desc: string): string => {
+    const words = desc.split(' ');
+    return words.map((word, index) => {
+      // First word: capitalize first letter, rest lowercase
+      if (index === 0) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      // "LS" or other 2-letter all-caps abbreviations: keep as caps
+      if (word === 'LS' || (word.length === 2 && word === word.toUpperCase())) {
+        return word;
+      }
+      // Everything else: lowercase
+      return word.toLowerCase();
+    }).join(' ');
+  };
+
+  // Helper function to format EAN sizes for Odoo
+  const formatSizeForOdoo = (eanSize: string): string => {
+    // Check for adult sizes FIRST (exact match only)
+    const adultSizes: { [key: string]: string } = {
+      'XS': 'XS - 34',
+      'S': 'S - 36',
+      'M': 'M - 38',
+      'L': 'L - 40',
+      'XL': 'XL - 42',
+    };
+    
+    // If it's an exact match for adult size, return formatted
+    if (adultSizes[eanSize.toUpperCase()]) {
+      return adultSizes[eanSize.toUpperCase()];
+    }
+    
+    // "3M", "12M" → "3 maand", "12 maand" (has number before M)
+    if (/^\d+M$/i.test(eanSize)) {
+      const num = eanSize.slice(0, -1);
+      return `${num} maand`;
+    }
+    
+    // "3Y", "6Y" → "3 jaar", "6 jaar" (has number before Y)
+    if (/^\d+Y$/i.test(eanSize)) {
+      const num = eanSize.slice(0, -1);
+      return `${num} jaar`;
+    }
+    
+    // Return as-is if no pattern matches
+    return eanSize;
+  };
+
+  // Helper function to parse price from EAN format
+  const parsePrice = (priceStr: string): number => {
+    // "12,39 €" or "12.39" → 12.39
+    if (!priceStr) return 0;
+    return parseFloat(priceStr.replace(/[€\s]/g, '').replace(',', '.')) || 0;
+  };
+
+  // Parse EAN Retail CSV
+  const handleEANFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseEANCSV(text);
+    };
+    reader.readAsText(file);
+  };
+
+  const parseEANCSV = (text: string) => {
+    const lines = text.trim().split('\n');
+    const products: Array<{
+      reference: string;
+      description: string;
+      size: string;
+      colourCode: string;
+      colourDescription: string;
+      price: string;
+      retailPrice: string;
+      eanCode: string;
+    }> = [];
+    
+    // Skip first 2 lines ("Table 1" and headers)
+    for (let i = 2; i < lines.length; i++) {
+      const parts = lines[i].split(';').map(p => p.trim());
+      
+      if (parts.length >= 8 && parts[0] && parts[7]) {
+        products.push({
+          reference: parts[0],
+          description: parts[1],
+          size: parts[2],
+          colourCode: parts[3],
+          colourDescription: parts[4],
+          price: parts[5],
+          retailPrice: parts[6],
+          eanCode: parts[7],
+        });
+      }
+    }
+    
+    setEANProducts(products);
+    console.log(`✅ Loaded ${products.length} EAN products from retail list`);
+    
+    // If delivery CSV was already uploaded, enrich the existing products
+    if (parsedProducts.length > 0) {
+      console.log(`🔄 Enriching ${parsedProducts.length} existing products with EAN data...`);
+      enrichProductsWithEAN(parsedProducts, products);
+    }
+    
+    alert(`✅ Loaded ${products.length} EAN entries from retail list${parsedProducts.length > 0 ? '\nProducts enriched with EAN data!' : ''}`);
+  };
+
+  const enrichProductsWithEAN = (existingProducts: ParsedProduct[], eanData: typeof eanProducts) => {
+    const enriched = existingProducts.map(product => {
+      const article = product.reference.split('_')[0];
+      const color = product.reference.split('_')[1];
+      
+      // Find EAN entry for this product to get proper description and color
+      const eanSample = eanData.find(ean => {
+        const eanArticle = ean.reference.split('/')[1];
+        return eanArticle === article && ean.colourCode === color;
+      });
+      
+      console.log(`Enriching product: ${article} ${color}`);
+      
+      const enrichedVariants = product.variants.map(variant => {
+        console.log(`  Checking variant size: "${variant.size}"`);
+        
+        // Find EAN match for this specific variant
+        const eanMatch = eanData.find(ean => {
+          const eanArticle = ean.reference.split('/')[1];
+          const sizeMatch = ean.size === variant.size || formatSizeForOdoo(ean.size) === variant.size;
+          
+          if (eanArticle === article && ean.colourCode === color) {
+            console.log(`    Checking EAN size: "${ean.size}" (formatted: "${formatSizeForOdoo(ean.size)}") vs variant: "${variant.size}" = ${sizeMatch}`);
+          }
+          
+          return eanArticle === article && 
+                 ean.colourCode === color && 
+                 sizeMatch;
+        });
+        
+        if (eanMatch) {
+          console.log(`  ✅ ${article} ${variant.size}: EAN ${eanMatch.eanCode}`);
+          return {
+            ...variant,
+            ean: eanMatch.eanCode,
+            sku: `${article}_${color}`, // Use article_color format
+            price: parsePrice(eanMatch.price),
+            rrp: parsePrice(eanMatch.retailPrice),
+            size: formatSizeForOdoo(eanMatch.size),
+          };
+        } else {
+          console.log(`  ❌ ${article} ${variant.size}: No EAN match found`);
+        }
+        return variant;
+      });
+      
+      // Update product name and color with EAN data
+      if (eanSample) {
+        const formattedDescription = formatDescription(eanSample.description);
+        const colorLowercase = eanSample.colourDescription.toLowerCase();
+        const newName = `Play Up - ${formattedDescription} (${colorLowercase})`;
+        
+        return {
+          ...product,
+          name: newName,
+          originalName: eanSample.description,
+          color: eanSample.colourDescription,
+          ecommerceDescription: eanSample.description,
+          variants: enrichedVariants,
+        };
+      }
+      
+      return {
+        ...product,
+        variants: enrichedVariants,
+      };
+    });
+    
+    setParsedProducts(enriched);
+    console.log(`✅ Enriched ${enriched.length} products with EAN data`);
+  };
+
   const parsePlayUpCSV = (text: string) => {
     // Play UP format parser
     // CSV format: Article,Color,Description,Size,Quantity,Price
@@ -714,13 +908,23 @@ export default function ProductImport() {
         continue;
       }
 
-      // Use article-color as reference (unique product identifier)
-      const reference = `${article}-${color}`;
+      // Use article_color as reference (unique product identifier, matches image naming)
+      const reference = `${article}_${color}`;
 
       if (!products[reference]) {
-        // Format product name: "Play Up - DESCRIPTION - COLOR"
-        // Keep description in uppercase and add color code
-        const formattedName = `Play Up - ${description} - ${color}`;
+        // Find EAN entry to get proper description and color name
+        const eanSample = eanProducts.find(ean => {
+          const eanArticle = ean.reference.split('/')[1];
+          return eanArticle === article && ean.colourCode === color;
+        });
+        
+        // Use EAN description if available, otherwise use delivery description
+        const productDescription = eanSample ? eanSample.description : description;
+        const colorDescription = eanSample ? eanSample.colourDescription.toLowerCase() : color;
+        
+        // Format product name: "Play Up - Description (Color)"
+        const formattedDescription = formatDescription(productDescription);
+        const formattedName = `Play Up - ${formattedDescription} (${colorDescription})`;
         
         // Try to detect brand (should be Play Up)
         const suggestedBrand = brands.find(b => 
@@ -730,10 +934,10 @@ export default function ProductImport() {
         products[reference] = {
           reference,
           name: formattedName,
-          originalName: description,
-          material: color, // Store color as material
-          color: color,
-          ecommerceDescription: description,
+          originalName: productDescription,
+          material: color, // Store color code as material
+          color: colorDescription, // Use color description from EAN
+          ecommerceDescription: productDescription,
           variants: [],
           suggestedBrand: suggestedBrand?.name,
           selectedBrand: suggestedBrand,
@@ -749,16 +953,46 @@ export default function ProductImport() {
       const websitePrice = websitePrices.has(article) ? websitePrices.get(article)! : null;
       const costPrice = websitePrice || price; // Use website price if available, otherwise CSV price
       
-      products[reference].variants.push({
-        size: size,
-        quantity: quantity, // Use quantity from CSV
-        ean: '', // Play UP doesn't provide EAN in PDF
-        sku: `${article}-${color}-${size}`, // Construct SKU
-        price: costPrice,
-        rrp: price * 2.4, // Calculate retail price (adjust multiplier as needed)
-      });
+      // Find matching EAN entry for this specific variant
+      // Compare delivery size with EAN size (need to normalize delivery size first)
+      const normalizeDeliverySize = (s: string): string => {
+        // "3 maand" → "3M", "6 jaar" → "6Y", "XS" → "XS"
+        if (s.includes('maand')) return s.split(' ')[0] + 'M';
+        if (s.includes('jaar')) return s.split(' ')[0] + 'Y';
+        return s.toUpperCase();
+      };
       
-      console.log(`  Added variant: ${size} (qty: ${quantity}, price: €${costPrice.toFixed(2)})`);
+      const normalizedDeliverySize = normalizeDeliverySize(size);
+      
+      const eanMatch = eanProducts.find(ean => {
+        const eanArticle = ean.reference.split('/')[1]; // Extract "1AR11002" from "PA01/1AR11002"
+        return eanArticle === article && ean.colourCode === color && ean.size === normalizedDeliverySize;
+      });
+
+      const formattedSize = eanMatch ? formatSizeForOdoo(eanMatch.size) : size;
+      
+      if (eanMatch) {
+        console.log(`  🔍 Found EAN for ${article} ${color} ${size}: ${eanMatch.eanCode}`);
+      }
+      
+      const newVariant = {
+        size: formattedSize, // "3 maand" (from "3M") or original if no EAN
+        quantity: quantity,
+        ean: eanMatch?.eanCode || '', // EAN from retail list
+        sku: `${article}_${color}`, // Always use article_color format (e.g., "1AR11002_P6179")
+        price: eanMatch ? parsePrice(eanMatch.price) : costPrice, // Cost price from EAN or fallback
+        rrp: eanMatch ? parsePrice(eanMatch.retailPrice) : (price * 2.4), // Retail price from EAN or calculated
+      };
+      
+      products[reference].variants.push(newVariant);
+      
+      // Update product color with description from EAN (first match for this article+color)
+      if (eanMatch && !products[reference].color.includes(' ')) {
+        // Only update if current color is just a code (e.g., "P6179"), not a description
+        products[reference].color = eanMatch.colourDescription; // "WATERCOLOR"
+      }
+      
+      console.log(`  Added variant: ${formattedSize} (qty: ${quantity}, EAN: ${newVariant.ean || 'none'}, SKU: ${newVariant.sku})`);
     }
 
     const productList = Object.values(products);
@@ -1287,16 +1521,25 @@ export default function ProductImport() {
 
   const updateVariantField = (productRef: string, variantIndex: number, field: keyof ProductVariant, value: string | number) => {
     setParsedProducts(products =>
-      products.map(p =>
-        p.reference === productRef
-          ? {
+      products.map(p => {
+        if (p.reference === productRef) {
+          // If changing rrp (Verkoopprijs), apply to ALL variants of this product
+          if (field === 'rrp') {
+            return {
               ...p,
-              variants: p.variants.map((v, idx) =>
-                idx === variantIndex ? { ...v, [field]: value } : v
-              ),
-            }
-          : p
-      )
+              variants: p.variants.map(v => ({ ...v, rrp: value as number })),
+            };
+          }
+          // For other fields, only update the specific variant
+          return {
+            ...p,
+            variants: p.variants.map((v, idx) =>
+              idx === variantIndex ? { ...v, [field]: value } : v
+            ),
+          };
+        }
+        return p;
+      })
     );
   };
 
@@ -1803,6 +2046,37 @@ export default function ProductImport() {
                             Kies CSV
                           </label>
                         </div>
+
+                        {/* EAN Retail List for Play UP */}
+                        {selectedVendor === 'playup' && (
+                          <div className="border-2 border-green-400 rounded-lg p-6 text-center">
+                            <div className="text-4xl mb-3">📋</div>
+                            <h3 className="font-bold text-gray-900 mb-2">EAN Retail List</h3>
+                            <p className="text-sm text-gray-800 mb-4 font-medium">Full catalog with barcodes (optional)</p>
+                            <input
+                              type="file"
+                              accept=".csv"
+                              onChange={handleEANFileUpload}
+                              className="hidden"
+                              id="ean-csv-upload"
+                            />
+                            <label
+                              htmlFor="ean-csv-upload"
+                              className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                eanProducts.length > 0 
+                                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                                  : 'bg-green-600 text-white hover:bg-green-700'
+                              }`}
+                            >
+                              {eanProducts.length > 0 ? `✓ ${eanProducts.length} EAN entries` : 'Kies EAN CSV'}
+                            </label>
+                            {eanProducts.length > 0 && (
+                              <p className="text-xs text-green-700 mt-2">
+                                Barcodes, SKUs & prijzen worden automatisch gevuld!
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         <div className="border-2 border-orange-400 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
@@ -2371,7 +2645,12 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                   <th className="p-2 text-left text-gray-900 font-semibold">Maat</th>
                                   <th className="p-2 text-left text-gray-900 font-semibold">EAN</th>
                                   <th className="p-2 text-left text-gray-900 font-semibold">Kostprijs</th>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">Verkoopprijs</th>
+                                  <th className="p-2 text-left text-gray-900 font-semibold">
+                                    <div className="flex items-center gap-1">
+                                      Verkoopprijs
+                                      <span className="text-xs text-blue-600 font-normal" title="Changing one updates all variants">🔄</span>
+                                    </div>
+                                  </th>
                                   <th className="p-2 text-left text-gray-900 font-semibold">Voorraad</th>
                                 </tr>
                               </thead>
@@ -2413,7 +2692,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                       </div>
                                     </td>
                                     <td className="p-2 text-gray-900">
-                                      <div className="flex items-center">
+                                      <div className="flex items-center relative group">
                                         <span className="mr-1">€</span>
                                         <input
                                           type="number"
@@ -2421,8 +2700,12 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           min="0"
                                           value={variant.rrp}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
-                                          className="w-20 border rounded px-2 py-1 text-right text-gray-900"
+                                          className="w-20 border rounded px-2 py-1 text-right text-gray-900 border-blue-300"
+                                          title="Changing this will update all variants of this product"
                                         />
+                                        <span className="ml-1 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Updates all variants">
+                                          🔄
+                                        </span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-gray-900">
@@ -2446,6 +2729,12 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
+                  <p className="text-sm text-blue-800">
+                    💡 <strong>Tip:</strong> Changing the Verkoopprijs (rrp) for any variant will automatically update <strong>all variants</strong> of that product. This ensures consistent pricing across all sizes.
+                  </p>
                 </div>
 
                 <div className="flex justify-between mt-6">

@@ -221,6 +221,9 @@ export default async function handler(
 
     // Categorized results
     const categorizedProducts: CategorizedProduct[] = [];
+    
+    // Cache to avoid re-fetching attributes for the same base product
+    const attributeCache: { [productId: number]: Array<{ name: string; attributeId: number; values: string[] }> } = {};
 
     // Check each barcode and categorize
     for (let i = 0; i < barcodes.length; i++) {
@@ -338,58 +341,68 @@ export default async function handler(
           const baseProduct = findBaseProduct(base, hvidProducts);
 
           if (baseProduct) {
-            // Get existing attribute values for this product
-            console.log(`Fetching attributes for base product: ${baseProduct.name} (ID: ${baseProduct.id})`);
+            // Check cache first
+            let attributes: Array<{ name: string; attributeId: number; values: string[] }>;
             
-            const attributeLines = await callOdoo(
-              parseInt(uid),
-              password,
-              'product.template.attribute.line',
-              'search_read',
-              [
-                [['product_tmpl_id', '=', baseProduct.id]],
-                ['attribute_id', 'value_ids']
-              ]
-            );
-
-            console.log(`Found ${attributeLines.length} attribute lines for ${baseProduct.name}`);
-
-            // Fetch ALL attributes and their values (simpler approach)
-            const attributes: Array<{ name: string; attributeId: number; values: string[] }> = [];
-
-            for (const line of attributeLines) {
-              const attrId = line.attribute_id[0];
-              const attrName = (line.attribute_id[1] || '').trim();
+            if (attributeCache[baseProduct.id]) {
+              console.log(`Using cached attributes for ${baseProduct.name}`);
+              attributes = attributeCache[baseProduct.id];
+            } else {
+              // Get existing attribute values for this product
+              console.log(`Fetching attributes for base product: ${baseProduct.name} (ID: ${baseProduct.id})`);
               
-              // Skip MERK attribute (we don't need to show brand selection)
-              if (attrName.toLowerCase().includes('merk')) {
-                console.log(`  Skipping MERK attribute: ${attrName}`);
-                continue;
+              const attributeLines = await callOdoo(
+                parseInt(uid),
+                password,
+                'product.template.attribute.line',
+                'search_read',
+                [
+                  [['product_tmpl_id', '=', baseProduct.id]],
+                  ['attribute_id', 'value_ids']
+                ]
+              );
+
+              console.log(`Found ${attributeLines.length} attribute lines for ${baseProduct.name}`);
+
+              // Fetch ALL attributes and their values (simpler approach)
+              attributes = [];
+
+              for (const line of attributeLines) {
+                const attrId = line.attribute_id[0];
+                const attrName = (line.attribute_id[1] || '').trim();
+                
+                // Skip MERK attribute (we don't need to show brand selection)
+                if (attrName.toLowerCase().includes('merk')) {
+                  console.log(`  Skipping MERK attribute: ${attrName}`);
+                  continue;
+                }
+
+                console.log(`  Attribute: "${attrName}" (ID ${attrId}), Values: ${line.value_ids?.length || 0}`);
+                
+                let attrValues: string[] = [];
+                if (line.value_ids && line.value_ids.length > 0) {
+                  const values = await callOdoo(
+                    parseInt(uid),
+                    password,
+                    'product.attribute.value',
+                    'read',
+                    [line.value_ids, ['name']]
+                  );
+                  attrValues = values.map((v: any) => v.name);
+                  console.log(`    → Values: ${attrValues.join(', ')}`);
+                }
+
+                attributes.push({
+                  name: attrName,
+                  attributeId: attrId,
+                  values: attrValues
+                });
               }
 
-              console.log(`  Attribute: "${attrName}" (ID ${attrId}), Values: ${line.value_ids?.length || 0}`);
-              
-              let attrValues: string[] = [];
-              if (line.value_ids && line.value_ids.length > 0) {
-                const values = await callOdoo(
-                  parseInt(uid),
-                  password,
-                  'product.attribute.value',
-                  'read',
-                  [line.value_ids, ['name']]
-                );
-                attrValues = values.map((v: any) => v.name);
-                console.log(`    → Values: ${attrValues.join(', ')}`);
-              }
-
-              attributes.push({
-                name: attrName,
-                attributeId: attrId,
-                values: attrValues
-              });
+              // Cache the results
+              attributeCache[baseProduct.id] = attributes;
+              console.log(`Cached attributes for ${baseProduct.name}: ${attributes.length} attributes`);
             }
-
-            console.log(`Final result for ${baseProduct.name}: ${attributes.length} attributes found`);
 
             // Base product exists - CREATE VARIANT
             categorizedProducts.push({
@@ -478,21 +491,17 @@ export default async function handler(
   } catch (error: any) {
     console.error('=== API ERROR ===');
     console.error('Error checking barcodes:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('Error message:', error?.message || 'No message');
+    console.error('Error stack:', error?.stack || 'No stack');
     console.error('=================');
     
-    try {
-      return res.status(500).json({ 
-        success: false,
-        error: 'Failed to check barcodes', 
-        details: error.message || 'Unknown error',
-        errorType: error.constructor.name
-      });
-    } catch (jsonError) {
-      console.error('Failed to send error response:', jsonError);
-      return res.status(500).send('Internal server error');
-    }
+    // Always return JSON, even on error
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to check barcodes', 
+      details: error?.message || String(error) || 'Unknown error',
+      errorType: error?.constructor?.name || 'Error'
+    });
   }
 }
 

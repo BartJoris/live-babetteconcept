@@ -7,8 +7,10 @@ interface ProductToFetch {
   description: string;
   colorCode: string;
   colorName?: string;
-  templateId: number;
+  templateId: number | null;  // null if not found in Odoo
   name: string;
+  foundInOdoo: boolean;  // Whether product was found
+  searchedNames?: string[];  // Names that were searched
 }
 
 interface ProductWithImages extends ProductToFetch {
@@ -22,11 +24,100 @@ export default function PlayUpImagesImport() {
   const [uploadResults, setUploadResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [localImages, setLocalImages] = useState<File[]>([]);
+  const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
+  const [availableImages, setAvailableImages] = useState<string[]>([]);
+  const [copyCommand, setCopyCommand] = useState('');
+  const [eanData, setEANData] = useState<Array<{
+    reference: string;
+    description: string;
+    size: string;
+    colourCode: string;
+    colourDescription: string;
+  }>>([]);
 
   const getCredentials = () => {
     const uid = localStorage.getItem('odoo_uid');
     const password = localStorage.getItem('odoo_pass');
     return { uid, password };
+  };
+
+  // Handle EAN CSV upload
+  const handleEANUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    const products: typeof eanData = [];
+    
+    // Skip first 2 lines ("Table 1" and headers)
+    for (let i = 2; i < lines.length; i++) {
+      const parts = lines[i].split(';').map(p => p.trim());
+      if (parts.length >= 5 && parts[0]) {
+        products.push({
+          reference: parts[0],      // PA01/1AR11002
+          description: parts[1],
+          size: parts[2],
+          colourCode: parts[3],
+          colourDescription: parts[4],
+        });
+      }
+    }
+    
+    setEANData(products);
+    console.log(`📋 Loaded ${products.length} EAN entries`);
+  };
+
+  // Handle image list txt upload
+  const handleImageListUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const images = text.split('\n').map(line => line.trim()).filter(line => line && line.endsWith('.jpg'));
+    
+    setAvailableImages(images);
+    console.log(`📋 Loaded ${images.length} available images`);
+    
+    // Generate copy command if products are loaded
+    if (products.length > 0) {
+      console.log(`📋 Products available, generating copy command...`);
+      const neededImages: string[] = [];
+      
+      for (const product of products) {
+        const pattern = `${product.reference}_`;
+        const matchingImages = images.filter(img => img.startsWith(pattern));
+        neededImages.push(...matchingImages);
+      }
+      
+      if (neededImages.length > 0) {
+        const command = `mkdir -p matched_images_playup && cp ${neededImages.join(' ')} matched_images_playup/`;
+        setCopyCommand(command);
+        console.log(`📋 Generated copy command for ${neededImages.length} images`);
+      }
+    }
+  };
+
+  // Generate terminal command to copy only needed images
+  const generateCopyCommand = (prods: ProductWithImages[], imageList: string[]) => {
+    const neededImages: string[] = [];
+    
+    for (const product of prods) {
+      // Match images for this product: {Article}_{Color}_*.jpg
+      const pattern = `${product.reference}_`;
+      const matchingImages = imageList.filter(img => img.startsWith(pattern));
+      neededImages.push(...matchingImages);
+    }
+    
+    if (neededImages.length === 0) {
+      setCopyCommand('# No matching images found');
+      return;
+    }
+    
+    const command = `mkdir -p matched_images_playup && cp ${neededImages.join(' ')} matched_images_playup/`;
+    setCopyCommand(command);
+    
+    console.log(`📋 Generated copy command for ${neededImages.length} images`);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,20 +189,37 @@ export default function PlayUpImagesImport() {
 
     try {
       for (const { reference, colorCode, description } of productMap.values()) {
-        const fullReference = `${reference}-${colorCode}`;
-        const searchName = `Play Up - ${description} - ${colorCode}`;
+        const fullReference = `${reference}_${colorCode}`;
         
-        const response = await fetch('/api/odoo-call', {
+        // Find the full PA01/... reference from EAN data if available
+        const eanEntry = eanData.find(ean => {
+          const eanArticle = ean.reference.split('/')[1];
+          return eanArticle === reference && ean.colourCode === colorCode;
+        });
+        
+        // Use PA01/... format if found in EAN, otherwise use article_color
+        const searchReference = eanEntry ? eanEntry.reference : fullReference;
+        
+        console.log(`  Searching for ${reference} ${colorCode}`);
+        console.log(`    EAN reference: "${searchReference}"`);
+        console.log(`    Simple reference: "${fullReference}"`);
+        
+        // Try multiple search strategies
+        let product = null;
+        
+        // Strategy 1: Search variants by default_code with ilike (for PA01/...)
+        let response = await fetch('/api/odoo-call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'product.template',
+            model: 'product.product',
             method: 'search_read',
             args: [[
-              ['name', '=', searchName]
+              ['default_code', 'ilike', `%${reference}%${colorCode}%`],
+              ['active', '=', true]  // Only active (non-archived) products
             ]],
             kwargs: {
-              fields: ['id', 'name', 'default_code'],
+              fields: ['id', 'name', 'default_code', 'product_tmpl_id'],
               limit: 1,
             },
             uid,
@@ -119,10 +227,69 @@ export default function PlayUpImagesImport() {
           }),
         });
 
-        const result = await response.json();
+        let result = await response.json();
+        const variant = result.success && result.result && result.result.length > 0 ? result.result[0] : null;
+        
+        if (variant) {
+          // Check if the template is also active (not archived)
+          const templateId = variant.product_tmpl_id[0];
+          const templateCheck = await fetch('/api/odoo-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'product.template',
+              method: 'read',
+              args: [[templateId], ['active', 'name']],
+              uid,
+              password,
+            }),
+          });
+          
+          const templateResult = await templateCheck.json();
+          const template = templateResult.success && templateResult.result && templateResult.result.length > 0 ? templateResult.result[0] : null;
+          
+          if (template && template.active) {
+            product = {
+              id: templateId,
+              name: variant.product_tmpl_id[1],
+              default_code: variant.default_code,
+            };
+            console.log(`  ✅ Found via variant SKU pattern: ${product.name}`);
+          } else {
+            console.log(`  ⚠️ Variant found but template is archived`);
+          }
+        } else {
+          // Strategy 2: Search template by default_code
+          console.log(`    Trying template with: "${searchReference}"`);
+          response = await fetch('/api/odoo-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'product.template',
+              method: 'search_read',
+              args: [[
+                ['default_code', '=', fullReference],
+                ['active', '=', true]  // Only active (non-archived) products
+              ]],
+              kwargs: {
+                fields: ['id', 'name', 'default_code'],
+                limit: 1,
+              },
+              uid,
+              password,
+            }),
+          });
 
-        if (result.success && result.result && result.result.length > 0) {
-          const product = result.result[0];
+          result = await response.json();
+          product = result.success && result.result && result.result.length > 0 ? result.result[0] : null;
+          if (product) {
+            console.log(`  ✅ Found via template SKU: ${product.name}`);
+          } else {
+            console.log(`  ❌ Not found with SKU searches`);
+          }
+        }
+
+        if (product) {
           parsed.push({
             reference: fullReference,
             description,
@@ -130,32 +297,63 @@ export default function PlayUpImagesImport() {
             colorName: '',
             templateId: product.id,
             name: product.name,
+            foundInOdoo: true,
+            searchedNames: [`default_code: ${fullReference}`],
           });
           found++;
           console.log(`  ✅ Found: Template ${product.id} - ${product.name}`);
         } else {
-          console.warn(`  ❌ Not found in Odoo: "${searchName}"`);
+          // Add to list even if not found, so user can see and manually handle
+          parsed.push({
+            reference: fullReference,
+            description,
+            colorCode,
+            colorName: '',
+            templateId: null,
+            name: `${description} (${colorCode})`,  // Display name
+            foundInOdoo: false,
+            searchedNames: [`Searched by default_code: ${fullReference}`],
+          });
+          console.warn(`  ❌ Not found in Odoo by default_code: ${fullReference}`);
           notFound++;
         }
       }
 
       console.log(`📊 Results: ${found} found, ${notFound} not found`);
 
-      if (parsed.length === 0) {
-        alert(`❌ No products found in Odoo!\n\nCSV products: ${productMap.size}\nFound in Odoo: 0\n\nMake sure these products are imported first.`);
-        setLoading(false);
-        return;
-      }
-
-      if (notFound > 0) {
-        alert(`⚠️ Found ${found} products, ${notFound} not found in Odoo.\n\nContinuing with found products...`);
-      }
-
+      // Always show products, even if some are not found
       setProducts(parsed);
+      setCurrentStep(2);
       setLoading(false);
       
       console.log(`✅ Ready to match images for ${parsed.length} products`);
-      alert(`✅ Found ${parsed.length} products in Odoo!\n\nNow we'll match the images.`);
+      
+      // Generate copy command if image list is already loaded
+      if (availableImages.length > 0) {
+        console.log(`📋 Image list available, generating copy command...`);
+        const neededImages: string[] = [];
+        
+        for (const product of parsed) {
+          // Match images for this product: {Article}_{Color}_*.jpg
+          const pattern = `${product.reference}_`;
+          const matchingImages = availableImages.filter(img => img.startsWith(pattern));
+          neededImages.push(...matchingImages);
+        }
+        
+        if (neededImages.length > 0) {
+          const command = `mkdir -p matched_images_playup && cp ${neededImages.join(' ')} matched_images_playup/`;
+          setCopyCommand(command);
+          console.log(`📋 Generated copy command for ${neededImages.length} images`);
+        }
+      }
+      
+      if (found === 0) {
+        alert(`⚠️ No products found in Odoo!\n\nCSV products: ${productMap.size}\nFound in Odoo: 0\n\nProducts are listed below. You may need to import them first.`);
+      } else if (notFound > 0) {
+        alert(`⚠️ Partial match:\n\n✅ Found: ${found}\n❌ Not found: ${notFound}\n\nNot-found products are marked in red below.`);
+      } else {
+        alert(`✅ Found all ${found} products in Odoo!\n\nNow you can match the images.`);
+      }
       
       // Automatically proceed to matching when both files are ready
       if (localImages.length > 0) {
@@ -189,9 +387,8 @@ export default function PlayUpImagesImport() {
 
     // Match images with products
     const matched: ProductWithImages[] = productsToMatch.map(product => {
-      const article = product.reference.split('-')[0];
-      const key = `${article}_${product.colorCode}`;
-      const images = imageMap.get(key) || [];
+      // Product reference is now in format: article_color (e.g., "1AR11002_P6179")
+      const images = imageMap.get(product.reference) || [];
       
       return {
         ...product,
@@ -203,8 +400,13 @@ export default function PlayUpImagesImport() {
     setCurrentStep(2);
     
     const totalImages = matched.reduce((sum, p) => sum + p.images.length, 0);
-    const productsWithImages = matched.filter(p => p.images.length > 0).length;
-    console.log(`✅ Matched ${totalImages} images to ${productsWithImages}/${matched.length} products`);
+    const prodsWithImages = matched.filter(p => p.images.length > 0).length;
+    console.log(`✅ Matched ${totalImages} images to ${prodsWithImages}/${matched.length} products`);
+    
+    // Generate copy command if image list is available
+    if (availableImages.length > 0) {
+      generateCopyCommand(matched, availableImages);
+    }
   };
 
   // Trigger matching when images are uploaded and products already exist
@@ -253,6 +455,17 @@ export default function PlayUpImagesImport() {
     const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
 
     for (const product of productsWithImages) {
+      // Skip products not found in Odoo
+      if (!product.foundInOdoo || !product.templateId) {
+        results.push({
+          reference: product.reference,
+          success: false,
+          imagesUploaded: 0,
+          error: 'Product not found in Odoo - cannot upload images',
+        });
+        continue;
+      }
+
       if (product.images.length === 0) {
         results.push({
           reference: product.reference,
@@ -383,7 +596,7 @@ export default function PlayUpImagesImport() {
 
               {/* Upload CSV */}
               <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center mb-6 bg-green-50">
-                <h3 className="font-bold text-lg mb-4 text-gray-900">2️⃣ Upload Original CSV</h3>
+                <h3 className="font-bold text-lg mb-4 text-gray-900">2️⃣ Upload Delivery CSV</h3>
                 <div className="text-4xl mb-3">📄</div>
                 <input
                   type="file"
@@ -403,6 +616,56 @@ export default function PlayUpImagesImport() {
                   {products.length > 0 ? 'Ready to match images!' : 'Use the same CSV you used for product import'}
                 </p>
               </div>
+
+              {/* Upload EAN Retail List (Recommended) */}
+              <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center bg-blue-50">
+                <h3 className="font-bold text-lg mb-4 text-gray-900">3️⃣ Upload EAN Retail List (Recommended)</h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Upload EAN retail CSV to find products by their full internal reference
+                </p>
+                <div className="text-4xl mb-3">📊</div>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleEANUpload}
+                  className="hidden"
+                  id="ean-upload"
+                />
+                <label
+                  htmlFor="ean-upload"
+                  className="bg-blue-600 text-white px-6 py-3 rounded inline-block font-medium hover:bg-blue-700 cursor-pointer"
+                >
+                  {eanData.length > 0 ? `✅ ${eanData.length} EAN entries` : '📊 Upload EAN CSV'}
+                </label>
+                <p className="text-xs text-gray-600 mt-4">
+                  Same file as used for product import (EAN-Table 1.csv)
+                </p>
+              </div>
+
+              {/* Upload Image List (Optional) */}
+              <div className="border-2 border-dashed border-orange-300 rounded-lg p-8 text-center bg-orange-50">
+                <h3 className="font-bold text-lg mb-4 text-gray-900">4️⃣ Upload Image List (Optional)</h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Upload a .txt file with list of available images to generate a copy command
+                </p>
+                <div className="text-4xl mb-3">📋</div>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={handleImageListUpload}
+                  className="hidden"
+                  id="imagelist-upload"
+                />
+                <label
+                  htmlFor="imagelist-upload"
+                  className="bg-purple-600 text-white px-6 py-3 rounded inline-block font-medium hover:bg-purple-700 cursor-pointer"
+                >
+                  {availableImages.length > 0 ? `✅ ${availableImages.length} images listed` : '📋 Upload Image List'}
+                </label>
+                <p className="text-xs text-gray-600 mt-4">
+                  Format: One image filename per line (e.g., 1AR11002_P6179_1.jpg)
+                </p>
+              </div>
             </div>
           )}
 
@@ -418,20 +681,155 @@ export default function PlayUpImagesImport() {
                   ← Back
                 </button>
               </div>
-              
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="text-sm text-blue-600 font-medium">Total Products</div>
+                  <div className="text-3xl font-bold text-blue-700">{productsWithImages.length}</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="text-sm text-green-600 font-medium">Found in Odoo</div>
+                  <div className="text-3xl font-bold text-green-700">
+                    {productsWithImages.filter(p => p.foundInOdoo).length}
+                  </div>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                  <div className="text-sm text-red-600 font-medium">Not Found in Odoo</div>
+                  <div className="text-3xl font-bold text-red-700">
+                    {productsWithImages.filter(p => !p.foundInOdoo).length}
+                  </div>
+                  {productsWithImages.some(p => !p.foundInOdoo) && (
+                    <div className="text-xs text-red-600 mt-1">
+                      ⚠️ These products cannot have images uploaded
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <p className="text-green-800 text-sm">
                   <strong>✅ Found {productsWithImages.filter(p => p.images.length > 0).length}/{productsWithImages.length} products with images.</strong> Review below and add/remove images as needed.
                 </p>
+                {productsWithImages.some(p => !p.foundInOdoo) && (
+                  <p className="text-orange-700 text-sm mt-2">
+                    <strong>⚠️ Red-bordered products were not found in Odoo.</strong> Import these products first before uploading images.
+                  </p>
+                )}
               </div>
 
+              {/* Copy Command */}
+              {copyCommand && (
+                <div className="bg-gray-900 text-green-400 rounded-lg p-4 mb-6 font-mono text-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-white font-bold">📋 Terminal Copy Command:</div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(copyCommand);
+                        alert('Command copied to clipboard!');
+                      }}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                    >
+                      📋 Copy Command
+                    </button>
+                  </div>
+                  <div className="bg-black bg-opacity-50 p-3 rounded overflow-x-auto">
+                    <code className="whitespace-pre-wrap break-all">{copyCommand}</code>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    💡 Run this command in your images folder to copy only the needed images and save bandwidth
+                  </p>
+                  <div className="mt-3 p-3 bg-blue-900 rounded">
+                    <p className="text-xs text-blue-300">
+                      <strong>Matched Images:</strong> {copyCommand.split(' ').filter(s => s.endsWith('.jpg')).length} files
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Filter Tabs */}
+              {productsWithImages.some(p => !p.foundInOdoo) && (
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setProductFilter('all')}
+                    className={`px-4 py-2 rounded font-medium ${
+                      productFilter === 'all'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    All ({productsWithImages.length})
+                  </button>
+                  <button
+                    onClick={() => setProductFilter('found')}
+                    className={`px-4 py-2 rounded font-medium ${
+                      productFilter === 'found'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Found ({productsWithImages.filter(p => p.foundInOdoo).length})
+                  </button>
+                  <button
+                    onClick={() => setProductFilter('notFound')}
+                    className={`px-4 py-2 rounded font-medium ${
+                      productFilter === 'notFound'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Not Found ({productsWithImages.filter(p => !p.foundInOdoo).length})
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-6 mb-6 max-h-[600px] overflow-y-auto">
-                {productsWithImages.map((product, productIndex) => (
-                  <div key={product.reference} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                {productsWithImages
+                  .filter(p => {
+                    if (productFilter === 'found') return p.foundInOdoo;
+                    if (productFilter === 'notFound') return !p.foundInOdoo;
+                    return true;  // 'all'
+                  })
+                  .map((product, productIndex) => (
+                  <div key={product.reference} className={`border rounded-lg p-4 ${
+                    product.foundInOdoo 
+                      ? 'border-gray-200 bg-gray-50' 
+                      : 'border-red-300 bg-red-50'
+                  }`}>
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-900">{product.name}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg text-gray-900">{product.name}</h3>
+                          {!product.foundInOdoo && (
+                            <span className="px-2 py-0.5 bg-red-600 text-white text-xs rounded-full font-semibold">
+                              NOT FOUND IN ODOO
+                            </span>
+                          )}
+                          {product.foundInOdoo && product.templateId && (
+                            <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">
+                              ID: {product.templateId}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600">Reference: {product.reference} • Color: {product.colorCode}</p>
+                        {!product.foundInOdoo && product.searchedNames && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-red-600 cursor-pointer hover:underline">
+                              Why not found? (click to see search details)
+                            </summary>
+                            <div className="text-xs text-gray-600 mt-1 ml-4">
+                              <p>Searched for:</p>
+                              <ul className="list-disc ml-4">
+                                {product.searchedNames.map((name, i) => (
+                                  <li key={i} className="font-mono">{name}</li>
+                                ))}
+                              </ul>
+                              <p className="mt-1 text-orange-600">
+                                Product may need to be imported first, or name doesn&apos;t match Odoo.
+                              </p>
+                            </div>
+                          </details>
+                        )}
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         product.images.length > 0 
@@ -491,12 +889,17 @@ export default function PlayUpImagesImport() {
               <div className="flex gap-4">
                 <button
                   onClick={uploadImagesToOdoo}
-                  disabled={loading || productsWithImages.every(p => p.images.length === 0)}
+                  disabled={loading || productsWithImages.filter(p => p.foundInOdoo).every(p => p.images.length === 0)}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 font-bold text-lg shadow-lg"
                 >
-                  🚀 Upload {productsWithImages.reduce((sum, p) => sum + p.images.length, 0)} Images to {productsWithImages.length} Products
+                  🚀 Upload {productsWithImages.filter(p => p.foundInOdoo).reduce((sum, p) => sum + p.images.length, 0)} Images to {productsWithImages.filter(p => p.foundInOdoo).length} Products
                 </button>
               </div>
+              {productsWithImages.some(p => !p.foundInOdoo) && (
+                <p className="text-sm text-orange-600 mt-2 text-center">
+                  ⚠️ {productsWithImages.filter(p => !p.foundInOdoo).length} product(s) not found in Odoo will be skipped
+                </p>
+              )}
             </div>
           )}
 
