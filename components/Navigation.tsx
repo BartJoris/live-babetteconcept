@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
@@ -9,6 +9,24 @@ export default function Navigation() {
   const [mobileInzichtenOpen, setMobileInzichtenOpen] = useState(false);
   const [mobileImporterenOpen, setMobileImporterenOpen] = useState(false);
   const router = useRouter();
+  
+  const inzichtenRef = useRef<HTMLDivElement>(null);
+  const importerenRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (inzichtenRef.current && !inzichtenRef.current.contains(event.target as Node)) {
+        setIsInzichtenOpen(false);
+      }
+      if (importerenRef.current && !importerenRef.current.contains(event.target as Node)) {
+        setIsImporterenOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -35,7 +53,7 @@ export default function Navigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import'].includes(router.pathname);
+    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering'].includes(router.pathname);
   };
 
   return (
@@ -63,12 +81,9 @@ export default function Navigation() {
             </Link>
             
             {/* Inzichten Dropdown */}
-            <div 
-              className="relative"
-              onMouseEnter={() => setIsInzichtenOpen(true)}
-              onMouseLeave={() => setIsInzichtenOpen(false)}
-            >
+            <div className="relative" ref={inzichtenRef}>
               <button
+                onClick={() => setIsInzichtenOpen(!isInzichtenOpen)}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
                   isInzichtenActive() 
                     ? 'bg-blue-100 text-blue-700' 
@@ -76,32 +91,32 @@ export default function Navigation() {
                 }`}
               >
                 Inzichten
-                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg className={`ml-1 h-4 w-4 transform transition-transform ${isInzichtenOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </button>
               {isInzichtenOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
-                    <Link href="/sales-yearly-compare" className={`block px-4 py-2 text-sm ${isActive('/sales-yearly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/sales-yearly-compare" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-yearly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Jaarlijkse Vergelijking
                     </Link>
-                    <Link href="/sales-monthly-compare" className={`block px-4 py-2 text-sm ${isActive('/sales-monthly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/sales-monthly-compare" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-monthly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Maandelijkse Vergelijking
                     </Link>
-                    <Link href="/sales-insights" className={`block px-4 py-2 text-sm ${isActive('/sales-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/sales-insights" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Verkoop Inzichten
                     </Link>
-                    <Link href="/sales-products" className={`block px-4 py-2 text-sm ${isActive('/sales-products') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/sales-products" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-products') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Solden
                     </Link>
-                    <Link href="/brand-performance" className={`block px-4 py-2 text-sm ${isActive('/brand-performance') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/brand-performance" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-performance') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Merkprestaties
                     </Link>
-                    <Link href="/brand-inventory" className={`block px-4 py-2 text-sm ${isActive('/brand-inventory') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/brand-inventory" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-inventory') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Voorraad
                     </Link>
-                    <Link href="/brand-diagnostics" className={`block px-4 py-2 text-sm ${isActive('/brand-diagnostics') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/brand-diagnostics" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-diagnostics') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Diagnostiek
                     </Link>
                   </div>
@@ -110,12 +125,9 @@ export default function Navigation() {
             </div>
 
             {/* Importeren producten Dropdown */}
-            <div 
-              className="relative"
-              onMouseEnter={() => setIsImporterenOpen(true)}
-              onMouseLeave={() => setIsImporterenOpen(false)}
-            >
+            <div className="relative" ref={importerenRef}>
               <button
+                onClick={() => setIsImporterenOpen(!isImporterenOpen)}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
                   isImporterenActive() 
                     ? 'bg-blue-100 text-blue-700' 
@@ -123,23 +135,26 @@ export default function Navigation() {
                 }`}
               >
                 Importeren producten
-                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg className={`ml-1 h-4 w-4 transform transition-transform ${isImporterenOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </button>
               {isImporterenOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
-                    <Link href="/product-import" className={`block px-4 py-2 text-sm ${isActive('/product-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/product-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Import
                     </Link>
-                    <Link href="/product-cleanup" className={`block px-4 py-2 text-sm ${isActive('/product-cleanup') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/product-cleanup" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-cleanup') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Opschonen
                     </Link>
-                    <Link href="/playup-image-matcher" className={`block px-4 py-2 text-sm ${isActive('/playup-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/hvid-levering" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/hvid-levering') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Hvid Levering
+                    </Link>
+                    <Link href="/playup-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/playup-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Match
                     </Link>
-                    <Link href="/playup-images-import" className={`block px-4 py-2 text-sm ${isActive('/playup-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Link href="/playup-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/playup-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Playup Images
                     </Link>
                   </div>
@@ -351,6 +366,17 @@ export default function Navigation() {
                   }`}
                 >
                   Opschonen
+                </Link>
+                <Link
+                  href="/hvid-levering"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/hvid-levering') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Hvid Levering
                 </Link>
                 <Link
                   href="/playup-image-matcher"
