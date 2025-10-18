@@ -260,8 +260,7 @@ const BarcodeDuplicateChecker: NextPage = () => {
         // Log attribute info for variant creation
         data.toCreateVariant?.forEach((p: CategorizedProduct) => {
           console.log(`${p.baseProductName}:`);
-          console.log(`  existingSizes: ${p.existingSizes === null ? 'null (no Maat)' : JSON.stringify(p.existingSizes)}`);
-          console.log(`  existingColors: ${p.existingColors === null ? 'null (no Kleur)' : JSON.stringify(p.existingColors)}`);
+          console.log(`  attributes: ${p.attributes?.map(a => `${a.name}[${a.values.length}]`).join(', ') || 'none'}`);
         });
         
         // Select all by default
