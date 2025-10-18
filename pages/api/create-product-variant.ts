@@ -28,7 +28,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 interface CreateVariantRequest {
   templateId: number;
   barcode: string;
-  sku?: string;
+  costPrice?: number;
   attributeValues?: { [attrName: string]: string };  // Attribute name → selected value
   quantity: number;
   uid: string;
@@ -44,7 +44,7 @@ export default async function handler(
   }
 
   try {
-    const { templateId, barcode, sku, attributeValues, quantity, uid, password }: CreateVariantRequest = req.body;
+    const { templateId, barcode, costPrice, attributeValues, quantity, uid, password }: CreateVariantRequest = req.body;
 
     if (!uid || !password) {
       return res.status(400).json({ error: 'Missing Odoo credentials' });
@@ -101,6 +101,8 @@ export default async function handler(
         );
 
         let valueId;
+        let isNewValue = false;
+        
         if (existingValue && existingValue.length > 0) {
           valueId = existingValue[0].id;
           console.log(`  Using existing value ID: ${valueId}`);
@@ -117,9 +119,15 @@ export default async function handler(
             }]
           );
           console.log(`  Created new value ID: ${valueId}`);
+          isNewValue = true;
+        }
 
+        // Check if this value is already in the attribute line
+        const currentValueIds = line.value_ids || [];
+        const valueInLine = currentValueIds.includes(valueId);
+        
+        if (!valueInLine) {
           // Add to attribute line's values
-          const currentValueIds = line.value_ids || [];
           await callOdoo(
             parseInt(uid),
             password,
@@ -127,6 +135,29 @@ export default async function handler(
             'write',
             [[line.id], { value_ids: [[6, 0, [...currentValueIds, valueId]]] }]
           );
+          console.log(`  Added ${isNewValue ? 'new' : 'existing'} value ${valueId} to attribute line ${line.id}`);
+        }
+        
+        // Always try to create PTAV if the value wasn't in the line before
+        // (whether it's a new value or an existing value being added to this template)
+        if (!valueInLine) {
+          try {
+            const ptavId = await callOdoo(
+              parseInt(uid),
+              password,
+              'product.template.attribute.value',
+              'create',
+              [{
+                product_tmpl_id: templateId,
+                attribute_line_id: line.id,
+                product_attribute_value_id: valueId,
+              }]
+            );
+            console.log(`  Created PTAV ${ptavId} for value ${valueId}`);
+          } catch (ptavError: any) {
+            console.log(`  PTAV creation note: ${ptavError.message} (may already exist)`);
+            // Continue - PTAV might have been auto-created
+          }
         }
 
         targetValueIds.push(valueId);
@@ -139,8 +170,88 @@ export default async function handler(
 
     console.log(`Target value IDs to match: ${targetValueIds.join(', ')}`);
 
-    // Wait for Odoo to create variant combinations
-    console.log('Waiting for Odoo to create variants...');
+    // Get or create product.template.attribute.value (PTAV) for each attribute value
+    // PTAVs link attribute values to a specific template
+    const ptavIds: number[] = [];
+    for (const valueId of targetValueIds) {
+      // Find which attribute line this value belongs to
+      let foundPTAV = false;
+      
+      for (const line of attributeLines) {
+        const lineValueIds = line.value_ids || [];
+        if (lineValueIds.includes(valueId)) {
+          // Search for existing PTAV
+          const existingPTAV = await callOdoo(
+            parseInt(uid),
+            password,
+            'product.template.attribute.value',
+            'search_read',
+            [
+              [
+                ['product_tmpl_id', '=', templateId],
+                ['attribute_line_id', '=', line.id],
+                ['product_attribute_value_id', '=', valueId]
+              ],
+              ['id']
+            ]
+          );
+          
+          if (existingPTAV && existingPTAV.length > 0) {
+            ptavIds.push(existingPTAV[0].id);
+            console.log(`Found existing PTAV ${existingPTAV[0].id} for value ${valueId}`);
+            foundPTAV = true;
+            break;
+          }
+        }
+      }
+      
+      if (!foundPTAV) {
+        console.log(`Warning: Could not find PTAV for value ${valueId} in first attempt`);
+        // Try searching across all attribute lines (maybe it's in a different line than expected)
+        const anyPTAV = await callOdoo(
+          parseInt(uid),
+          password,
+          'product.template.attribute.value',
+          'search_read',
+          [
+            [
+              ['product_tmpl_id', '=', templateId],
+              ['product_attribute_value_id', '=', valueId]
+            ],
+            ['id', 'attribute_line_id']
+          ]
+        );
+        
+        if (anyPTAV && anyPTAV.length > 0) {
+          ptavIds.push(anyPTAV[0].id);
+          console.log(`Found PTAV ${anyPTAV[0].id} for value ${valueId} (line: ${anyPTAV[0].attribute_line_id[1]})`);
+          foundPTAV = true;
+        } else {
+          console.log(`ERROR: Still cannot find PTAV for value ${valueId} - this shouldn't happen after explicit creation`);
+        }
+      }
+    }
+    
+    console.log(`PTAV IDs for this combination: ${ptavIds.join(', ')}`);
+    
+    if (ptavIds.length === 0) {
+      throw new Error(
+        `Could not find product.template.attribute.value records for any of the selected attributes.\n` +
+        `Template ID: ${templateId}\n` +
+        `Attribute value IDs: ${targetValueIds.join(', ')}\n` +
+        `This might mean:\n` +
+        `1. The attribute values were just created and Odoo needs time to process them\n` +
+        `2. The template's attribute configuration is incomplete\n` +
+        `Please try again in a few seconds, or check the template in Odoo.`
+      );
+    }
+    
+    if (ptavIds.length < targetValueIds.length) {
+      console.log(`WARNING: Only found ${ptavIds.length} PTAVs but expected ${targetValueIds.length}`);
+    }
+
+    // Wait a bit for Odoo to potentially auto-create variants
+    console.log('Waiting for Odoo to process variants...');
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Get all variants
@@ -159,13 +270,9 @@ export default async function handler(
 
     // Find the variant that matches our attribute values
     let targetVariantId: number | null = null;
+    let existingBarcode: string | null = null;
 
     for (const variant of variants) {
-      if (variant.barcode) {
-        console.log(`Variant ${variant.id} already has barcode, skipping`);
-        continue;
-      }
-
       if (!variant.product_template_attribute_value_ids || variant.product_template_attribute_value_ids.length === 0) {
         console.log(`Variant ${variant.id} has no attributes, skipping`);
         continue;
@@ -181,33 +288,74 @@ export default async function handler(
       );
 
       const variantValueIds = variantAttrValues.map((v: any) => v.product_attribute_value_id[0]);
-      console.log(`Variant ${variant.id} (${variant.name}) has value IDs: ${variantValueIds.join(', ')}`);
+      console.log(`Variant ${variant.id} (${variant.name}) has value IDs: ${variantValueIds.join(', ')} ${variant.barcode ? `[barcode: ${variant.barcode}]` : '[no barcode]'}`);
       
-      // Check if this variant has ALL our target values
-      const hasAllValues = targetValueIds.every(id => variantValueIds.includes(id));
+      // Check if this variant has ALL our target values and same count (exact match)
+      const hasAllValues = targetValueIds.every(id => variantValueIds.includes(id)) && 
+                           targetValueIds.length === variantValueIds.length;
 
       if (hasAllValues) {
         targetVariantId = variant.id;
-        console.log(`✅ Found matching variant: ${variant.id} (${variant.name})`);
+        existingBarcode = variant.barcode;
+        console.log(`✅ Found matching variant: ${variant.id} (${variant.name})${existingBarcode ? ` - Already has barcode: ${existingBarcode}` : ''}`);
         break;
       }
     }
 
     if (!targetVariantId) {
+      // Try to find the latest variant without a barcode as fallback
       console.log('Could not find variant by attribute matching, trying latest unbarcoded variant');
       const unbarcoded = variants.filter((v: any) => !v.barcode);
       if (unbarcoded.length > 0) {
         targetVariantId = unbarcoded[unbarcoded.length - 1].id;
         console.log(`Using last unbarcoded variant: ${targetVariantId}`);
       } else {
-        throw new Error('Could not find newly created variant. All variants already have barcodes.');
+        // No unbarcoded variant found - we need to create it manually
+        console.log('No unbarcoded variant found. Creating variant manually...');
+        
+        try {
+          // Create the product.product variant manually
+          targetVariantId = await callOdoo(
+            parseInt(uid),
+            password,
+            'product.product',
+            'create',
+            [{
+              product_tmpl_id: templateId,
+              product_template_attribute_value_ids: [[6, 0, ptavIds]],
+            }]
+          );
+          
+          console.log(`✅ Manually created variant ${targetVariantId} with PTAV IDs: ${ptavIds.join(', ')}`);
+        } catch (createError: any) {
+          // List what we were looking for and what exists
+          const existingCombinations = variants.map((v: any) => 
+            `Variant ${v.id}: ${v.name} (barcode: ${v.barcode || 'none'})`
+          ).join('\n  ');
+          throw new Error(
+            `Could not find or create matching variant.\n` +
+            `Looking for attribute value IDs: ${targetValueIds.join(', ')}\n` +
+            `PTAV IDs: ${ptavIds.join(', ')}\n` +
+            `Existing variants:\n  ${existingCombinations}\n` +
+            `Creation error: ${createError.message}`
+          );
+        }
       }
     }
 
-    // Update variant with barcode and SKU
+    // Check if the variant already has a different barcode
+    if (existingBarcode && existingBarcode !== barcode) {
+      throw new Error(
+        `This variant combination already exists with barcode ${existingBarcode}. ` +
+        `Cannot assign new barcode ${barcode}.`
+      );
+    }
+
+    // Update variant with barcode and cost price
+    // Note: We don't set default_code (SKU) or name - Odoo auto-generates variant name from template + attributes
     const updateData: any = { barcode };
-    if (sku) {
-      updateData.default_code = sku;
+    if (costPrice !== undefined && costPrice !== null) {
+      updateData.standard_price = costPrice;
     }
 
     await callOdoo(
@@ -264,10 +412,17 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error creating variant:', error);
+    console.error('=== Error creating variant ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
+    console.error('=============================');
+    
     res.status(500).json({ 
       error: 'Failed to create variant', 
-      details: error.message 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
+

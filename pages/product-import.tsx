@@ -100,19 +100,19 @@ function SearchableSelect({ options, value, onChange, placeholder = 'Selecteer..
         onFocus={() => setIsOpen(true)}
         onClick={() => setIsOpen(true)}
         placeholder={placeholder}
-        className="w-full border-2 border-gray-300 rounded px-3 py-2 text-sm font-medium cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 placeholder-gray-600"
+        className="w-full border-2 border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm font-medium cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-600 dark:placeholder-gray-400"
         autoComplete="off"
       />
       {isOpen && (
-        <div className="absolute z-50 w-full min-w-max mt-1 bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+        <div className="absolute z-50 w-full min-w-max mt-1 bg-white dark:bg-gray-800 border-2 border-blue-500 dark:border-blue-600 rounded-lg shadow-xl max-h-80 overflow-y-auto">
           {filteredOptions.length === 0 ? (
-            <div className="p-3 text-sm text-gray-700 text-center">Geen resultaten voor &quot;{search}&quot;</div>
+            <div className="p-3 text-sm text-gray-700 dark:text-gray-300 text-center">Geen resultaten voor &quot;{search}&quot;</div>
           ) : (
             filteredOptions.map(option => (
               <div
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
-                className="px-3 py-2 text-sm text-gray-900 hover:bg-blue-500 hover:text-white cursor-pointer border-b last:border-b-0 transition-colors"
+                className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-blue-500 dark:hover:bg-blue-600 hover:text-white cursor-pointer border-b dark:border-gray-700 last:border-b-0 transition-colors"
               >
                 {option.label}
               </div>
@@ -1843,20 +1843,20 @@ export default function ProductImport() {
         <title>Product Import Wizard - Babette</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               📦 Product Import Wizard
             </h1>
-            <p className="text-gray-800">
+            <p className="text-gray-800 dark:text-gray-300">
               Import producten van leveranciers in bulk met validatie en preview
             </p>
           </div>
 
           {/* Progress Bar */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between">
               {steps.map((step, idx) => (
                 <div key={step.id} className="flex items-center">
@@ -1872,14 +1872,14 @@ export default function ProductImport() {
                     >
                       {step.icon}
                     </div>
-                    <div className="text-sm mt-2 font-medium text-gray-700">
+                    <div className="text-sm mt-2 font-medium text-gray-700 dark:text-gray-300">
                       {step.name}
                     </div>
                   </div>
                   {idx < steps.length - 1 && (
                     <div
                       className={`h-1 w-24 mx-2 ${
-                        step.id < currentStep ? 'bg-green-500' : 'bg-gray-200'
+                        step.id < currentStep ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'
                       }`}
                     />
                   )}
@@ -1889,30 +1889,30 @@ export default function ProductImport() {
           </div>
 
           {/* Step Content */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
             {/* Step 1: Upload */}
             {currentStep === 1 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">📤 Upload Product Data</h2>
-                <p className="text-gray-800 mb-6 font-medium">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📤 Upload Product Data</h2>
+                <p className="text-gray-800 dark:text-gray-300 mb-6 font-medium">
                   Selecteer eerst de leverancier en upload dan de productgegevens.
                 </p>
 
                 {/* Vendor Selection */}
                 <div className="mb-8">
-                  <h3 className="font-bold text-lg text-gray-900 mb-4">1️⃣ Selecteer Leverancier</h3>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">1️⃣ Selecteer Leverancier</h3>
                   <div className="grid grid-cols-4 gap-4 mb-4">
                     <button
                       onClick={() => setSelectedVendor('ao76')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
                         selectedVendor === 'ao76'
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="text-4xl mb-3">🏷️</div>
-                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Ao76</h3>
-                      <p className="text-sm text-gray-800">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Ao76</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
                         Standaard format met EAN, Reference, Description, Size
                       </p>
                       {selectedVendor === 'ao76' && (
@@ -1924,13 +1924,13 @@ export default function ProductImport() {
                       onClick={() => setSelectedVendor('lenewblack')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
                         selectedVendor === 'lenewblack'
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="text-4xl mb-3">🎨</div>
-                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Le New Black</h3>
-                      <p className="text-sm text-gray-800">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Le New Black</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
                         Order export met Brand name, Product reference, EAN13, Net amount
                       </p>
                       {selectedVendor === 'lenewblack' && (
@@ -1942,13 +1942,13 @@ export default function ProductImport() {
                       onClick={() => setSelectedVendor('playup')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
                         selectedVendor === 'playup'
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="text-4xl mb-3">🎮</div>
-                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Play UP</h3>
-                      <p className="text-sm text-gray-800">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Play UP</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
                         PDF factuur + website prijzen met authenticatie
                       </p>
                       {selectedVendor === 'playup' && (
@@ -1960,13 +1960,13 @@ export default function ProductImport() {
                       onClick={() => setSelectedVendor('floss')}
                       className={`border-2 rounded-lg p-6 text-center transition-all ${
                         selectedVendor === 'floss'
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="text-4xl mb-3">🌸</div>
-                      <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Flöss</h3>
-                      <p className="text-sm text-gray-800">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Flöss</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
                         Style Details met Style No, Quality, Barcode, Prijzen
                       </p>
                       {selectedVendor === 'floss' && (
@@ -1981,43 +1981,43 @@ export default function ProductImport() {
                 {selectedVendor && (
                   <>
                     <div className="mb-6">
-                      <h3 className="font-bold text-lg text-gray-900 mb-4">2️⃣ Upload Bestand</h3>
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">2️⃣ Upload Bestand</h3>
                       
                       {/* Automatic Defaults Info */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h3 className="font-bold text-blue-900 text-gray-900 mb-3">✨ Automatische Standaardinstellingen</h3>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                        <h3 className="font-bold text-blue-900 dark:text-blue-300 mb-3">✨ Automatische Standaardinstellingen</h3>
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Productsoort:</span>{' '}
-                            <span className="text-gray-900">Verbruiksartikel</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Productsoort:</span>{' '}
+                            <span className="text-gray-900 dark:text-gray-100">Verbruiksartikel</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Gewicht:</span>{' '}
-                            <span className="text-gray-900">0,20 kg</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Gewicht:</span>{' '}
+                            <span className="text-gray-900 dark:text-gray-100">0,20 kg</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Voorraad bijhouden:</span>{' '}
-                            <span className="text-green-600">✓ Ingeschakeld</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Voorraad bijhouden:</span>{' '}
+                            <span className="text-green-600 dark:text-green-400">✓ Ingeschakeld</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Kassa:</span>{' '}
-                            <span className="text-green-600">✓ Verkopen</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Kassa:</span>{' '}
+                            <span className="text-green-600 dark:text-green-400">✓ Verkopen</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Website:</span>{' '}
-                            <span className="text-green-600">✓ Gepubliceerd</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Website:</span>{' '}
+                            <span className="text-green-600 dark:text-green-400">✓ Gepubliceerd</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Inkoop:</span>{' '}
-                            <span className="text-red-600">✗ Uitgeschakeld</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Inkoop:</span>{' '}
+                            <span className="text-red-600 dark:text-red-400">✗ Uitgeschakeld</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Voorraad:</span>{' '}
-                            <span className="text-gray-900">0 (instelbaar)</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Voorraad:</span>{' '}
+                            <span className="text-gray-900 dark:text-gray-100">0 (instelbaar)</span>
                           </div>
-                          <div className="bg-white rounded p-2">
-                            <span className="font-medium text-gray-700">Out of stock bericht:</span>{' '}
-                            <span className="text-gray-900">Verkocht!</span>
+                          <div className="bg-white dark:bg-gray-800 rounded p-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Out of stock bericht:</span>{' '}
+                            <span className="text-gray-900 dark:text-gray-100">Verkocht!</span>
                           </div>
                         </div>
                         {selectedVendor === 'lenewblack' && (
@@ -2049,10 +2049,10 @@ export default function ProductImport() {
 
                         {/* EAN Retail List for Play UP */}
                         {selectedVendor === 'playup' && (
-                          <div className="border-2 border-green-400 rounded-lg p-6 text-center">
+                          <div className="border-2 border-green-400 dark:border-green-600 rounded-lg p-6 text-center">
                             <div className="text-4xl mb-3">📋</div>
-                            <h3 className="font-bold text-gray-900 mb-2">EAN Retail List</h3>
-                            <p className="text-sm text-gray-800 mb-4 font-medium">Full catalog with barcodes (optional)</p>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">EAN Retail List</h3>
+                            <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Full catalog with barcodes (optional)</p>
                             <input
                               type="file"
                               accept=".csv"
@@ -2071,17 +2071,17 @@ export default function ProductImport() {
                               {eanProducts.length > 0 ? `✓ ${eanProducts.length} EAN entries` : 'Kies EAN CSV'}
                             </label>
                             {eanProducts.length > 0 && (
-                              <p className="text-xs text-green-700 mt-2">
+                              <p className="text-xs text-green-700 dark:text-green-400 mt-2">
                                 Barcodes, SKUs & prijzen worden automatisch gevuld!
                               </p>
                             )}
                           </div>
                         )}
 
-                        <div className="border-2 border-orange-400 rounded-lg p-6 text-center">
+                        <div className="border-2 border-orange-400 dark:border-orange-600 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
-                          <h3 className="font-bold text-gray-900 mb-2 text-gray-900">Prijzen CSV</h3>
-                          <p className="text-sm text-gray-800 mb-4 font-medium">Cost prices (optional)</p>
+                          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Prijzen CSV</h3>
+                          <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Cost prices (optional)</p>
                           <input
                             type="file"
                             accept=".csv"
@@ -2103,7 +2103,7 @@ export default function ProductImport() {
                             <a
                               href="/pdf-to-csv-converter"
                               target="_blank"
-                              className="text-xs text-blue-600 hover:underline font-medium"
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
                             >
                               📄 PDF naar CSV converter →
                             </a>
@@ -2112,11 +2112,11 @@ export default function ProductImport() {
                       </div>
 
                       {pdfPrices.size > 0 && (
-                        <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
-                          <p className="text-green-800 font-medium">
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3 mb-4">
+                          <p className="text-green-800 dark:text-green-300 font-medium">
                             ✅ Prijzen CSV geladen: {pdfPrices.size} SKU prijzen beschikbaar
                           </p>
-                          <p className="text-xs text-green-700 mt-1">
+                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">
                             Kostprijzen uit prijzen CSV worden gebruikt in plaats van product CSV prijzen waar beschikbaar
                           </p>
                         </div>
@@ -2124,25 +2124,25 @@ export default function ProductImport() {
 
                       {/* Play UP Website Credentials */}
                       {selectedVendor === 'playup' && (
-                        <div className="border-2 border-purple-300 rounded-lg p-6 mb-4">
-                          <h3 className="font-bold text-lg text-gray-900 mb-4">🔐 Play UP Website Login</h3>
-                          <p className="text-sm text-gray-800 mb-4 font-medium">
+                        <div className="border-2 border-purple-300 dark:border-purple-700 rounded-lg p-6 mb-4">
+                          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">🔐 Play UP Website Login</h3>
+                          <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">
                             Inloggegevens voor pro.playupstore.com om actuele prijzen op te halen
                           </p>
                           
                           <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                              <label className="block text-sm font-medium mb-2">Email/Username</label>
+                              <label className="block text-sm font-medium dark:text-gray-300 mb-2">Email/Username</label>
                               <input
                                 type="text"
                                 value={playupUsername}
                                 onChange={(e) => setPlayupUsername(e.target.value)}
                                 placeholder="your@email.com"
-                                className="w-full border rounded px-3 py-2"
+                                className="w-full border dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium mb-2">Password</label>
+                              <label className="block text-sm font-medium dark:text-gray-300 mb-2">Password</label>
                               <input
                                 type="password"
                                 value={playupPassword}
@@ -2468,19 +2468,19 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
                 </div>
 
-                <h3 className="font-bold text-lg text-gray-900 mb-3">Product Groepen Preview</h3>
-                <div className="border rounded-lg bg-white overflow-hidden flex flex-col" style={{ maxHeight: '600px' }}>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-3">Product Groepen Preview</h3>
+                <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden flex flex-col" style={{ maxHeight: '600px' }}>
                   {/* Table Header */}
                   <div className="overflow-x-auto flex-shrink-0">
                     <table className="w-full text-sm border-collapse">
-                      <thead className="bg-blue-600 text-white sticky top-0 z-10">
+                      <thead className="bg-blue-600 dark:bg-blue-700 text-white sticky top-0 z-10">
                         <tr>
-                          <th className="p-3 text-left font-semibold border-b border-blue-700">Reference</th>
-                          <th className="p-3 text-left font-semibold border-b border-blue-700">Naam</th>
-                          <th className="p-3 text-left font-semibold border-b border-blue-700">Materiaal</th>
-                          <th className="p-3 text-left font-semibold border-b border-blue-700">Kleur</th>
-                          <th className="p-3 text-center font-semibold border-b border-blue-700">Varianten</th>
-                          <th className="p-3 text-right font-semibold border-b border-blue-700">Verkoopprijs</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Reference</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Naam</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Materiaal</th>
+                          <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Kleur</th>
+                          <th className="p-3 text-center font-semibold border-b border-blue-700 dark:border-blue-800">Varianten</th>
+                          <th className="p-3 text-right font-semibold border-b border-blue-700 dark:border-blue-800">Verkoopprijs</th>
                         </tr>
                       </thead>
                     </table>
@@ -2493,16 +2493,16 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         {parsedProducts.map((product, idx) => (
                           <tr 
                             key={product.reference} 
-                            className={`border-b transition-colors ${
-                              idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                            } hover:bg-blue-50`}
+                            className={`border-b dark:border-gray-700 transition-colors ${
+                              idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-750'
+                            } hover:bg-blue-50 dark:hover:bg-blue-900/30`}
                           >
-                            <td className="p-3 font-mono text-xs bg-gray-100 font-bold text-gray-900">{product.reference}</td>
-                            <td className="p-3 font-medium text-gray-900 max-w-xs truncate">{product.name}</td>
-                            <td className="p-3 text-xs text-gray-900 max-w-xs truncate">{product.material}</td>
-                            <td className="p-3 text-sm text-gray-900">{product.color}</td>
-                            <td className="p-3 text-center font-semibold text-blue-600">{product.variants.length}</td>
-                            <td className="p-3 text-right font-bold text-green-600">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                            <td className="p-3 font-mono text-xs bg-gray-100 dark:bg-gray-700 font-bold text-gray-900 dark:text-gray-100">{product.reference}</td>
+                            <td className="p-3 font-medium text-gray-900 dark:text-gray-100 max-w-xs truncate">{product.name}</td>
+                            <td className="p-3 text-xs text-gray-900 dark:text-gray-200 max-w-xs truncate">{product.material}</td>
+                            <td className="p-3 text-sm text-gray-900 dark:text-gray-100">{product.color}</td>
+                            <td className="p-3 text-center font-semibold text-blue-600 dark:text-blue-400">{product.variants.length}</td>
+                            <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">€{product.variants[0]?.rrp.toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2510,7 +2510,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
 
                   {/* Footer with Count */}
-                  <div className="flex-shrink-0 bg-gray-100 p-3 border-t text-sm text-gray-700 font-medium">
+                  <div className="flex-shrink-0 bg-gray-100 dark:bg-gray-700 p-3 border-t dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 font-medium">
                     📊 Totaal: <strong>{parsedProducts.length} producten</strong> met <strong>{parsedProducts.reduce((s, p) => s + p.variants.length, 0)} varianten</strong>
                   </div>
                 </div>
@@ -2518,13 +2518,13 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
+                    className="px-6 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
                   >
                     ← Terug
                   </button>
                   <button
                     onClick={() => setCurrentStep(3)}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-6 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-800"
                   >
                     Volgende: Selectie →
                   </button>
@@ -2535,8 +2535,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
             {/* Step 3: Selection & Stock */}
             {currentStep === 3 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">☑️ Selecteer Producten & Voorraad</h2>
-                <p className="text-gray-800 mb-4 font-medium">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">☑️ Selecteer Producten & Voorraad</h2>
+                <p className="text-gray-800 dark:text-gray-300 mb-4 font-medium">
                   Kies welke producten je wilt importeren en stel de voorraad in per variant (standaard: 0).
                 </p>
 
@@ -2639,41 +2639,41 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
 
                           {/* Variants Table */}
                           <div className="mt-4 overflow-x-auto">
-                            <table className="w-full text-sm border-t">
-                              <thead className="bg-gray-100">
+                            <table className="w-full text-sm border-t dark:border-gray-700">
+                              <thead className="bg-gray-100 dark:bg-gray-700">
                                 <tr>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">Maat</th>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">EAN</th>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">Kostprijs</th>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">
+                                  <th className="p-2 text-left text-gray-900 dark:text-gray-100 font-semibold">Maat</th>
+                                  <th className="p-2 text-left text-gray-900 dark:text-gray-100 font-semibold">EAN</th>
+                                  <th className="p-2 text-left text-gray-900 dark:text-gray-100 font-semibold">Kostprijs</th>
+                                  <th className="p-2 text-left text-gray-900 dark:text-gray-100 font-semibold">
                                     <div className="flex items-center gap-1">
                                       Verkoopprijs
-                                      <span className="text-xs text-blue-600 font-normal" title="Changing one updates all variants">🔄</span>
+                                      <span className="text-xs text-blue-600 dark:text-blue-400 font-normal" title="Changing one updates all variants">🔄</span>
                                     </div>
                                   </th>
-                                  <th className="p-2 text-left text-gray-900 font-semibold">Voorraad</th>
+                                  <th className="p-2 text-left text-gray-900 dark:text-gray-100 font-semibold">Voorraad</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {product.variants.map((variant, idx) => (
-                                  <tr key={idx} className="border-b">
-                                    <td className="p-2 text-gray-900">
+                                  <tr key={idx} className="border-b dark:border-gray-700">
+                                    <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <input
                                         type="text"
                                         value={variant.size}
                                         onChange={(e) => updateVariantField(product.reference, idx, 'size', e.target.value)}
-                                        className="w-16 border rounded px-2 py-1 text-center text-xs font-medium text-gray-900"
+                                        className="w-16 border dark:border-gray-600 rounded px-2 py-1 text-center text-xs font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                                       />
                                     </td>
-                                    <td className="p-2 text-gray-900">
+                                    <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <input
                                         type="text"
                                         value={variant.ean}
                                         onChange={(e) => updateVariantField(product.reference, idx, 'ean', e.target.value)}
-                                        className="w-full border rounded px-2 py-1 text-xs text-gray-900"
+                                        className="w-full border dark:border-gray-600 rounded px-2 py-1 text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                                       />
                                     </td>
-                                    <td className="p-2 text-gray-900">
+                                    <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <div className="flex items-center gap-1">
                                         <span className="mr-1">€</span>
                                         <input
@@ -2682,8 +2682,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           min="0"
                                           value={variant.price}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'price', parseFloat(e.target.value) || 0)}
-                                          className={`w-20 border rounded px-2 py-1 text-right text-gray-900 ${
-                                            variant.sku && pdfPrices.has(variant.sku) ? 'border-orange-400 bg-orange-50' : ''
+                                          className={`w-20 border dark:border-gray-600 rounded px-2 py-1 text-right text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 ${
+                                            variant.sku && pdfPrices.has(variant.sku) ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/30' : ''
                                           }`}
                                         />
                                         {variant.sku && pdfPrices.has(variant.sku) && (
@@ -2691,7 +2691,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                         )}
                                       </div>
                                     </td>
-                                    <td className="p-2 text-gray-900">
+                                    <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <div className="flex items-center relative group">
                                         <span className="mr-1">€</span>
                                         <input
@@ -2700,15 +2700,15 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           min="0"
                                           value={variant.rrp}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
-                                          className="w-20 border rounded px-2 py-1 text-right text-gray-900 border-blue-300"
+                                          className="w-20 border dark:border-gray-600 rounded px-2 py-1 text-right text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border-blue-300 dark:border-blue-600"
                                           title="Changing this will update all variants of this product"
                                         />
-                                        <span className="ml-1 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Updates all variants">
+                                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Updates all variants">
                                           🔄
                                         </span>
                                       </div>
                                     </td>
-                                    <td className="p-2 text-gray-900">
+                                    <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <input
                                         type="number"
                                         min="0"
@@ -2717,7 +2717,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           const newQty = parseInt(e.target.value) || 0;
                                           updateVariantQuantity(product.reference, idx, newQty);
                                         }}
-                                        className="w-20 border rounded px-2 py-1 text-center text-gray-900"
+                                        className="w-20 border dark:border-gray-600 rounded px-2 py-1 text-center text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                                       />
                                     </td>
                                   </tr>
@@ -2731,8 +2731,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   ))}
                 </div>
 
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 p-4 mt-6">
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
                     💡 <strong>Tip:</strong> Changing the Verkoopprijs (rrp) for any variant will automatically update <strong>all variants</strong> of that product. This ensures consistent pricing across all sizes.
                   </p>
                 </div>
@@ -2740,13 +2740,13 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                 <div className="flex justify-between mt-6">
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
+                    className="px-6 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
                   >
                     ← Terug
                   </button>
                   <button
                     onClick={() => setCurrentStep(4)}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-6 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-800"
                   >
                     Volgende: Categorieën →
                   </button>
@@ -2757,8 +2757,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
             {/* Step 4: Categories */}
             {currentStep === 4 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">📁 Categorieën Toewijzen</h2>
-                <p className="text-gray-800 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📁 Categorieën Toewijzen</h2>
+                <p className="text-gray-800 dark:text-gray-300 mb-6">
                   Wijs interne categorie (verplicht) en eCommerce categorieën (optioneel, meerdere mogelijk) toe.
                 </p>
 

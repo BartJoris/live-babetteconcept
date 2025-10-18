@@ -53,7 +53,6 @@ interface CategorizedProduct {
   sku: string;
   quantity: number;
   costPrice: number;
-  salePrice: number;
   action: 'update_stock' | 'create_variant' | 'create_product';
   
   // For stock updates
@@ -71,6 +70,7 @@ interface CategorizedProduct {
     name: string;
     attributeId: number;
     values: string[];
+    selectedValue?: string;
   }>;
   
   // For new products
@@ -241,10 +241,9 @@ export default async function handler(
 
         console.log(`\nProcessing barcode ${cleanBarcode}: ${csvProduct.name}`);
 
-        // Calculate sale price from total/quantity
-        const salePrice = csvProduct.quantity > 0 
-          ? csvProduct.total / csvProduct.quantity 
-          : csvProduct.price;
+        // Invoice only contains cost price (wholesale price)
+        // Sale price should remain unchanged in Odoo
+        const costPrice = csvProduct.price;
 
         // Search in product.template (main products)
         const productTemplates = await callOdoo(
@@ -296,8 +295,7 @@ export default async function handler(
             csvName: csvProduct.name,
             sku: csvProduct.sku,
             quantity: csvProduct.quantity,
-            costPrice: csvProduct.price,
-            salePrice,
+            costPrice,
             action: 'update_stock',
             variantId: variant.id,
             templateId: variant.product_tmpl_id[0],
@@ -327,8 +325,7 @@ export default async function handler(
               csvName: csvProduct.name,
               sku: csvProduct.sku,
               quantity: csvProduct.quantity,
-              costPrice: csvProduct.price,
-              salePrice,
+              costPrice,
               action: 'update_stock',
               variantId: variant.id,
               templateId: template.id,
@@ -404,20 +401,66 @@ export default async function handler(
               console.log(`Cached attributes for ${baseProduct.name}: ${attributes.length} attributes`);
             }
 
+            // Auto-match detected size/color to attribute values
+            const attributesWithSelection = attributes.map(attr => {
+              const attrNameLower = attr.name.toLowerCase();
+              let selectedValue = '';
+              
+              // Match size
+              if ((attrNameLower.includes('maat') || attrNameLower.includes('size')) && size) {
+                // Try to find exact match or close match
+                const sizeMatch = attr.values.find(v => 
+                  v.toLowerCase() === size.toLowerCase() ||
+                  v.toLowerCase().includes(size.toLowerCase()) ||
+                  size.toLowerCase().includes(v.toLowerCase())
+                );
+                if (sizeMatch) {
+                  selectedValue = sizeMatch;
+                  console.log(`  Auto-selected size: ${selectedValue} for attribute ${attr.name}`);
+                } else {
+                  // Use detected size as-is (might create new value)
+                  selectedValue = size;
+                  console.log(`  Using new size value: ${selectedValue} for attribute ${attr.name}`);
+                }
+              }
+              
+              // Match color
+              if ((attrNameLower.includes('kleur') || attrNameLower.includes('color') || attrNameLower.includes('colour')) && color) {
+                // Try to find exact match or close match
+                const colorMatch = attr.values.find(v => 
+                  v.toLowerCase() === color.toLowerCase() ||
+                  v.toLowerCase().includes(color.toLowerCase()) ||
+                  color.toLowerCase().includes(v.toLowerCase())
+                );
+                if (colorMatch) {
+                  selectedValue = colorMatch;
+                  console.log(`  Auto-selected color: ${selectedValue} for attribute ${attr.name}`);
+                } else {
+                  // Use detected color as-is (might create new value)
+                  selectedValue = color;
+                  console.log(`  Using new color value: ${selectedValue} for attribute ${attr.name}`);
+                }
+              }
+              
+              return {
+                ...attr,
+                selectedValue
+              };
+            });
+
             // Base product exists - CREATE VARIANT
             categorizedProducts.push({
               barcode: cleanBarcode,
               csvName: csvProduct.name,
               sku: csvProduct.sku,
               quantity: csvProduct.quantity,
-              costPrice: csvProduct.price,
-              salePrice,
+              costPrice,
               action: 'create_variant',
               baseProductId: baseProduct.id,
               baseProductName: baseProduct.name,
               detectedSize: size || '',
               detectedColor: color || '',
-              attributes: attributes,
+              attributes: attributesWithSelection,
             });
           } else {
             // No match - CREATE NEW PRODUCT
@@ -427,8 +470,7 @@ export default async function handler(
               csvName: csvProduct.name,
               sku: csvProduct.sku,
               quantity: csvProduct.quantity,
-              costPrice: csvProduct.price,
-              salePrice,
+              costPrice,
               action: 'create_product',
               parsedProductName: base,
               detectedSize: size || '',

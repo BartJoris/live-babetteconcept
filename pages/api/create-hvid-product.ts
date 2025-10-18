@@ -30,7 +30,7 @@ interface CreateHvidProductRequest {
   barcode: string;
   sku?: string;
   costPrice: number;
-  salePrice: number;
+  salePrice?: number;
   quantity: number;
   categoryId: number;
   brandId: number;
@@ -68,7 +68,7 @@ export default async function handler(
     const templateData: Record<string, unknown> = {
       name,
       categ_id: categoryId,
-      list_price: salePrice || costPrice,
+      list_price: salePrice || (costPrice * 2),  // Default to 2x margin if no sale price provided
       standard_price: costPrice,
       type: 'consu',
       is_storable: true,

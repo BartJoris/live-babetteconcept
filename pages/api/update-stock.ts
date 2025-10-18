@@ -28,6 +28,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 interface UpdateStockRequest {
   variantId: number;
   quantityToAdd: number;
+  costPrice?: number;
   uid: string;
   password: string;
 }
@@ -41,7 +42,7 @@ export default async function handler(
   }
 
   try {
-    const { variantId, quantityToAdd, uid, password }: UpdateStockRequest = req.body;
+    const { variantId, quantityToAdd, costPrice, uid, password }: UpdateStockRequest = req.body;
 
     if (!uid || !password) {
       return res.status(400).json({ error: 'Missing Odoo credentials' });
@@ -49,6 +50,18 @@ export default async function handler(
 
     if (!variantId || quantityToAdd === undefined) {
       return res.status(400).json({ error: 'Missing variantId or quantityToAdd' });
+    }
+
+    // Update cost price if provided
+    if (costPrice !== undefined && costPrice !== null) {
+      await callOdoo(
+        parseInt(uid),
+        password,
+        'product.product',
+        'write',
+        [[variantId], { standard_price: costPrice }]
+      );
+      console.log(`Updated cost price to ${costPrice} for variant ${variantId}`);
     }
 
     // Get current stock level
