@@ -1059,9 +1059,8 @@ const BarcodeDuplicateChecker: NextPage = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">CSV Product Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Odoo Product</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cost Price (Editable)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Current Stock</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">+ Quantity</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">New Stock</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Stock Update</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Quantity to Add</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1102,9 +1101,14 @@ const BarcodeDuplicateChecker: NextPage = () => {
                                 className="px-2 py-1 border rounded text-sm w-20 text-gray-900 dark:text-gray-100 dark:bg-gray-700 dark:border-gray-600"
                               />
                             </td>
-                            <td className="px-6 py-4 text-sm text-center text-gray-900 dark:text-gray-100">{product.currentStock}</td>
+                            <td className="px-6 py-4 text-sm text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">{product.currentStock}</span>
+                                <span className="text-gray-400 dark:text-gray-500">→</span>
+                                <span className="font-bold text-blue-600 dark:text-blue-400">{newStock}</span>
+                              </div>
+                            </td>
                             <td className="px-6 py-4 text-sm text-center text-green-600 dark:text-green-400 font-semibold">+{product.quantity}</td>
-                            <td className="px-6 py-4 text-sm text-center font-bold text-blue-600 dark:text-blue-400">{newStock}</td>
                           </tr>
                         );
                       })}
@@ -1169,7 +1173,7 @@ const BarcodeDuplicateChecker: NextPage = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Base Product</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cost Price (Editable)</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Attributes (Click badges)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Quantity</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Initial Stock</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1290,17 +1294,20 @@ const BarcodeDuplicateChecker: NextPage = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            <input
-                              type="number"
-                              min="0"
-                              value={product.quantity}
-                              onChange={(e) => {
-                                const updated = [...editableCreateVariant];
-                                updated[index].quantity = parseInt(e.target.value) || 0;
-                                setEditableCreateVariant(updated);
-                              }}
-                              className="px-2 py-1 border rounded text-sm w-20 text-center"
-                            />
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="text-gray-400 dark:text-gray-500 text-xs">0 →</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={product.quantity}
+                                onChange={(e) => {
+                                  const updated = [...editableCreateVariant];
+                                  updated[index].quantity = parseInt(e.target.value) || 0;
+                                  setEditableCreateVariant(updated);
+                                }}
+                                className="px-2 py-1 border rounded text-sm w-16 text-center text-blue-600 dark:text-blue-400 font-semibold dark:bg-gray-700 dark:border-gray-600"
+                              />
+                            </div>
                           </td>
                         </tr>
                         );
@@ -1311,15 +1318,16 @@ const BarcodeDuplicateChecker: NextPage = () => {
                 
                 <div className="mt-4 space-y-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    ℹ️ These variants will be added to existing products. <strong>Cost prices from invoice will be set.</strong> Select attribute values and edit quantity/cost if needed.
+                    ℹ️ These variants will be added to existing products. <strong>Cost prices from invoice will be set.</strong> Initial stock shown as <span className="text-gray-400">0 →</span> <strong className="text-blue-600">quantity</strong>. Select attribute values and edit if needed.
                   </div>
-                  <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
+                  <div className="text-sm text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
                     <div className="font-semibold mb-1">💡 How to use:</div>
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li><strong>Click a badge</strong> to select an existing value (green = selected, matches existing)</li>
                       <li><strong>Type manually</strong> to create a new value (gray border = will create new)</li>
                       <li><strong>Leave empty</strong> to skip that attribute (variant will only use filled attributes)</li>
                       <li><strong>&quot;Voorraad 0&quot; button</strong> sets all quantities to 0 (for pre-orders)</li>
+                      <li><strong>Edit initial stock</strong> to change quantity (shown as 0 → quantity)</li>
                     </ul>
                   </div>
                   <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
@@ -1369,7 +1377,7 @@ const BarcodeDuplicateChecker: NextPage = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Color</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost Price (Editable)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Initial Stock</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1447,7 +1455,12 @@ const BarcodeDuplicateChecker: NextPage = () => {
                               className="px-2 py-1 border rounded text-sm w-20"
                             />
                           </td>
-                          <td className="px-6 py-4 text-sm text-center">{product.quantity}</td>
+                          <td className="px-6 py-4 text-sm text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="text-gray-400 text-xs">0 →</span>
+                              <span className="font-semibold text-blue-600">{product.quantity}</span>
+                            </div>
+                          </td>
                         </tr>
                         );
                       })}
@@ -1456,7 +1469,7 @@ const BarcodeDuplicateChecker: NextPage = () => {
                 </div>
                 
                 <div className="mt-4 text-sm text-gray-600">
-                  ℹ️ These products will be created from scratch with <strong>cost price from invoice</strong> and sale price set to 2x margin. Edit product name, size, color, and cost price before creating. Default category: {checkResult.defaultCategory?.name}, Brand: {checkResult.defaultBrand?.name || 'Hvid'}
+                  ℹ️ These products will be created from scratch with <strong>cost price from invoice</strong> and sale price set to 2x margin. Initial stock shown as <span className="text-gray-400">0 →</span> <strong className="text-blue-600">quantity</strong>. Edit product name, size, color, and cost price before creating. Default category: {checkResult.defaultCategory?.name}, Brand: {checkResult.defaultBrand?.name || 'Hvid'}
                 </div>
               </div>
             )}
