@@ -49,7 +49,7 @@ export default function Navigation() {
   
   const isInzichtenActive = () => {
     return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-insights', 
-            '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics'].includes(router.pathname);
+            '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
   };
   
   const isImporterenActive = () => {
@@ -98,6 +98,9 @@ export default function Navigation() {
               {isInzichtenOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
+                    <Link href="/ecommerce-insights" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ecommerce-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🛍️ E-commerce Inzichten
+                    </Link>
                     <Link href="/sales-yearly-compare" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-yearly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Jaarlijkse Vergelijking
                     </Link>
@@ -242,6 +245,17 @@ export default function Navigation() {
             </button>
             {mobileInzichtenOpen && (
               <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/ecommerce-insights"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/ecommerce-insights')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🛍️ E-commerce Inzichten
+                </Link>
                 <Link
                   href="/sales-yearly-compare"
                   onClick={closeMenu}
