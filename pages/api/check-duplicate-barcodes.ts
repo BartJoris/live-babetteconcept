@@ -122,23 +122,37 @@ function parseProductInfo(csvName: string): { base: string; size: string | null;
 function findBaseProduct(baseName: string, hvidProducts: any[]): any | null {
   const baseLower = baseName.toLowerCase();
   
+  // First try exact match or very close match
   for (const product of hvidProducts) {
     const productNameLower = product.name.toLowerCase();
     
-    // Direct match
+    // Exact substring match (either direction)
     if (productNameLower.includes(baseLower) || baseLower.includes(productNameLower)) {
+      console.log(`  ✓ Exact match: "${baseName}" → "${product.name}"`);
       return product;
-    }
-    
-    // Check for partial matches (e.g., "booties" matches "hvid booties")
-    const baseWords = baseLower.split(' ').filter(w => w.length > 3);
-    for (const word of baseWords) {
-      if (productNameLower.includes(word)) {
-        return product;
-      }
     }
   }
   
+  // Then try matching all significant words (must match ALL words, not just one)
+  const baseWords = baseLower.split(' ').filter(w => w.length > 3);
+  
+  if (baseWords.length === 0) {
+    return null; // No significant words to match
+  }
+  
+  for (const product of hvidProducts) {
+    const productNameLower = product.name.toLowerCase();
+    
+    // Check if ALL significant words from base name are in product name
+    const allWordsMatch = baseWords.every(word => productNameLower.includes(word));
+    
+    if (allWordsMatch) {
+      console.log(`  ✓ All-words match: "${baseName}" (${baseWords.join(', ')}) → "${product.name}"`);
+      return product;
+    }
+  }
+  
+  console.log(`  ✗ No match found for "${baseName}"`);
   return null;
 }
 
@@ -408,15 +422,29 @@ export default async function handler(
               
               // Match size
               if ((attrNameLower.includes('maat') || attrNameLower.includes('size')) && size) {
+                // Normalize size strings for better matching
+                const normalizeSize = (s: string) => {
+                  return s.toLowerCase()
+                    .replace(/\s*months?\s*/gi, 'm')
+                    .replace(/\s*years?\s*/gi, 'y')
+                    .replace(/\s+/g, '')
+                    .replace(/-/g, '-');
+                };
+                
+                const normalizedSize = normalizeSize(size);
+                
                 // Try to find exact match or close match
-                const sizeMatch = attr.values.find(v => 
-                  v.toLowerCase() === size.toLowerCase() ||
-                  v.toLowerCase().includes(size.toLowerCase()) ||
-                  size.toLowerCase().includes(v.toLowerCase())
-                );
+                const sizeMatch = attr.values.find(v => {
+                  const normalizedValue = normalizeSize(v);
+                  return normalizedValue === normalizedSize ||
+                         v.toLowerCase() === size.toLowerCase() ||
+                         v.toLowerCase().includes(size.toLowerCase()) ||
+                         size.toLowerCase().includes(v.toLowerCase());
+                });
+                
                 if (sizeMatch) {
                   selectedValue = sizeMatch;
-                  console.log(`  Auto-selected size: ${selectedValue} for attribute ${attr.name}`);
+                  console.log(`  Auto-selected size: ${selectedValue} (matched from "${size}") for attribute ${attr.name}`);
                 } else {
                   // Use detected size as-is (might create new value)
                   selectedValue = size;

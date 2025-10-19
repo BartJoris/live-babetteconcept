@@ -104,6 +104,9 @@ const BarcodeDuplicateChecker: NextPage = () => {
   // Collapsible sections
   const [showDuplicateDetails, setShowDuplicateDetails] = useState(false);
   const [showAllLookups, setShowAllLookups] = useState(false);
+  
+  // Track processed barcodes to keep them in their original tables
+  const [processedBarcodes, setProcessedBarcodes] = useState<Set<string>>(new Set());
 
   const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -535,13 +538,41 @@ const BarcodeDuplicateChecker: NextPage = () => {
 
       setOperationResults(results);
       
+      // Mark successful items as processed
+      const successfulBarcodes = results.filter(r => r.success).map(r => r.barcode);
+      setProcessedBarcodes(prev => new Set([...prev, ...successfulBarcodes]));
+      
+      // Remove successfully processed items from their tables
+      if (validationAction === 'update') {
+        setEditableUpdateStock(prev => prev.filter(p => !successfulBarcodes.includes(p.barcode)));
+        setSelectedForUpdate(prev => {
+          const newSet = new Set(prev);
+          successfulBarcodes.forEach(b => newSet.delete(b));
+          return newSet;
+        });
+      } else if (validationAction === 'variant') {
+        setEditableCreateVariant(prev => prev.filter(p => !successfulBarcodes.includes(p.barcode)));
+        setSelectedForVariant(prev => {
+          const newSet = new Set(prev);
+          successfulBarcodes.forEach(b => newSet.delete(b));
+          return newSet;
+        });
+      } else if (validationAction === 'create') {
+        setEditableCreateProduct(prev => prev.filter(p => !successfulBarcodes.includes(p.barcode)));
+        setSelectedForCreate(prev => {
+          const newSet = new Set(prev);
+          successfulBarcodes.forEach(b => newSet.delete(b));
+          return newSet;
+        });
+      }
+      
       // Show summary
       const successCount = results.filter(r => r.success).length;
       const failCount = results.filter(r => !r.success).length;
-      alert(`Operation complete!\n✅ Success: ${successCount}\n❌ Failed: ${failCount}`);
+      alert(`Operation complete!\n✅ Success: ${successCount}\n❌ Failed: ${failCount}\n\n${successCount > 0 ? '✓ Processed items removed from list' : ''}`);
       
-      // Refresh the check
-      await checkForDuplicates();
+      // Don't auto-refresh - let user continue working with remaining items
+      // They can manually refresh if needed
 
     } catch (error: any) {
       console.error('Error executing operation:', error);
@@ -678,7 +709,7 @@ const BarcodeDuplicateChecker: NextPage = () => {
                     disabled={loading}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
                   >
-                    {loading ? 'Checking...' : 'Check for Duplicates in Odoo'}
+                    {loading ? 'Checking...' : checkResult ? '🔄 Re-check in Odoo' : 'Check for Duplicates in Odoo'}
                   </button>
                 </div>
               </div>
@@ -982,13 +1013,25 @@ const BarcodeDuplicateChecker: NextPage = () => {
 
         {/* Action Sections */}
         {checkResult && (
-          <div id="action-sections" className="space-y-6">
+            <div id="action-sections" className="space-y-6">
             {/* Summary of Actions */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg shadow-md p-6 border border-blue-200 dark:border-blue-800">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-                📋 Import Summary
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                  📋 Import Summary
+                </h2>
+                <button
+                  onClick={() => {
+                    setProcessedBarcodes(new Set());
+                    checkForDuplicates();
+                  }}
+                  disabled={loading}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400 text-sm"
+                >
+                  🔄 Refresh All Data
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-sm text-gray-600 dark:text-gray-400">Stock Updates</div>
                   <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{editableUpdateStock.length}</div>
@@ -1004,6 +1047,11 @@ const BarcodeDuplicateChecker: NextPage = () => {
                   <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{editableCreateProduct.length}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Create from scratch</div>
                 </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border-2 border-green-500 dark:border-green-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Processed</div>
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">{processedBarcodes.size}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">✓ Completed this session</div>
+                </div>
               </div>
               
               {/* Help Info */}
@@ -1017,6 +1065,17 @@ const BarcodeDuplicateChecker: NextPage = () => {
                 <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
                   Invoice shows cost/wholesale prices only. Review and edit if needed, then click action buttons to process.
                 </div>
+              </div>
+              
+              {/* Workflow Info */}
+              <div className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 p-4 mt-4">
+                <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2">🔄 Workflow:</h4>
+                <ul className="text-sm text-green-700 dark:text-green-300 space-y-1">
+                  <li><strong>✓ Work in batches:</strong> Process a few items, they&apos;re removed from the list automatically</li>
+                  <li><strong>✓ No auto-refresh:</strong> Successfully created items stay processed, you can continue with remaining items</li>
+                  <li><strong>✓ Manual refresh:</strong> Click &quot;🔄 Refresh All Data&quot; when you want to re-check everything</li>
+                  <li><strong>✓ Uninterrupted flow:</strong> Create all variants first, then update stock later</li>
+                </ul>
               </div>
               
             </div>

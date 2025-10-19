@@ -290,15 +290,20 @@ export default async function handler(
       const variantValueIds = variantAttrValues.map((v: any) => v.product_attribute_value_id[0]);
       console.log(`Variant ${variant.id} (${variant.name}) has value IDs: ${variantValueIds.join(', ')} ${variant.barcode ? `[barcode: ${variant.barcode}]` : '[no barcode]'}`);
       
-      // Check if this variant has ALL our target values and same count (exact match)
-      const hasAllValues = targetValueIds.every(id => variantValueIds.includes(id)) && 
-                           targetValueIds.length === variantValueIds.length;
+      // Check if this variant has ALL our target values (subset match)
+      // Note: Variants may have more values (e.g., MERK) that we don't explicitly set
+      const hasAllTargetValues = targetValueIds.every(id => variantValueIds.includes(id));
 
-      if (hasAllValues) {
+      if (hasAllTargetValues) {
         targetVariantId = variant.id;
         existingBarcode = variant.barcode;
-        console.log(`✅ Found matching variant: ${variant.id} (${variant.name})${existingBarcode ? ` - Already has barcode: ${existingBarcode}` : ''}`);
+        console.log(`✅ Found matching variant: ${variant.id} (${variant.name}) - has all required values [${targetValueIds.join(', ')}]${existingBarcode ? ` - Already has barcode: ${existingBarcode}` : ''}`);
         break;
+      } else {
+        const missingIds = targetValueIds.filter(id => !variantValueIds.includes(id));
+        if (missingIds.length > 0) {
+          console.log(`  ✗ Variant ${variant.id} missing values: ${missingIds.join(', ')}`);
+        }
       }
     }
 
