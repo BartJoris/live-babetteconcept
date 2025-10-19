@@ -427,7 +427,7 @@ export default function EcommerceInsightsPage() {
                           legend: { position: 'top' as const },
                           tooltip: {
                             callbacks: {
-                              label: (context) => `${context.dataset.label}: ${formatEuro(context.parsed.y)}`,
+                              label: (context) => `${context.dataset.label}: ${formatEuro(context.parsed.y ?? 0)}`,
                             },
                           },
                         },
@@ -471,7 +471,7 @@ export default function EcommerceInsightsPage() {
                             legend: { position: 'top' as const },
                             tooltip: {
                               callbacks: {
-                                label: (context) => `${context.dataset.label}: ${formatEuro(context.parsed.y)}`,
+                                label: (context) => `${context.dataset.label}: ${formatEuro(context.parsed.y ?? 0)}`,
                               },
                             },
                           },
@@ -573,7 +573,7 @@ export default function EcommerceInsightsPage() {
                               legend: { display: false },
                               tooltip: {
                                 callbacks: {
-                                  label: (context) => formatEuro(context.parsed.x),
+                                  label: (context) => formatEuro(context.parsed.x ?? 0),
                                 },
                               },
                             },

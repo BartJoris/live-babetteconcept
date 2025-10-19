@@ -38,11 +38,15 @@ export default function Navigation() {
     setMobileImporterenOpen(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('odoo_uid');
-    localStorage.removeItem('odoo_user');
-    localStorage.removeItem('odoo_pass');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      router.push('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect to login page
+      router.push('/');
+    }
   };
 
   const isActive = (path: string) => router.pathname === path;
@@ -78,6 +82,17 @@ export default function Navigation() {
               }`}
             >
               Dashboard
+            </Link>
+
+            <Link 
+              href="/audit-monitor" 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/audit-monitor') 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              🔍 Security Monitor
             </Link>
             
             {/* Inzichten Dropdown */}
@@ -221,6 +236,18 @@ export default function Navigation() {
             }`}
           >
             Dashboard
+          </Link>
+
+          <Link
+            href="/audit-monitor"
+            onClick={closeMenu}
+            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+              isActive('/audit-monitor')
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            }`}
+          >
+            🔍 Security Monitor
           </Link>
           
           {/* Inzichten Section */}

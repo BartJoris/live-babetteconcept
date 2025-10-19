@@ -9,15 +9,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
+    // Check if user is already logged in via session
+    checkSession();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const checkSession = async () => {
+    try {
+      const res = await fetch('/api/auth/session');
+      const data = await res.json();
+      if (data.isLoggedIn) {
         router.push('/dashboard');
       }
+    } catch {
+      // Not logged in, stay on login page
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,15 +37,13 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const json: { uid: number | null } = await res.json();
+      const json = await res.json();
 
-      if (json.uid) {
-        localStorage.setItem('odoo_uid', json.uid.toString());
-        localStorage.setItem('odoo_user', username);
-        localStorage.setItem('odoo_pass', password);
+      if (json.success && json.user) {
+        // Session cookie is set automatically
         router.push('/dashboard');
       } else {
-        setError('Ongeldige login');
+        setError(json.error || 'Ongeldige login');
       }
     } catch (err) {
       console.error('Login fout:', err);

@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const isTest = testMode === true;
-  const templatesToProcess = isTest ? [templateIds[0]] : templateIds;
+  const templatesToProcess = isTest && templateIds[0] !== undefined ? [templateIds[0]] : templateIds;
 
   try {
     console.log(`🔧 Assigning brand ${brandId} to ${templatesToProcess.length} templates (${isTest ? 'TEST MODE' : 'PRODUCTION'})`);

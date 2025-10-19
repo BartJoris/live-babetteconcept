@@ -161,7 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const duplicateBrandNames = Object.entries(brandNameGroups)
       .filter(([, variants]) => variants.length > 1)
       .map(([, variants]) => ({
-        canonicalName: variants[0].name,
+        canonicalName: variants[0]?.name || '',
         variants,
         totalProducts: 0, // Will be filled later
       }));

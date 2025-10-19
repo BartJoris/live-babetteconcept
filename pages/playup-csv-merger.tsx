@@ -53,11 +53,6 @@ export default function PlayUpCsvMerger() {
 
   const parseProductsCSV = (text: string) => {
     const lines = text.trim().split('\n');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const headers = lines[0].split(',');
-    
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const products: ProductRow[] = [];
     const uniqueProducts = new Map<string, ProductRow>();
 
     for (let i = 1; i < lines.length; i++) {

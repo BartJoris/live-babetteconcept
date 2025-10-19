@@ -1,79 +1,67 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { odooClient } from '@/lib/odooClient';
+import { importProductsSchema } from '@/lib/validation/product';
+import { rateLimitImport } from '@/lib/middleware/rateLimiter';
+import { logProductImport } from '@/lib/auditLog';
 
-const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
-
-async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
-  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
-  if (kwargs) executeArgs.push(kwargs);
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: { service: 'object', method: 'execute_kw', args: executeArgs },
-    id: Date.now(),
-  };
-
-  const response = await fetch(ODOO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
-  return json.result;
+function getClientIp(req: NextApiRequestWithSession): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
 }
 
+async function callOdoo<T = unknown>(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>): Promise<T> {
+  return odooClient.call<T>({
+    uid,
+    password,
+    model,
+    method,
+    args,
+    kwargs,
+  });
+}
+
+// These interfaces are defined in validation/product.ts but kept here for runtime use
 interface ProductVariant {
   size: string;
   quantity: number;
-  ean: string;
+  ean?: string;
   sku?: string; // Internal Reference / SKU for variant
   price: number;
   rrp: number;
 }
 
-interface ParsedProduct {
-  reference: string;
-  name: string;
-  material: string;
-  color: string;
-  ecommerceDescription?: string;
-  variants: ProductVariant[];
-  selectedBrand?: { id: number; name: string };
-  category?: { id: number; name: string };
-  publicCategories: Array<{ id: number; name: string }>;
-  productTags: Array<{ id: number; name: string }>;
-  originalName?: string;
-  isFavorite: boolean;
-  sizeAttribute?: string; // Manually selected size attribute
-  images?: string[]; // Image URLs or base64 data URLs
-}
-
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Apply rate limiting (10 imports per hour)
+  const allowed = await rateLimitImport(req, res);
+  if (!allowed) {
+    return; // Rate limiter already sent response
+  }
+
   try {
-    const { products, testMode, uid, password } = req.body as {
-      products: ParsedProduct[];
-      testMode: boolean;
-      uid: string;
-      password: string;
-    };
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
+    // Validate input
+    const validation = importProductsSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        details: validation.error.issues,
+      });
     }
 
-    if (!products || products.length === 0) {
-      return res.status(400).json({ error: 'No products provided' });
-    }
+    const { products, testMode } = validation.data;
+
+    // Get credentials from session
+    const { uid, password } = req.session.user!;
 
     console.log(`🚀 Starting import: ${products.length} products (testMode: ${testMode})`);
 
@@ -129,26 +117,25 @@ export default async function handler(
           templateData.product_tag_ids = [[6, 0, product.productTags.map(t => t.id)]];
         }
 
-        const templateResult = await callOdoo(parseInt(uid), password, 'product.template', 'create', [templateData]);
+        const templateResult = await callOdoo(uid, password, 'product.template', 'create', [templateData]);
         const templateId = templateResult;
         console.log(`✅ Template created: ID ${templateId}`);
 
         // Fetch display_name from the created product
-        const templateInfo = await callOdoo(
-          parseInt(uid),
+        const templateInfo = await odooClient.read<{ display_name: string }>(
+          uid,
           password,
           'product.template',
-          'read',
-          [[templateId]],
-          { fields: ['display_name'] }
+          [templateId as number],
+          ['display_name']
         );
-        const displayName = templateInfo && templateInfo.length > 0 ? templateInfo[0].display_name : product.name;
+        const displayName = Array.isArray(templateInfo) && templateInfo.length > 0 ? templateInfo[0].display_name : product.name;
         console.log(`📝 Display name: ${displayName}`);
 
         // Step 2: Get MERK attribute
         console.log('Step 2: Adding brand attribute...');
-        const merkAttrResult = await callOdoo(
-          parseInt(uid),
+        const merkAttrResult = await callOdoo<Array<{ id: number; name: string }>>(
+          uid,
           password,
           'product.attribute',
           'search_read',
@@ -207,8 +194,8 @@ export default async function handler(
         const sizeAttributeName = product.sizeAttribute || determineSizeAttribute(product.variants);
         console.log(`Using size attribute: ${sizeAttributeName}${product.sizeAttribute ? ' (user-selected)' : ' (auto-detected)'}`);
         
-        const maatAttrResult = await callOdoo(
-          parseInt(uid),
+        const maatAttrResult = await callOdoo<Array<{ id: number; name: string }>>(
+          uid,
           password,
           'product.attribute',
           'search_read',
@@ -219,7 +206,7 @@ export default async function handler(
         let maatAttributeId;
         if (!maatAttrResult || maatAttrResult.length === 0) {
           console.log(`Creating ${sizeAttributeName} attribute...`);
-          maatAttributeId = await callOdoo(parseInt(uid), password, 'product.attribute', 'create', [{
+          maatAttributeId = await callOdoo(uid, password, 'product.attribute', 'create', [{
             name: sizeAttributeName,
             display_type: 'radio',
           }]);
@@ -231,7 +218,7 @@ export default async function handler(
         console.log('Step 4: Creating attribute lines...');
         
         // Add MERK line
-        await callOdoo(parseInt(uid), password, 'product.template.attribute.line', 'create', [{
+        await callOdoo(uid, password, 'product.template.attribute.line', 'create', [{
           product_tmpl_id: templateId,
           attribute_id: merkAttributeId,
           value_ids: [[6, 0, [product.selectedBrand.id]]],
@@ -240,8 +227,8 @@ export default async function handler(
         // Get or create size values
         const sizeValueIds = [];
         for (const variant of product.variants) {
-          const existingSize = await callOdoo(
-            parseInt(uid),
+          const existingSize = await callOdoo<Array<{ id: number }>>(
+            uid,
             password,
             'product.attribute.value',
             'search_read',
@@ -253,7 +240,7 @@ export default async function handler(
           if (existingSize && existingSize.length > 0) {
             sizeValueId = existingSize[0].id;
           } else {
-            sizeValueId = await callOdoo(parseInt(uid), password, 'product.attribute.value', 'create', [{
+            sizeValueId = await callOdoo(uid, password, 'product.attribute.value', 'create', [{
               attribute_id: maatAttributeId,
               name: variant.size,
             }]);
@@ -262,7 +249,7 @@ export default async function handler(
         }
 
         // Add MAAT line
-        await callOdoo(parseInt(uid), password, 'product.template.attribute.line', 'create', [{
+        await callOdoo(uid, password, 'product.template.attribute.line', 'create', [{
           product_tmpl_id: templateId,
           attribute_id: maatAttributeId,
           value_ids: [[6, 0, sizeValueIds]],
@@ -275,8 +262,11 @@ export default async function handler(
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Step 6: Fetch generated variants
-        const variantsResult = await callOdoo(
-          parseInt(uid),
+        const variantsResult = await callOdoo<Array<{
+          id: number;
+          product_template_variant_value_ids: number[];
+        }>>(
+          uid,
           password,
           'product.product',
           'search_read',
@@ -298,8 +288,10 @@ export default async function handler(
             // Fetch the actual attribute values
             if (variantValueIds.length === 0) continue;
 
-            const valuesResult = await callOdoo(
-              parseInt(uid),
+            const valuesResult = await callOdoo<Array<{
+              product_attribute_value_id: [number, string];
+            }>>(
+              uid,
               password,
               'product.template.attribute.value',
               'search_read',
@@ -320,8 +312,8 @@ export default async function handler(
             if (!sizeValueId) continue;
 
             // Get size name
-            const sizeValueResult = await callOdoo(
-              parseInt(uid),
+            const sizeValueResult = await callOdoo<Array<{ name: string }>>(
+              uid,
               password,
               'product.attribute.value',
               'read',
@@ -358,13 +350,13 @@ export default async function handler(
             }
 
             console.log(`Updating variant ${odooVariant.id}:`, JSON.stringify(updateData));
-            await callOdoo(parseInt(uid), password, 'product.product', 'write', [[odooVariant.id], updateData]);
+            await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
             console.log(`✅ Updated variant`);
 
             // Update stock if quantity > 0
             if (csvVariant.quantity > 0) {
               try {
-                await callOdoo(parseInt(uid), password, 'stock.quant', 'create', [{
+                await callOdoo(uid, password, 'stock.quant', 'create', [{
                   product_id: odooVariant.id,
                   location_id: 8, // Stock location - adjust if needed
                   quantity: csvVariant.quantity,
@@ -415,7 +407,7 @@ export default async function handler(
               // First image: set as product template's main image
               if (i === 0) {
                 console.log(`  Setting first image as main product image...`);
-                await callOdoo(parseInt(uid), password, 'product.template', 'write', [
+                await callOdoo(uid, password, 'product.template', 'write', [
                   [templateId],
                   { image_1920: base64Data }
                 ]);
@@ -423,7 +415,7 @@ export default async function handler(
                 console.log(`  ✅ Main image set (Image 1/${product.images.length})`);
               } else {
                 // Additional images: create as product.image records
-                await callOdoo(parseInt(uid), password, 'product.image', 'create', [{
+                await callOdoo(uid, password, 'product.image', 'create', [{
                   name: `${product.name} - Image ${i + 1}`,
                   product_tmpl_id: templateId,
                   image_1920: base64Data,
@@ -465,6 +457,20 @@ export default async function handler(
     const successCount = results.filter(r => r.success).length;
     console.log(`\n🎉 Import complete: ${successCount}/${results.length} successful`);
 
+    // Log import completion
+    logProductImport(
+      req.session.user!.uid,
+      req.session.user!.username,
+      getClientIp(req),
+      true,
+      products.length,
+      {
+        successful: successCount,
+        failed: results.length - successCount,
+        testMode,
+      }
+    );
+
     return res.status(200).json({
       success: true,
       results,
@@ -478,10 +484,30 @@ export default async function handler(
   } catch (error) {
     console.error('Import error:', error);
     const err = error as { message?: string };
+    
+    // Log import failure
+    try {
+      const validation = importProductsSchema.safeParse(req.body);
+      const productCount = validation.success ? validation.data.products.length : 0;
+      
+      logProductImport(
+        req.session.user!.uid,
+        req.session.user!.username,
+        getClientIp(req),
+        false,
+        productCount,
+        { error: err.message }
+      );
+    } catch {
+      // Ignore logging errors
+    }
+    
     return res.status(500).json({
       success: false,
       error: err.message || 'Import failed',
     });
   }
 }
+
+export default withAuth(handler);
 

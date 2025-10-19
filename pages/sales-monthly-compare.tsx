@@ -482,11 +482,11 @@ export default function DailyComparePage() {
                             const difference = (cumulativeData[`${selectedPeriods[0].year}-${selectedPeriods[0].month}`]?.omzet[context.dataIndex] || 0) - 
                                              (cumulativeData[`${selectedPeriods[1].year}-${selectedPeriods[1].month}`]?.omzet[context.dataIndex] || 0);
                             return [
-                              `${context.dataset.label}: €${formatBE(context.parsed.y)}`,
+                              `${context.dataset.label}: €${formatBE(context.parsed.y ?? 0)}`,
                               `Verschil: ${difference >= 0 ? '+' : ''}€${formatBE(Math.abs(difference))}`
                             ];
                           }
-                          return `${context.dataset.label}: €${formatBE(context.parsed.y)}`;
+                          return `${context.dataset.label}: €${formatBE(context.parsed.y ?? 0)}`;
                         }
                       }
                     }

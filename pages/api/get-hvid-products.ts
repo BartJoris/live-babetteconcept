@@ -1,32 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { odooClient } from '@/lib/odooClient';
 
-const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
-
-async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
-  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
-  if (kwargs) executeArgs.push(kwargs);
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: { service: 'object', method: 'execute_kw', args: executeArgs },
-    id: Date.now(),
-  };
-
-  const response = await fetch(ODOO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
-  return json.result;
-}
-
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -34,61 +11,60 @@ export default async function handler(
   }
 
   try {
-    const { uid, password } = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    // Get credentials from session
+    const { uid, password } = req.session.user!;
 
     // Get Hvid brand value ID
-    const hvidBrandValues = await callOdoo(
-      parseInt(uid),
+    const hvidBrandValues = await odooClient.searchRead(
+      uid,
       password,
       'product.attribute.value',
-      'search_read',
-      [
-        [['name', '=', 'Hvid']],
-        ['id', 'attribute_id']
-      ]
+      [['name', '=', 'Hvid']],
+      ['id', 'attribute_id']
     );
 
     // Get all HVID products (products with Hvid brand)
-    const hvidProducts = await callOdoo(
-      parseInt(uid),
+    const hvidProducts = await odooClient.searchRead<{
+      id: number;
+      name: string;
+      categ_id: [number, string];
+      attribute_line_ids: number[];
+    }>(
+      uid,
       password,
       'product.template',
-      'search_read',
-      [
-        [['categ_id', 'ilike', 'Hvid']],
-        ['id', 'name', 'categ_id', 'attribute_line_ids']
-      ]
+      [['categ_id', 'ilike', 'Hvid']],
+      ['id', 'name', 'categ_id', 'attribute_line_ids']
     );
 
     // Get attribute information for each product
     const productsWithAttrs = await Promise.all(
-      hvidProducts.map(async (product: any) => {
-        const attrLines = await callOdoo(
-          parseInt(uid),
+      hvidProducts.map(async (product) => {
+        const attrLines = await odooClient.read<{
+          attribute_id: [number, string];
+          value_ids: number[];
+        }>(
+          uid,
           password,
           'product.template.attribute.line',
-          'read',
-          [product.attribute_line_ids, ['attribute_id', 'value_ids']]
+          product.attribute_line_ids,
+          ['attribute_id', 'value_ids']
         );
 
-        const attributes: any = {};
+        const attributes: Record<string, string[]> = {};
         for (const line of attrLines) {
           const attrName = line.attribute_id[1];
           
           // Get attribute values
           if (line.value_ids && line.value_ids.length > 0) {
-            const values = await callOdoo(
-              parseInt(uid),
+            const values = await odooClient.read<{ name: string }>(
+              uid,
               password,
               'product.attribute.value',
-              'read',
-              [line.value_ids, ['name']]
+              line.value_ids,
+              ['name']
             );
-            attributes[attrName] = values.map((v: any) => v.name);
+            attributes[attrName] = values.map((v) => v.name);
           }
         }
 
@@ -100,15 +76,16 @@ export default async function handler(
     );
 
     // Get default category
-    const hvidCategory = await callOdoo(
-      parseInt(uid),
+    const hvidCategory = await odooClient.searchRead<{
+      id: number;
+      name: string;
+      complete_name: string;
+    }>(
+      uid,
       password,
       'product.category',
-      'search_read',
-      [
-        [['complete_name', 'ilike', 'Hvid']],
-        ['id', 'name', 'complete_name']
-      ]
+      [['complete_name', 'ilike', 'Hvid']],
+      ['id', 'name', 'complete_name']
     );
 
     res.status(200).json({
@@ -118,12 +95,15 @@ export default async function handler(
       hvidCategory: hvidCategory[0] || null,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching HVID products:', error);
+    const err = error as { message?: string };
     res.status(500).json({ 
       error: 'Failed to fetch HVID products', 
-      details: error.message 
+      details: err.message 
     });
   }
 }
+
+export default withAuth(handler);
 

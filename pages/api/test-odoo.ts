@@ -7,7 +7,7 @@ const ODOO_DB = process.env.ODOO_DB!;
 const ODOO_API_KEY = process.env.ODOO_API_KEY!;
 const ODOO_USERNAME = process.env.ODOO_USERNAME!;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const payload = {
     jsonrpc: '2.0',
     method: 'call',

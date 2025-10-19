@@ -3,6 +3,29 @@ cursor-chat.md
 
 example-import/
 
+pages/playup-csv-merger.tsx
+pages/playup-debug.tsx
+pages/playup-image-finder.tsx
+pages/playup-images-import.tsx
+pages/playup-pdf-converter.tsx
+
+git add components/Navigation.tsx
+git add next.config.ts
+git add pages/brand-diagnostics.tsx
+git add pages/brand-inventory.tsx
+git add pages/brand-performance.tsx
+git add pages/dashboard.tsx
+git add pages/image-fetch-debug.tsx
+git add pages/index.tsx
+git add pages/product-images-import.tsx
+git add pages/sales-dashboard.tsx
+git add pages/sales-insights.tsx
+git add pages/sales-monthly-compare.tsx
+git add pages/sales-products.tsx
+git add pages/sales-yearly-compare.tsx
+
+
+
 # dependencies
 /node_modules
 /.pnp
@@ -35,6 +58,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+!env.example
 
 # vercel
 .vercel

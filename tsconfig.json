@@ -15,7 +15,12 @@
     "incremental": true,
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    // Additional strict type-checking options
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

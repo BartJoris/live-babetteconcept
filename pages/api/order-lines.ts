@@ -1,9 +1,14 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { odooClient } from '@/lib/odooClient';
 
-const ODOO_URL = process.env.ODOO_URL!;
-const ODOO_DB = process.env.ODOO_DB!;
+type RawLine = {
+  product_id?: [number, string];
+  qty: number;
+  price_unit: number;
+};
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   console.log("➡️ API /api/order-lines aangeroepen");
 
   if (req.method !== 'POST') {
@@ -11,66 +16,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const orderId = Number(req.query.id);
-  const { uid, password } = req.body;
 
-  console.log("📦 Ophalen orderlijnen van:", orderId, "met uid:", uid);
+  console.log("📦 Ophalen orderlijnen van:", orderId);
 
-  if (!orderId || !uid || !password) {
-    console.log("❌ Ontbrekende parameters");
-    return res.status(400).json({ error: 'Missing parameters' });
+  if (!orderId) {
+    console.log("❌ Ontbrekende order ID");
+    return res.status(400).json({ error: 'Missing order ID' });
   }
 
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: {
-      service: 'object',
-      method: 'execute_kw',
-      args: [
-        ODOO_DB,
-        uid,
-        password,
-        'pos.order.line',
-        'search_read',
-        [[['order_id', '=', orderId]]],
-        { fields: ['product_id', 'qty', 'price_unit'] },
-      ],
-    },
-    id: Date.now(),
-  };
-
   try {
-    const response = await fetch(ODOO_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    // Get credentials from session
+    const { uid, password } = req.session.user!;
 
-    const raw = await response.text();
-    console.log("⬅️ Ruwe Odoo-response:", raw);
+    // Fetch order lines
+    const lines = await odooClient.searchRead<RawLine>(
+      uid,
+      password,
+      'pos.order.line',
+      [['order_id', '=', orderId]],
+      ['product_id', 'qty', 'price_unit']
+    );
 
-    const json = JSON.parse(raw);
-
-    if (json.error) {
-      console.error('Odoo error:', json.error);
-      return res.status(500).json({ error: json.error });
-    }
-    
-    type RawLine = {
-      product_id?: [number, string];
-      qty: number;
-      price_unit: number;
-    };
-
-    const lines = (json.result as RawLine[]).map((line) => ({
+    const mappedLines = lines.map((line) => ({
       product_name: line.product_id?.[1] ?? 'Onbekend',
       qty: line.qty,
       price_unit: line.price_unit,
     }));
 
-    return res.status(200).json({ lines });
+    return res.status(200).json({ lines: mappedLines });
   } catch (err) {
     console.error('❌ Fetch error:', err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withAuth(handler);

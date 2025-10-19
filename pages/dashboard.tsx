@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 type OrderLine = {
   product_name: string;
@@ -30,9 +30,7 @@ type LastSessionData = {
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<SessionData | null>(null);
   const [lastSession, setLastSession] = useState<LastSessionData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,19 +38,6 @@ export default function DashboardPage() {
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
   const [showingLastSession, setShowingLastSession] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
@@ -62,18 +47,17 @@ export default function DashboardPage() {
     const res = await fetch('/api/odoo-call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        uid,
-        password,
-      }),
+      body: JSON.stringify(params),
     });
     const json = await res.json();
+    if (!json.success) {
+      throw new Error(json.error || 'Odoo call failed');
+    }
     return json.result as T;
-  }, [uid, password]);
+  }, []);
 
   const fetchLastSession = useCallback(async () => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     try {
       const sessions = await fetchFromOdoo<{ id: number; name: string; stop_at: string }[]>({
         model: 'pos.session',
@@ -116,10 +100,10 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Fout bij ophalen laatste sessie:', err);
     }
-  }, [uid, password, fetchFromOdoo]);
+  }, [isLoggedIn, fetchFromOdoo]);
 
   const fetchSales = useCallback(async () => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     setLoading(true);
     setShowingLastSession(false);
     try {
@@ -179,10 +163,10 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, fetchFromOdoo, fetchLastSession]);
+  }, [isLoggedIn, fetchFromOdoo, fetchLastSession]);
 
   const fetchLastSessionSales = useCallback(async () => {
-    if (!uid || !password || !lastSession) return;
+    if (!isLoggedIn || !lastSession) return;
     setLoading(true);
     setShowingLastSession(true);
     try {
@@ -220,7 +204,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, lastSession, fetchFromOdoo]);
+  }, [isLoggedIn, lastSession, fetchFromOdoo]);
 
   const toggleOrder = async (orderId: number) => {
     const isExpanded = expandedOrders[orderId];
@@ -232,7 +216,6 @@ export default function DashboardPage() {
         const res = await fetch(`/api/order-lines?id=${orderId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid, password }),
         });
         const json: { lines: OrderLine[] } = await res.json();
         setOrderLines((prev) => ({ ...prev, [orderId]: json.lines || [] }));
@@ -245,10 +228,18 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (uid && password) {
+    if (isLoggedIn && !authLoading) {
       fetchSales();
     }
-  }, [uid, password, fetchSales]);
+  }, [isLoggedIn, authLoading, fetchSales]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-600">⏳ Laden...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">

@@ -1,9 +1,8 @@
 // pages/api/pos-sales.ts
 
-import { NextApiRequest, NextApiResponse } from 'next';
-
-const ODOO_URL = 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = 'babetteconcept';
+import { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { odooClient } from '@/lib/odooClient';
 
 type PosSession = {
   id: number;
@@ -18,50 +17,28 @@ type PosOrder = {
   partner_id?: [number, string];
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { uid, password } = req.body;
-
-  if (!uid || !password) {
-    return res.status(401).json({ error: 'Missing authentication' });
-  }
-
   try {
-    const sessionPayload = {
-      jsonrpc: '2.0',
-      method: 'call',
-      params: {
-        service: 'object',
-        method: 'execute_kw',
-        args: [
-          ODOO_DB,
-          uid,
-          password,
-          'pos.session',
-          'search_read',
-          [[['state', '=', 'opened']]],
-          ['id', 'name'],
-          0,
-          1,
-          'id desc',
-        ],
-      },
-      id: Date.now(),
-    };
+    // Get credentials from session
+    const { uid, password } = req.session.user!;
 
-    const sessionRes = await fetch(ODOO_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sessionPayload),
-    });
+    // Search for open POS sessions
+    const sessions = await odooClient.searchRead<PosSession>(
+      uid,
+      password,
+      'pos.session',
+      [['state', '=', 'opened']],
+      ['id', 'name'],
+      1,
+      0,
+      'id desc'
+    );
 
-    const sessionJson: { result: PosSession[] } = await sessionRes.json();
-    const session = sessionJson.result[0];
-
-    if (!session) {
+    if (!sessions.length) {
       return res.status(200).json({
         session_id: 0,
         session_name: '',
@@ -70,34 +47,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const orderPayload = {
-      jsonrpc: '2.0',
-      method: 'call',
-      params: {
-        service: 'object',
-        method: 'execute_kw',
-        args: [
-          ODOO_DB,
-          uid,
-          password,
-          'pos.order',
-          'search_read',
-          [[['session_id', '=', session.id]]],
-          ['id', 'amount_total', 'date_order', 'partner_id'],
-        ],
-      },
-      id: Date.now(),
-    };
+    const session = sessions[0];
 
-    const orderRes = await fetch(ODOO_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload),
-    });
+    // Get orders for the session
+    const orders = await odooClient.searchRead<PosOrder>(
+      uid,
+      password,
+      'pos.order',
+      [['session_id', '=', session.id]],
+      ['id', 'amount_total', 'date_order', 'partner_id']
+    );
 
-    const orderJson: { result: PosOrder[] } = await orderRes.json();
-
-    const mappedOrders = orderJson.result.map((o) => ({
+    const mappedOrders = orders.map((o) => ({
       id: o.id,
       total: o.amount_total,
       timestamp: o.date_order,
@@ -120,3 +81,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withAuth(handler);

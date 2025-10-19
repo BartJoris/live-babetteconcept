@@ -1,27 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 
-// Type definition for product with brand issues (future use)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ProductWithIssue = {
-  productId: number;
-  templateId: number;
-  productName: string;
-  templateName: string;
-  variantName: string;
-  currentStock: number;
-  costPrice: number;
-  sellPrice: number;
-  orphanedBrandId?: number;
-  hasBrand: boolean;
-  brandName?: string;
-  attributeSource?: string;
-  suggestedBrandName?: string;
-  suggestedBrandId?: number;
-  suggestedBrandSource?: string;
-  matchConfidence?: 'exact' | 'fuzzy' | 'none';
-};
-
 export default function BrandDiagnosticsPage() {
   const router = useRouter();
   const [uid, setUid] = useState<number | null>(null);
