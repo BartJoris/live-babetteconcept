@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 ChartJS.register(
   CategoryScale,
@@ -63,37 +64,23 @@ const PERIOD_LABELS = {
 
 export default function BrandPerformancePage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedSeason, setSelectedSeason] = useState<'winter' | 'summer' | 'both'>('both');
   const [data, setData] = useState<BrandPerformanceData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<'profit' | 'revenue' | 'margin' | 'quantity'>('profit');
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'revenue' | 'quantity' | 'margin'>('revenue');
   const [minRevenue, setMinRevenue] = useState<number>(0);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const fetchData = useCallback(async () => {
-    if (!uid || !password) return;
-    
+    if (!isLoggedIn) return;
     setLoading(true);
     try {
       const res = await fetch('/api/brand-performance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password, year: selectedYear }),
+        body: JSON.stringify({ year: selectedYear, season: selectedSeason }),
       });
       
       const json = await res.json();
@@ -103,13 +90,13 @@ export default function BrandPerformancePage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, selectedYear]);
+  }, [isLoggedIn, selectedYear, selectedSeason]);
 
   useEffect(() => {
-    if (uid && password) {
+    if (isLoggedIn && !authLoading) {
       fetchData();
     }
-  }, [uid, password, selectedYear, fetchData]);
+  }, [isLoggedIn, authLoading, selectedYear, selectedSeason, fetchData]);
 
   // Aggregate brand data across all periods (merge duplicates by name)
   const aggregatedBrands = useMemo(() => {
@@ -480,13 +467,12 @@ export default function BrandPerformancePage() {
                   <span className="font-medium">Sorteer op:</span>
                   <select
                     value={sortBy}
-                    onChange={e => setSortBy(e.target.value as 'profit' | 'revenue' | 'margin' | 'quantity')}
+                    onChange={e => setSortBy(e.target.value as 'revenue' | 'quantity' | 'margin')}
                     className="border border-gray-300 rounded px-3 py-2 text-gray-900 font-medium bg-white"
                   >
-                    <option value="profit">Winst</option>
                     <option value="revenue">Omzet</option>
-                    <option value="margin">Winstmarge %</option>
                     <option value="quantity">Aantal Verkocht</option>
+                    <option value="margin">Winstmarge %</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2">

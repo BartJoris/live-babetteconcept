@@ -1,67 +1,37 @@
-import { useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
-export default function ProductDebug() {
-  const [productId, setProductId] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<{ 
-    success: boolean; 
-    productId: number; 
-    template: Record<string, unknown>; 
-    variants?: Array<{ 
-      id: number; 
-      display_name: string; 
-      barcode?: string; 
-      standard_price: number; 
-      lst_price: number; 
-      qty_available: number 
-    }>;
-    attributeLines?: Array<{
-      id: number;
-      display_name: string;
-      value_count: number;
-      attribute_id: [number, string];
-    }>;
-    publicCategories?: Array<{
-      id: number;
-      display_name: string;
-    }>;
-  } | null>(null);
-  const [error, setError] = useState('');
+export default function ProductDebugPage() {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchProduct = async () => {
-    if (!productId) {
-      setError('Please enter a product ID');
-      return;
-    }
-
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    if (!uid || !password) {
-      setError('No Odoo credentials found');
-      return;
-    }
-
+  const fetchProducts = useCallback(async () => {
+    if (!isLoggedIn) return;
     setLoading(true);
-    setError('');
-    setData(null);
-
     try {
-      const response = await fetch(`/api/product-debug?id=${productId}&uid=${uid}&password=${encodeURIComponent(password)}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setData(result);
-      } else {
-        setError(result.error || 'Failed to fetch product');
-      }
+      const res = await fetch('/api/product-debug', {
+        method: 'POST',
+      });
+      const json = await res.json();
+      setProducts(json.products || []);
     } catch (err) {
-      const error = err as { message?: string };
-      setError(error.message || 'Failed to fetch product');
+      console.error('Error:', err);
+      setError('Failed to fetch');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (isLoggedIn && !authLoading) {
+      fetchProducts();
+    }
+  }, [isLoggedIn, authLoading, fetchProducts]);
 
   const downloadJSON = () => {
     if (!data) return;

@@ -1,97 +1,59 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function BrandDiagnosticsPage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
-  const [data, setData] = useState<{ 
-    success: boolean; 
-    summary: { 
-      totalProducts: number;
-      productsWithBrand: number;
-      productsWithoutBrand: number;
-      productsWithOrphanedBrand: number;
-      duplicateBrandCount: number;
-      productsWithSuggestions?: number;
-      productsWithExactMatch?: number;
-    };
-    productsWithoutBrand?: Array<{
-      templateId: number;
-      templateName: string;
-      currentStock: number;
-      suggestedBrandName?: string;
-      suggestedBrandId?: number;
-      suggestedBrandSource?: string;
-      matchConfidence?: 'exact' | 'fuzzy' | 'none';
-    }>;
-    brandSuggestions?: Array<{
-      suggestedBrandName: string;
-      matchedBrandId: number | null;
-      matchedBrandName: string | null;
-      matchedBrandSource: string | null;
-      matchConfidence: string;
-      products: Array<{
-        templateId: number;
-        templateName: string;
-      }>;
-      totalStock: number;
-    }>;
-    validBrands?: Array<{ id: number; name: string; source: string }>;
-    attributeIds?: Record<number, string>; // Maps attribute ID to name (18 -> 'MERK', etc.)
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [selectedForTest, setSelectedForTest] = useState<number | null>(null);
-  const [updating, setUpdating] = useState(false);
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [brands, setBrands] = useState<BrandDiagnostic[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Helper to get attribute ID from source name
-  const getAttributeId = (sourceName: string): number | null => {
-    if (!data?.attributeIds) return null;
-    const entry = Object.entries(data.attributeIds).find(([, name]) => name === sourceName);
-    return entry ? parseInt(entry[0]) : null;
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
+  const fetchFromOdoo = useCallback(async <T,>(params: {
+    model: string;
+    method: string;
+    args: unknown[];
+  }): Promise<T> => {
+    const res = await fetch('/api/odoo-call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const json = await res.json();
+    if (!json.success) {
+      throw new Error(json.error || 'Odoo call failed');
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return json.result as T;
+  }, []);
 
-  const fetchData = useCallback(async () => {
-    if (!uid || !password) return;
-    
+  const fetchBrands = useCallback(async () => {
+    if (!isLoggedIn) return;
     setLoading(true);
     try {
       const res = await fetch('/api/brand-diagnostics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password }),
+        body: JSON.stringify({}),
       });
       
       const json = await res.json();
-      setData(json);
+      setBrands(json.brands || []);
     } catch (error) {
       console.error('Error fetching brand diagnostics:', error);
     } finally {
       setLoading(false);
     }
-  }, [uid, password]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    if (uid && password) {
-      fetchData();
+    if (isLoggedIn && !authLoading) {
+      fetchBrands();
     }
-  }, [uid, password, fetchData]);
+  }, [isLoggedIn, authLoading, fetchBrands]);
 
   const testBrandAssignment = async (templateId: number, brandId: number, brandSource: string) => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     
     const attributeId = getAttributeId(brandSource);
     if (!attributeId) {
@@ -131,7 +93,7 @@ export default function BrandDiagnosticsPage() {
   };
 
   const bulkAssignBrand = async (templateIds: number[], brandId: number, brandSource: string) => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     
     const attributeId = getAttributeId(brandSource);
     if (!attributeId) {

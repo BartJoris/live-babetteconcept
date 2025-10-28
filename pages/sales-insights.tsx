@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 type DailySales = {
   date: string;
@@ -28,25 +29,11 @@ type MonthlyInsights = {
 
 export default function SalesInsightsPage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [insights, setInsights] = useState<MonthlyInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [marginAvailable, setMarginAvailable] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set default month to current month
   useEffect(() => {
@@ -54,8 +41,6 @@ export default function SalesInsightsPage() {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     setSelectedMonth(currentMonth);
   }, []);
-
-
 
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
@@ -65,18 +50,14 @@ export default function SalesInsightsPage() {
     const res = await fetch('/api/odoo-call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        uid,
-        password,
-      }),
+      body: JSON.stringify(params),
     });
     const json = await res.json();
     return json.result as T;
-  }, [uid, password]);
+  }, []);
 
   const fetchMonthlySales = useCallback(async () => {
-    if (!uid || !password || !selectedMonth) return;
+    if (!isLoggedIn || !selectedMonth) return;
     setLoading(true);
     try {
       // Parse the selected month
@@ -299,13 +280,13 @@ export default function SalesInsightsPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, selectedMonth, fetchFromOdoo]);
+  }, [isLoggedIn, selectedMonth, fetchFromOdoo]);
 
   useEffect(() => {
-    if (uid && password && selectedMonth) {
+    if (isLoggedIn && selectedMonth) {
       fetchMonthlySales();
     }
-  }, [uid, password, selectedMonth, fetchMonthlySales]);
+  }, [isLoggedIn, selectedMonth, fetchMonthlySales]);
 
   const formatDate = (dateString: string) => {
     // Format as 'Mon 15 Jul' in Dutch

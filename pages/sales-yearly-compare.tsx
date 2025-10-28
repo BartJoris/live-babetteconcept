@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 // Voor eenvoudige grafiek (optioneel):
 // npm install chart.js react-chartjs-2
@@ -43,26 +44,12 @@ const formatBE = (amount: number) => amount.toLocaleString('nl-BE', { minimumFra
 
 export default function SalesComparePage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [compareData, setCompareData] = useState<CompareData>({});
   const [loading, setLoading] = useState(false);
   const [marginAvailable, setMarginAvailable] = useState(false);
   const [allYears, setAllYears] = useState<number[]>([]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bepaal alle jaren met data (optioneel: hardcoded 2022-2025)
   useEffect(() => {
@@ -83,18 +70,14 @@ export default function SalesComparePage() {
     const res = await fetch('/api/odoo-call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        uid,
-        password,
-      }),
+      body: JSON.stringify(params),
     });
     const json = await res.json();
     return json.result as T;
-  }, [uid, password]);
+  }, []);
 
   const fetchCompareData = useCallback(async () => {
-    if (!uid || !password || !selectedYears.length) return;
+    if (!isLoggedIn || !selectedYears.length) return;
     setLoading(true);
     let marginFound = false;
     const data: CompareData = {};
@@ -155,13 +138,13 @@ export default function SalesComparePage() {
     setCompareData(data);
     setMarginAvailable(marginFound);
     setLoading(false);
-  }, [uid, password, selectedYears, fetchFromOdoo]);
+  }, [isLoggedIn, selectedYears, fetchFromOdoo]);
 
   useEffect(() => {
-    if (uid && password && selectedYears.length) {
+    if (isLoggedIn && selectedYears.length) {
       fetchCompareData();
     }
-  }, [uid, password, selectedYears, fetchCompareData]);
+  }, [isLoggedIn, selectedYears, fetchCompareData]);
 
   // Data voor grafiek
   const chartData = {

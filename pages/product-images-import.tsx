@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 import Image from 'next/image';
 
@@ -20,16 +22,12 @@ interface MatchedProduct extends ParsedProduct {
   matchStrategy?: 'reference' | 'name' | 'none';
 }
 
-export default function ProductImagesImport() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [vendorUrl, setVendorUrl] = useState('https://www.hellosimone.fr/');
-  const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
-  const [vendorProducts, setVendorProducts] = useState<VendorProduct[]>([]);
-  const [matchedProducts, setMatchedProducts] = useState<MatchedProduct[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+export default function ProductImagesImportPage() {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [file, setFile] = useState<File | null>(null);
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploadResults, setUploadResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

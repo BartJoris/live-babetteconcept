@@ -3,6 +3,7 @@
 import React from 'react';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 type Sale = {
   id: number;
@@ -26,10 +27,10 @@ type OrderLine = {
 
 export default function SalesDashboard() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
-  const [data, setData] = useState<SessionData | null>(null);
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
@@ -39,8 +40,8 @@ export default function SalesDashboard() {
       const storedUid = localStorage.getItem('odoo_uid');
       const storedPass = localStorage.getItem('odoo_pass');
       if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
+        // setUid(Number(storedUid)); // This line is removed as per the new_code
+        // setPassword(storedPass); // This line is removed as per the new_code
       } else {
         router.push('/');
       }
@@ -48,13 +49,13 @@ export default function SalesDashboard() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSales = useCallback(async () => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     setLoading(true);
     try {
       const res = await fetch('/api/pos-sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password }),
+        // body: JSON.stringify({ uid, password }), // This line is removed as per the new_code
       });
       const json = await res.json();
       setData(json);
@@ -63,10 +64,10 @@ export default function SalesDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password]);
+  }, [isLoggedIn]);
 
   const toggleOrder = async (orderId: number) => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     const isExpanded = expandedOrders[orderId];
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !isExpanded }));
 
@@ -76,7 +77,7 @@ export default function SalesDashboard() {
         const res = await fetch(`/api/order-lines?id=${orderId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid, password }),
+          // body: JSON.stringify({ uid, password }), // This line is removed as per the new_code
         });
         const json = await res.json();
         setOrderLines((prev) => ({ ...prev, [orderId]: json.lines || [] }));
@@ -89,12 +90,12 @@ export default function SalesDashboard() {
   };
 
   useEffect(() => {
-    if (uid && password) {
+    if (isLoggedIn && !authLoading) {
       fetchSales();
       const interval = setInterval(fetchSales, 60000);
       return () => clearInterval(interval);
     }
-  }, [uid, password, fetchSales]);
+  }, [isLoggedIn, authLoading, fetchSales]);
 
   const getUniekeDatums = (): string => {
     if (!data?.orders?.length) return '';

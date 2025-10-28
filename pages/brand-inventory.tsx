@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 ChartJS.register(
   CategoryScale,
@@ -68,37 +69,23 @@ const STATUS_CONFIG = {
 
 export default function BrandInventoryPage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedSeason, setSelectedSeason] = useState<'winter' | 'summer' | 'both'>('both');
   const [data, setData] = useState<BrandInventoryData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'sellThrough' | 'stockValue' | 'totalSold'>('sellThrough');
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const fetchData = useCallback(async () => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     
     setLoading(true);
     try {
       const res = await fetch('/api/brand-inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password, year: selectedYear, season: selectedSeason }),
+        body: JSON.stringify({ selectedBrand }),
       });
       
       const json: BrandInventoryData = await res.json();
@@ -108,13 +95,13 @@ export default function BrandInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, selectedYear, selectedSeason]);
+  }, [isLoggedIn, selectedBrand]);
 
   useEffect(() => {
-    if (uid && password) {
+    if (isLoggedIn && !authLoading) {
       fetchData();
     }
-  }, [uid, password, selectedYear, selectedSeason, fetchData]);
+  }, [isLoggedIn, authLoading, fetchData]);
 
   // Aggregate data across selected seasons (merge duplicates by name)
   const aggregatedBrands = useMemo(() => {

@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
-export default function CategoriesExplorer() {
-  const [data, setData] = useState<{ success: boolean; summary: Record<string, number>; internalCategories: unknown[]; publicCategories: unknown[]; productTags: unknown[]; posCategories: unknown[]; error?: string; publicCategoriesError?: unknown; productTagsError?: unknown; sampleProductWithPublicCategs?: unknown; sampleProductsWithTags?: unknown } | null>(null);
+export default function CategoriesExplorerPage() {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [data, setData] = useState<CategoryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('internal');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const fetchData = useEffect(() => {
+    if (!isLoggedIn && !authLoading) {
+      router.push('/');
+    }
+  }, [isLoggedIn, authLoading, router]);
 
   const fetchCategories = async () => {
     setLoading(true);

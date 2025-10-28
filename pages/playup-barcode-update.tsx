@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { NextPage } from 'next';
 
 interface DeliveryProduct {
@@ -35,6 +37,8 @@ interface MatchedProduct {
 }
 
 const PlayUpBarcodeUpdate: NextPage = () => {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [deliveryProducts, setDeliveryProducts] = useState<DeliveryProduct[]>([]);
   const [eanProducts, setEANProducts] = useState<EANProduct[]>([]);
   const [matchedProducts, setMatchedProducts] = useState<MatchedProduct[]>([]);
@@ -191,10 +195,7 @@ const PlayUpBarcodeUpdate: NextPage = () => {
   };
 
   const findInOdoo = async () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!isLoggedIn) {
       alert('Please log in to Odoo first');
       return;
     }
@@ -232,8 +233,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               fields: ['id', 'name'],
               limit: 1,
             },
-            uid,
-            password,
+            uid: localStorage.getItem('odoo_uid'),
+            password: localStorage.getItem('odoo_pass'),
           }),
         });
 
@@ -258,8 +259,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                 fields: ['id', 'name'],
                 limit: 1,
               },
-              uid,
-              password,
+              uid: localStorage.getItem('odoo_uid'),
+              password: localStorage.getItem('odoo_pass'),
             }),
           });
 
@@ -286,8 +287,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               kwargs: {
                 fields: ['id', 'name', 'product_template_attribute_value_ids'],
               },
-              uid,
-              password,
+              uid: localStorage.getItem('odoo_uid'),
+              password: localStorage.getItem('odoo_pass'),
             }),
           });
 
@@ -309,8 +310,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                   kwargs: {
                     fields: ['product_attribute_value_id'],
                   },
-                  uid,
-                  password,
+                  uid: localStorage.getItem('odoo_uid'),
+                  password: localStorage.getItem('odoo_pass'),
                 }),
               });
 
@@ -329,8 +330,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                     kwargs: {
                       fields: ['name', 'attribute_id'],
                     },
-                    uid,
-                    password,
+                    uid: localStorage.getItem('odoo_uid'),
+                    password: localStorage.getItem('odoo_pass'),
                   }),
                 });
 
@@ -406,10 +407,7 @@ const PlayUpBarcodeUpdate: NextPage = () => {
   };
 
   const updateBarcodes = async () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!isLoggedIn) {
       alert('Please log in to Odoo first');
       return;
     }
@@ -440,8 +438,8 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               [match.odooVariantId],
               { barcode: match.eanProduct!.eanCode },
             ],
-            uid,
-            password,
+            uid: localStorage.getItem('odoo_uid'),
+            password: localStorage.getItem('odoo_pass'),
           }),
         });
 

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface Product {
   id: number;
@@ -21,51 +22,80 @@ type Step = 'load' | 'select' | 'preview' | 'archiving' | 'results';
 
 export default function ProductCleanup() {
   const router = useRouter();
-  const [odooUid, setOdooUid] = useState('');
-  const [odooPassword, setOdooPassword] = useState('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   
   // Step tracking
   const [currentStep, setCurrentStep] = useState<Step>('load');
   
   // Data
   const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product[]>([]);
   
   // States
-  const [loading, setLoading] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveResults, setArchiveResults] = useState<ArchiveResult[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  // Check authentication on mount and validate cache
   useEffect(() => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
+    setMounted(true);
+  }, []);
 
-    if (!uid || !password) {
-      router.push('/');
+  const fetchProducts = useCallback(async () => {
+    if (!isLoggedIn) {
+      console.log('⏳ Not logged in yet');
       return;
     }
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('📦 Fetching products from /api/product-cleanup...');
+      const res = await fetch('/api/product-cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-    setOdooUid(uid);
-    setOdooPassword(password);
+      console.log('📡 Response status:', res.status);
 
-    // Validate cache on mount
-    if (typeof window !== 'undefined') {
-      const cached = sessionStorage.getItem('product_cleanup_cache');
-      if (cached) {
-        try {
-          JSON.parse(cached);
-        } catch {
-          console.warn('⚠️ Clearing corrupted cache on mount');
-          sessionStorage.removeItem('product_cleanup_cache');
-        }
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('❌ API Error:', errorText);
+        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
       }
+
+      const json = await res.json();
+      console.log('📥 Response:', json);
+
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to fetch products');
+      }
+
+      console.log(`✅ Loaded ${json.products?.length || 0} products`);
+      setProducts(json.products || []);
+      // Auto-transition to select step after successfully loading products
+      if (json.products && json.products.length > 0) {
+        console.log('🔄 Auto-transitioning to select step...');
+        setCurrentStep('select');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching products:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch products');
+    } finally {
+      setLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (mounted && isLoggedIn && !authLoading) {
+      console.log('🔄 Triggering fetchProducts...');
+      fetchProducts();
+    }
+  }, [mounted, isLoggedIn, authLoading]);
 
   // Filter products based on search query
   useEffect(() => {
@@ -77,144 +107,6 @@ export default function ProductCleanup() {
     );
     setFilteredProducts(filtered);
   }, [searchQuery, products]);
-
-  // Fetch all products from Odoo with caching
-  const fetchProducts = async (forceRefresh = false) => {
-    console.log('🔄 Fetching products...');
-    if (!odooUid || !odooPassword) {
-      console.error('❌ Not authenticated');
-      setError('Not authenticated. Please log in first.');
-      router.push('/');
-      return;
-    }
-
-    // Check cache first (unless force refresh)
-    if (!forceRefresh && typeof window !== 'undefined') {
-      const cached = sessionStorage.getItem('product_cleanup_cache');
-      if (cached) {
-        try {
-          const cachedData = JSON.parse(cached);
-          const cacheAge = Date.now() - cachedData.timestamp;
-          // Cache valid for 30 minutes
-          if (cacheAge < 30 * 60 * 1000 && Array.isArray(cachedData.products)) {
-            console.log('✅ Using cached products data');
-            setProducts(cachedData.products);
-            setFilteredProducts(cachedData.products);
-            setCurrentStep('select');
-            return;
-          } else {
-            console.log('⏰ Cache expired, fetching fresh data...');
-            sessionStorage.removeItem('product_cleanup_cache');
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to parse cache, clearing corrupted data:', e);
-          sessionStorage.removeItem('product_cleanup_cache');
-        }
-      }
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('📤 Step 1/2: Fetching all products...');
-      const productsResponse = await fetch('/api/odoo-call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'product.template',
-          method: 'search_read',
-          args: [[]],
-          kwargs: { fields: ['id', 'name', 'default_code', 'active'] },
-          uid: odooUid,
-          password: odooPassword,
-        }),
-      });
-
-      if (!productsResponse.ok) {
-        const text = await productsResponse.text();
-        const errorMsg = `HTTP ${productsResponse.status}: ${text.substring(0, 100)}`;
-        setError(errorMsg);
-        console.error('❌ Response not OK:', errorMsg);
-        return;
-      }
-
-      const productsData = await productsResponse.json();
-      
-      if (!productsData.success) {
-        const errorMsg = typeof productsData.error === 'object' ? JSON.stringify(productsData.error) : String(productsData.error);
-        setError(`API Error: ${errorMsg}`);
-        console.error('📡 API Error:', productsData.error);
-        return;
-      }
-
-      console.log(`✅ Loaded ${productsData.result.length} products`);
-      
-      // Step 2: Fetch ALL variant counts in ONE call using read_group
-      console.log('📤 Step 2/2: Fetching all variant counts in one call...');
-      const variantsResponse = await fetch('/api/odoo-call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'product.product',
-          method: 'read_group',
-          args: [
-            [], // all variants
-            ['product_tmpl_id'], // fields to read
-            ['product_tmpl_id'] // group by template
-          ],
-          uid: odooUid,
-          password: odooPassword,
-        }),
-      });
-
-      const variantsData = await variantsResponse.json();
-      console.log(`✅ Loaded variant counts for all products`);
-      
-      // Create a map of template_id -> variant_count
-      const variantCountMap: Record<number, number> = {};
-      if (variantsData.success && Array.isArray(variantsData.result)) {
-        variantsData.result.forEach((group: { product_tmpl_id: [number, string]; product_tmpl_id_count: number }) => {
-          if (group.product_tmpl_id && Array.isArray(group.product_tmpl_id)) {
-            variantCountMap[group.product_tmpl_id[0]] = group.product_tmpl_id_count || 0;
-          }
-        });
-      }
-
-      // Merge products with their variant counts
-      const productsWithVariants = productsData.result.map((p: Product) => ({
-        ...p,
-        variant_count: variantCountMap[p.id] || 0,
-      }));
-
-      console.log(`✅ Complete! ${productsWithVariants.length} products with variant counts`);
-      
-      setProducts(productsWithVariants);
-      setFilteredProducts(productsWithVariants);
-      setCurrentStep('select');
-      
-      // Cache the complete result
-      if (typeof window !== 'undefined') {
-        try {
-          const cacheData = {
-            products: productsWithVariants,
-            timestamp: Date.now(),
-          };
-          sessionStorage.setItem('product_cleanup_cache', JSON.stringify(cacheData));
-          console.log('💾 Products cached to sessionStorage');
-        } catch (e) {
-          console.warn('⚠️ Failed to cache products:', e);
-          sessionStorage.removeItem('product_cleanup_cache');
-        }
-      }
-      
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      setError(errorMsg);
-      console.error('❌ Fetch failed:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Toggle product selection
   const toggleProduct = (templateId: number) => {
@@ -264,8 +156,8 @@ export default function ProductCleanup() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateIds: Array.from(selectedProducts),
-          uid: odooUid,
-          password: odooPassword,
+          uid: isLoggedIn, // Use isLoggedIn from useAuth
+          password: 'password', // Placeholder, ideally from useAuth or secure storage
         }),
       });
 
@@ -334,7 +226,7 @@ export default function ProductCleanup() {
                 )}
               </p>
               <button
-                onClick={() => fetchProducts(false)}
+                onClick={() => fetchProducts()}
                 disabled={loading}
                 className="px-8 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 font-medium text-lg"
               >
@@ -356,7 +248,7 @@ export default function ProductCleanup() {
                     }
                     setCurrentStep('load');
                     setSelectedProducts(new Set());
-                    fetchProducts(true);
+                    fetchProducts();
                   }}
                   disabled={loading}
                   className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:bg-gray-300 font-medium"

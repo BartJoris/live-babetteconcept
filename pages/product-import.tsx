@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 // Types
 interface ParsedProduct {
@@ -174,7 +176,15 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
   return determineSizeAttribute(firstSize);
 }
 
-export default function ProductImport() {
+export default function ProductImportPage() {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [file, setFile] = useState<File | null>(null);
+  const [results, setResults] = useState<ImportResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successCount, setSuccessCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);
   const [pdfPrices, setPdfPrices] = useState<Map<string, number>>(new Map());
@@ -208,7 +218,6 @@ export default function ProductImport() {
   const [publicCategorySearch, setPublicCategorySearch] = useState('');
   const [productTagSearch, setProductTagSearch] = useState('');
   
-  const [loading, setLoading] = useState(false);
   const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
@@ -312,11 +321,11 @@ export default function ProductImport() {
 
   const fetchCategories = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const { uid, password } = getCredentials();
       if (!uid || !password) {
         console.error('No Odoo credentials found');
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
 
@@ -338,7 +347,7 @@ export default function ProductImport() {
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -1204,7 +1213,7 @@ export default function ProductImport() {
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
 
     try {
@@ -1266,7 +1275,7 @@ export default function ProductImport() {
 
       if (imagesToUpload.length === 0) {
         alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. F10625 - ...)');
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
 
@@ -1349,14 +1358,14 @@ export default function ProductImport() {
       
       console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
       setImageImportResults(results);
-      setLoading(false);
+      setIsLoading(false);
       setCurrentStep(7);
 
     } catch (error) {
       console.error('❌ Error uploading images:', error);
       alert(`❌ Error: ${String(error)}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -1366,7 +1375,7 @@ export default function ProductImport() {
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     try {
       // Get unique products with article codes and descriptions
       const uniqueProducts = Array.from(
@@ -1437,7 +1446,7 @@ export default function ProductImport() {
       console.error('Error fetching Play UP prices:', error);
       alert('Fout bij ophalen Play UP prijzen');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -1731,13 +1740,13 @@ export default function ProductImport() {
 
   const executeImport = async (testMode: boolean = false) => {
     setShowApiPreview(false);
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const { uid, password } = getCredentials();
       if (!uid || !password) {
         alert('Geen Odoo credentials gevonden. Log eerst in.');
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
 
@@ -1824,7 +1833,7 @@ export default function ProductImport() {
       alert('Import failed: ' + error);
       setImportProgress(null);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -2183,10 +2192,10 @@ export default function ProductImport() {
                           <div className="grid grid-cols-2 gap-3">
                             <button
                               onClick={fetchPlayUpPrices}
-                              disabled={!playupUsername || !playupPassword || parsedProducts.length === 0 || loading}
+                              disabled={!playupUsername || !playupPassword || parsedProducts.length === 0 || isLoading}
                               className="bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
                             >
-                              {loading ? '⏳ Bezig...' : '💰 Haal Prijzen Op'}
+                              {isLoading ? '⏳ Bezig...' : '💰 Haal Prijzen Op'}
                             </button>
                             
                             <button
@@ -2776,13 +2785,13 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         fetchBrands();
                         fetchCategories();
                       }}
-                      disabled={loading}
+                      disabled={isLoading}
                       className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm"
                     >
                       🔄 Vernieuw Data
                     </button>
                   </div>
-                  {loading && (
+                  {isLoading && (
                     <div className="mt-2 text-sm text-blue-600">⏳ Bezig met laden...</div>
                   )}
                   {!loading && (brands.length === 0 || internalCategories.length === 0) && (

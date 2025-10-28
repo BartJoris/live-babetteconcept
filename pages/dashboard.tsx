@@ -38,6 +38,11 @@ export default function DashboardPage() {
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
   const [showingLastSession, setShowingLastSession] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
@@ -233,9 +238,9 @@ export default function DashboardPage() {
     }
   }, [isLoggedIn, authLoading, fetchSales]);
 
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <p className="text-gray-600">⏳ Laden...</p>
       </div>
     );

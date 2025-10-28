@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -57,8 +58,7 @@ function isBelgianHoliday(year: number, month: number, day: number) {
 
 export default function DailyComparePage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedPeriods, setSelectedPeriods] = useState<{ year: number; month: number }[]>([
     { year: new Date().getFullYear(), month: new Date().getMonth() + 1 },
   ]);
@@ -72,8 +72,9 @@ export default function DailyComparePage() {
       const storedUid = localStorage.getItem('odoo_uid');
       const storedPass = localStorage.getItem('odoo_pass');
       if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
+        // This part is now handled by useAuth, so we can remove it.
+        // setUid(Number(storedUid));
+        // setPassword(storedPass);
       } else {
         router.push('/');
       }
@@ -88,18 +89,14 @@ export default function DailyComparePage() {
     const res = await fetch('/api/odoo-call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
-        uid,
-        password,
-      }),
+      body: JSON.stringify(params),
     });
     const json = await res.json();
     return json.result as T;
-  }, [uid, password]);
+  }, []);
 
   const fetchCompareData = useCallback(async () => {
-    if (!uid || !password || !selectedPeriods.length) return;
+    if (!isLoggedIn || !selectedPeriods.length) return;
     setLoading(true);
     let marginFound = false;
     const data: Record<string, { omzet: number[]; marge?: number[]; days: number }> = {};
@@ -159,13 +156,13 @@ export default function DailyComparePage() {
     setCompareData(data);
     setMarginAvailable(marginFound);
     setLoading(false);
-  }, [uid, password, selectedPeriods, fetchFromOdoo]);
+  }, [isLoggedIn, selectedPeriods, fetchFromOdoo]);
 
   useEffect(() => {
-    if (uid && password && selectedPeriods.length) {
+    if (isLoggedIn && selectedPeriods.length) {
       fetchCompareData();
     }
-  }, [uid, password, selectedPeriods, fetchCompareData]);
+  }, [isLoggedIn, selectedPeriods, fetchCompareData]);
 
   // Helper functie voor cumulatieve data
   const calculateCumulativeData = () => {

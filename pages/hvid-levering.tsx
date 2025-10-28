@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { NextPage } from 'next';
 
 interface ProductLine {
@@ -78,7 +80,11 @@ interface CheckResult {
   defaultBrand: { id: number; name: string } | null;
 }
 
-const BarcodeDuplicateChecker: NextPage = () => {
+const HvidLeveringPage: NextPage = () => {
+  const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const [deliveryProducts, setDeliveryProducts] = useState<ProductLine[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
@@ -1779,5 +1785,5 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, model, onUpdate, loa
   );
 };
 
-export default BarcodeDuplicateChecker;
+export default HvidLeveringPage;
 

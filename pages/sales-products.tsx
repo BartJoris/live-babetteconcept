@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 type DailySalesProduct = {
   date: string;
@@ -40,8 +41,7 @@ type ProductDetail = {
 
 export default function SalesProductsPage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<SalesProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -54,8 +54,8 @@ export default function SalesProductsPage() {
       const storedUid = localStorage.getItem('odoo_uid');
       const storedPass = localStorage.getItem('odoo_pass');
       if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
+        // setUid(Number(storedUid)); // This line is removed as per the new_code
+        // setPassword(storedPass); // This line is removed as per the new_code
       } else {
         router.push('/');
       }
@@ -70,15 +70,13 @@ export default function SalesProductsPage() {
   }, []);
 
   const fetchSalesProducts = useCallback(async () => {
-    if (!uid || !password || !selectedMonth) return;
+    if (!isLoggedIn || !selectedMonth) return;
     setLoading(true);
     try {
       const res = await fetch('/api/sales-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid,
-          password,
           selectedMonth,
         }),
       });
@@ -94,42 +92,38 @@ export default function SalesProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, selectedMonth]);
+  }, [isLoggedIn, selectedMonth]);
 
   const fetchDayDetails = useCallback(async (date: string) => {
-    if (!uid || !password) return;
+    if (!isLoggedIn) return;
     setLoadingDayDetails(true);
     try {
-      console.log('🔍 Fetching day details for date:', date);
-      const res = await fetch('/api/day-products', {
+      const res = await fetch('/api/sales-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid,
-          password,
           date,
         }),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to fetch day details');
+        throw new Error('Failed to fetch data');
       }
 
       const result = await res.json();
-      console.log('🔍 Day details result:', result);
-      setDayDetails(result);
+      setDayDetails(result.products || []);
     } catch (err) {
       console.error('Fout bij ophalen dag details:', err);
     } finally {
       setLoadingDayDetails(false);
     }
-  }, [uid, password]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    if (uid && password && selectedMonth) {
+    if (isLoggedIn && selectedMonth) {
       fetchSalesProducts();
     }
-  }, [uid, password, selectedMonth, fetchSalesProducts]);
+  }, [isLoggedIn, selectedMonth, fetchSalesProducts]);
 
   const handleDayClick = (date: string) => {
     console.log('🔍 Day clicked:', date);

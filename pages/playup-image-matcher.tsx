@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import Image from 'next/image';
 
 interface CSVProduct {
@@ -21,6 +22,7 @@ interface MatchedProduct {
 
 export default function PlayUpImageMatcher() {
   const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [imageListFile, setImageListFile] = useState<File | null>(null);
   const [csvProducts, setCsvProducts] = useState<CSVProduct[]>([]);
@@ -31,12 +33,10 @@ export default function PlayUpImageMatcher() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    if (!uid || !password) {
+    if (!isLoggedIn && !authLoading) {
       router.push('/');
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, authLoading, router]);
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

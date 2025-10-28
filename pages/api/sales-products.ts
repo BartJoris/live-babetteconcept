@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL!;
 const ODOO_DB = process.env.ODOO_DB!;
@@ -48,7 +49,10 @@ type OrderLine = {
 
 
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async function handler(
+  req: NextApiRequestWithSession,
+  res: NextApiResponse
+) {
   // Add cache-busting headers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -58,9 +62,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { uid, password, selectedMonth } = req.body;
+  const { selectedMonth, date } = req.body;
+  const { uid, password } = req.session.user || {};
 
-  if (!uid || !password || !selectedMonth) {
+  if (!uid || !password) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!selectedMonth && !date) {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
@@ -447,4 +456,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('❌ API error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
-} 
+}); 

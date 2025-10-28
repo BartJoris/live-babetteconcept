@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -108,8 +109,7 @@ const formatNumber = (num: number) =>
 
 export default function EcommerceInsightsPage() {
   const router = useRouter();
-  const [uid, setUid] = useState<number | null>(null);
-  const [password, setPassword] = useState<string>('');
+  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,19 +117,6 @@ export default function EcommerceInsightsPage() {
   const [viewMode, setViewMode] = useState<'overview' | 'comparison' | 'products' | 'customers' | 'returns'>('overview');
   const [selectedWebsite, setSelectedWebsite] = useState<string>('all');
   const [expandedCancelledOrders, setExpandedCancelledOrders] = useState<Record<number, boolean>>({});
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        setUid(Number(storedUid));
-        setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const now = new Date();
@@ -142,15 +129,13 @@ export default function EcommerceInsightsPage() {
   }, []);
 
   const fetchInsights = useCallback(async () => {
-    if (!uid || !password || !selectedYears.length) return;
+    if (!selectedYears.length) return;
     setLoading(true);
     try {
       const res = await fetch('/api/ecommerce-insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid,
-          password,
           years: selectedYears,
           websiteId: selectedWebsite,
         }),
@@ -162,13 +147,13 @@ export default function EcommerceInsightsPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, password, selectedYears, selectedWebsite]);
+  }, [selectedYears, selectedWebsite]);
 
   useEffect(() => {
-    if (uid && password && selectedYears.length) {
+    if (isLoggedIn && selectedYears.length) {
       fetchInsights();
     }
-  }, [uid, password, selectedYears, selectedWebsite, fetchInsights]);
+  }, [isLoggedIn, selectedYears, selectedWebsite, fetchInsights]);
 
   // Set default website to "Babette." when data is loaded
   useEffect(() => {
