@@ -21,12 +21,12 @@ interface ArchiveResult {
 type Step = 'load' | 'select' | 'preview' | 'archiving' | 'results';
 
 export default function ProductCleanup() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);

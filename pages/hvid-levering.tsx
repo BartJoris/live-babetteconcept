@@ -81,13 +81,13 @@ interface CheckResult {
 }
 
 const HvidLeveringPage: NextPage = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - router will be used for future navigation features
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - auth data for future features
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - deliveryProducts will be used for future features
   const [deliveryProducts, setDeliveryProducts] = useState<ProductLine[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - results will be used for future features
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);

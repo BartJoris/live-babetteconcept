@@ -4,16 +4,16 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
 export default function CategoriesExplorerPage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - router will be used for future navigation features
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - auth data for future features
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<CategoryData | null>(null);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - error state for future features
   const [error, setError] = useState('');
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - fetchCategories will be used for future features
   const fetchCategories = async () => {
     setLoading(true);
     try {

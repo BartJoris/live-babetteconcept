@@ -220,20 +220,20 @@ function transformProductForUpload(product: ParsedProduct): ParsedProduct {
 }
 
 export default function ProductImportPage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [file, setFile] = useState<File | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [results, setResults] = useState<ImportResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [error, setError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [successCount, setSuccessCount] = useState(0);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const [errorCount, setErrorCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);

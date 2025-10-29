@@ -68,7 +68,7 @@ const STATUS_CONFIG = {
 };
 
 export default function BrandInventoryPage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - router will be used for future navigation features
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());

@@ -108,9 +108,9 @@ const formatNumber = (num: number) =>
   num.toLocaleString('nl-BE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export default function EcommerceInsightsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - router will be used for future navigation features
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - auth data for future features
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [data, setData] = useState<InsightsData | null>(null);

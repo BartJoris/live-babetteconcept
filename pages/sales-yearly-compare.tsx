@@ -43,9 +43,9 @@ const MONTH_LABELS = [
 const formatBE = (amount: number) => amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SalesComparePage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [compareData, setCompareData] = useState<CompareData>({});

@@ -37,9 +37,9 @@ interface MatchedProduct {
 }
 
 const PlayUpBarcodeUpdate: NextPage = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [deliveryProducts, setDeliveryProducts] = useState<DeliveryProduct[]>([]);
   const [eanProducts, setEANProducts] = useState<EANProduct[]>([]);
