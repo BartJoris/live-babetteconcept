@@ -21,7 +21,7 @@ async function handler(
     console.log('📦 Fetching all products for user:', uid);
 
     // Fetch all product templates
-    const products = await odooClient.call({
+    const products = await odooClient.call<Array<{ id: number; name: string; default_code: string; active: boolean }>>({
       uid,
       password,
       model: 'product.template',
@@ -40,7 +40,7 @@ async function handler(
     }
 
     // Fetch variant counts
-    const variantCounts = await odooClient.call({
+    const variantCounts = await odooClient.call<Array<{ product_tmpl_id: [number, string]; product_tmpl_id_count: number }>>({
       uid,
       password,
       model: 'product.product',
