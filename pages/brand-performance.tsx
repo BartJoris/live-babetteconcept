@@ -208,8 +208,6 @@ export default function BrandPerformancePage() {
     // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'profit':
-          return b.totalMargin - a.totalMargin;
         case 'revenue':
           return b.totalRevenue - a.totalRevenue;
         case 'margin':

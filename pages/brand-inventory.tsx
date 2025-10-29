@@ -86,7 +86,10 @@ export default function BrandInventoryPage() {
       const res = await fetch('/api/brand-inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedBrand }),
+        body: JSON.stringify({ 
+          year: selectedYear,
+          season: selectedSeason
+        }),
       });
       
       const json: BrandInventoryData = await res.json();
@@ -96,7 +99,7 @@ export default function BrandInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, selectedYear, selectedSeason]);
 
   useEffect(() => {
     if (isLoggedIn && !authLoading) {
