@@ -41,6 +41,9 @@ export default function LoginPage() {
 
       if (json.success && json.user) {
         // Session cookie is set automatically
+        // Also store credentials in localStorage for use by product import page
+        localStorage.setItem('odoo_uid', String(json.user.uid));
+        localStorage.setItem('odoo_pass', password);
         router.push('/dashboard');
       } else {
         setError(json.error || 'Ongeldige login');

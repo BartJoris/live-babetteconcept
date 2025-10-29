@@ -41,10 +41,15 @@ export default function Navigation() {
   const handleLogout = async () => {
     try {
       await fetch('/api/logout', { method: 'POST' });
+      // Clear credentials from localStorage
+      localStorage.removeItem('odoo_uid');
+      localStorage.removeItem('odoo_pass');
       router.push('/');
     } catch (error) {
       console.error('Logout failed:', error);
-      // Still redirect to login page
+      // Still redirect to login page and clear localStorage
+      localStorage.removeItem('odoo_uid');
+      localStorage.removeItem('odoo_pass');
       router.push('/');
     }
   };

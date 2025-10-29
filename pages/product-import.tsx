@@ -34,7 +34,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | null;
 
 interface Brand {
   id: number;
@@ -176,6 +176,49 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
   return determineSizeAttribute(firstSize);
 }
 
+// Map size codes to Dutch size names for MAAT Volwassenen
+function mapSizeTodutchName(size: string): string {
+  if (!size) return size;
+  
+  const sizeMapping: { [key: string]: string } = {
+    'XS': 'XS - 34',
+    'S': 'S - 36',
+    'M': 'M - 38',
+    'L': 'L - 40',
+    'XL': 'XL - 42',
+    'XXL': 'XXL - 44',
+  };
+  
+  // If it's already a Dutch name (contains " - "), return as-is
+  if (size.includes(' - ')) {
+    return size;
+  }
+  
+  // Try to extract the size code from the input
+  const match = size.match(/^(XS|S|M|L|XL|XXL)/i);
+  if (match) {
+    const code = match[1].toUpperCase();
+    return sizeMapping[code] || size;
+  }
+  
+  return sizeMapping[size] || size;
+}
+
+// Transform product variants before sending to Odoo
+function transformProductForUpload(product: ParsedProduct): ParsedProduct {
+  // If product uses MAAT Volwassenen, map size codes to Dutch names
+  if (product.sizeAttribute === 'MAAT Volwassenen') {
+    return {
+      ...product,
+      variants: product.variants.map(v => ({
+        ...v,
+        size: mapSizeTodutchName(v.size),
+      })),
+    };
+  }
+  return product;
+}
+
 export default function ProductImportPage() {
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
@@ -287,7 +330,25 @@ export default function ProductImportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
-  const getCredentials = () => {
+  const getCredentials = async () => {
+    // First, check if user has a valid session
+    try {
+      const response = await fetch('/api/auth/session');
+      const data = await response.json();
+      
+      if (data.isLoggedIn && data.user) {
+        // User is logged in via session, but we need password from localStorage
+        // since it's not returned from the session endpoint for security reasons
+        const password = localStorage.getItem('odoo_pass');
+        if (password) {
+          return { uid: String(data.user.uid), password };
+        }
+      }
+    } catch (error) {
+      console.error('Error checking session:', error);
+    }
+    
+    // Fallback to localStorage (for backward compatibility)
     const uid = localStorage.getItem('odoo_uid');
     const password = localStorage.getItem('odoo_pass');
     return { uid, password };
@@ -295,7 +356,7 @@ export default function ProductImportPage() {
 
   const fetchBrands = async () => {
     try {
-      const { uid, password } = getCredentials();
+      const { uid, password } = await getCredentials();
       if (!uid || !password) {
         console.error('No Odoo credentials found');
         return;
@@ -322,7 +383,7 @@ export default function ProductImportPage() {
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
-      const { uid, password } = getCredentials();
+      const { uid, password } = await getCredentials();
       if (!uid || !password) {
         console.error('No Odoo credentials found');
         setIsLoading(false);
@@ -366,6 +427,25 @@ export default function ProductImportPage() {
         parsePlayUpCSV(text);
       } else if (selectedVendor === 'floss') {
         parseFlossCSV(text);
+      } else if (selectedVendor === 'armedangels') {
+        // Detect if this is invoice CSV or catalog CSV
+        const lines = text.trim().split('\n');
+        if (lines.length > 0) {
+          const firstLine = lines[0];
+          // Check if it's a catalog (starts with "Table 1" or has Item Number in header)
+          if (firstLine.includes('Table 1') || (lines.length > 1 && lines[1].includes('Item Number'))) {
+            console.log('🛡️ Detected Armed Angels Catalog CSV');
+            parseArmedAngelsCatalogCSV(text);
+          } else {
+            console.log('🛡️ Detected Armed Angels Invoice CSV');
+            // For Armed Angels, invoice CSV MUST come after catalog CSV
+            if (parsedProducts.length === 0) {
+              alert('⚠️ EERST de Catalog CSV uploaden!\n\nUpload first:\n1. EAN Retail List (Catalog CSV)\n2. Then your Invoice CSV\n\nThe catalog contains all product info, EAN codes, and prices!');
+              return;
+            }
+            parseArmedAngelsCSV(text);
+          }
+        }
       }
     };
     reader.readAsText(file);
@@ -1196,6 +1276,343 @@ export default function ProductImportPage() {
     setCurrentStep(2);
   };
 
+  const parseArmedAngelsCSV = (text: string) => {
+    // Armed Angels format parser
+    // CSV format with headers: Item Number, Description, Color, Size, SKU, Quantity, Price (EUR)
+    
+    console.log(`🛡️ Parsing Armed Angels CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse CSV header (line 0)
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    console.log(`🛡️ Headers: ${JSON.stringify(headers)}`);
+    
+    // Validate headers
+    if (!headers.includes('Item Number') || !headers.includes('Description') || !headers.includes('Color')) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Item Number, Description, Color, Size, SKU, Quantity, Price (EUR)');
+      return;
+    }
+
+    // Find column indices
+    const itemNumberIdx = headers.indexOf('Item Number');
+    const descriptionIdx = headers.indexOf('Description');
+    const colorIdx = headers.indexOf('Color');
+    const sizeIdx = headers.indexOf('Size');
+    const skuIdx = headers.indexOf('SKU');
+    const quantityIdx = headers.indexOf('Quantity');
+    const priceIdx = headers.indexOf('Price (EUR)');
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    // Parse CSV lines handling quoted fields
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Simple CSV parsing that handles quoted fields
+      const values: string[] = [];
+      let currentValue = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j];
+        const nextChar = line[j + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            currentValue += '"';
+            j++; // Skip next quote
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue.trim().replace(/^"|"$/g, ''));
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      values.push(currentValue.trim().replace(/^"|"$/g, ''));
+
+      if (values.length < Math.max(itemNumberIdx, descriptionIdx, colorIdx) + 1) {
+        continue; // Skip incomplete rows
+      }
+
+      const itemNumber = values[itemNumberIdx]?.trim() || '';
+      const description = values[descriptionIdx]?.trim() || '';
+      const color = values[colorIdx]?.trim() || '';
+      const size = values[sizeIdx]?.trim() || '';
+      const sku = values[skuIdx]?.trim() || '';
+      const quantity = parseInt(values[quantityIdx]?.trim() || '0');
+      const price = parsePrice(values[priceIdx]?.trim() || '0');
+
+      if (!itemNumber || !description) continue; // Skip invalid rows
+
+      // Use itemNumber as reference (for grouping by product)
+      const reference = itemNumber;
+      const productKey = `${reference}_${color}`; // Group by item and color
+
+      if (!products[productKey]) {
+        // Create new product
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('armed angels') || b.name.toLowerCase().includes('armedangels')
+        );
+
+        products[productKey] = {
+          reference,
+          name: `Armed Angels - ${description} - ${itemNumber}`,
+          originalName: description,
+          color: color,
+          ecommerceDescription: '',
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+        };
+        
+        console.log(`➕ Created product: ${reference} - ${description}`);
+      }
+
+      // Add variant
+      products[productKey].variants.push({
+        size: size,
+        quantity: quantity,
+        ean: sku || '',
+        price: price,
+        rrp: price * 2.4, // Calculate RRP similar to Play Up
+      });
+    }
+
+    const productList = Object.values(products);
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    console.log(`🛡️ Parsed ${productList.length} products from Armed Angels CSV`);
+    
+    // If catalog products already exist, enrich them with invoice quantities
+    if (parsedProducts.length > 0) {
+      console.log(`🔄 Enriching ${parsedProducts.length} catalog products with invoice quantities...`);
+      enrichArmedAngelsProducts(parsedProducts, productList);
+    } else {
+      // Otherwise, just use the invoice products
+      setParsedProducts(productList);
+      setSelectedProducts(new Set(productList.map(p => p.reference)));
+    }
+    
+    setCurrentStep(2);
+  };
+
+  const enrichArmedAngelsProducts = (catalogProducts: ParsedProduct[], invoiceProducts: ParsedProduct[]) => {
+    // Enrich catalog products with invoice quantities
+    const enrichedReferences = new Set<string>(); // Track which products were enriched
+    
+    catalogProducts.forEach(catalogProduct => {
+      const invoiceProduct = invoiceProducts.find(p => {
+        // Exact match: same reference and same color
+        if (p.reference === catalogProduct.reference && p.color === catalogProduct.color) {
+          return true;
+        }
+        // Fallback: if invoice has empty color, match by reference only
+        if (p.reference === catalogProduct.reference && (!p.color || p.color.trim() === '')) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (invoiceProduct) {
+        console.log(`✨ Enriching ${catalogProduct.reference} (${catalogProduct.color || 'no color'}) with invoice data`);
+        enrichedReferences.add(catalogProduct.reference + '|' + (catalogProduct.color || '')); // Track this product
+        
+        // Update quantities based on invoice data
+        invoiceProduct.variants.forEach(invoiceVariant => {
+          const catalogVariant = catalogProduct.variants.find(v => 
+            v.size === invoiceVariant.size || 
+            (invoiceVariant.size === 'One Size' && catalogProduct.variants.length === 1)
+          );
+          
+          if (catalogVariant) {
+            catalogVariant.quantity = invoiceVariant.quantity;
+            console.log(`  Updated ${catalogProduct.reference} size ${invoiceVariant.size}: quantity = ${invoiceVariant.quantity}`);
+          }
+        });
+        
+        // Mark invoice product as used so we don't try to match it again
+        invoiceProduct.reference = '__USED__' + invoiceProduct.reference;
+      }
+    });
+    
+    // Filter to only keep enriched products
+    const enrichedProducts = catalogProducts.filter(p => 
+      enrichedReferences.has(p.reference + '|' + (p.color || ''))
+    ).map(product => ({
+      ...product,
+      // Remove variants with quantity 0 (not ordered)
+      variants: product.variants.filter(v => v.quantity > 0)
+    }));
+    
+    console.log(`✅ Successfully enriched ${enrichedProducts.length} catalog products with invoice data`);
+    
+    setParsedProducts(enrichedProducts);
+    setSelectedProducts(new Set(enrichedProducts.map(p => p.reference)));
+  };
+
+  const parseArmedAngelsCatalogCSV = (text: string) => {
+    // Armed Angels Catalog format parser (like PlayUp EAN CSV)
+    // Semicolon-separated format with headers on line 2
+    // Each row is a product variant with all details
+    // ID column = ItemNumber + ColorCode combined
+    
+    console.log(`🛡️ Parsing Armed Angels Catalog CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 3) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Line 0 is "Table 1", Line 1 is headers
+    const headers = lines[1].split(';').map(h => h.trim());
+    console.log(`🛡️ Found ${headers.length} columns`);
+    
+    // Find column indices
+    const idIdx = headers.indexOf('ID'); // Combined item+color ID
+    const itemNumberIdx = headers.indexOf('Item Number');
+    const descriptionIdx = headers.indexOf('Item Description');
+    const colorDescIdx = headers.indexOf('Color Description');
+    const colorCodeIdx = headers.indexOf('Color Code');
+    const sizeCodeIdx = headers.indexOf('Size Code');
+    const skuIdx = headers.indexOf('SKU Number');
+    const eanIdx = headers.indexOf('EAN');
+    const priceWholesaleIdx = headers.indexOf('Price Whoesale (EUR)');
+    const rrpIdx = headers.indexOf('RPR (EUR)');
+    
+    // Log the found indices
+    console.log(`🛡️ Column indices - ID: ${idIdx}, Item#: ${itemNumberIdx}, EAN: ${eanIdx}, Price: ${priceWholesaleIdx}, RRP: ${rrpIdx}`);
+    
+    // Debug: show first 25 headers
+    console.log(`🛡️ Headers (0-25):`, headers.slice(0, 25).map((h, i) => `${i}:${h}`));
+    
+    // Validate key headers exist
+    if (idIdx === -1 || itemNumberIdx === -1 || descriptionIdx === -1 || eanIdx === -1 || priceWholesaleIdx === -1) {
+      console.error('❌ Missing required columns. Found:', headers.slice(0, 15));
+      alert('Ongeldig CSV-formaat. Kan de volgende kolommen niet vinden: ID, Item Number, Item Description, EAN, Price Whoesale (EUR)');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      // Remove currency symbol and parse
+      const cleaned = str.replace(/[€£$]/g, '').replace(',', '.').trim();
+      return parseFloat(cleaned);
+    };
+
+    // Parse CSV lines (semicolon-separated)
+    for (let i = 2; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(';').map(v => v.trim());
+
+      if (values.length < Math.max(idIdx, itemNumberIdx, descriptionIdx, eanIdx, priceWholesaleIdx) + 1) {
+        continue; // Skip incomplete rows
+      }
+
+      const combinedId = values[idIdx] || ''; // e.g., "300051603232"
+      const itemNumber = values[itemNumberIdx] || ''; // e.g., "30005160"
+      const description = values[descriptionIdx] || '';
+      const colorCode = values[colorCodeIdx] || ''; // e.g., "3232"
+      const colorDesc = values[colorDescIdx] || ''; // e.g., "tinted navy"
+      const sizeCode = values[sizeCodeIdx] || '';
+      const sku = values[skuIdx] || '';
+      const ean = values[eanIdx] || '';
+      const price = parsePrice(values[priceWholesaleIdx] || '0');
+      const rrp = rrpIdx !== -1 ? parsePrice(values[rrpIdx] || '0') : 0;
+
+      if (!combinedId || !itemNumber || !description) continue; // Skip invalid rows
+
+      // Debug first few rows
+      if (i <= 5) {
+        console.log(`🛡️ Row ${i}: SKU=${sku}, EAN=${ean}, Price=${price}, RRP=${rrp}`);
+      }
+
+      // Use combinedId as the product key (includes item + color)
+      const productKey = combinedId;
+      
+      // Combine color code and description
+      const colorDisplay = colorCode ? `${colorCode} ${colorDesc}` : colorDesc;
+
+      if (!products[productKey]) {
+        // Create new product (once per color variant of an item)
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('armed angels') || b.name.toLowerCase().includes('armedangels')
+        );
+
+        products[productKey] = {
+          reference: itemNumber, // Use item number as reference, not combined ID
+          name: `Armed Angels - ${description} - ${colorDisplay}`,
+          originalName: description,
+          color: colorDisplay,
+          ecommerceDescription: '',
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+        };
+        
+        console.log(`➕ Created product: ${itemNumber} - ${description} - ${colorDisplay}`);
+      }
+
+      // Add variant with EAN and pricing
+      products[productKey].variants.push({
+        size: sizeCode,
+        quantity: 0, // Not specified in catalog, will be set during import
+        ean: ean || sku || '',
+        price: price,
+        rrp: rrp,
+      });
+    }
+
+    const productList = Object.values(products);
+    // Initialize size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    console.log(`🛡️ Parsed ${productList.length} products from Armed Angels Catalog CSV`);
+    console.log(`🛡️ First product variants:`, productList[0]?.variants.slice(0, 2));
+    if (productList.length > 0 && productList[0]) {
+      console.log(`🛡️ FULL FIRST PRODUCT:`, JSON.stringify(productList[0], null, 2));
+    }
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    // DON'T advance step here - user needs to upload invoice CSV next
+  };
+
   const fetchFlossImages = async (imageFolder: File[]) => {
     if (imageFolder.length === 0) {
       alert('Geen afbeeldingen geselecteerd');
@@ -1207,7 +1624,7 @@ export default function ProductImportPage() {
       return;
     }
 
-    const { uid, password } = getCredentials();
+    const { uid, password } = await getCredentials();
     if (!uid || !password) {
       alert('Geen Odoo credentials gevonden');
       return;
@@ -1743,7 +2160,7 @@ export default function ProductImportPage() {
     setIsLoading(true);
 
     try {
-      const { uid, password } = getCredentials();
+      const { uid, password } = await getCredentials();
       if (!uid || !password) {
         alert('Geen Odoo credentials gevonden. Log eerst in.');
         setIsLoading(false);
@@ -1773,7 +2190,7 @@ export default function ProductImportPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              products: [product], // Single product
+              products: [transformProductForUpload(product)], // Apply Dutch size names before upload
               testMode,
               uid,
               password,
@@ -1984,6 +2401,26 @@ export default function ProductImportPage() {
                     </button>
                   </div>
 
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <button
+                      onClick={() => setSelectedVendor('armedangels')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'armedangels'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🛡️</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Armed Angels</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        PDF factuur met item numbers, colors, sizes en prijzen
+                      </p>
+                      {selectedVendor === 'armedangels' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+                  </div>
+
                 </div>
 
                 {/* File Upload */}
@@ -2040,20 +2477,41 @@ export default function ProductImportPage() {
                         <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">📄</div>
                           <h3 className="font-bold text-gray-900 mb-2 text-gray-900">CSV File</h3>
-                          <p className="text-sm text-gray-800 mb-4 font-medium">Product data (required)</p>
+                          <p className="text-sm text-gray-800 mb-4 font-medium">
+                            {selectedVendor === 'armedangels' 
+                              ? 'Invoice CSV with your order' 
+                              : 'Product data (required)'}
+                          </p>
                           <input
                             type="file"
                             accept=".csv"
                             onChange={handleFileUpload}
+                            disabled={selectedVendor === 'armedangels' && parsedProducts.length === 0}
                             className="hidden"
                             id="csv-upload"
                           />
                           <label
                             htmlFor="csv-upload"
-                            className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
+                            className={`inline-block px-4 py-2 rounded cursor-pointer ${
+                              selectedVendor === 'armedangels' && parsedProducts.length === 0
+                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                            }`}
                           >
-                            Kies CSV
+                            {selectedVendor === 'armedangels' && parsedProducts.length === 0
+                              ? 'Wacht op Catalog CSV ⏳'
+                              : 'Kies CSV'}
                           </label>
+                          {selectedVendor === 'armedangels' && parsedProducts.length === 0 && (
+                            <p className="text-xs text-orange-600 mt-2">
+                              ⚠️ Upload EAN Retail List first!
+                            </p>
+                          )}
+                          {selectedVendor === 'armedangels' && parsedProducts.length > 0 && (
+                            <p className="text-xs text-green-600 mt-2">
+                              ✅ Ready for invoice CSV
+                            </p>
+                          )}
                         </div>
 
                         {/* EAN Retail List for Play UP */}
@@ -2087,6 +2545,8 @@ export default function ProductImportPage() {
                           </div>
                         )}
 
+                        {/* Prijzen CSV - NOT for Armed Angels */}
+                        {selectedVendor !== 'armedangels' && (
                         <div className="border-2 border-orange-400 dark:border-orange-600 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
                           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Prijzen CSV</h3>
@@ -2118,6 +2578,52 @@ export default function ProductImportPage() {
                             </a>
                           </div>
                         </div>
+                        )}
+
+                        {/* EAN Retail List for Armed Angels */}
+                        {selectedVendor === 'armedangels' && (
+                          <div className="border-2 border-green-400 dark:border-green-600 rounded-lg p-6 text-center">
+                            <div className="text-4xl mb-3">📋</div>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">EAN Retail List</h3>
+                            <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Full catalog with barcodes <span className="font-bold text-red-600">(REQUIRED FIRST!)</span></p>
+                            <input
+                              type="file"
+                              accept=".csv"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const text = event.target?.result as string;
+                                  parseArmedAngelsCatalogCSV(text);
+                                };
+                                reader.readAsText(file);
+                              }}
+                              className="hidden"
+                              id="armedangels-ean-upload"
+                            />
+                            <label
+                              htmlFor="armedangels-ean-upload"
+                              className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.ean
+                                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                                  : 'bg-green-600 text-white hover:bg-green-700'
+                              }`}
+                            >
+                              {parsedProducts.length > 0 ? `✓ ${parsedProducts.length} producten` : 'Kies EAN CSV'}
+                            </label>
+                            {parsedProducts.length > 0 && (
+                              <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                                ✅ Catalog loaded! Now upload your invoice CSV above.
+                              </p>
+                            )}
+                            {parsedProducts.length === 0 && (
+                              <p className="text-xs text-orange-700 dark:text-orange-400 mt-2">
+                                ⚠️ Upload this FIRST! All product info, EAN codes & prices.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {pdfPrices.size > 0 && (
@@ -2323,7 +2829,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                 {/* Products Grid */}
                 <div className="space-y-4 mb-6 max-h-[600px] overflow-y-auto">
                   {parsedProducts.map((product) => (
-                    <div key={product.reference} className="bg-white border rounded-lg p-4">
+                    <div key={`${product.reference}_${product.color}`} className="bg-white border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <h3 className="font-bold text-gray-900">{product.name}</h3>
@@ -2501,7 +3007,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       <tbody>
                         {parsedProducts.map((product, idx) => (
                           <tr 
-                            key={product.reference} 
+                            key={`${product.reference}_${product.color}`}
                             className={`border-b dark:border-gray-700 transition-colors ${
                               idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-750'
                             } hover:bg-blue-50 dark:hover:bg-blue-900/30`}
@@ -2511,7 +3017,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                             <td className="p-3 text-xs text-gray-900 dark:text-gray-200 max-w-xs truncate">{product.material}</td>
                             <td className="p-3 text-sm text-gray-900 dark:text-gray-100">{product.color}</td>
                             <td className="p-3 text-center font-semibold text-blue-600 dark:text-blue-400">{product.variants.length}</td>
-                            <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                            <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">€{(product.variants[0]?.rrp || product.variants[0]?.price || 0).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2584,7 +3090,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
                   {parsedProducts.map(product => (
                     <div
-                      key={product.reference}
+                      key={`${product.reference}_${product.color}`}
                       className={`border rounded-lg p-4 ${
                         selectedProducts.has(product.reference) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                       }`}
@@ -2641,7 +3147,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                 </label>
                               </div>
                               <div className="text-sm text-gray-800 mt-1 font-medium">
-                                {product.variants.length} varianten • Verkoopprijs: €{product.variants[0]?.rrp.toFixed(2)}
+                                {product.variants.length} varianten • Verkoopprijs: €{(product.variants[0]?.rrp || product.variants[0]?.price || 0).toFixed(2)}
                               </div>
                             </div>
                           </div>
@@ -2669,8 +3175,17 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                     <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <input
                                         type="text"
-                                        value={variant.size}
-                                        onChange={(e) => updateVariantField(product.reference, idx, 'size', e.target.value)}
+                                        value={product.sizeAttribute === 'MAAT Volwassenen' ? mapSizeTodutchName(variant.size) : variant.size}
+                                        onChange={(e) => {
+                                          // Extract the original size code from the input (e.g., "S" from "S - 36")
+                                          let originalSize = e.target.value;
+                                          if (product.sizeAttribute === 'MAAT Volwassenen') {
+                                            // Try to extract the original size code
+                                            const match = e.target.value.match(/^(XS|S|M|L|XL|XXL)/i);
+                                            originalSize = match ? match[1].toUpperCase() : e.target.value;
+                                          }
+                                          updateVariantField(product.reference, idx, 'size', originalSize);
+                                        }}
                                         className="w-16 border dark:border-gray-600 rounded px-2 py-1 text-center text-xs font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                                       />
                                     </td>
@@ -2794,7 +3309,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   {isLoading && (
                     <div className="mt-2 text-sm text-blue-600">⏳ Bezig met laden...</div>
                   )}
-                  {!loading && (brands.length === 0 || internalCategories.length === 0) && (
+                  {!isLoading && (brands.length === 0 || internalCategories.length === 0) && (
                     <div className="mt-2 text-sm text-yellow-700">
                       ⚠️ Data nog niet geladen. Klik op &quot;🔄 Vernieuw Data&quot; om te laden.
                     </div>
@@ -3069,7 +3584,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     </thead>
                     <tbody>
                       {parsedProducts.filter(p => selectedProducts.has(p.reference)).map(product => (
-                        <tr key={product.reference} className="border-b hover:bg-gray-50">
+                        <tr key={`${product.reference}_${product.color}`} className="border-b hover:bg-gray-50">
                           <td className="p-3 bg-gray-50">
                             <div className="font-medium text-gray-900">{product.name}</div>
                             <div className="text-xs text-gray-700">{product.reference}</div>
@@ -3294,7 +3809,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       {parsedProducts.filter(p => selectedProducts.has(p.reference)).map(product => {
                         const ready = product.selectedBrand && product.category;
                         return (
-                          <tr key={product.reference} className="border-b">
+                          <tr key={`${product.reference}_${product.color}`} className="border-b">
                             <td className="p-2 text-gray-900">
                               <div className="font-medium">{product.name}</div>
                               <div className="text-xs text-gray-700">{product.reference}</div>
@@ -3318,7 +3833,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                               )}
                             </td>
                             <td className="p-2 text-gray-900">{product.variants.length}</td>
-                            <td className="p-2 text-gray-900">€{product.variants[0]?.rrp.toFixed(2)}</td>
+                            <td className="p-2 text-gray-900">€{(product.variants[0]?.rrp || product.variants[0]?.price || 0).toFixed(2)}</td>
                             <td className="p-2">
                               {ready ? (
                                 <span className="text-green-600 font-semibold">✓ Ready</span>
@@ -3374,7 +3889,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
 
                 <div className="space-y-3">
                   {readyProducts.map(product => (
-                    <div key={product.reference} className="border rounded p-4 hover:bg-gray-50">
+                    <div key={`${product.reference}_${product.color}`} className="border rounded p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-center">
                         <div>
                           <div className="font-bold">{product.name}</div>

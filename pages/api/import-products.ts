@@ -87,8 +87,8 @@ async function handler(
         const templateData: Record<string, unknown> = {
           name: product.name,
           categ_id: product.category.id,
-          list_price: product.variants[0].rrp,
-          standard_price: product.variants[0].price,
+          list_price: product.variants[0].rrp || product.variants[0].price || 0,
+          standard_price: product.variants[0].price || product.variants[0].rrp || 0,
           type: 'consu', // Verbruiksartikel
           is_storable: true, // Enable "Voorraad bijhouden" checkbox (can track inventory even for consumables)
           default_code: product.reference,
@@ -217,11 +217,35 @@ async function handler(
         // Step 4: Create attribute lines on template
         console.log('Step 4: Creating attribute lines...');
         
+        // Ensure brand value exists in MERK attribute
+        console.log(`Checking if brand "${product.selectedBrand.name}" exists in MERK attribute...`);
+        const existingBrand = await callOdoo<Array<{ id: number }>>(
+          uid,
+          password,
+          'product.attribute.value',
+          'search_read',
+          [[['attribute_id', '=', merkAttributeId], ['name', '=', product.selectedBrand.name]]],
+          { fields: ['id'] }
+        );
+
+        let brandValueId;
+        if (existingBrand && existingBrand.length > 0) {
+          brandValueId = existingBrand[0].id;
+          console.log(`✅ Brand value exists: ID ${brandValueId}`);
+        } else {
+          console.log(`Creating brand value "${product.selectedBrand.name}" in MERK attribute...`);
+          brandValueId = await callOdoo(uid, password, 'product.attribute.value', 'create', [{
+            attribute_id: merkAttributeId,
+            name: product.selectedBrand.name,
+          }]);
+          console.log(`✅ Created brand value: ID ${brandValueId}`);
+        }
+        
         // Add MERK line
         await callOdoo(uid, password, 'product.template.attribute.line', 'create', [{
           product_tmpl_id: templateId,
           attribute_id: merkAttributeId,
-          value_ids: [[6, 0, [product.selectedBrand.id]]],
+          value_ids: [[6, 0, [brandValueId]]],
         }]);
 
         // Get or create size values
