@@ -23,13 +23,13 @@ interface MatchedProduct extends ParsedProduct {
 }
 
 export default function ProductImagesImportPage() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [file, setFile] = useState<File | null>(null);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 

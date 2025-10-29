@@ -37,9 +37,9 @@ interface MatchedProduct {
 }
 
 const PlayUpBarcodeUpdate: NextPage = () => {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [deliveryProducts, setDeliveryProducts] = useState<DeliveryProduct[]>([]);
   const [eanProducts, setEANProducts] = useState<EANProduct[]>([]);

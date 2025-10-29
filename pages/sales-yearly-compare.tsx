@@ -43,9 +43,9 @@ const MONTH_LABELS = [
 const formatBE = (amount: number) => amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SalesComparePage() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [compareData, setCompareData] = useState<CompareData>({});

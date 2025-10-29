@@ -28,9 +28,9 @@ type MonthlyInsights = {
 };
 
 export default function SalesInsightsPage() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [insights, setInsights] = useState<MonthlyInsights | null>(null);
   const [loading, setLoading] = useState(true);

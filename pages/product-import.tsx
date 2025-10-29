@@ -220,20 +220,20 @@ function transformProductForUpload(product: ParsedProduct): ParsedProduct {
 }
 
 export default function ProductImportPage() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [file, setFile] = useState<File | null>(null);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [results, setResults] = useState<ImportResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [error, setError] = useState<string | null>(null);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [successCount, setSuccessCount] = useState(0);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [errorCount, setErrorCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<VendorType>(null);

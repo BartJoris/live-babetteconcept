@@ -12,7 +12,7 @@ type Sale = {
   partner?: string | null;
 };
 
-// @ts-expect-error
+// @ts-expect-error - unused for now
 type SessionData = {
   session_id: number;
   session_name: string;
@@ -29,10 +29,10 @@ type OrderLine = {
 export default function SalesDashboard() {
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [error, setError] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});

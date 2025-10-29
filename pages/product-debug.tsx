@@ -4,10 +4,10 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
 export default function ProductDebugPage() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -41,7 +41,7 @@ type ProductDetail = {
 
 export default function SalesProductsPage() {
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<SalesProductData | null>(null);
   const [loading, setLoading] = useState(true);

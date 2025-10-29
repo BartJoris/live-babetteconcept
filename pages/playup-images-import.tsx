@@ -20,9 +20,9 @@ interface ProductWithImages extends ProductToFetch {
 }
 
 export default function PlayUpImagesImport() {
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const router = useRouter();
-  // @ts-expect-error
+  // @ts-expect-error - unused for now
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<ProductToFetch[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
