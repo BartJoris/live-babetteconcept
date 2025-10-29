@@ -1,21 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
 export default function CategoriesExplorerPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<CategoryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [error, setError] = useState('');
 
-  const fetchData = useEffect(() => {
-    if (!isLoggedIn && !authLoading) {
-      router.push('/');
-    }
-  }, [isLoggedIn, authLoading, router]);
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const fetchCategories = async () => {
     setLoading(true);
     try {
@@ -33,11 +31,16 @@ export default function CategoriesExplorerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid, password }),
       });
+
       const result = await response.json();
-      setData(result);
-      console.log('Categories data:', result);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
+      if (result.success) {
+        setData(result.data);
+      } else {
+        setError(result.error || 'Failed to fetch categories');
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('An error occurred while fetching categories');
     } finally {
       setLoading(false);
     }

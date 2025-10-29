@@ -154,7 +154,7 @@ export default async function handler(
             if (descLine.length < 100 && !descLine.match(/Email|sales|Phone|Web|GmbH/i)) {
               // Extract just the product name, removing material/certification info
               // Remove material names and certification keywords
-              let productName = descLine
+              const productName = descLine
                 .replace(/\s+(TWEED|CORDUROY|WOOL|BLEND|PREMIUM|MERINO|STRIPES|BARREL|VELVET|KARLENAA|REGLANA|FINE|GOTS|organic|RWS|PETA|GRS|CU-\d+|empty).*$/i, '')
                 .trim();
               

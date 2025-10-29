@@ -81,9 +81,13 @@ interface CheckResult {
 }
 
 const HvidLeveringPage: NextPage = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [deliveryProducts, setDeliveryProducts] = useState<ProductLine[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);

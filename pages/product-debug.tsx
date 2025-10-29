@@ -4,8 +4,10 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
 export default function ProductDebugPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

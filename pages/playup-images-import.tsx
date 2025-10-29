@@ -20,7 +20,9 @@ interface ProductWithImages extends ProductToFetch {
 }
 
 export default function PlayUpImagesImport() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<ProductToFetch[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);

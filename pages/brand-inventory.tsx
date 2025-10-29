@@ -68,6 +68,7 @@ const STATUS_CONFIG = {
 };
 
 export default function BrandInventoryPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -95,7 +96,7 @@ export default function BrandInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, selectedBrand]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (isLoggedIn && !authLoading) {

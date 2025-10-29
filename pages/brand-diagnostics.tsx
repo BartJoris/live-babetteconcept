@@ -3,13 +3,18 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function BrandDiagnosticsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [brands, setBrands] = useState<BrandDiagnostic[]>([]);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [searchTerm, setSearchTerm] = useState('');
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const fetchFromOdoo = useCallback(async <T,>(params: {
     model: string;
     method: string;

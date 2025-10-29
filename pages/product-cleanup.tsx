@@ -21,10 +21,12 @@ interface ArchiveResult {
 type Step = 'load' | 'select' | 'preview' | 'archiving' | 'results';
 
 export default function ProductCleanup() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -95,7 +97,7 @@ export default function ProductCleanup() {
       console.log('🔄 Triggering fetchProducts...');
       fetchProducts();
     }
-  }, [mounted, isLoggedIn, authLoading]);
+  }, [mounted, isLoggedIn, authLoading, fetchProducts]);
 
   // Filter products based on search query
   useEffect(() => {

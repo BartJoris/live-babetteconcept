@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL!;

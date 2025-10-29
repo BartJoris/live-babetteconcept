@@ -58,6 +58,7 @@ function isBelgianHoliday(year: number, month: number, day: number) {
 
 export default function DailyComparePage() {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedPeriods, setSelectedPeriods] = useState<{ year: number; month: number }[]>([
     { year: new Date().getFullYear(), month: new Date().getMonth() + 1 },

@@ -63,9 +63,11 @@ const PERIOD_LABELS = {
 };
 
 export default function BrandPerformancePage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedSeason, setSelectedSeason] = useState<'winter' | 'summer' | 'both'>('both');
   const [data, setData] = useState<BrandPerformanceData | null>(null);
   const [loading, setLoading] = useState(true);

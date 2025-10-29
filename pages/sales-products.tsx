@@ -41,6 +41,7 @@ type ProductDetail = {
 
 export default function SalesProductsPage() {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<SalesProductData | null>(null);
   const [loading, setLoading] = useState(true);

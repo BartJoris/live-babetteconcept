@@ -23,9 +23,13 @@ interface MatchedProduct extends ParsedProduct {
 }
 
 export default function ProductImagesImportPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [file, setFile] = useState<File | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 

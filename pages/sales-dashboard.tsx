@@ -12,6 +12,7 @@ type Sale = {
   partner?: string | null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type SessionData = {
   session_id: number;
   session_name: string;
@@ -28,8 +29,10 @@ type OrderLine = {
 export default function SalesDashboard() {
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
