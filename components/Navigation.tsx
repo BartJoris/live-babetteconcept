@@ -99,6 +99,17 @@ export default function Navigation() {
             >
               🔍 Security Monitor
             </Link>
+
+            <Link 
+              href="/webshoporders-beheren" 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/webshoporders-beheren') 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              📦 Webshoporders
+            </Link>
             
             {/* Inzichten Dropdown */}
             <div className="relative" ref={inzichtenRef}>
@@ -259,6 +270,18 @@ export default function Navigation() {
             }`}
           >
             🔍 Security Monitor
+          </Link>
+
+          <Link
+            href="/webshoporders-beheren"
+            onClick={closeMenu}
+            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+              isActive('/webshoporders-beheren')
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            }`}
+          >
+            📦 Webshoporders
           </Link>
           
           {/* Inzichten Section */}
