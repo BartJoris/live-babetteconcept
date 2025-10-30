@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/router';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -63,12 +62,9 @@ const PERIOD_LABELS = {
 };
 
 export default function BrandPerformancePage() {
-  // @ts-expect-error - router will be used for future navigation features
-  const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  // @ts-expect-error - selectedSeason will be used for future features
-  const [selectedSeason, setSelectedSeason] = useState<'winter' | 'summer' | 'both'>('both');
+  const [selectedSeason] = useState<'winter' | 'summer' | 'both'>('both');
   const [data, setData] = useState<BrandPerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'revenue' | 'quantity' | 'margin'>('revenue');

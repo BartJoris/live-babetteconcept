@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/lib/hooks/useAuth';
 import { NextPage } from 'next';
 
 interface ProductLine {
@@ -81,14 +79,6 @@ interface CheckResult {
 }
 
 const HvidLeveringPage: NextPage = () => {
-  // @ts-expect-error - router will be used for future navigation features
-  const router = useRouter();
-  // @ts-expect-error - auth data for future features
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
-  // @ts-expect-error - deliveryProducts will be used for future features
-  const [deliveryProducts, setDeliveryProducts] = useState<ProductLine[]>([]);
-  // @ts-expect-error - results will be used for future features
-  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);

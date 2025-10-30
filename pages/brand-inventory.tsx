@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/router';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -68,8 +67,6 @@ const STATUS_CONFIG = {
 };
 
 export default function BrandInventoryPage() {
-  // @ts-expect-error - router will be used for future navigation features
-  const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedSeason, setSelectedSeason] = useState<'winter' | 'summer' | 'both'>('both');

@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 type DailySales = {
@@ -28,10 +27,7 @@ type MonthlyInsights = {
 };
 
 export default function SalesInsightsPage() {
-  // @ts-expect-error - unused for now
-  const router = useRouter();
-  // @ts-expect-error - unused for now
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [insights, setInsights] = useState<MonthlyInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>('');

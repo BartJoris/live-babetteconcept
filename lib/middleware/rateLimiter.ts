@@ -17,7 +17,7 @@ const apiLimiter = new RateLimiterMemory({
 
 // Rate limiter for expensive operations like imports (10 per hour)
 const importLimiter = new RateLimiterMemory({
-  points: 10, // 10 imports
+  points: 100, // 100 imports (increased from 10 for bulk testing)
   duration: 60 * 60, // per hour
   blockDuration: 60 * 60, // block for 1 hour if exceeded
 });

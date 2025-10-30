@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 // Voor eenvoudige grafiek (optioneel):
@@ -43,10 +42,7 @@ const MONTH_LABELS = [
 const formatBE = (amount: number) => amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SalesComparePage() {
-  // @ts-expect-error - unused for now
-  const router = useRouter();
-  // @ts-expect-error - unused for now
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [compareData, setCompareData] = useState<CompareData>({});
   const [loading, setLoading] = useState(false);

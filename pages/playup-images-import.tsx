@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 import Image from 'next/image';
 
@@ -20,10 +18,6 @@ interface ProductWithImages extends ProductToFetch {
 }
 
 export default function PlayUpImagesImport() {
-  // @ts-expect-error - unused for now
-  const router = useRouter();
-  // @ts-expect-error - unused for now
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<ProductToFetch[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
   const [loading, setLoading] = useState(false);

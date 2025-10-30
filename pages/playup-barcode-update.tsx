@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { NextPage } from 'next';
 
@@ -37,10 +36,7 @@ interface MatchedProduct {
 }
 
 const PlayUpBarcodeUpdate: NextPage = () => {
-  // @ts-expect-error - unused for now
-  const router = useRouter();
-  // @ts-expect-error - unused for now
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [deliveryProducts, setDeliveryProducts] = useState<DeliveryProduct[]>([]);
   const [eanProducts, setEANProducts] = useState<EANProduct[]>([]);
   const [matchedProducts, setMatchedProducts] = useState<MatchedProduct[]>([]);

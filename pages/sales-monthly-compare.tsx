@@ -58,8 +58,7 @@ function isBelgianHoliday(year: number, month: number, day: number) {
 
 export default function DailyComparePage() {
   const router = useRouter();
-  // @ts-expect-error - unused for now
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [selectedPeriods, setSelectedPeriods] = useState<{ year: number; month: number }[]>([
     { year: new Date().getFullYear(), month: new Date().getMonth() + 1 },
   ]);

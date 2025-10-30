@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 interface Product {
@@ -21,13 +20,9 @@ interface ArchiveResult {
 type Step = 'load' | 'select' | 'preview' | 'archiving' | 'results';
 
 export default function ProductCleanup() {
-  // @ts-expect-error - unused for now
-  const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  // @ts-expect-error - unused for now
-  const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   

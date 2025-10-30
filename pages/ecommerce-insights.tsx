@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
@@ -108,10 +107,7 @@ const formatNumber = (num: number) =>
   num.toLocaleString('nl-BE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export default function EcommerceInsightsPage() {
-  // @ts-expect-error - router will be used for future navigation features
-  const router = useRouter();
-  // @ts-expect-error - auth data for future features
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(false);

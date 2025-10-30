@@ -62,7 +62,7 @@ export default function Navigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering'].includes(router.pathname);
+    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher'].includes(router.pathname);
   };
 
   return (
@@ -179,6 +179,12 @@ export default function Navigation() {
                     </Link>
                     <Link href="/playup-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/playup-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Playup Images
+                    </Link>
+                    <Link href="/armedangels-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/armedangels-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Armedangels Images
+                    </Link>
+                    <Link href="/armedangels-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/armedangels-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Armedangels Image Matcher
                     </Link>
                   </div>
                 </div>
@@ -445,6 +451,39 @@ export default function Navigation() {
                   }`}
                 >
                   Playup Images
+                </Link>
+                <Link
+                  href="/armedangels-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/armedangels-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Armedangels Images
+                </Link>
+                <Link
+                  href="/armedangels-image-matcher"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/armedangels-image-matcher') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Armedangels Image Matcher
+                </Link>
+                <Link
+                  href="/armedangels-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/armedangels-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Armedangels Images Import
                 </Link>
               </div>
             )}
