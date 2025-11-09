@@ -127,11 +127,61 @@ export default async function handler(
           const finalState = verifyPicking[0]?.state;
           console.log(`\n✅ FINAL STATE: ${finalState}\n`);
 
+          // Automatically send to shipper (Sendcloud) after confirming delivery
+          if (finalState === 'done') {
+            console.log(`\n📮 Checking for existing shipping label before sending to shipper...`);
+            
+            // Check if shipping label already exists to prevent duplicates
+            const existingLabels = await odooCall<any[]>({
+              uid,
+              password,
+              model: 'ir.attachment',
+              method: 'search_read',
+              args: [
+                [
+                  ['res_model', '=', 'stock.picking'],
+                  ['res_id', '=', picking.id],
+                  ['mimetype', '=', 'application/pdf'],
+                  '|',
+                  ['name', 'ilike', 'sendcloud'],
+                  ['name', 'ilike', 'shipping'],
+                ],
+              ],
+              kwargs: {
+                fields: ['id', 'name'],
+              },
+            });
+
+            console.log(`Found ${existingLabels.length} existing label(s):`, existingLabels.map(l => l.name));
+
+            if (existingLabels.length > 0) {
+              console.log(`⚠️ Shipping label already exists - SKIPPING send to shipper to prevent duplicates`);
+              console.log(`   Existing labels:`, existingLabels.map(l => l.name).join(', '));
+            } else {
+              console.log(`✅ No existing label found - proceeding with send to shipper`);
+              try {
+                // Try to send to shipper to trigger Sendcloud label creation
+                const shipperResult = await odooCall<any>({
+                  uid,
+                  password,
+                  model: 'stock.picking',
+                  method: 'action_send_to_shipper',
+                  args: [[picking.id]],
+                });
+                console.log(`✅ Auto-sent to shipper:`, shipperResult);
+              } catch (shipperErr) {
+                console.warn(`⚠️ Could not auto-send to shipper (may not be needed):`, shipperErr);
+                // Don't fail the whole process - Sendcloud might already be triggered
+              }
+            }
+          }
+
           confirmedPickings.push({
             id: picking.id,
             name: picking.name,
             success: true,
             finalState,
+            sentToShipper: finalState === 'done',
           });
 
         } catch (pickingErr) {

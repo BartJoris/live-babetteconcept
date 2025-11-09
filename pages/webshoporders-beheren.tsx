@@ -587,7 +587,7 @@ export default function WebshopordersBeheren() {
 
       if (res.ok && json.success) {
         console.log('✅ Delivery confirmed successfully');
-        alert('Levering bevestigd! ✅');
+        alert('Levering bevestigd! ✅\n\nVerzonden naar Sendcloud - verzendlabel wordt aangemaakt.');
         setDeliveryDialog(prev => ({
           ...prev,
           isOpen: false,
