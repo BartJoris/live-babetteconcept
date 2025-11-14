@@ -6,12 +6,15 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInzichtenOpen, setIsInzichtenOpen] = useState(false);
   const [isImporterenOpen, setIsImporterenOpen] = useState(false);
+  const [isBeheerOpen, setIsBeheerOpen] = useState(false);
   const [mobileInzichtenOpen, setMobileInzichtenOpen] = useState(false);
   const [mobileImporterenOpen, setMobileImporterenOpen] = useState(false);
+  const [mobileBeheerOpen, setMobileBeheerOpen] = useState(false);
   const router = useRouter();
   
   const inzichtenRef = useRef<HTMLDivElement>(null);
   const importerenRef = useRef<HTMLDivElement>(null);
+  const beheerRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -21,6 +24,9 @@ export default function Navigation() {
       }
       if (importerenRef.current && !importerenRef.current.contains(event.target as Node)) {
         setIsImporterenOpen(false);
+      }
+      if (beheerRef.current && !beheerRef.current.contains(event.target as Node)) {
+        setIsBeheerOpen(false);
       }
     };
 
@@ -36,6 +42,7 @@ export default function Navigation() {
     setIsMenuOpen(false);
     setMobileInzichtenOpen(false);
     setMobileImporterenOpen(false);
+    setMobileBeheerOpen(false);
   };
 
   const handleLogout = async () => {
@@ -64,6 +71,10 @@ export default function Navigation() {
   const isImporterenActive = () => {
     return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher'].includes(router.pathname);
   };
+  
+  const isBeheerActive = () => {
+    return ['/audit-monitor', '/kelder-inventaris'].includes(router.pathname);
+  };
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -87,17 +98,6 @@ export default function Navigation() {
               }`}
             >
               Dashboard
-            </Link>
-
-            <Link 
-              href="/audit-monitor" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/audit-monitor') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              🔍 Security Monitor
             </Link>
 
             <Link 
@@ -202,6 +202,35 @@ export default function Navigation() {
               )}
             </div>
 
+            {/* Beheer Dropdown */}
+            <div className="relative" ref={beheerRef}>
+              <button
+                onClick={() => setIsBeheerOpen(!isBeheerOpen)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                  isBeheerActive() 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                Beheer
+                <svg className={`ml-1 h-4 w-4 transform transition-transform ${isBeheerOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isBeheerOpen && (
+                <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link href="/audit-monitor" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/audit-monitor') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🔍 Security Monitor
+                    </Link>
+                    <Link href="/kelder-inventaris" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/kelder-inventaris') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🏷️ Kelder inventaris
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleLogout}
               className="px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
@@ -260,17 +289,7 @@ export default function Navigation() {
             Dashboard
           </Link>
 
-          <Link
-            href="/audit-monitor"
-            onClick={closeMenu}
-            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-              isActive('/audit-monitor')
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            🔍 Security Monitor
-          </Link>
+          
 
           <Link
             href="/webshoporders-beheren"
@@ -507,6 +526,54 @@ export default function Navigation() {
                   }`}
                 >
                   Armedangels Images Import
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Beheer Section */}
+          <div className="pt-2">
+            <button
+              onClick={() => setMobileBeheerOpen(!mobileBeheerOpen)}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isBeheerActive()
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <span>Beheer</span>
+              <svg 
+                className={`h-5 w-5 transform transition-transform ${mobileBeheerOpen ? 'rotate-180' : ''}`}
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {mobileBeheerOpen && (
+              <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/audit-monitor"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/audit-monitor')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🔍 Security Monitor
+                </Link>
+                <Link
+                  href="/kelder-inventaris"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/kelder-inventaris')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🏷️ Kelder inventaris
                 </Link>
               </div>
             )}
