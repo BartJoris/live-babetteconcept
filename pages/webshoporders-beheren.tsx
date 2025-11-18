@@ -292,6 +292,8 @@ const OrderCard = memo(({
   </div>
 ));
 
+OrderCard.displayName = 'OrderCard';
+
 export default function WebshopordersBeheren() {
   const { isLoggedIn } = useAuth();
   const [pendingOrders, setPendingOrders] = useState<PendingOrderItem[]>([]);

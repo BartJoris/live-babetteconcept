@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
 
@@ -72,6 +72,30 @@ type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' |
 type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 const STORAGE_ANALYSE_KEY = 'kelderAnalyseState';
+
+function computeName(row: AnalyseRow) {
+  return row.active?.name || row.archived?.name || row.localName || '';
+}
+
+function computeVariant(row: AnalyseRow) {
+  return row.active?.name ? '' : (row.localVariant || '');
+}
+
+function computeOdooQty(row: AnalyseRow) {
+  return row.active?.qtyAvailable ?? row.archived?.qtyAvailable ?? null;
+}
+
+function computeCategory(row: AnalyseRow) {
+  return row.active?.categName || row.archived?.categName || '';
+}
+
+function computeDiff(row: AnalyseRow) {
+  return (computeOdooQty(row) ?? 0) - row.scanQty;
+}
+
+function isFoundTrue(row: AnalyseRow) {
+  return row.status !== 'geen';
+}
 
 export default function KelderAnalysePage() {
   const { isLoading, isLoggedIn } = useAuth(true);
@@ -361,14 +385,7 @@ export default function KelderAnalysePage() {
     });
   }, [analysed, filter]);
 
-  const computeName = (r: AnalyseRow) => r.active?.name || r.archived?.name || r.localName || '';
-  const computeVariant = (r: AnalyseRow) => (r.active?.name ? '' : (r.localVariant || ''));
-  const computeOdooQty = (r: AnalyseRow) => r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
-  const computeCategory = (r: AnalyseRow) => r.active?.categName || r.archived?.categName || '';
-  const computeDiff = (r: AnalyseRow) => (computeOdooQty(r) ?? 0) - r.scanQty;
-  const isFoundTrue = (r: AnalyseRow) => r.status !== 'geen';
-
-  const sortRows = (rows: AnalyseRow[], sort: SortState) => {
+  const sortRows = useCallback((rows: AnalyseRow[], sort: SortState) => {
     const sorted = [...rows].sort((a, b) => {
       const dir = sort.dir === 'asc' ? 1 : -1;
       const val = (key: SortKey, row: AnalyseRow): number | string => {
@@ -389,7 +406,7 @@ export default function KelderAnalysePage() {
       return String(av).localeCompare(String(bv)) * dir;
     });
     return sorted;
-  };
+  }, []);
 
   const foundRows = useMemo(() => sortRows(filtered.filter(isFoundTrue), sortFound), [filtered, sortFound, sortRows]);
   const unknownRows = useMemo(() => sortRows(filtered.filter(r => !isFoundTrue(r)), sortUnknown), [filtered, sortUnknown, sortRows]);

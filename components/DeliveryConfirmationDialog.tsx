@@ -146,7 +146,7 @@ const DeliveryConfirmationDialog: React.FC<DeliveryConfirmationDialogProps> = ({
               <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4">
                 <h3 className="text-blue-800 font-semibold mb-2">ℹ️ Informatief</h3>
                 <p className="text-blue-700 text-sm">
-                  Het bevestigen van deze levering zal de status naar "Done" (Voltooid) veranderen in Odoo.
+                  Het bevestigen van deze levering zal de status naar &quot;Done&quot; (Voltooid) veranderen in Odoo.
                   Sendcloud zal het verzendlabel aanmaken.
                 </p>
               </div>
