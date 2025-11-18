@@ -171,7 +171,7 @@ export default async function handler(
         if (pickings.length > 0) {
           pickingState = pickings[0].state;
         }
-      } catch {
+      } catch (err) {
         // If picking fetch fails, just continue without it
         console.log(`Could not fetch picking state for order ${order.id}`);
       }

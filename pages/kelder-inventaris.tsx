@@ -129,7 +129,9 @@ export default function KelderInventarisPage() {
       if (existingIndex >= 0) {
         const next = [...rows];
         next[existingIndex] = { ...next[existingIndex], qty: (next[existingIndex].qty || 0) + 1 };
-        setRows(next);
+        // move updated row to the top so newest scan appears first
+        const [updated] = next.splice(existingIndex, 1);
+        setRows([updated, ...next]);
         setBarcodeInput('');
         return;
       }
@@ -140,7 +142,7 @@ export default function KelderInventarisPage() {
       const cache = getCache();
       const hit = cache[normalized];
       if (hit) {
-        setRows(prev => [...prev, {
+        setRows(prev => [{
           productId: hit.productId,
           barcode: hit.barcode,
           name: hit.name,
@@ -151,7 +153,7 @@ export default function KelderInventarisPage() {
           qtyAvailable: hit.qtyAvailable,
           found: true,
           note: '',
-        }]);
+        }, ...prev]);
         setBarcodeInput('');
         return;
       }
@@ -185,7 +187,7 @@ export default function KelderInventarisPage() {
           found: true,
           note: '',
         };
-        setRows(prev => [...prev, newRow]);
+        setRows(prev => [newRow, ...prev]);
         // cache
         const cache = getCache();
         cache[newRow.barcode] = {
@@ -215,7 +217,7 @@ export default function KelderInventarisPage() {
       const cache = getCache();
       const hit = cache[normalized];
       if (hit) {
-        setRows(prev => [...prev, {
+        setRows(prev => [{
           productId: hit.productId,
           barcode: hit.barcode,
           name: hit.name,
@@ -226,7 +228,7 @@ export default function KelderInventarisPage() {
           qtyAvailable: hit.qtyAvailable,
           found: true,
           note: '',
-        }]);
+        }, ...prev]);
         setBarcodeInput('');
         return;
       }
@@ -266,7 +268,7 @@ export default function KelderInventarisPage() {
       found: false,
       note: nfNote.trim() || '',
     };
-    setRows(prev => [...prev, newRow]);
+    setRows(prev => [newRow, ...prev]);
     setIsNotFoundOpen(false);
     setNotFoundBarcode(null);
     setBarcodeInput('');

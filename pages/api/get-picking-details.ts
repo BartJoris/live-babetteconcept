@@ -47,6 +47,24 @@ async function odooCall<T>(params: {
   return json.result as T;
 }
 
+interface PickingLine {
+  id: number;
+  product_id: [number, string];
+  product_name: string;
+  qty_done: number;
+  quantity_done: number;
+  product_uom_qty: number;
+  reserved_availability: number;
+}
+
+interface PickingDetails {
+  id: number;
+  name: string;
+  state: string;
+  picking_type_id: [number, string];
+  move_lines: PickingLine[];
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -124,8 +142,8 @@ export default async function handler(
     }
 
     // Build picking details with order products
-    const pickingDetails = pickings.map(picking => {
-      const lines = orderProducts.map(line => ({
+    const pickingDetails: PickingDetails[] = pickings.map(picking => {
+      const lines: PickingLine[] = orderProducts.map(line => ({
         id: line.id,
         product_id: line.product_id,
         product_name: line.product_id && typeof line.product_id !== 'boolean' ? line.product_id[1] : 'Unknown',

@@ -82,7 +82,7 @@ interface OrderCardProps {
   onImageClick: (image: string, productName: string) => void;
 }
 
-const OrderCard = memo(function OrderCard({ 
+const OrderCard = memo(({ 
   order, 
   isExpanded, 
   isProcessing, 
@@ -93,8 +93,7 @@ const OrderCard = memo(function OrderCard({
   onConfirmDelivery,
   productImages,
   onImageClick,
-}: OrderCardProps) {
-  return (
+}: OrderCardProps) => (
   <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
     <div
       className="px-4 py-3 cursor-pointer flex justify-between items-center bg-white hover:bg-gray-50 transition-colors"
@@ -106,12 +105,14 @@ const OrderCard = memo(function OrderCard({
           <span className={`text-xs px-2 py-1 rounded font-medium ${
             order.state === 'draft' ? 'bg-yellow-100 text-yellow-800' : 
             order.state === 'sent' ? 'bg-blue-100 text-blue-800' :
-            order.state === 'sale' ? 'bg-green-100 text-green-800' :
+            order.state === 'sale' && order.picking_state !== 'done' ? 'bg-orange-100 text-orange-800' :
+            order.state === 'sale' && order.picking_state === 'done' ? 'bg-green-100 text-green-800' :
             order.state === 'done' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
           }`}>
-            {order.state === 'draft' ? 'Concept' : 
+            {order.state === 'draft' ? 'Te bevestigen' : 
              order.state === 'sent' ? 'Verzonden' :
-             order.state === 'sale' ? 'Bevestigd' :
+             order.state === 'sale' && order.picking_state !== 'done' ? 'Levering te bevestigen' :
+             order.state === 'sale' && order.picking_state === 'done' ? 'Gereed' :
              order.state === 'done' ? 'Voltooid' : order.state}
           </span>
           <span className="text-sm text-gray-600">
@@ -236,7 +237,7 @@ const OrderCard = memo(function OrderCard({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 bg-white p-4 rounded-lg">
-          {(order.state === 'draft' || order.state === 'sent') ? (
+          {(order.state === 'draft' || order.state === 'sent') && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -247,22 +248,7 @@ const OrderCard = memo(function OrderCard({
             >
               ✅ Bevestig Order
             </button>
-          ) : (
-            <div className="px-6 py-3 bg-green-100 text-green-800 rounded-lg font-semibold flex items-center gap-2 border-2 border-green-300">
-              ✅ Order Bevestigd
-            </div>
           )}
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownloadInvoice(order.id, order.name);
-            }}
-            disabled={isProcessing}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-          >
-            📄 Download Factuur
-          </button>
 
           {order.state === 'sale' && order.picking_state && order.picking_state !== 'done' && order.picking_state !== 'cancel' && (
             <button
@@ -280,19 +266,31 @@ const OrderCard = memo(function OrderCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDownloadShippingLabel(order.id, order.name);
+              onDownloadInvoice(order.id, order.name);
             }}
             disabled={isProcessing}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
           >
-            📦 Download Verzendlabel
+            📄 Download Factuur
           </button>
+
+          {order.picking_state === 'done' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownloadShippingLabel(order.id, order.name);
+              }}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+            >
+              📦 Download Verzendlabel
+            </button>
+          )}
         </div>
       </div>
     )}
   </div>
-  );
-});
+));
 
 export default function WebshopordersBeheren() {
   const { isLoggedIn } = useAuth();

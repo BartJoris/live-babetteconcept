@@ -94,26 +94,28 @@ export default async function handler(
     // Confirm each picking (delivery order)
     const confirmedPickings = [];
     for (const picking of pickings) {
-      // Check if picking needs to be confirmed (not already done or cancelled)
       if (picking.state !== 'done' && picking.state !== 'cancel') {
-        console.log(`\n════════════════════════════════════════`);
-        console.log(`📦 CONFIRMING PICKING ${picking.id}`);
-        console.log(`   Name: ${picking.name}`);
-        console.log(`   Current State: ${picking.state}`);
-        console.log(`════════════════════════════════════════\n`);
+        console.log(`📦 Confirming picking ${picking.id} (${picking.name})`);
         
         try {
-          // Method 1: Try direct write to done state (simplest)
-          console.log(`Attempting direct state change to 'done'...`);
-          const writeResult = await odooCall<boolean>({
+          // Use button_validate like Odoo does (proper workflow)
+          console.log(`Calling button_validate on picking ${picking.id}...`);
+          
+          const validateResult = await odooCall<any>({
             uid,
             password,
             model: 'stock.picking',
-            method: 'write',
-            args: [[picking.id], { state: 'done' }],
+            method: 'button_validate',
+            args: [[picking.id]],
+            kwargs: {
+              context: {
+                lang: 'nl_BE',
+                tz: 'Europe/Brussels',
+              }
+            }
           });
           
-          console.log(`✅ Write result:`, writeResult);
+          console.log(`✅ Validate result:`, validateResult);
 
           // Verify the state changed
           const verifyPicking = await odooCall<any[]>({
@@ -129,8 +131,6 @@ export default async function handler(
 
           // Automatically send to shipper (Sendcloud) after confirming delivery
           if (finalState === 'done') {
-            console.log(`\n📮 Checking for existing shipping label before sending to shipper...`);
-            
             // Check if shipping label already exists to prevent duplicates
             const existingLabels = await odooCall<any[]>({
               uid,
@@ -152,26 +152,21 @@ export default async function handler(
               },
             });
 
-            console.log(`Found ${existingLabels.length} existing label(s):`, existingLabels.map(l => l.name));
-
             if (existingLabels.length > 0) {
-              console.log(`⚠️ Shipping label already exists - SKIPPING send to shipper to prevent duplicates`);
-              console.log(`   Existing labels:`, existingLabels.map(l => l.name).join(', '));
+              console.log(`⚠️ Label already exists - skipping Sendcloud trigger (${existingLabels[0].name})`);
             } else {
-              console.log(`✅ No existing label found - proceeding with send to shipper`);
+              console.log(`📮 Triggering Sendcloud label creation...`);
               try {
-                // Try to send to shipper to trigger Sendcloud label creation
-                const shipperResult = await odooCall<any>({
+                await odooCall<any>({
                   uid,
                   password,
                   model: 'stock.picking',
                   method: 'action_send_to_shipper',
                   args: [[picking.id]],
                 });
-                console.log(`✅ Auto-sent to shipper:`, shipperResult);
+                console.log(`✅ Sendcloud triggered successfully`);
               } catch (shipperErr) {
-                console.warn(`⚠️ Could not auto-send to shipper (may not be needed):`, shipperErr);
-                // Don't fail the whole process - Sendcloud might already be triggered
+                console.warn(`⚠️ Sendcloud trigger failed (may already be automatic):`, shipperErr);
               }
             }
           }
