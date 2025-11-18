@@ -285,7 +285,6 @@ export default function KelderAnalysePage() {
     const targets = analysed.filter(r => r.status === 'geen').map(r => r.barcode);
     for (const bc of targets) {
       // sequential to be gentle
-      // eslint-disable-next-line no-await-in-loop
       await searchArchivedFor(bc);
     }
   };
@@ -392,8 +391,8 @@ export default function KelderAnalysePage() {
     return sorted;
   };
 
-  const foundRows = useMemo(() => sortRows(filtered.filter(isFoundTrue), sortFound), [filtered, sortFound]);
-  const unknownRows = useMemo(() => sortRows(filtered.filter(r => !isFoundTrue(r)), sortUnknown), [filtered, sortUnknown]);
+  const foundRows = useMemo(() => sortRows(filtered.filter(isFoundTrue), sortFound), [filtered, sortFound, sortRows]);
+  const unknownRows = useMemo(() => sortRows(filtered.filter(r => !isFoundTrue(r)), sortUnknown), [filtered, sortUnknown, sortRows]);
 
   const totals = useMemo(() => {
     let totalCost = 0;
