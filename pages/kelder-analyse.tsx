@@ -423,6 +423,12 @@ export default function KelderAnalysePage() {
     return { totalCost, totalSale };
   }, [foundRows]);
 
+  const stats = useMemo(() => {
+    const totalItems = analysed.length;
+    const totalCount = analysed.reduce((acc, r) => acc + (Number.isFinite(r.scanQty) ? r.scanQty : 0), 0);
+    return { totalItems, totalCount };
+  }, [analysed]);
+
   const setSel = (barcode: string, value: boolean) => {
     setSelected(prev => ({ ...prev, [barcode]: value }));
   };
@@ -508,6 +514,7 @@ export default function KelderAnalysePage() {
             Analyse starten
           </button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div><strong>Totaal items:</strong> {stats.totalItems} &nbsp; <strong>Aantallen:</strong> {stats.totalCount}</div>
             <div><strong>Kostwaarde:</strong> {totals.totalCost.toFixed(2)}</div>
             <div><strong>Verkoopwaarde:</strong> {totals.totalSale.toFixed(2)}</div>
           </div>
