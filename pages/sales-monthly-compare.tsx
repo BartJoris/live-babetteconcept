@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Line } from 'react-chartjs-2';

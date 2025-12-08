@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/audit-monitor', '/kelder-inventaris'].includes(router.pathname);
+    return ['/audit-monitor', '/kelder-inventaris', '/kelder-analyse'].includes(router.pathname);
   };
 
   return (
@@ -225,6 +225,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/kelder-inventaris" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/kelder-inventaris') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🏷️ Kelder inventaris
+                    </Link>
+                    <Link href="/kelder-analyse" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/kelder-analyse') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      📊 Kelder analyse
                     </Link>
                   </div>
                 </div>
@@ -574,6 +577,17 @@ export default function Navigation() {
                   }`}
                 >
                   🏷️ Kelder inventaris
+                </Link>
+                <Link
+                  href="/kelder-analyse"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/kelder-analyse')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📊 Kelder analyse
                 </Link>
               </div>
             )}

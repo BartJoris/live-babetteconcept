@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Fragment } from 'react';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -525,7 +525,7 @@ export default function BrandPerformancePage() {
                       const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                       
                       return (
-                        <React.Fragment key={brand.brandName}>
+                        <Fragment key={brand.brandName}>
                           <tr 
                             className={`${rowBg} hover:bg-blue-50 cursor-pointer`} 
                             onClick={() => setExpandedBrand(expandedBrand === brand.brandName ? null : brand.brandName)}
@@ -602,7 +602,7 @@ export default function BrandPerformancePage() {
                               </td>
                             </tr>
                           )}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })}
                   </tbody>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Fragment } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -459,7 +459,7 @@ export default function BrandInventoryPage() {
                       const hasDiscrepancy = Math.abs(brand.stockDiscrepancy) > 0.1;
                       
                       return (
-                        <React.Fragment key={brand.brandName}>
+                        <Fragment key={brand.brandName}>
                           <tr 
                             className={`${rowBg} hover:bg-blue-50 cursor-pointer`}
                             onClick={() => setExpandedBrand(expandedBrand === brand.brandName ? null : brand.brandName)}
@@ -601,7 +601,7 @@ export default function BrandInventoryPage() {
                               </td>
                             </tr>
                           )}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })}
                   </tbody>

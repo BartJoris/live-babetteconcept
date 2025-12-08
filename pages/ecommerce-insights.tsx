@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
@@ -483,11 +483,11 @@ export default function EcommerceInsightsPage() {
                         <tr>
                           <th className="px-4 py-3 text-left text-gray-900 font-semibold">Maand</th>
                           {selectedYears.map(y => (
-                            <React.Fragment key={y}>
+                            <Fragment key={y}>
                               <th className="px-4 py-3 text-right text-gray-900 font-semibold">Omzet {y}</th>
                               <th className="px-4 py-3 text-right text-gray-900 font-semibold">Orders {y}</th>
                               <th className="px-4 py-3 text-right text-gray-900 font-semibold">Gem. {y}</th>
-                            </React.Fragment>
+                            </Fragment>
                           ))}
                         </tr>
                       </thead>
@@ -498,7 +498,7 @@ export default function EcommerceInsightsPage() {
                             {selectedYears.map(y => {
                               const monthData = data?.compareData[y]?.[m];
                               return (
-                                <React.Fragment key={y}>
+                                <Fragment key={y}>
                                   <td className="px-4 py-3 text-right text-gray-800">
                                     {monthData ? formatEuro(monthData.revenue) : '-'}
                                   </td>
@@ -508,7 +508,7 @@ export default function EcommerceInsightsPage() {
                                   <td className="px-4 py-3 text-right text-gray-800">
                                     {monthData ? formatEuro(monthData.avgOrderValue) : '-'}
                                   </td>
-                                </React.Fragment>
+                                </Fragment>
                               );
                             })}
                           </tr>
@@ -519,7 +519,7 @@ export default function EcommerceInsightsPage() {
                           {selectedYears.map(y => {
                             const totals = getYearTotals(y);
                             return (
-                              <React.Fragment key={y}>
+                              <Fragment key={y}>
                                 <td className="px-4 py-3 text-right text-gray-900">
                                   {formatEuro(totals.revenue)}
                                 </td>
@@ -529,7 +529,7 @@ export default function EcommerceInsightsPage() {
                                 <td className="px-4 py-3 text-right text-gray-900">
                                   {formatEuro(totals.avgOrderValue)}
                                 </td>
-                              </React.Fragment>
+                              </Fragment>
                             );
                           })}
                         </tr>

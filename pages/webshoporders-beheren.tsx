@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ProductAvailabilityDialog from '@/components/ProductAvailabilityDialog';
 import DeliveryConfirmationDialog from '@/components/DeliveryConfirmationDialog';
