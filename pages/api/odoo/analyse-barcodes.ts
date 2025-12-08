@@ -11,6 +11,7 @@ type OdooRawProduct = {
   standard_price: number | null;
   active: boolean;
   categ_id: [number, string] | number | null;
+  product_tmpl_id: [number, string] | number | null;
 };
 
 type OdooMatch = {
@@ -22,6 +23,7 @@ type OdooMatch = {
   qtyAvailable: number | null;
   listPrice: number | null;
   standardPrice: number | null;
+  productTmplId: number | null;
 };
 
 type AnalyseApiItem = {
@@ -33,6 +35,7 @@ type AnalyseApiItem = {
 function toMatch(p: OdooRawProduct): OdooMatch {
   const categId = Array.isArray(p.categ_id) ? p.categ_id[0] : (typeof p.categ_id === 'number' ? p.categ_id : null);
   const categName = Array.isArray(p.categ_id) ? p.categ_id[1] : null;
+  const productTmplId = Array.isArray(p.product_tmpl_id) ? p.product_tmpl_id[0] : (typeof p.product_tmpl_id === 'number' ? p.product_tmpl_id : null);
   return {
     id: p.id,
     barcode: p.barcode ?? null,
@@ -42,6 +45,7 @@ function toMatch(p: OdooRawProduct): OdooMatch {
     qtyAvailable: p.qty_available ?? null,
     listPrice: p.list_price ?? null,
     standardPrice: p.standard_price ?? null,
+    productTmplId,
   };
 }
 
@@ -78,7 +82,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
   try {
     const { user } = req.session;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    const fields = ['id','barcode','display_name','categ_id','qty_available','list_price','standard_price','active'];
+    const fields = ['id','barcode','display_name','categ_id','qty_available','list_price','standard_price','active','product_tmpl_id'];
 
     // Batch to avoid large payloads
     const chunkSize = 100;

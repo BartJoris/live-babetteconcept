@@ -38,6 +38,7 @@ type OdooMatch = {
   qtyAvailable: number | null;
   listPrice: number | null;
   standardPrice: number | null;
+  productTmplId?: number | null;
   active?: boolean;
 };
 
@@ -60,6 +61,7 @@ type AnalyseRow = {
   active?: OdooMatch | null;
   archived?: OdooMatch | null;
   status: 'actief' | 'archief' | 'geen';
+  merk?: string | null;
 };
 
 type FilterState = {
@@ -68,7 +70,7 @@ type FilterState = {
   text: string;
 };
 
-type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' | 'category' | 'status';
+type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' | 'category' | 'status' | 'merk';
 type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 const STORAGE_ANALYSE_KEY = 'kelderAnalyseState';
@@ -103,10 +105,12 @@ export default function KelderAnalysePage() {
   const [grouped, setGrouped] = useState<Record<string, LocalAgg>>({});
   const [analysed, setAnalysed] = useState<AnalyseRow[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [behandeld, setBehandeld] = useState<Record<string, boolean>>({});
   const [extraCategory, setExtraCategory] = useState('');
   const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '' });
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const draftFileRef = useRef<HTMLInputElement | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [sortFound, setSortFound] = useState<SortState>({ key: 'barcode', dir: 'asc' });
   const [sortUnknown, setSortUnknown] = useState<SortState>({ key: 'barcode', dir: 'asc' });
@@ -129,10 +133,18 @@ export default function KelderAnalysePage() {
           upload: UploadShape | null;
           analysed: AnalyseRow[];
           filter: FilterState;
+          behandeld?: Record<string, boolean>;
         };
-        if (parsed.upload) setUpload(parsed.upload);
+        if (parsed.upload) {
+          setUpload(parsed.upload);
+          // Regroup rows when loading from localStorage
+          if (parsed.upload.rows && Array.isArray(parsed.upload.rows)) {
+            groupRows(parsed.upload.rows);
+          }
+        }
         if (Array.isArray(parsed.analysed)) setAnalysed(parsed.analysed);
         if (parsed.filter) setFilter(parsed.filter);
+        if (parsed.behandeld) setBehandeld(parsed.behandeld);
       }
     } catch {
       // ignore
@@ -143,12 +155,12 @@ export default function KelderAnalysePage() {
     try {
       localStorage.setItem(
         STORAGE_ANALYSE_KEY,
-        JSON.stringify({ upload, analysed, filter })
+        JSON.stringify({ upload, analysed, filter, behandeld })
       );
     } catch {
       // ignore
     }
-  }, [upload, analysed, filter]);
+  }, [upload, analysed, filter, behandeld]);
 
   const setAlert = (msg: string) => {
     setAlertMessage(msg);
@@ -176,6 +188,7 @@ export default function KelderAnalysePage() {
       setUpload({ rows });
       setAnalysed([]);
       setSelected({});
+      setBehandeld({});
       groupRows(rows);
     } catch {
       setAlert('JSON kon niet worden gelezen.');
@@ -200,6 +213,7 @@ export default function KelderAnalysePage() {
       setUpload({ rows });
       setAnalysed([]);
       setSelected({});
+      setBehandeld({});
       groupRows(rows);
     } catch {
       setAlert('Laden van lokale inventaris mislukt.');
@@ -274,8 +288,41 @@ export default function KelderAnalysePage() {
           active: act,
           archived: arc,
           status,
+          merk: null,
         };
       });
+
+      // Fetch merk information for all product template IDs
+      const templateIds = new Set<number>();
+      rows.forEach((row) => {
+        const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+        if (tmplId !== null) {
+          templateIds.add(tmplId);
+        }
+      });
+
+      if (templateIds.size > 0) {
+        try {
+          const brandRes = await fetch('/api/odoo/fetch-brands-for-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateIds: Array.from(templateIds) }),
+          });
+          if (brandRes.ok) {
+            const brandMap = (await brandRes.json()) as Record<number, string | null>;
+            // Map merk to rows
+            rows.forEach((row) => {
+              const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+              if (tmplId !== null && brandMap[tmplId]) {
+                row.merk = brandMap[tmplId];
+              }
+            });
+          }
+        } catch {
+          // Silently fail merk fetch, continue without merk
+        }
+      }
+
       setAnalysed(rows);
     } catch (error: unknown) {
       setAlert(error instanceof Error ? error.message : 'Analyse mislukt.');
@@ -371,6 +418,9 @@ export default function KelderAnalysePage() {
 
   const filtered = useMemo(() => {
     return analysed.filter(r => {
+      // Filter out behandeld items from main overview
+      if (behandeld[r.barcode]) return false;
+      
       if (filter.status !== 'alle' && r.status !== filter.status) return false;
       if (filter.category) {
         const cat = r.active?.categName || r.archived?.categName || '';
@@ -383,7 +433,31 @@ export default function KelderAnalysePage() {
       }
       return true;
     });
-  }, [analysed, filter]);
+  }, [analysed, filter, behandeld]);
+
+  const behandeldRows = useMemo(() => {
+    return analysed.filter(r => behandeld[r.barcode]);
+  }, [analysed, behandeld]);
+
+  const extractMerkFromName = (name: string): string | null => {
+    if (!name) return null;
+    const parts = name.split(' - ');
+    if (parts.length > 1 && parts[0].trim()) {
+      return parts[0].trim();
+    }
+    return null;
+  };
+
+  const computeMerk = (row: AnalyseRow): { merk: string; fromName: boolean } => {
+    // Eerst kijken naar attribute-based merk
+    if (row.merk) {
+      return { merk: row.merk, fromName: false };
+    }
+    // Anders uit naam halen
+    const name = row.active?.name || row.archived?.name || row.localName || '';
+    const merkFromName = extractMerkFromName(name);
+    return { merk: merkFromName || '', fromName: merkFromName !== null };
+  };
 
   const sortRows = useCallback((rows: AnalyseRow[], sort: SortState) => {
     const sorted = [...rows].sort((a, b) => {
@@ -398,6 +472,7 @@ export default function KelderAnalysePage() {
           case 'diff': return computeDiff(row);
           case 'category': return computeCategory(row);
           case 'status': return row.status;
+          case 'merk': return computeMerk(row).merk;
         }
       };
       const av = val(sort.key, a);
@@ -431,6 +506,48 @@ export default function KelderAnalysePage() {
 
   const setSel = (barcode: string, value: boolean) => {
     setSelected(prev => ({ ...prev, [barcode]: value }));
+  };
+
+  const markSelectedAsBehandeld = () => {
+    const selectedBarcodes = Object.keys(selected).filter(bc => selected[bc]);
+    if (selectedBarcodes.length === 0) {
+      setAlert('Selecteer eerst producten om als behandeld te markeren.');
+      return;
+    }
+    setBehandeld(prev => {
+      const next = { ...prev };
+      selectedBarcodes.forEach(bc => {
+        next[bc] = true;
+      });
+      return next;
+    });
+    setSelected({});
+    setAlert(`${selectedBarcodes.length} product(en) gemarkeerd als behandeld.`);
+  };
+
+  const markSelectedAsOnbehandeld = () => {
+    const selectedBarcodes = Object.keys(selected).filter(bc => selected[bc]);
+    if (selectedBarcodes.length === 0) {
+      setAlert('Selecteer eerst producten om als onbehandeld te markeren.');
+      return;
+    }
+    setBehandeld(prev => {
+      const next = { ...prev };
+      selectedBarcodes.forEach(bc => {
+        delete next[bc];
+      });
+      return next;
+    });
+    setSelected({});
+    setAlert(`${selectedBarcodes.length} product(en) gemarkeerd als onbehandeld.`);
+  };
+
+  const allBehandeldSelected = behandeldRows.length > 0 && behandeldRows.every(r => selected[r.barcode]);
+  const toggleSelectAllBehandeld = () => {
+    const next: Record<string, boolean> = { ...selected };
+    const target = !allBehandeldSelected;
+    for (const r of behandeldRows) next[r.barcode] = target;
+    setSelected(next);
   };
 
   const allVisibleSelected = filtered.every(r => selected[r.barcode]);
@@ -484,6 +601,75 @@ export default function KelderAnalysePage() {
     return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
   };
 
+  const saveDraft = () => {
+    try {
+      const draft = {
+        upload,
+        analysed,
+        behandeld,
+        filter,
+        timestamp: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const name = `kelder-analyse-draft-${formatTs(new Date())}.json`;
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+      setAlert('Draft opgeslagen.');
+    } catch {
+      setAlert('Opslaan mislukt.');
+    }
+  };
+
+  const loadDraft = () => {
+    draftFileRef.current?.click();
+  };
+
+  const onDraftFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as {
+        upload?: UploadShape | null;
+        analysed?: AnalyseRow[];
+        behandeld?: Record<string, boolean>;
+        filter?: FilterState;
+      };
+      if (parsed.upload) {
+        setUpload(parsed.upload);
+        // Regroup rows when loading draft - this is critical for startAnalyse to work
+        if (parsed.upload.rows && Array.isArray(parsed.upload.rows) && parsed.upload.rows.length > 0) {
+          groupRows(parsed.upload.rows);
+        } else {
+          // If no rows, clear grouped state
+          setGrouped({});
+        }
+      } else {
+        // If no upload in draft, clear grouped state
+        setGrouped({});
+      }
+      // Reset analysed and selected when loading draft (user might want to re-analyze)
+      // But preserve behandeld and filter if they exist in draft
+      if (Array.isArray(parsed.analysed)) {
+        setAnalysed(parsed.analysed);
+      } else {
+        setAnalysed([]);
+      }
+      setSelected({});
+      if (parsed.behandeld) setBehandeld(parsed.behandeld);
+      if (parsed.filter) setFilter(parsed.filter);
+      setAlert('Draft geladen.');
+      // reset file input
+      if (e.target) e.target.value = '';
+    } catch {
+      setAlert('Laden mislukt.');
+    }
+  };
+
   if (isLoading) {
     return (
       <>
@@ -513,10 +699,29 @@ export default function KelderAnalysePage() {
           <button onClick={startAnalyse} style={{ padding: '6px 10px', border: '1px solid #10b981', borderRadius: 4, background: '#ecfdf5', color: '#065f46' }}>
             Analyse starten
           </button>
+          <button onClick={saveDraft} style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 4 }}>Opslaan als draft</button>
+          <button onClick={loadDraft} style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 4 }}>Laad draft</button>
+          <input ref={draftFileRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={onDraftFileChange} />
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
             <div><strong>Totaal items:</strong> {stats.totalItems} &nbsp; <strong>Aantallen:</strong> {stats.totalCount}</div>
             <div><strong>Kostwaarde:</strong> {totals.totalCost.toFixed(2)}</div>
             <div><strong>Verkoopwaarde:</strong> {totals.totalSale.toFixed(2)}</div>
+          </div>
+        </div>
+
+        {/* Legende */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 4, border: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 'bold', fontStyle: 'italic' }}>Merk</span>
+            <span style={{ fontSize: 14, color: '#6b7280' }}>= Merk uit productnaam</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 'normal' }}>Merk</span>
+            <span style={{ fontSize: 14, color: '#6b7280' }}>= Merk uit MERK/Merk 1 attribute</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 20, height: 20, background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 2 }}></div>
+            <span style={{ fontSize: 14, color: '#6b7280' }}>= Hoeveelheid komt niet overeen</span>
           </div>
         </div>
 
@@ -533,7 +738,37 @@ export default function KelderAnalysePage() {
           <input placeholder="Filter categorie" value={filter.category} onChange={e => setFilter(prev => ({ ...prev, category: e.target.value }))} style={{ padding: 6, border: '1px solid #e5e7eb', borderRadius: 4 }} />
           <input placeholder="Zoeken (barcode of naam)" value={filter.text} onChange={e => setFilter(prev => ({ ...prev, text: e.target.value }))} style={{ padding: 6, border: '1px solid #e5e7eb', borderRadius: 4, flex: 1 }} />
           <button onClick={searchArchivedForAllNoMatch} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc' }}>
-            Zoek archief voor alle “geen match”
+            Zoek archief voor alle "geen match"
+          </button>
+          <button 
+            onClick={markSelectedAsBehandeld} 
+            disabled={Object.keys(selected).filter(bc => selected[bc]).length === 0}
+            style={{ 
+              padding: '6px 10px', 
+              borderRadius: 4, 
+              border: '1px solid #10b981', 
+              background: '#ecfdf5', 
+              color: '#065f46',
+              opacity: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 0.5 : 1,
+              cursor: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Behandeld ({Object.keys(selected).filter(bc => selected[bc]).length})
+          </button>
+          <button 
+            onClick={markSelectedAsOnbehandeld} 
+            disabled={Object.keys(selected).filter(bc => selected[bc]).length === 0}
+            style={{ 
+              padding: '6px 10px', 
+              borderRadius: 4, 
+              border: '1px solid #6b7280', 
+              background: '#f3f4f6', 
+              color: '#374151',
+              opacity: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 0.5 : 1,
+              cursor: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Onbehandeld
           </button>
         </div>
 
@@ -553,10 +788,13 @@ export default function KelderAnalysePage() {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
+                <th style={{ ...thStyle, width: 50, textAlign: 'center' }}>#</th>
                 <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
+                <th style={thStyle}>Behandeld</th>
                 <SortableTh label="Barcode" active={sortFound.key==='barcode'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Naam" active={sortFound.key==='name'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'name', dir: prev.key==='name' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Variant" active={sortFound.key==='variant'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <SortableTh label="Merk" active={sortFound.key==='merk'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="ScanQty" active={sortFound.key==='scanQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="OdooQty" active={sortFound.key==='odooQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Verschil" active={sortFound.key==='diff'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
@@ -566,7 +804,7 @@ export default function KelderAnalysePage() {
               </tr>
             </thead>
             <tbody>
-              {foundRows.map((r) => {
+              {foundRows.map((r, idx) => {
                 const name = r.active?.name || r.archived?.name || r.localName || '';
                 const variant = r.active?.name ? '' : (r.localVariant || '');
                 const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
@@ -575,7 +813,11 @@ export default function KelderAnalysePage() {
                 const rowStyle: React.CSSProperties = { borderTop: '1px solid #e5e7eb', background: diff !== 0 ? '#f3f4f6' : undefined };
                 return (
                   <tr key={r.barcode} style={rowStyle}>
+                    <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
                     <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
+                    <td style={tdStyle} title={behandeld[r.barcode] ? 'Behandeld' : 'Onbehandeld'}>
+                      {behandeld[r.barcode] ? '✓' : ''}
+                    </td>
                     <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
                     <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>
                       {name}
@@ -589,6 +831,21 @@ export default function KelderAnalysePage() {
                         <span title={`Meer varianten:\n${r.localVariantsExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
                       ) : null}
                     </td>
+                    {(() => {
+                      const merkInfo = computeMerk(r);
+                      return (
+                        <td 
+                          style={{
+                            ...tdStyle,
+                            fontWeight: merkInfo.fromName ? 'bold' : undefined,
+                            fontStyle: merkInfo.fromName ? 'italic' : undefined,
+                          }}
+                          title={merkInfo.fromName ? `Merk uit naam: ${merkInfo.merk}` : merkInfo.merk || ''}
+                        >
+                          {merkInfo.merk || ''}
+                        </td>
+                      );
+                    })()}
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{odooQty ?? ''}</td>
                     <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: diff === 0 ? '#059669' : diff > 0 ? '#2563eb' : '#dc2626' }}>{diff}</td>
@@ -600,7 +857,7 @@ export default function KelderAnalysePage() {
               })}
               {foundRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: 12, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={13} style={{ padding: 12, textAlign: 'center', color: '#6b7280' }}>
                     Geen gevonden producten.
                   </td>
                 </tr>
@@ -626,10 +883,13 @@ export default function KelderAnalysePage() {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
+                <th style={{ ...thStyle, width: 50, textAlign: 'center' }}>#</th>
                 <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
+                <th style={thStyle}>Behandeld</th>
                 <SortableTh label="Barcode" active={sortUnknown.key==='barcode'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Naam" active={sortUnknown.key==='name'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'name', dir: prev.key==='name' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Variant" active={sortUnknown.key==='variant'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <SortableTh label="Merk" active={sortUnknown.key==='merk'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="ScanQty" active={sortUnknown.key==='scanQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Categorie" active={sortUnknown.key==='category'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Status" active={sortUnknown.key==='status'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'status', dir: prev.key==='status' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
@@ -638,13 +898,17 @@ export default function KelderAnalysePage() {
               </tr>
             </thead>
             <tbody>
-              {unknownRows.map((r) => {
+              {unknownRows.map((r, idx) => {
                 const name = r.active?.name || r.archived?.name || r.localName || '';
                 const variant = r.active?.name ? '' : (r.localVariant || '');
                 const cat = r.active?.categName || r.archived?.categName || '';
                 return (
                   <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
+                    <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
                     <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
+                    <td style={tdStyle} title={behandeld[r.barcode] ? 'Behandeld' : 'Onbehandeld'}>
+                      {behandeld[r.barcode] ? '✓' : ''}
+                    </td>
                     <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
                     <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>
                       {name}
@@ -658,6 +922,21 @@ export default function KelderAnalysePage() {
                         <span title={`Meer varianten:\n${r.localVariantsExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
                       ) : null}
                     </td>
+                    {(() => {
+                      const merkInfo = computeMerk(r);
+                      return (
+                        <td 
+                          style={{
+                            ...tdStyle,
+                            fontWeight: merkInfo.fromName ? 'bold' : undefined,
+                            fontStyle: merkInfo.fromName ? 'italic' : undefined,
+                          }}
+                          title={merkInfo.fromName ? `Merk uit naam: ${merkInfo.merk}` : merkInfo.merk || ''}
+                        >
+                          {merkInfo.merk || ''}
+                        </td>
+                      );
+                    })()}
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
                     <td style={tdStyle} title={cat}>{cat}</td>
                     <td style={tdStyle}>{r.status}</td>
@@ -683,7 +962,7 @@ export default function KelderAnalysePage() {
               })}
               {unknownRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: 12, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={13} style={{ padding: 12, textAlign: 'center', color: '#6b7280' }}>
                     Geen niet-gevonden producten.
                   </td>
                 </tr>
@@ -692,6 +971,92 @@ export default function KelderAnalysePage() {
           </table>
         </div>
         ) : null}
+
+        {/* TABEL 3: Behandelde producten */}
+        {behandeldRows.length > 0 ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Behandelde producten — {behandeldRows.length}</h2>
+              <button 
+                onClick={markSelectedAsOnbehandeld} 
+                disabled={Object.keys(selected).filter(bc => selected[bc] && behandeld[bc]).length === 0}
+                style={{ 
+                  padding: '6px 10px', 
+                  borderRadius: 4, 
+                  border: '1px solid #6b7280', 
+                  background: '#f3f4f6', 
+                  color: '#374151',
+                  opacity: Object.keys(selected).filter(bc => selected[bc] && behandeld[bc]).length === 0 ? 0.5 : 1,
+                  cursor: Object.keys(selected).filter(bc => selected[bc] && behandeld[bc]).length === 0 ? 'not-allowed' : 'pointer',
+                  marginLeft: 8
+                }}
+              >
+                Onbehandeld ({Object.keys(selected).filter(bc => selected[bc] && behandeld[bc]).length})
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead style={{ background: '#f9fafb' }}>
+                  <tr>
+                    <th style={{ ...thStyle, width: 50, textAlign: 'center' }}>#</th>
+                    <th style={thStyle}>
+                      <input 
+                        type="checkbox" 
+                        checked={allBehandeldSelected} 
+                        onChange={toggleSelectAllBehandeld} 
+                      />
+                    </th>
+                    <th style={thStyle}>Barcode</th>
+                    <th style={thStyle}>Naam</th>
+                    <th style={thStyle}>Variant</th>
+                    <th style={thStyle}>Merk</th>
+                    <th style={thStyle}>ScanQty</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {behandeldRows.map((r, idx) => {
+                    const name = r.active?.name || r.archived?.name || r.localName || '';
+                    const variant = r.active?.name ? '' : (r.localVariant || '');
+                    return (
+                      <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
+                        <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
+                        <td style={tdStyle}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!selected[r.barcode]} 
+                            onChange={e => setSel(r.barcode, e.target.checked)} 
+                          />
+                        </td>
+                        <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
+                        <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>{name}</td>
+                        <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>{variant}</td>
+                        {(() => {
+                      const merkInfo = computeMerk(r);
+                      return (
+                        <td 
+                          style={{
+                            ...tdStyle,
+                            fontWeight: merkInfo.fromName ? 'bold' : undefined,
+                            fontStyle: merkInfo.fromName ? 'italic' : undefined,
+                          }}
+                          title={merkInfo.fromName ? `Merk uit naam: ${merkInfo.merk}` : merkInfo.merk || ''}
+                        >
+                          {merkInfo.merk || ''}
+                        </td>
+                      );
+                    })()}
+                        <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
+                        <td style={tdStyle}>{r.status}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
+
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
           <input
             placeholder="Extra categorie (vrije tekst)"
