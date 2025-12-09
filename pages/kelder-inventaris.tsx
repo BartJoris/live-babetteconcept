@@ -20,10 +20,38 @@ type LoadMode = 'replace' | 'merge';
 
 const STORAGE_ROWS_KEY = 'kelderInventarisRows';
 const STORAGE_SETTINGS_KEY = 'kelderInventarisSettings';
+const STORAGE_DRAFT_NAME_KEY = 'kelderInventarisDraftName';
+const STORAGE_COLUMN_WIDTHS_KEY = 'kelderInventarisColumnWidths';
 
 type Settings = {
   fastScanIncrement: boolean;
   offlineMode: boolean;
+};
+
+type ColumnWidths = {
+  barcode: number;
+  name: number;
+  variant: number;
+  qty: number;
+  salePrice: number;
+  purchasePrice: number;
+  found: number;
+  qtyAvailable: number;
+  note: number;
+  actions: number;
+};
+
+const defaultColumnWidths: ColumnWidths = {
+  barcode: 150,
+  name: 320,
+  variant: 240,
+  qty: 80,
+  salePrice: 100,
+  purchasePrice: 100,
+  found: 80,
+  qtyAvailable: 120,
+  note: 200,
+  actions: 120,
 };
 
 type CachedProduct = {
@@ -73,6 +101,10 @@ export default function KelderInventarisPage() {
   const [nfNote, setNfNote] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [loadMode, setLoadMode] = useState<LoadMode>('replace');
+  const [draftName, setDraftName] = useState<string>('');
+  const [showDraftNameModal, setShowDraftNameModal] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(defaultColumnWidths);
+  const [resizingColumn, setResizingColumn] = useState<keyof ColumnWidths | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -84,6 +116,8 @@ export default function KelderInventarisPage() {
     try {
       const rawRows = localStorage.getItem(STORAGE_ROWS_KEY);
       const rawSettings = localStorage.getItem(STORAGE_SETTINGS_KEY);
+      const rawDraftName = localStorage.getItem(STORAGE_DRAFT_NAME_KEY);
+      const rawColumnWidths = localStorage.getItem(STORAGE_COLUMN_WIDTHS_KEY);
       if (rawRows) {
         const parsed = JSON.parse(rawRows) as ScannedRow[];
         if (Array.isArray(parsed)) {
@@ -93,6 +127,13 @@ export default function KelderInventarisPage() {
       if (rawSettings) {
         const parsedSettings = JSON.parse(rawSettings) as Settings;
         setSettings({ ...defaultSettings, ...parsedSettings });
+      }
+      if (rawDraftName) {
+        setDraftName(rawDraftName);
+      }
+      if (rawColumnWidths) {
+        const parsed = JSON.parse(rawColumnWidths) as Partial<ColumnWidths>;
+        setColumnWidths({ ...defaultColumnWidths, ...parsed });
       }
     } catch {
       // ignore load errors, will be overwritten by autosave
@@ -114,6 +155,14 @@ export default function KelderInventarisPage() {
       // storage quota or other error
     }
   }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
+    } catch {
+      // storage quota or other error
+    }
+  }, [columnWidths]);
 
   const totalCount = useMemo(() => rows.reduce((acc, r) => acc + (Number.isFinite(r.qty) ? r.qty : 0), 0), [rows]);
 
@@ -165,6 +214,7 @@ export default function KelderInventarisPage() {
       setNfPurchasePrice('');
       setNfNote('');
       setIsNotFoundOpen(true);
+      playErrorBeep();
       return;
     }
 
@@ -211,6 +261,7 @@ export default function KelderInventarisPage() {
         setNfPurchasePrice('');
         setNfNote('');
         setIsNotFoundOpen(true);
+        playErrorBeep();
       }
     } catch {
       // Fout: probeer cache, anders open formulier
@@ -240,12 +291,45 @@ export default function KelderInventarisPage() {
       setNfPurchasePrice('');
       setNfNote('');
       setIsNotFoundOpen(true);
+      playErrorBeep();
     }
   };
 
   const setAlert = (msg: string) => {
     setAlertMessage(msg);
     setTimeout(() => setAlertMessage(null), 3500);
+  };
+
+  const playErrorBeep = () => {
+    try {
+      // Create audio context for error beep
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Error beep: low frequency, short duration
+      oscillator.frequency.value = 400; // Hz
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch {
+      // Fallback: try using beep if AudioContext fails
+      try {
+        // Simple beep using system beep (may not work in all browsers)
+        const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OSfTQ8OUKjk8LZjGwY4kdfyzHksBSR3x/DdkEAKFF606euoVRQKRp/g8r5sIQUrgc7y2Yk2CBtpvfDkn00PDlCo5PC2YxsGOJHX8sx5LAUkd8fw3ZBAC');
+        beep.play().catch(() => {
+          // Ignore if audio play fails
+        });
+      } catch {
+        // Ignore if all audio methods fail
+      }
+    }
   };
 
   const onSubmitNotFound = () => {
@@ -298,23 +382,39 @@ export default function KelderInventarisPage() {
   };
 
   const saveDraft = () => {
+    setShowDraftNameModal(true);
+  };
+
+  const confirmSaveDraft = () => {
     try {
+      const baseName = draftName.trim() || 'kelder-inventaris-draft';
+      const ts = new Date();
+      const timestamp = formatTs(ts);
+      const fileName = `${baseName}-${timestamp}.json`;
+      
       localStorage.setItem(STORAGE_ROWS_KEY, JSON.stringify(rows));
       localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem(STORAGE_DRAFT_NAME_KEY, baseName);
+      
       // Also trigger JSON download as backup
       const blob = new Blob([JSON.stringify({ rows, settings }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const ts = new Date();
-      const name = `kelder-inventaris-draft-${formatTs(ts)}.json`;
       a.href = url;
-      a.download = name;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
+      
+      setDraftName(baseName);
+      setShowDraftNameModal(false);
       setAlert('Concept opgeslagen.');
     } catch {
       setAlert('Opslaan mislukt.');
     }
+  };
+
+  const cancelSaveDraft = () => {
+    setShowDraftNameModal(false);
   };
 
   const loadDraftFromFile = () => {
@@ -442,6 +542,29 @@ export default function KelderInventarisPage() {
     return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
   };
 
+  const handleResizeStart = (column: keyof ColumnWidths, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(column);
+    const startX = e.clientX;
+    const startWidth = columnWidths[column];
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startX;
+      const newWidth = Math.max(50, startWidth + diff); // Minimum width 50px
+      setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   if (isLoading) {
     return (
       <>
@@ -550,79 +673,229 @@ export default function KelderInventarisPage() {
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
-                <th style={thStyle}>Barcode</th>
-                <th style={thStyle}>Naam</th>
-                <th style={thStyle}>Variant</th>
-                <th style={thStyle}>Aantal</th>
-                <th style={thStyle}>Verkoopprijs</th>
-                <th style={thStyle}>Aankoopprijs</th>
-                <th style={thStyle}>Gevonden</th>
-                <th style={thStyle}>Voorraad (Odoo)</th>
-                <th style={thStyle}>Opmerking</th>
-                <th style={thStyle}>Acties</th>
+                <th style={{ ...thStyle, width: columnWidths.barcode, position: 'relative' }}>
+                  Barcode
+                  <div
+                    onMouseDown={e => handleResizeStart('barcode', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'barcode' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.name, position: 'relative' }}>
+                  Naam
+                  <div
+                    onMouseDown={e => handleResizeStart('name', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'name' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.variant, position: 'relative' }}>
+                  Variant
+                  <div
+                    onMouseDown={e => handleResizeStart('variant', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'variant' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.qty, position: 'relative' }}>
+                  Aantal
+                  <div
+                    onMouseDown={e => handleResizeStart('qty', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'qty' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.salePrice, position: 'relative' }}>
+                  Verkoopprijs
+                  <div
+                    onMouseDown={e => handleResizeStart('salePrice', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'salePrice' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.purchasePrice, position: 'relative' }}>
+                  Aankoopprijs
+                  <div
+                    onMouseDown={e => handleResizeStart('purchasePrice', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'purchasePrice' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.found, position: 'relative' }}>
+                  Gevonden
+                  <div
+                    onMouseDown={e => handleResizeStart('found', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'found' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.qtyAvailable, position: 'relative' }}>
+                  Voorraad (Odoo)
+                  <div
+                    onMouseDown={e => handleResizeStart('qtyAvailable', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'qtyAvailable' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.note, position: 'relative' }}>
+                  Opmerking
+                  <div
+                    onMouseDown={e => handleResizeStart('note', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'note' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.actions, position: 'relative' }}>
+                  Acties
+                  <div
+                    onMouseDown={e => handleResizeStart('actions', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'actions' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={`${r.barcode}-${i}`} style={{ borderTop: '1px solid #e5e7eb' }}>
-                  <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
-                  <td style={tdStyle} title={r.name}>
+                  <td style={{ ...tdStyle, width: columnWidths.barcode, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.barcode}>{r.barcode}</td>
+                  <td style={{ ...tdStyle, width: columnWidths.name }} title={r.name}>
                     <input
                       value={r.name}
                       onChange={e => updateRow(i, { name: e.target.value })}
                       title={r.name}
-                      style={{ ...cellInputStyle, width: 320 }}
+                      style={{ ...cellInputStyle, width: columnWidths.name - 16 }}
                     />
                   </td>
-                  <td style={tdStyle} title={r.variant ?? ''}>
+                  <td style={{ ...tdStyle, width: columnWidths.variant }} title={r.variant ?? ''}>
                     <input
                       value={r.variant ?? ''}
                       onChange={e => updateRow(i, { variant: e.target.value })}
                       title={r.variant ?? ''}
-                      style={{ ...cellInputStyle, width: 240 }}
+                      style={{ ...cellInputStyle, width: columnWidths.variant - 16 }}
                     />
                   </td>
-                  <td style={tdStyle}>
+                  <td style={{ ...tdStyle, width: columnWidths.qty }}>
                     <input
                       type="number"
                       min={0}
                       value={r.qty}
                       onChange={e => updateRow(i, { qty: Number(e.target.value) || 0 })}
                       title={String(r.qty)}
-                      style={{ ...cellInputStyle, width: 80 }}
+                      style={{ ...cellInputStyle, width: columnWidths.qty - 16 }}
                     />
                   </td>
-                  <td style={tdStyle} title={r.salePrice == null ? '' : String(r.salePrice)}>
+                  <td style={{ ...tdStyle, width: columnWidths.salePrice }} title={r.salePrice == null ? '' : String(r.salePrice)}>
                     <input
                       type="number"
                       step="0.01"
                       value={r.salePrice ?? ''}
                       onChange={e => updateRow(i, { salePrice: e.target.value === '' ? null : Number(e.target.value) })}
                       title={r.salePrice == null ? '' : String(r.salePrice)}
-                      style={{ ...cellInputStyle, width: 100 }}
+                      style={{ ...cellInputStyle, width: columnWidths.salePrice - 16 }}
                     />
                   </td>
-                  <td style={tdStyle} title={r.purchasePrice == null ? '' : String(r.purchasePrice)}>
+                  <td style={{ ...tdStyle, width: columnWidths.purchasePrice }} title={r.purchasePrice == null ? '' : String(r.purchasePrice)}>
                     <input
                       type="number"
                       step="0.01"
                       value={r.purchasePrice ?? ''}
                       onChange={e => updateRow(i, { purchasePrice: e.target.value === '' ? null : Number(e.target.value) })}
                       title={r.purchasePrice == null ? '' : String(r.purchasePrice)}
-                      style={{ ...cellInputStyle, width: 100 }}
+                      style={{ ...cellInputStyle, width: columnWidths.purchasePrice - 16 }}
                     />
                   </td>
-                  <td style={tdStyle} title={r.found ? 'true' : 'false'}>{r.found ? 'true' : 'false'}</td>
-                  <td style={{ ...tdStyle, width: 80, textAlign: 'right' }} title={r.qtyAvailable == null ? '' : String(r.qtyAvailable)}>{r.qtyAvailable ?? ''}</td>
-                  <td style={tdStyle} title={r.note ?? ''}>
+                  <td style={{ ...tdStyle, width: columnWidths.found, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.found ? 'true' : 'false'}>{r.found ? 'true' : 'false'}</td>
+                  <td style={{ ...tdStyle, width: columnWidths.qtyAvailable, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.qtyAvailable == null ? '' : String(r.qtyAvailable)}>{r.qtyAvailable ?? ''}</td>
+                  <td style={{ ...tdStyle, width: columnWidths.note }} title={r.note ?? ''}>
                     <input
                       value={r.note ?? ''}
                       onChange={e => updateRow(i, { note: e.target.value })}
                       title={r.note ?? ''}
-                      style={cellInputStyle}
+                      style={{ ...cellInputStyle, width: columnWidths.note - 16 }}
                     />
                   </td>
                   <td style={tdStyle}>
@@ -680,6 +953,48 @@ export default function KelderInventarisPage() {
                 </button>
                 <button onClick={onSubmitNotFound} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #10b981', background: '#ecfdf5', color: '#065f46' }}>
                   Toevoegen
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showDraftNameModal ? (
+          <div style={modalBackdropStyle} onClick={cancelSaveDraft}>
+            <div style={modalStyle} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, marginBottom: 8 }}>Concept opslaan</h3>
+              <p style={{ marginTop: 0, marginBottom: 12, color: '#6b7280', fontSize: 14 }}>
+                Geef een naam op voor dit concept. De naam wordt gebruikt met een timestamp voor unieke bestandsnamen.
+              </p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label style={labelStyle}>
+                  Bestandsnaam (zonder extensie)
+                  <input 
+                    value={draftName} 
+                    onChange={e => setDraftName(e.target.value)} 
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmSaveDraft();
+                      }
+                    }}
+                    placeholder="kelder-inventaris-draft"
+                    style={inputStyle} 
+                    autoFocus
+                  />
+                  {draftName && (
+                    <span style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                      Bestand wordt opgeslagen als: <strong>{draftName}-{formatTs(new Date())}.json</strong>
+                    </span>
+                  )}
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                <button onClick={cancelSaveDraft} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc' }}>
+                  Annuleren
+                </button>
+                <button onClick={confirmSaveDraft} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #10b981', background: '#ecfdf5', color: '#065f46' }}>
+                  Opslaan
                 </button>
               </div>
             </div>

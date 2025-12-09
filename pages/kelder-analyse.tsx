@@ -74,6 +74,41 @@ type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' |
 type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 const STORAGE_ANALYSE_KEY = 'kelderAnalyseState';
+const STORAGE_COLUMN_WIDTHS_KEY = 'kelderAnalyseColumnWidths';
+
+type ColumnWidths = {
+  lineNumber: number;
+  checkbox: number;
+  behandeld: number;
+  barcode: number;
+  name: number;
+  variant: number;
+  merk: number;
+  scanQty: number;
+  odooQty: number;
+  diff: number;
+  category: number;
+  status: number;
+  search: number;
+  actions: number;
+};
+
+const defaultColumnWidths: ColumnWidths = {
+  lineNumber: 50,
+  checkbox: 50,
+  behandeld: 80,
+  barcode: 150,
+  name: 320,
+  variant: 260,
+  merk: 120,
+  scanQty: 80,
+  odooQty: 80,
+  diff: 90,
+  category: 150,
+  status: 80,
+  search: 80,
+  actions: 100,
+};
 
 function computeName(row: AnalyseRow) {
   return row.active?.name || row.archived?.name || row.localName || '';
@@ -124,10 +159,13 @@ export default function KelderAnalysePage() {
   const [keywordIncArchived, setKeywordIncArchived] = useState(true);
   const [keywordLoading, setKeywordLoading] = useState(false);
   const [keywordResults, setKeywordResults] = useState<OdooMatch[]>([]);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(defaultColumnWidths);
+  const [resizingColumn, setResizingColumn] = useState<keyof ColumnWidths | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_ANALYSE_KEY);
+      const rawColumnWidths = localStorage.getItem(STORAGE_COLUMN_WIDTHS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as {
           upload: UploadShape | null;
@@ -146,6 +184,10 @@ export default function KelderAnalysePage() {
         if (parsed.filter) setFilter(parsed.filter);
         if (parsed.behandeld) setBehandeld(parsed.behandeld);
       }
+      if (rawColumnWidths) {
+        const parsed = JSON.parse(rawColumnWidths) as Partial<ColumnWidths>;
+        setColumnWidths({ ...defaultColumnWidths, ...parsed });
+      }
     } catch {
       // ignore
     }
@@ -161,6 +203,14 @@ export default function KelderAnalysePage() {
       // ignore
     }
   }, [upload, analysed, filter, behandeld]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
+    } catch {
+      // ignore
+    }
+  }, [columnWidths]);
 
   const setAlert = (msg: string) => {
     setAlertMessage(msg);
@@ -601,6 +651,29 @@ export default function KelderAnalysePage() {
     return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
   };
 
+  const handleResizeStart = (column: keyof ColumnWidths, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(column);
+    const startX = e.clientX;
+    const startWidth = columnWidths[column];
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startX;
+      const newWidth = Math.max(30, startWidth + diff); // Minimum width 30px
+      setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const saveDraft = () => {
     try {
       const draft = {
@@ -785,22 +858,82 @@ export default function KelderAnalysePage() {
         </div>
         {showFound ? (
         <div ref={foundTableRef} style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
-                <th style={{ ...thStyle, width: 50, textAlign: 'center' }}>#</th>
-                <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
-                <th style={thStyle}>Behandeld</th>
-                <SortableTh label="Barcode" active={sortFound.key==='barcode'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Naam" active={sortFound.key==='name'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'name', dir: prev.key==='name' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Variant" active={sortFound.key==='variant'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Merk" active={sortFound.key==='merk'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="ScanQty" active={sortFound.key==='scanQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="OdooQty" active={sortFound.key==='odooQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Verschil" active={sortFound.key==='diff'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Categorie" active={sortFound.key==='category'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Status" active={sortFound.key==='status'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'status', dir: prev.key==='status' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <th style={thStyle}>Zoek</th>
+                <th style={{ ...thStyle, width: columnWidths.lineNumber, textAlign: 'center', position: 'relative' }}>
+                  #
+                  <div
+                    onMouseDown={e => handleResizeStart('lineNumber', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'lineNumber' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.checkbox, position: 'relative' }}>
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} />
+                  <div
+                    onMouseDown={e => handleResizeStart('checkbox', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'checkbox' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.behandeld, position: 'relative' }}>
+                  Behandeld
+                  <div
+                    onMouseDown={e => handleResizeStart('behandeld', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'behandeld' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
+                <ResizableSortableTh label="Barcode" active={sortFound.key==='barcode'} dir={sortFound.dir} width={columnWidths.barcode} columnKey="barcode" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('barcode', e)} onClick={() => setSortFound(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Naam" active={sortFound.key==='name'} dir={sortFound.dir} width={columnWidths.name} columnKey="name" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('name', e)} onClick={() => setSortFound(prev => ({ key: 'name', dir: prev.key==='name' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Variant" active={sortFound.key==='variant'} dir={sortFound.dir} width={columnWidths.variant} columnKey="variant" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('variant', e)} onClick={() => setSortFound(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Merk" active={sortFound.key==='merk'} dir={sortFound.dir} width={columnWidths.merk} columnKey="merk" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('merk', e)} onClick={() => setSortFound(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="ScanQty" active={sortFound.key==='scanQty'} dir={sortFound.dir} width={columnWidths.scanQty} columnKey="scanQty" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('scanQty', e)} onClick={() => setSortFound(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="OdooQty" active={sortFound.key==='odooQty'} dir={sortFound.dir} width={columnWidths.odooQty} columnKey="odooQty" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('odooQty', e)} onClick={() => setSortFound(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Verschil" active={sortFound.key==='diff'} dir={sortFound.dir} width={columnWidths.diff} columnKey="diff" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('diff', e)} onClick={() => setSortFound(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Categorie" active={sortFound.key==='category'} dir={sortFound.dir} width={columnWidths.category} columnKey="category" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('category', e)} onClick={() => setSortFound(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <ResizableSortableTh label="Status" active={sortFound.key==='status'} dir={sortFound.dir} width={columnWidths.status} columnKey="status" resizingColumn={resizingColumn} onResizeStart={e => handleResizeStart('status', e)} onClick={() => setSortFound(prev => ({ key: 'status', dir: prev.key==='status' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <th style={{ ...thStyle, width: columnWidths.search, position: 'relative' }}>
+                  Zoek
+                  <div
+                    onMouseDown={e => handleResizeStart('search', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      background: resizingColumn === 'search' ? '#3b82f6' : 'transparent',
+                    }}
+                    title="Sleep om breedte aan te passen"
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -813,19 +946,19 @@ export default function KelderAnalysePage() {
                 const rowStyle: React.CSSProperties = { borderTop: '1px solid #e5e7eb', background: diff !== 0 ? '#f3f4f6' : undefined };
                 return (
                   <tr key={r.barcode} style={rowStyle}>
-                    <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
-                    <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
-                    <td style={tdStyle} title={behandeld[r.barcode] ? 'Behandeld' : 'Onbehandeld'}>
+                    <td style={{ ...tdStyle, width: columnWidths.lineNumber, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.checkbox }}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
+                    <td style={{ ...tdStyle, width: columnWidths.behandeld }} title={behandeld[r.barcode] ? 'Behandeld' : 'Onbehandeld'}>
                       {behandeld[r.barcode] ? '✓' : ''}
                     </td>
-                    <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
-                    <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>
+                    <td style={{ ...tdStyle, width: columnWidths.barcode, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.barcode}>{r.barcode}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.name, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>
                       {name}
                       {(r.localNamesExtra && r.localNamesExtra.length > 0) ? (
                         <span title={`Meer namen:\n${r.localNamesExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
                       ) : null}
                     </td>
-                    <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>
+                    <td style={{ ...tdStyle, width: columnWidths.variant, overflow: 'hidden', textOverflow: 'ellipsis' }} title={variant}>
                       {variant}
                       {(r.localVariantsExtra && r.localVariantsExtra.length > 0) ? (
                         <span title={`Meer varianten:\n${r.localVariantsExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
@@ -846,12 +979,12 @@ export default function KelderAnalysePage() {
                         </td>
                       );
                     })()}
-                    <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
-                    <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{odooQty ?? ''}</td>
-                    <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: diff === 0 ? '#059669' : diff > 0 ? '#2563eb' : '#dc2626' }}>{diff}</td>
-                    <td style={tdStyle} title={cat}>{cat}</td>
-                    <td style={tdStyle}>{r.status}</td>
-                    <td style={tdStyle}><a href={`https://www.google.com/search?q=${encodeURIComponent(r.barcode)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>Google</a></td>
+                    <td style={{ ...tdStyle, width: columnWidths.scanQty, textAlign: 'right' }}>{r.scanQty}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.odooQty, textAlign: 'right' }}>{odooQty ?? ''}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.diff, textAlign: 'right', color: diff === 0 ? '#059669' : diff > 0 ? '#2563eb' : '#dc2626' }}>{diff}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.category, overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat}>{cat}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.status }}>{r.status}</td>
+                    <td style={{ ...tdStyle, width: columnWidths.search }}><a href={`https://www.google.com/search?q=${encodeURIComponent(r.barcode)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>Google</a></td>
                   </tr>
                 );
               })}
@@ -1212,6 +1345,42 @@ function SortableTh(props: { label: string; active: boolean; dir: 'asc' | 'desc'
       title="Sorteren"
     >
       {props.label} {arrow}
+    </th>
+  );
+}
+
+function ResizableSortableTh(props: { 
+  label: string; 
+  active: boolean; 
+  dir: 'asc' | 'desc'; 
+  width: number;
+  columnKey: keyof ColumnWidths;
+  resizingColumn: keyof ColumnWidths | null;
+  onResizeStart: (e: React.MouseEvent) => void;
+  onClick: () => void;
+}) {
+  const arrow = props.active ? (props.dir === 'asc' ? '▲' : '▼') : '';
+  const isResizing = props.resizingColumn === props.columnKey;
+  return (
+    <th
+      style={{ ...thStyle, width: props.width, cursor: 'pointer', userSelect: 'none', position: 'relative' }}
+      onClick={props.onClick}
+      title="Sorteren"
+    >
+      {props.label} {arrow}
+      <div
+        onMouseDown={props.onResizeStart}
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 4,
+          cursor: 'col-resize',
+          background: isResizing ? '#3b82f6' : 'transparent',
+        }}
+        title="Sleep om breedte aan te passen"
+      />
     </th>
   );
 }

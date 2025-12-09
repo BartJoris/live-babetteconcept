@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/audit-monitor', '/kelder-inventaris', '/kelder-analyse', '/voorraad-bewerken'].includes(router.pathname);
+    return ['/audit-monitor', '/kelder-inventaris', '/kelder-analyse', '/voorraad-bewerken', '/voorraad-samenvoegen'].includes(router.pathname);
   };
 
   return (
@@ -231,6 +231,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/voorraad-bewerken" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/voorraad-bewerken') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       ✏️ Voorraad bewerken
+                    </Link>
+                    <Link href="/voorraad-samenvoegen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/voorraad-samenvoegen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🔗 Voorraad samenvoegen
                     </Link>
                   </div>
                 </div>
@@ -602,6 +605,17 @@ export default function Navigation() {
                   }`}
                 >
                   ✏️ Voorraad bewerken
+                </Link>
+                <Link
+                  href="/voorraad-samenvoegen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/voorraad-samenvoegen')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🔗 Voorraad samenvoegen
                 </Link>
               </div>
             )}
