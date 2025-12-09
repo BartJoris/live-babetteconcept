@@ -27,7 +27,18 @@ export function useAuth(redirectToLogin = true) {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/session');
+      const res = await fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
       const data = await res.json();
 
       if (data.isLoggedIn && data.user) {
@@ -55,6 +66,7 @@ export function useAuth(redirectToLogin = true) {
         isLoading: false,
       });
 
+      // Only redirect if we're not already on the login page
       if (redirectToLogin && router.pathname !== '/') {
         router.push('/');
       }

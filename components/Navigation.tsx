@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/audit-monitor', '/kelder-inventaris', '/kelder-analyse', '/voorraad-bewerken', '/voorraad-samenvoegen'].includes(router.pathname);
+    return ['/inventaris-maken', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen'].includes(router.pathname);
   };
 
   return (
@@ -202,7 +202,7 @@ export default function Navigation() {
               )}
             </div>
 
-            {/* Beheer Dropdown */}
+            {/* Inventaris Dropdown */}
             <div className="relative" ref={beheerRef}>
               <button
                 onClick={() => setIsBeheerOpen(!isBeheerOpen)}
@@ -212,7 +212,7 @@ export default function Navigation() {
                     : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                Beheer
+                Inventaris
                 <svg className={`ml-1 h-4 w-4 transform transition-transform ${isBeheerOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -220,20 +220,17 @@ export default function Navigation() {
               {isBeheerOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
-                    <Link href="/audit-monitor" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/audit-monitor') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🔍 Security Monitor
+                    <Link href="/inventaris-maken" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-maken') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🏷️ Inventaris maken
                     </Link>
-                    <Link href="/kelder-inventaris" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/kelder-inventaris') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🏷️ Kelder inventaris
-                    </Link>
-                    <Link href="/kelder-analyse" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/kelder-analyse') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      📊 Kelder analyse
+                    <Link href="/inventaris-analyse" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-analyse') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      📊 Inventaris analyse
                     </Link>
                     <Link href="/voorraad-bewerken" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/voorraad-bewerken') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       ✏️ Voorraad bewerken
                     </Link>
-                    <Link href="/voorraad-samenvoegen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/voorraad-samenvoegen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🔗 Voorraad samenvoegen
+                    <Link href="/inventaris-samenvoegen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-samenvoegen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🔗 Inventaris samenvoegen
                     </Link>
                   </div>
                 </div>
@@ -540,7 +537,7 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Beheer Section */}
+          {/* Inventaris Section */}
           <div className="pt-2">
             <button
               onClick={() => setMobileBeheerOpen(!mobileBeheerOpen)}
@@ -550,7 +547,7 @@ export default function Navigation() {
                   : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
             >
-              <span>Beheer</span>
+              <span>Inventaris</span>
               <svg 
                 className={`h-5 w-5 transform transition-transform ${mobileBeheerOpen ? 'rotate-180' : ''}`}
                 xmlns="http://www.w3.org/2000/svg" 
@@ -563,37 +560,26 @@ export default function Navigation() {
             {mobileBeheerOpen && (
               <div className="pl-4 space-y-1 mt-1">
                 <Link
-                  href="/audit-monitor"
+                  href="/inventaris-maken"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/audit-monitor')
+                    isActive('/inventaris-maken')
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                 >
-                  🔍 Security Monitor
+                  🏷️ Inventaris maken
                 </Link>
                 <Link
-                  href="/kelder-inventaris"
+                  href="/inventaris-analyse"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/kelder-inventaris')
+                    isActive('/inventaris-analyse')
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                 >
-                  🏷️ Kelder inventaris
-                </Link>
-                <Link
-                  href="/kelder-analyse"
-                  onClick={closeMenu}
-                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/kelder-analyse')
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
-                >
-                  📊 Kelder analyse
+                  📊 Inventaris analyse
                 </Link>
                 <Link
                   href="/voorraad-bewerken"
@@ -607,15 +593,15 @@ export default function Navigation() {
                   ✏️ Voorraad bewerken
                 </Link>
                 <Link
-                  href="/voorraad-samenvoegen"
+                  href="/inventaris-samenvoegen"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/voorraad-samenvoegen')
+                    isActive('/inventaris-samenvoegen')
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                 >
-                  🔗 Voorraad samenvoegen
+                  🔗 Inventaris samenvoegen
                 </Link>
               </div>
             )}

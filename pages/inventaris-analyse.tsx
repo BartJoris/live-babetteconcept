@@ -508,7 +508,7 @@ export default function KelderAnalysePage() {
       const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const name = `kelder-analyse-draft-${formatTs(new Date())}.json`;
+      const name = `inventaris-analyse-draft-${formatTs(new Date())}.json`;
       a.href = url;
       a.download = name;
       a.click();

@@ -19,6 +19,37 @@ type SuccessNotFound = {
 
 type ApiResponse = SuccessFound | SuccessNotFound | { error: string };
 
+type OdooRawProduct = {
+  id: number;
+  barcode: string | null;
+  display_name: string;
+  list_price: number | null;
+  qty_available: number | null;
+  standard_price: number | null;
+};
+
+async function searchReadWithContext(
+  uid: number,
+  password: string,
+  model: string,
+  domain: unknown[],
+  fields: string[],
+  context?: Record<string, unknown>
+) {
+  // Use low-level call to pass context explicitly
+  return odooClient.call<OdooRawProduct[]>({
+    uid,
+    password,
+    model,
+    method: 'search_read',
+    args: [domain],
+    kwargs: {
+      fields,
+      ...(context ? { context } : {}),
+    },
+  });
+}
+
 export default withAuth(async function handler(req: NextApiRequestWithSession, res: NextApiResponse<ApiResponse>) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -37,17 +68,33 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const fields = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price'] as const;
-    const products = await odooClient.searchRead<{
-      id: number;
-      barcode: string | null;
-      display_name: string;
-      list_price: number | null;
-      qty_available: number | null;
-      standard_price: number | null;
-    }>(user.uid, user.password, 'product.product', [['barcode', '=', String(barcode)]], [...fields], 1);
+    const fields = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price'];
+    
+    // Eerst zoeken naar actieve producten
+    const activeProducts = await odooClient.searchRead<OdooRawProduct>(
+      user.uid,
+      user.password,
+      'product.product',
+      [['barcode', '=', String(barcode)]],
+      fields,
+      1
+    );
 
-    const prod = products && products.length > 0 ? products[0] : null;
+    let prod = activeProducts && activeProducts.length > 0 ? activeProducts[0] : null;
+
+    // Als geen actief product gevonden, zoek in gearchiveerde producten
+    if (!prod) {
+      const archivedProducts = await searchReadWithContext(
+        user.uid,
+        user.password,
+        'product.product',
+        [['barcode', '=', String(barcode)], ['active', '=', false]],
+        fields,
+        { active_test: false }
+      );
+      prod = archivedProducts && archivedProducts.length > 0 ? archivedProducts[0] : null;
+    }
+
     if (!prod) {
       return res.status(200).json({ found: false });
     }

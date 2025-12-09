@@ -26,7 +26,7 @@ type LoadedFile = {
   rowCount: number;
 };
 
-const STORAGE_DRAFT_NAME_KEY = 'voorraadSamenvoegenDraftName';
+const STORAGE_DRAFT_NAME_KEY = 'inventarisSamenvoegenDraftName';
 
 export default function VoorraadSamenvoegenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
