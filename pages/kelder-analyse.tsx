@@ -115,7 +115,8 @@ function computeName(row: AnalyseRow) {
 }
 
 function computeVariant(row: AnalyseRow) {
-  return row.active?.name ? '' : (row.localVariant || '');
+  // Toon altijd de lokale variant als die er is, ongeacht of er een Odoo match is
+  return row.localVariant || '';
 }
 
 function computeOdooQty(row: AnalyseRow) {
@@ -939,7 +940,7 @@ export default function KelderAnalysePage() {
             <tbody>
               {foundRows.map((r, idx) => {
                 const name = r.active?.name || r.archived?.name || r.localName || '';
-                const variant = r.active?.name ? '' : (r.localVariant || '');
+                const variant = computeVariant(r);
                 const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
                 const diff = (odooQty ?? 0) - r.scanQty;
                 const cat = r.active?.categName || r.archived?.categName || '';
@@ -1033,7 +1034,7 @@ export default function KelderAnalysePage() {
             <tbody>
               {unknownRows.map((r, idx) => {
                 const name = r.active?.name || r.archived?.name || r.localName || '';
-                const variant = r.active?.name ? '' : (r.localVariant || '');
+                const variant = computeVariant(r);
                 const cat = r.active?.categName || r.archived?.categName || '';
                 return (
                   <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
@@ -1150,7 +1151,7 @@ export default function KelderAnalysePage() {
                 <tbody>
                   {behandeldRows.map((r, idx) => {
                     const name = r.active?.name || r.archived?.name || r.localName || '';
-                    const variant = r.active?.name ? '' : (r.localVariant || '');
+                    const variant = computeVariant(r);
                     return (
                       <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
                         <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280' }}>{idx + 1}</td>
