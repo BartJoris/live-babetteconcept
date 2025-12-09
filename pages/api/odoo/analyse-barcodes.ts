@@ -5,6 +5,7 @@ import { odooClient } from '../../../lib/odooClient';
 type OdooRawProduct = {
   id: number;
   barcode: string | null;
+  name: string;
   display_name: string;
   qty_available: number | null;
   list_price: number | null;
@@ -39,7 +40,7 @@ function toMatch(p: OdooRawProduct): OdooMatch {
   return {
     id: p.id,
     barcode: p.barcode ?? null,
-    name: p.display_name,
+    name: p.name || p.display_name, // Gebruik name (exacte naam uit Odoo), fallback naar display_name
     categId,
     categName,
     qtyAvailable: p.qty_available ?? null,
@@ -82,7 +83,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
   try {
     const { user } = req.session;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    const fields = ['id','barcode','display_name','categ_id','qty_available','list_price','standard_price','active','product_tmpl_id'];
+    const fields = ['id','barcode','name','display_name','categ_id','qty_available','list_price','standard_price','active','product_tmpl_id'];
 
     // Batch to avoid large payloads
     const chunkSize = 100;

@@ -724,9 +724,14 @@ export default function VoorraadBewerkenPage() {
       }
 
       setPreviewOpen(false);
-      setSelected({});
-      setSelectedCategory(null);
-      setSelectedLabel(null);
+      // Behoud selectie zodat gebruiker daarna ook een label/categorie kan toepassen
+      // setSelected({}); // Verwijderd: selectie blijft behouden
+      // Reset alleen de geselecteerde categorie/label, niet de product selectie
+      if (previewMode === 'category') {
+        setSelectedCategory(null);
+      } else if (previewMode === 'label') {
+        setSelectedLabel(null);
+      }
     } catch (error: unknown) {
       setAlert(error instanceof Error ? error.message : 'Update mislukt.');
     } finally {
