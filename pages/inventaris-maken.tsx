@@ -73,6 +73,8 @@ export default function KelderInventarisPage() {
   const [nfNote, setNfNote] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [loadMode, setLoadMode] = useState<LoadMode>('replace');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveFileName, setSaveFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -164,6 +166,7 @@ export default function KelderInventarisPage() {
       setNfSalePrice('');
       setNfPurchasePrice('');
       setNfNote('');
+      playBeep();
       setIsNotFoundOpen(true);
       return;
     }
@@ -210,6 +213,7 @@ export default function KelderInventarisPage() {
         setNfSalePrice('');
         setNfPurchasePrice('');
         setNfNote('');
+        playBeep();
         setIsNotFoundOpen(true);
       }
     } catch {
@@ -239,7 +243,38 @@ export default function KelderInventarisPage() {
       setNfSalePrice('');
       setNfPurchasePrice('');
       setNfNote('');
+      playBeep();
       setIsNotFoundOpen(true);
+    }
+  };
+
+  const playBeep = () => {
+    try {
+      // Create audio context for beep sound
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Configure beep sound (440Hz, 200ms)
+      oscillator.frequency.value = 440;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      // Fallback: try to play a simple beep using Audio
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OSfTQ8OUKjk8LZjHAY4kdfyzHksBSR3x/DdkEAKFF606euoVRQKRp/g8r5sIQUqgc7y2Yk2CBtpvfDkn00PDlCo5PC2YxwGOJHX8sx5LAUkd8fw3ZBAC');
+        audio.volume = 0.3;
+        void audio.play();
+      } catch {
+        // Silently fail if audio is not supported
+      }
     }
   };
 
@@ -303,19 +338,29 @@ export default function KelderInventarisPage() {
   };
 
   const saveDraft = () => {
+    // Show modal to let user choose filename
+    const defaultName = `inventaris-${formatTs(new Date())}`;
+    setSaveFileName(defaultName);
+    setShowSaveModal(true);
+  };
+
+  const handleSaveConfirm = () => {
     try {
       localStorage.setItem(STORAGE_ROWS_KEY, JSON.stringify(rows));
       localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
-      // Also trigger JSON download as backup
+      
+      // Trigger JSON download with user-chosen name
       const blob = new Blob([JSON.stringify({ rows, settings }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const ts = new Date();
-      const name = `kelder-inventaris-draft-${formatTs(ts)}.json`;
+      const fileName = saveFileName.trim() || `inventaris-${formatTs(new Date())}`;
+      const finalName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
       a.href = url;
-      a.download = name;
+      a.download = finalName;
       a.click();
       URL.revokeObjectURL(url);
+      setShowSaveModal(false);
+      setSaveFileName('');
       setAlert('Concept opgeslagen.');
     } catch {
       setAlert('Opslaan mislukt.');
@@ -547,6 +592,59 @@ export default function KelderInventarisPage() {
             </tbody>
           </table>
         </div>
+
+        {showSaveModal ? (
+          <div style={modalBackdropStyle} onClick={() => setShowSaveModal(false)}>
+            <div style={modalStyle} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, marginBottom: 8 }}>Inventaris opslaan</h3>
+              <p style={{ marginTop: 0, marginBottom: 12, color: '#6b7280', fontSize: 14 }}>
+                Geef een naam op voor dit bestand.
+              </p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label style={labelStyle}>
+                  Bestandsnaam
+                  <input
+                    value={saveFileName}
+                    onChange={e => setSaveFileName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSaveConfirm();
+                      }
+                    }}
+                    style={inputStyle}
+                    autoFocus
+                    placeholder="inventaris-naam"
+                  />
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                <button
+                  onClick={() => {
+                    setShowSaveModal(false);
+                    setSaveFileName('');
+                  }}
+                  style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={handleSaveConfirm}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 4,
+                    border: '1px solid #10b981',
+                    background: '#10b981',
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Opslaan
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {isNotFoundOpen ? (
           <div style={modalBackdropStyle} onClick={onCancelNotFound}>
