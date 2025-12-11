@@ -467,7 +467,7 @@ export default function KelderInventarisPage() {
         'Verkoopprijs': r.salePrice ?? '',
         'Aankoopprijs': r.purchasePrice ?? '',
         'Gevonden': r.found ? 'true' : 'false',
-        'Voorraad (Odoo)': r.qtyAvailable ?? '',
+        'Voorraad': r.qtyAvailable ?? '',
         'Opmerking': r.note ?? '',
         'ProductId': r.productId ?? '',
       }));
@@ -636,7 +636,7 @@ export default function KelderInventarisPage() {
                   />
                 </th>
                 <th style={{ ...thStyle, width: columnWidths.stock, position: 'relative' }}>
-                  Voorraad (Odoo)
+                  Voorraad
                   <div
                     onMouseDown={(e) => handleResizeStart('stock', e)}
                     style={{
