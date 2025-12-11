@@ -423,15 +423,26 @@ export default function KelderInventarisPage() {
       const blob = new Blob([JSON.stringify({ rows, settings }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const fileName = saveFileName.trim() || `inventaris-${formatTs(new Date())}`;
+      let fileName = saveFileName.trim() || `inventaris-${formatTs(new Date())}`;
+      
+      // Update timestamp in filename if it contains a timestamp pattern (YYYYMMDD-HHMM)
+      const timestampPattern = /\d{8}-\d{4}/;
+      if (timestampPattern.test(fileName)) {
+        // Replace existing timestamp with current timestamp
+        fileName = fileName.replace(timestampPattern, formatTs(new Date()));
+      } else if (!fileName.includes(formatTs(new Date()))) {
+        // Add timestamp if not present
+        fileName = `${fileName}-${formatTs(new Date())}`;
+      }
+      
       const finalName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
       a.href = url;
       a.download = finalName;
       a.click();
       URL.revokeObjectURL(url);
       
-      // Save filename for next time (without .json extension)
-      const nameWithoutExt = fileName.replace(/\.json$/i, '');
+      // Save filename for next time (without .json extension and without timestamp)
+      const nameWithoutExt = fileName.replace(/\.json$/i, '').replace(/-\d{8}-\d{4}$/, '');
       localStorage.setItem(STORAGE_LAST_FILENAME_KEY, nameWithoutExt);
       
       // Add to recent filenames list (keep last 10)
