@@ -75,8 +75,55 @@ export default function KelderInventarisPage() {
   const [loadMode, setLoadMode] = useState<LoadMode>('replace');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveFileName, setSaveFileName] = useState('');
+  const [columnWidths, setColumnWidths] = useState({
+    barcode: 150,
+    variant: 300,
+    qty: 80,
+    stock: 120,
+    note: 200,
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleResizeStart = (column: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(column);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(columnWidths[column as keyof typeof columnWidths]);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(50, resizeStartWidth + diff);
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth,
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth, columnWidths]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -537,29 +584,104 @@ export default function KelderInventarisPage() {
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
-                <th style={{ ...thStyle, borderLeft: '1px solid #e5e7eb' }}>Barcode</th>
-                <th style={thStyle}>Variant</th>
-                <th style={thStyle}>Aantal</th>
-                <th style={thStyle}>Voorraad (Odoo)</th>
-                <th style={thStyle}>Opmerking</th>
+                <th style={{ ...thStyle, borderLeft: '1px solid #e5e7eb', width: columnWidths.barcode, position: 'relative' }}>
+                  Barcode
+                  <div
+                    onMouseDown={(e) => handleResizeStart('barcode', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      userSelect: 'none',
+                      background: resizingColumn === 'barcode' ? '#3b82f6' : 'transparent',
+                    }}
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.variant, position: 'relative' }}>
+                  Variant
+                  <div
+                    onMouseDown={(e) => handleResizeStart('variant', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      userSelect: 'none',
+                      background: resizingColumn === 'variant' ? '#3b82f6' : 'transparent',
+                    }}
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.qty, position: 'relative' }}>
+                  Aantal
+                  <div
+                    onMouseDown={(e) => handleResizeStart('qty', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      userSelect: 'none',
+                      background: resizingColumn === 'qty' ? '#3b82f6' : 'transparent',
+                    }}
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.stock, position: 'relative' }}>
+                  Voorraad (Odoo)
+                  <div
+                    onMouseDown={(e) => handleResizeStart('stock', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      userSelect: 'none',
+                      background: resizingColumn === 'stock' ? '#3b82f6' : 'transparent',
+                    }}
+                  />
+                </th>
+                <th style={{ ...thStyle, width: columnWidths.note, position: 'relative' }}>
+                  Opmerking
+                  <div
+                    onMouseDown={(e) => handleResizeStart('note', e)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      cursor: 'col-resize',
+                      userSelect: 'none',
+                      background: resizingColumn === 'note' ? '#3b82f6' : 'transparent',
+                    }}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={`${r.barcode}-${i}`} style={{ borderTop: '1px solid #e5e7eb', fontWeight: i === 0 ? 'bold' : undefined }}>
-                  <td style={{ ...tdStyle, borderLeft: '1px solid #e5e7eb' }} title={r.barcode}>{r.barcode}</td>
-                  <td style={tdStyle} title={r.variant ?? ''}>
+                  <td style={{ ...tdStyle, borderLeft: '1px solid #e5e7eb', width: columnWidths.barcode }} title={r.barcode}>{r.barcode}</td>
+                  <td style={{ ...tdStyle, width: columnWidths.variant, padding: 0 }} title={r.variant ?? ''}>
                     <input
                       value={r.variant ?? ''}
                       onChange={e => updateRow(i, { variant: e.target.value })}
                       title={r.variant ?? ''}
-                      style={{ ...cellInputStyle, width: 240 }}
+                      style={{ ...cellInputStyle, width: '100%', border: 'none', borderRadius: 0, padding: 8 }}
                     />
                   </td>
-                  <td style={tdStyle}>
+                  <td style={{ ...tdStyle, width: columnWidths.qty, padding: 0 }}>
                     <input
                       type="number"
                       min={0}
@@ -567,17 +689,17 @@ export default function KelderInventarisPage() {
                       onChange={e => updateRow(i, { qty: Number(e.target.value) || 0 })}
                       onBlur={() => setTimeout(() => { inputRef.current?.focus(); }, 100)}
                       title={String(r.qty)}
-                      style={{ ...cellInputStyle, width: 80 }}
+                      style={{ ...cellInputStyle, width: '100%', border: 'none', borderRadius: 0, padding: 8 }}
                     />
                   </td>
-                  <td style={{ ...tdStyle, width: 80, textAlign: 'right' }} title={r.qtyAvailable == null ? '' : String(r.qtyAvailable)}>{r.qtyAvailable ?? ''}</td>
-                  <td style={tdStyle} title={r.note ?? ''}>
+                  <td style={{ ...tdStyle, width: columnWidths.stock, textAlign: 'right' }} title={r.qtyAvailable == null ? '' : String(r.qtyAvailable)}>{r.qtyAvailable ?? ''}</td>
+                  <td style={{ ...tdStyle, width: columnWidths.note, padding: 0 }} title={r.note ?? ''}>
                     <input
                       value={r.note ?? ''}
                       onChange={e => updateRow(i, { note: e.target.value })}
                       onBlur={() => setTimeout(() => { inputRef.current?.focus(); }, 100)}
                       title={r.note ?? ''}
-                      style={cellInputStyle}
+                      style={{ ...cellInputStyle, width: '100%', border: 'none', borderRadius: 0, padding: 8 }}
                     />
                   </td>
                 </tr>
