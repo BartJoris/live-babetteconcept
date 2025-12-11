@@ -20,6 +20,8 @@ type LoadMode = 'replace' | 'merge';
 
 const STORAGE_ROWS_KEY = 'kelderInventarisRows';
 const STORAGE_SETTINGS_KEY = 'kelderInventarisSettings';
+const STORAGE_LAST_FILENAME_KEY = 'kelderInventarisLastFilename';
+const STORAGE_RECENT_FILENAMES_KEY = 'kelderInventarisRecentFilenames';
 
 type Settings = {
   fastScanIncrement: boolean;
@@ -75,6 +77,7 @@ export default function KelderInventarisPage() {
   const [loadMode, setLoadMode] = useState<LoadMode>('replace');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveFileName, setSaveFileName] = useState('');
+  const [recentFilenames, setRecentFilenames] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState({
     barcode: 150,
     variant: 300,
@@ -142,6 +145,21 @@ export default function KelderInventarisPage() {
       if (rawSettings) {
         const parsedSettings = JSON.parse(rawSettings) as Settings;
         setSettings({ ...defaultSettings, ...parsedSettings });
+      }
+      // Load last used filename
+      const lastFilename = localStorage.getItem(STORAGE_LAST_FILENAME_KEY);
+      if (lastFilename) {
+        setSaveFileName(lastFilename);
+      }
+      // Load recent filenames
+      try {
+        const recentRaw = localStorage.getItem(STORAGE_RECENT_FILENAMES_KEY);
+        if (recentRaw) {
+          const recent = JSON.parse(recentRaw) as string[];
+          setRecentFilenames(recent);
+        }
+      } catch {
+        // Ignore errors
       }
     } catch {
       // ignore load errors, will be overwritten by autosave
@@ -371,12 +389,11 @@ export default function KelderInventarisPage() {
     });
   };
 
-  // removeRow - kept for future UI integration
   const removeRow = (index: number) => {
-    setRows(prev => prev.filter((_, i) => i !== index));
+    if (confirm('Weet je zeker dat je deze regel wilt verwijderen?')) {
+      setRows(prev => prev.filter((_, i) => i !== index));
+    }
   };
-  // Mark as used to satisfy TypeScript strict mode
-  if (false) void removeRow;
 
   const clearAll = () => {
     if (confirm('Weet je zeker dat je alles wil leegmaken?')) {
@@ -386,8 +403,14 @@ export default function KelderInventarisPage() {
 
   const saveDraft = () => {
     // Show modal to let user choose filename
-    const defaultName = `inventaris-${formatTs(new Date())}`;
-    setSaveFileName(defaultName);
+    try {
+      const lastFilename = localStorage.getItem(STORAGE_LAST_FILENAME_KEY);
+      const defaultName = lastFilename || `inventaris-${formatTs(new Date())}`;
+      setSaveFileName(defaultName);
+    } catch {
+      const defaultName = `inventaris-${formatTs(new Date())}`;
+      setSaveFileName(defaultName);
+    }
     setShowSaveModal(true);
   };
 
@@ -406,8 +429,22 @@ export default function KelderInventarisPage() {
       a.download = finalName;
       a.click();
       URL.revokeObjectURL(url);
+      
+      // Save filename for next time (without .json extension)
+      const nameWithoutExt = fileName.replace(/\.json$/i, '');
+      localStorage.setItem(STORAGE_LAST_FILENAME_KEY, nameWithoutExt);
+      
+      // Add to recent filenames list (keep last 10)
+      try {
+        const recentRaw = localStorage.getItem(STORAGE_RECENT_FILENAMES_KEY);
+        const recent: string[] = recentRaw ? JSON.parse(recentRaw) : [];
+        const updated = [nameWithoutExt, ...recent.filter(n => n !== nameWithoutExt)].slice(0, 10);
+        localStorage.setItem(STORAGE_RECENT_FILENAMES_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignore errors saving recent filenames
+      }
+      
       setShowSaveModal(false);
-      setSaveFileName('');
       setAlert('Concept opgeslagen.');
     } catch {
       setAlert('Opslaan mislukt.');
@@ -667,6 +704,7 @@ export default function KelderInventarisPage() {
                     }}
                   />
                 </th>
+                <th style={{ ...thStyle, width: 50, textAlign: 'center' }}>Actie</th>
               </tr>
             </thead>
             <tbody>
@@ -702,11 +740,29 @@ export default function KelderInventarisPage() {
                       style={{ ...cellInputStyle, width: '100%', border: 'none', borderRadius: 0, padding: 8 }}
                     />
                   </td>
+                  <td style={{ ...tdStyle, width: 50, textAlign: 'center', padding: 8 }}>
+                    <button
+                      onClick={() => removeRow(i)}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        border: '1px solid #dc2626',
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                      }}
+                      title="Verwijder regel"
+                    >
+                      ✕
+                    </button>
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                  <td colSpan={6} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
                     Nog geen items. Scan een barcode om te beginnen.
                   </td>
                 </tr>
@@ -737,8 +793,22 @@ export default function KelderInventarisPage() {
                     style={inputStyle}
                     autoFocus
                     placeholder="inventaris-naam"
+                    list="recent-filenames"
                   />
+                  {recentFilenames.length > 0 && (
+                    <datalist id="recent-filenames">
+                      {recentFilenames.map((name, idx) => (
+                        <option key={idx} value={name} />
+                      ))}
+                    </datalist>
+                  )}
                 </label>
+                {recentFilenames.length > 0 && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: -4 }}>
+                    Recent gebruikte namen: {recentFilenames.slice(0, 3).join(', ')}
+                    {recentFilenames.length > 3 && '...'}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
                 <button
