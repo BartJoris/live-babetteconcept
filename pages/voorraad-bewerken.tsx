@@ -13,6 +13,7 @@ type InventoryRow = {
   qtyAvailable: number | null;
   found: boolean;
   note?: string;
+  matchedWithPosSales?: boolean;
 };
 
 type UploadShape = {
@@ -27,6 +28,7 @@ type LocalAgg = {
   names: string[];
   variants: string[];
   notes: string[];
+  matchedWithPosSales?: boolean;
 };
 
 type OdooMatch = {
@@ -62,12 +64,18 @@ type AnalyseRow = {
   archived?: OdooMatch | null;
   status: 'actief' | 'archief' | 'geen';
   merk?: string | null;
+  matchedWithPosSales?: boolean;
+  labels?: string[];
 };
 
 type FilterState = {
   status: 'alle' | 'actief' | 'archief' | 'geen';
   category: string;
   text: string;
+  onlyDifferences: boolean;
+  withoutPosSales: boolean;
+  onlyOdooGreaterThanScan: boolean;
+  onlyScanGreaterThanOdoo: boolean;
 };
 
 type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' | 'category' | 'status' | 'merk';
@@ -97,6 +105,15 @@ type PreviewChange = {
   newLabelNames: string[];
 };
 
+type VoorraadPreviewChange = {
+  productId: number;
+  barcode: string;
+  name: string;
+  oldQuantity: number | null;
+  newQuantity: number;
+  diff: number;
+};
+
 const STORAGE_ANALYSE_KEY = 'voorraadBewerkenState';
 
 function computeName(row: AnalyseRow) {
@@ -104,7 +121,8 @@ function computeName(row: AnalyseRow) {
 }
 
 function computeVariant(row: AnalyseRow) {
-  return row.active?.name ? '' : (row.localVariant || '');
+  // Toon altijd de lokale variant als die er is
+  return row.localVariant || '';
 }
 
 function computeOdooQty(row: AnalyseRow) {
@@ -123,13 +141,22 @@ function isFoundTrue(row: AnalyseRow) {
   return row.status !== 'geen';
 }
 
+function getOdooProductUrl(productId: number | null | undefined): string | null {
+  if (!productId) return null;
+  // Extract base URL from ODOO_URL (remove /jsonrpc if present)
+  const odooUrl = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
+  const baseUrl = odooUrl.replace(/\/jsonrpc$/, '');
+  // Odoo web URL format: /web#id={id}&model=product.product&view_type=form
+  return `${baseUrl}/web#id=${productId}&model=product.product&view_type=form`;
+}
+
 export default function VoorraadBewerkenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
   const [upload, setUpload] = useState<UploadShape | null>(null);
   const [grouped, setGrouped] = useState<Record<string, LocalAgg>>({});
   const [analysed, setAnalysed] = useState<AnalyseRow[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '' });
+  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false });
   const fileRef = useRef<HTMLInputElement | null>(null);
   const draftFileRef = useRef<HTMLInputElement | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -149,6 +176,11 @@ export default function VoorraadBewerkenPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingLabels, setLoadingLabels] = useState(false);
+  
+  // State for voorraad preview
+  const [voorraadPreviewOpen, setVoorraadPreviewOpen] = useState(false);
+  const [voorraadPreviewChanges, setVoorraadPreviewChanges] = useState<VoorraadPreviewChange[]>([]);
+  const [isUpdatingVoorraad, setIsUpdatingVoorraad] = useState(false);
 
   useEffect(() => {
     try {
@@ -161,7 +193,7 @@ export default function VoorraadBewerkenPage() {
         };
         if (parsed.upload) setUpload(parsed.upload);
         if (Array.isArray(parsed.analysed)) setAnalysed(parsed.analysed);
-        if (parsed.filter) setFilter(parsed.filter);
+        if (parsed.filter) setFilter({ ...{ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false }, ...parsed.filter });
       }
     } catch {
       // ignore
@@ -297,6 +329,7 @@ export default function VoorraadBewerkenPage() {
           names: [],
           variants: [],
           notes: [],
+          matchedWithPosSales: r.matchedWithPosSales ?? false,
         };
       }
       map[key].scanQty += Number.isFinite(r.qty) ? r.qty : 0;
@@ -305,6 +338,10 @@ export default function VoorraadBewerkenPage() {
       if (r.name && !map[key].names.includes(r.name)) map[key].names.push(r.name);
       if (r.variant && !map[key].variants.includes(r.variant)) map[key].variants.push(r.variant);
       if (r.note && !map[key].notes.includes(r.note)) map[key].notes.push(r.note);
+      // Keep matchedWithPosSales if any row has it set to true
+      if (r.matchedWithPosSales) {
+        map[key].matchedWithPosSales = true;
+      }
     }
     setGrouped(map);
   };
@@ -352,6 +389,7 @@ export default function VoorraadBewerkenPage() {
           archived: arc,
           status,
           merk: null,
+          matchedWithPosSales: base?.matchedWithPosSales ?? false,
         };
       });
 
@@ -383,6 +421,26 @@ export default function VoorraadBewerkenPage() {
         } catch {
           // Silently fail merk fetch
         }
+
+        // Fetch labels for templates
+        try {
+          const labelsRes = await fetch('/api/odoo/fetch-labels-for-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateIds: Array.from(templateIds) }),
+          });
+          if (labelsRes.ok) {
+            const labelsMap = (await labelsRes.json()) as Record<number, string[]>;
+            rows.forEach((row) => {
+              const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+              if (tmplId !== null && labelsMap[tmplId]) {
+                row.labels = labelsMap[tmplId];
+              }
+            });
+          }
+        } catch {
+          // Silently fail labels fetch
+        }
       }
 
       setAnalysed(rows);
@@ -402,6 +460,28 @@ export default function VoorraadBewerkenPage() {
         const hay =
           `${r.barcode} ${(r.active?.name || r.archived?.name || r.localName || '')}`.toLowerCase();
         if (!hay.includes(filter.text.toLowerCase())) return false;
+      }
+      if (filter.onlyDifferences && r.status !== 'geen') {
+        // Alleen rijen met verschil tonen (alleen voor gevonden producten)
+        const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+        const diff = (odooQty ?? 0) - r.scanQty;
+        if (diff === 0) return false;
+      }
+      if (filter.withoutPosSales && r.matchedWithPosSales) {
+        // Verberg rijen die gematcht zijn met POS verkopen
+        return false;
+      }
+      if (filter.onlyOdooGreaterThanScan && r.status !== 'geen') {
+        // Alleen rijen waar Odoo voorraad > scan voorraad
+        const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+        if (odooQty === null) return false;
+        if (odooQty <= r.scanQty) return false;
+      }
+      if (filter.onlyScanGreaterThanOdoo && r.status !== 'geen') {
+        // Alleen rijen waar scan voorraad > Odoo voorraad
+        const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+        if (odooQty === null) return false;
+        if (r.scanQty <= odooQty) return false;
       }
       return true;
     });
@@ -469,6 +549,7 @@ export default function VoorraadBewerkenPage() {
   const setSel = (barcode: string, value: boolean) => {
     setSelected(prev => ({ ...prev, [barcode]: value }));
   };
+
 
   const allVisibleSelected = updatableRows.every(r => selected[r.barcode]);
   const toggleSelectAll = () => {
@@ -669,6 +750,176 @@ export default function VoorraadBewerkenPage() {
     setPreviewOpen(true);
   };
 
+  const openVoorraadPreview = () => {
+    const changes: VoorraadPreviewChange[] = [];
+    
+    for (const r of foundRows) {
+      if (!selected[r.barcode]) continue; // Use selected checkbox from first column
+      if (r.status === 'geen') continue; // Skip niet-gevonden producten
+      
+      const productId = r.active?.id ?? r.archived?.id ?? null;
+      if (productId === null) continue;
+      
+      const oldQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+      const newQty = r.scanQty;
+      const diff = newQty - (oldQty ?? 0);
+      
+      changes.push({
+        productId,
+        barcode: r.barcode,
+        name: computeName(r),
+        oldQuantity: oldQty,
+        newQuantity: newQty,
+        diff,
+      });
+    }
+    
+    if (changes.length === 0) {
+      setAlert('Geen producten geselecteerd voor voorraad aanpassing.');
+      return;
+    }
+    
+    setVoorraadPreviewChanges(changes);
+    setVoorraadPreviewOpen(true);
+  };
+
+  const refreshVoorraad = async () => {
+    if (analysed.length === 0) {
+      setAlert('Geen geanalyseerde data om te verversen.');
+      return;
+    }
+
+    try {
+      // Extract barcodes from analysed data
+      const barcodes = analysed.map(r => r.barcode);
+      
+      const res = await fetch('/api/odoo/analyse-barcodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcodes, mode: 'activeOnly' }),
+      });
+      
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+      
+      const data = (await res.json()) as AnalyseApiItem[];
+      const byBarcode = new Map<string, AnalyseApiItem>();
+      for (const item of data) byBarcode.set(item.barcode, item);
+
+      // Update analysed rows with fresh data from Odoo
+      const updatedRows: AnalyseRow[] = analysed.map((r) => {
+        const item = byBarcode.get(r.barcode);
+        const act = item?.active ?? null;
+        const arc = item?.archived ?? null;
+        const status: 'actief' | 'archief' | 'geen' = act ? 'actief' : arc ? 'archief' : 'geen';
+        
+        return {
+          ...r,
+          active: act,
+          archived: arc,
+          status,
+        };
+      });
+
+      // Fetch merk information if needed
+      const templateIds = new Set<number>();
+      updatedRows.forEach((row) => {
+        const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+        if (tmplId !== null) {
+          templateIds.add(tmplId);
+        }
+      });
+
+      if (templateIds.size > 0) {
+        try {
+          const brandRes = await fetch('/api/odoo/fetch-brands-for-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateIds: Array.from(templateIds) }),
+          });
+          if (brandRes.ok) {
+            const brandMap = (await brandRes.json()) as Record<number, string | null>;
+            updatedRows.forEach((row) => {
+              const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+              if (tmplId !== null && brandMap[tmplId]) {
+                row.merk = brandMap[tmplId];
+              }
+            });
+          }
+        } catch {
+          // Silently fail merk fetch
+        }
+
+        // Fetch labels for templates
+        try {
+          const labelsRes = await fetch('/api/odoo/fetch-labels-for-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateIds: Array.from(templateIds) }),
+          });
+          if (labelsRes.ok) {
+            const labelsMap = (await labelsRes.json()) as Record<number, string[]>;
+            updatedRows.forEach((row) => {
+              const tmplId = row.active?.productTmplId ?? row.archived?.productTmplId ?? null;
+              if (tmplId !== null && labelsMap[tmplId]) {
+                row.labels = labelsMap[tmplId];
+              }
+            });
+          }
+        } catch {
+          // Silently fail labels fetch
+        }
+      }
+
+      setAnalysed(updatedRows);
+      setAlert('✅ Voorraad succesvol gesynchroniseerd.');
+    } catch (error: unknown) {
+      setAlert(error instanceof Error ? error.message : 'Voorraad synchronisatie mislukt.');
+    }
+  };
+
+  const applyVoorraadChanges = async () => {
+    if (voorraadPreviewChanges.length === 0) {
+      setAlert('Geen wijzigingen om toe te passen.');
+      return;
+    }
+
+    setIsUpdatingVoorraad(true);
+    try {
+      const updates = voorraadPreviewChanges.map(change => ({
+        productId: change.productId,
+        newQuantity: change.newQuantity,
+      }));
+
+      const res = await fetch('/api/odoo/update-product-quantities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Voorraad update mislukt');
+      }
+
+      const result = await res.json();
+      setAlert(`✅ ${result.updatedCount || result.successCount || voorraadPreviewChanges.length} product(en) voorraad bijgewerkt.`);
+      
+      // Refresh voorraad to get updated quantities
+      await refreshVoorraad();
+      
+      // Reset selected state after successful update
+      setSelected({});
+      setVoorraadPreviewOpen(false);
+    } catch (error: unknown) {
+      setAlert(error instanceof Error ? error.message : 'Voorraad update mislukt.');
+    } finally {
+      setIsUpdatingVoorraad(false);
+    }
+  };
+
   const applyChanges = async () => {
     if (previewChanges.length === 0) {
       setAlert('Geen wijzigingen om toe te passen.');
@@ -781,7 +1032,7 @@ export default function VoorraadBewerkenPage() {
       };
       if (parsed.upload) setUpload(parsed.upload);
       if (Array.isArray(parsed.analysed)) setAnalysed(parsed.analysed);
-      if (parsed.filter) setFilter(parsed.filter);
+      if (parsed.filter) setFilter({ ...{ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false }, ...parsed.filter });
       setAlert('Draft geladen.');
       if (e.target) e.target.value = '';
     } catch {
@@ -925,6 +1176,38 @@ export default function VoorraadBewerkenPage() {
               </button>
             </div>
           </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 12 }}>
+            <button
+              onClick={openVoorraadPreview}
+              disabled={Object.keys(selected).filter(bc => selected[bc]).length === 0}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: '1px solid #dc2626',
+                background: '#fef2f2',
+                color: '#991b1b',
+                opacity: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 0.5 : 1,
+                cursor: Object.keys(selected).filter(bc => selected[bc]).length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Voorraad aanpassen ({Object.keys(selected).filter(bc => selected[bc]).length})
+            </button>
+            <button
+              onClick={refreshVoorraad}
+              disabled={analysed.length === 0}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: '1px solid #2563eb',
+                background: '#eff6ff',
+                color: '#1e40af',
+                opacity: analysed.length === 0 ? 0.5 : 1,
+                cursor: analysed.length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Producten syncen met Odoo
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
@@ -939,6 +1222,38 @@ export default function VoorraadBewerkenPage() {
           </label>
           <input placeholder="Filter categorie" value={filter.category} onChange={e => setFilter(prev => ({ ...prev, category: e.target.value }))} style={{ padding: 6, border: '1px solid #e5e7eb', borderRadius: 4 }} />
           <input placeholder="Zoeken (barcode of naam)" value={filter.text} onChange={e => setFilter(prev => ({ ...prev, text: e.target.value }))} style={{ padding: 6, border: '1px solid #e5e7eb', borderRadius: 4, flex: 1 }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyDifferences}
+              onChange={e => setFilter(prev => ({ ...prev, onlyDifferences: e.target.checked }))}
+            />
+            Alleen verschillen
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.withoutPosSales}
+              onChange={e => setFilter(prev => ({ ...prev, withoutPosSales: e.target.checked }))}
+            />
+            Zonder POS verkocht
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyOdooGreaterThanScan}
+              onChange={e => setFilter(prev => ({ ...prev, onlyOdooGreaterThanScan: e.target.checked }))}
+            />
+            Odoo &gt; Scan
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyScanGreaterThanOdoo}
+              onChange={e => setFilter(prev => ({ ...prev, onlyScanGreaterThanOdoo: e.target.checked }))}
+            />
+            Scan &gt; Odoo
+          </label>
         </div>
 
         {/* Info: Only updatable products shown */}
@@ -959,36 +1274,58 @@ export default function VoorraadBewerkenPage() {
           </button>
         </div>
         {showFound ? (
-        <div ref={foundTableRef} style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+        <div ref={foundTableRef} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh', border: '1px solid #e5e7eb', borderRadius: 6 }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-            <thead style={{ background: '#f9fafb' }}>
+            <thead style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 10 }}>
               <tr>
                 <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
                 <SortableTh label="Barcode" active={sortFound.key==='barcode'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Naam" active={sortFound.key==='name'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'name', dir: prev.key==='name' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Variant" active={sortFound.key==='variant'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Merk" active={sortFound.key==='merk'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="ScanQty" active={sortFound.key==='scanQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="OdooQty" active={sortFound.key==='odooQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Verschil" active={sortFound.key==='diff'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Categorie" active={sortFound.key==='category'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Status" active={sortFound.key==='status'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'status', dir: prev.key==='status' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <th style={thStyle}>Label</th>
+                <th style={thStyle}>POS Verkocht</th>
               </tr>
             </thead>
             <tbody>
               {foundRows.map((r) => {
-                const name = r.active?.name || r.archived?.name || r.localName || '';
-                const variant = r.active?.name ? '' : (r.localVariant || '');
+                const variant = computeVariant(r);
                 const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
                 const diff = (odooQty ?? 0) - r.scanQty;
                 const cat = r.active?.categName || r.archived?.categName || '';
-                const rowStyle: React.CSSProperties = { borderTop: '1px solid #e5e7eb', background: diff !== 0 ? '#f3f4f6' : undefined };
+                const isMatched = r.matchedWithPosSales ?? false;
+                const productId = r.active?.id ?? r.archived?.id ?? null;
+                const odooUrl = getOdooProductUrl(productId);
+                const rowStyle: React.CSSProperties = { 
+                  borderTop: '1px solid #e5e7eb', 
+                  background: diff !== 0 ? '#f3f4f6' : isMatched ? '#d1fae5' : undefined 
+                };
                 return (
                   <tr key={r.barcode} style={rowStyle}>
                     <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
                     <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
-                    <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>{name}</td>
-                    <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>{variant}</td>
+                    <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>
+                      {odooUrl ? (
+                        <a 
+                          href={odooUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#2563eb', 
+                            textDecoration: 'underline',
+                            cursor: 'pointer'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {variant || '-'}
+                        </a>
+                      ) : (
+                        variant || '-'
+                      )}
+                    </td>
                     {(() => {
                       const merkInfo = computeMerk(r);
                       return (
@@ -1007,7 +1344,16 @@ export default function VoorraadBewerkenPage() {
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{odooQty ?? ''}</td>
                     <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: diff === 0 ? '#059669' : diff > 0 ? '#2563eb' : '#dc2626' }}>{diff}</td>
                     <td style={tdStyle} title={cat}>{cat}</td>
-                    <td style={tdStyle}>{r.status}</td>
+                    <td style={tdStyle} title={r.labels && r.labels.length > 0 ? r.labels.join(', ') : ''}>
+                      {r.labels && r.labels.length > 0 ? r.labels.join(', ') : ''}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      {isMatched ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>✓</span>
+                      ) : (
+                        <span style={{ color: '#9ca3af' }}>-</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -1024,69 +1370,94 @@ export default function VoorraadBewerkenPage() {
         ) : null}
 
         {/* TABEL 2: Niet gevonden */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Niet gevonden — {unknownRows.length}</h2>
-          <button
-            onClick={() => setShowUnknown(v => !v)}
-            style={{ marginLeft: 8, padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4 }}
-          >
-            {showUnknown ? 'Inklappen' : 'Uitklappen'}
-          </button>
-        </div>
-        {showUnknown ? (
-        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-            <thead style={{ background: '#f9fafb' }}>
-              <tr>
-                <th style={thStyle}>Barcode</th>
-                <th style={thStyle}>Naam</th>
-                <th style={thStyle}>Variant</th>
-                <th style={thStyle}>Merk</th>
-                <th style={thStyle}>ScanQty</th>
-                <th style={thStyle}>Categorie</th>
-                <th style={thStyle}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unknownRows.map((r) => {
-                const name = r.active?.name || r.archived?.name || r.localName || '';
-                const variant = r.active?.name ? '' : (r.localVariant || '');
-                const cat = r.active?.categName || r.archived?.categName || '';
-                return (
-                  <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
-                    <td style={{ ...tdStyle, maxWidth: 320 }} title={name}>{name}</td>
-                    <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>{variant}</td>
-                    {(() => {
-                      const merkInfo = computeMerk(r);
-                      return (
-                        <td 
-                          style={{
-                            ...tdStyle,
-                            fontWeight: merkInfo.fromName ? 'bold' : undefined,
-                            fontStyle: merkInfo.fromName ? 'italic' : undefined,
-                          }}
-                        >
-                          {merkInfo.merk || ''}
-                        </td>
-                      );
-                    })()}
-                    <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
-                    <td style={tdStyle} title={cat}>{cat}</td>
-                    <td style={tdStyle}>{r.status}</td>
+        {unknownRows.length > 0 ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Niet gevonden — {unknownRows.length}</h2>
+              <button
+                onClick={() => setShowUnknown(v => !v)}
+                style={{ marginLeft: 8, padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4 }}
+              >
+                {showUnknown ? 'Inklappen' : 'Uitklappen'}
+              </button>
+            </div>
+            {showUnknown ? (
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr>
+                    <th style={thStyle}>Barcode</th>
+                    <th style={thStyle}>Variant</th>
+                    <th style={thStyle}>Merk</th>
+                    <th style={thStyle}>ScanQty</th>
+                    <th style={thStyle}>Categorie</th>
+                    <th style={thStyle}>POS Verkocht</th>
                   </tr>
-                );
-              })}
-              {unknownRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: 12, textAlign: 'center', color: '#6b7280' }}>
-                    Geen niet-gevonden producten.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {unknownRows.map((r) => {
+                    const variant = computeVariant(r);
+                    const cat = r.active?.categName || r.archived?.categName || '';
+                    const isMatched = r.matchedWithPosSales ?? false;
+                    const productId = r.active?.id ?? r.archived?.id ?? null;
+                    const odooUrl = getOdooProductUrl(productId);
+                    const rowStyle: React.CSSProperties = { 
+                      borderTop: '1px solid #e5e7eb',
+                      background: isMatched ? '#d1fae5' : undefined
+                    };
+                    return (
+                      <tr key={r.barcode} style={rowStyle}>
+                        <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
+                        <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>
+                          {odooUrl ? (
+                            <a 
+                              href={odooUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ 
+                                color: '#2563eb', 
+                                textDecoration: 'underline',
+                                cursor: 'pointer'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {variant || '-'}
+                            </a>
+                          ) : (
+                            variant || '-'
+                          )}
+                        </td>
+                        {(() => {
+                          const merkInfo = computeMerk(r);
+                          return (
+                            <td 
+                              style={{
+                                ...tdStyle,
+                                fontWeight: merkInfo.fromName ? 'bold' : undefined,
+                                fontStyle: merkInfo.fromName ? 'italic' : undefined,
+                              }}
+                            >
+                              {merkInfo.merk || ''}
+                            </td>
+                          );
+                        })()}
+                        <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
+                        <td style={tdStyle} title={cat}>{cat}</td>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>
+                          {isMatched ? (
+                            <span style={{ color: '#059669', fontWeight: 600 }}>✓</span>
+                          ) : (
+                            <span style={{ color: '#9ca3af' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            ) : null}
+          </>
         ) : null}
 
         {/* Preview Modal */}
@@ -1159,6 +1530,77 @@ export default function VoorraadBewerkenPage() {
                   }}
                 >
                   {isUpdating ? 'Bezig met bijwerken...' : 'Wijzigingen toepassen'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Voorraad Preview Modal */}
+        {voorraadPreviewOpen ? (
+          <div style={modalBackdropStyle} onClick={() => !isUpdatingVoorraad && setVoorraadPreviewOpen(false)}>
+            <div style={modalStyle} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, marginBottom: 8 }}>
+                Voorraad aanpassing preview
+              </h3>
+              <p style={{ marginTop: 0, color: '#6b7280' }}>
+                {voorraadPreviewChanges.length} product(en) krijgen een nieuwe voorraad. Controleer de wijzigingen hieronder.
+              </p>
+              <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 6, marginTop: 8, marginBottom: 12 }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                  <thead style={{ background: '#f9fafb' }}>
+                    <tr>
+                      <th style={thStyle}>Barcode</th>
+                      <th style={thStyle}>Naam</th>
+                      <th style={thStyle}>Huidige voorraad</th>
+                      <th style={thStyle}>Gescande hoeveelheid</th>
+                      <th style={thStyle}>Nieuwe voorraad</th>
+                      <th style={thStyle}>Verschil</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {voorraadPreviewChanges.map((change, idx) => (
+                      <tr key={`${change.productId}-${idx}`} style={{ borderTop: '1px solid #e5e7eb' }}>
+                        <td style={tdStyle}>{change.barcode}</td>
+                        <td style={{ ...tdStyle, maxWidth: 300 }} title={change.name}>{change.name}</td>
+                        <td style={tdStyle}>{change.oldQuantity ?? '(geen)'}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>{change.newQuantity}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: '#059669', textAlign: 'right' }}>{change.newQuantity}</td>
+                        <td style={{ 
+                          ...tdStyle, 
+                          textAlign: 'right',
+                          color: change.diff === 0 ? '#059669' : change.diff > 0 ? '#2563eb' : '#dc2626',
+                          fontWeight: change.diff !== 0 ? 600 : undefined
+                        }}>
+                          {change.diff > 0 ? '+' : ''}{change.diff}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setVoorraadPreviewOpen(false)}
+                  disabled={isUpdatingVoorraad}
+                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc' }}
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={applyVoorraadChanges}
+                  disabled={isUpdatingVoorraad}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 4,
+                    border: '1px solid #dc2626',
+                    background: '#fef2f2',
+                    color: '#991b1b',
+                    opacity: isUpdatingVoorraad ? 0.5 : 1,
+                    cursor: isUpdatingVoorraad ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isUpdatingVoorraad ? 'Bezig met bijwerken...' : 'Voorraad aanpassen'}
                 </button>
               </div>
             </div>

@@ -13,6 +13,7 @@ type InventoryRow = {
   qtyAvailable: number | null;
   found: boolean;
   note?: string;
+  matchedWithPosSales?: boolean;
 };
 
 type UploadShape = {
@@ -27,6 +28,7 @@ type LocalAgg = {
   names: string[]; // unique list
   variants: string[]; // unique list
   notes: string[]; // unique list
+  matchedWithPosSales?: boolean;
 };
 
 type OdooMatch = {
@@ -62,6 +64,7 @@ type AnalyseRow = {
   archived?: OdooMatch | null;
   status: 'actief' | 'archief' | 'geen';
   merk?: string | null;
+  matchedWithPosSales?: boolean;
 };
 
 type FilterState = {
@@ -237,6 +240,7 @@ export default function KelderAnalysePage() {
           names: [],
           variants: [],
           notes: [],
+          matchedWithPosSales: r.matchedWithPosSales ?? false,
         };
       }
       map[key].scanQty += Number.isFinite(r.qty) ? r.qty : 0;
@@ -246,6 +250,10 @@ export default function KelderAnalysePage() {
       if (r.name && !map[key].names.includes(r.name)) map[key].names.push(r.name);
       if (r.variant && !map[key].variants.includes(r.variant)) map[key].variants.push(r.variant);
       if (r.note && !map[key].notes.includes(r.note)) map[key].notes.push(r.note);
+      // Keep matchedWithPosSales if any row has it set to true
+      if (r.matchedWithPosSales) {
+        map[key].matchedWithPosSales = true;
+      }
     }
     setGrouped(map);
   };
@@ -293,6 +301,7 @@ export default function KelderAnalysePage() {
           archived: arc,
           status,
           merk: null,
+          matchedWithPosSales: base?.matchedWithPosSales ?? false,
         };
       });
 
@@ -645,6 +654,7 @@ export default function KelderAnalysePage() {
                 <SortableTh label="Voorraad" active={sortFound.key==='odooQty'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Verschil" active={sortFound.key==='diff'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Categorie" active={sortFound.key==='category'} dir={sortFound.dir} onClick={() => setSortFound(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <th style={thStyle}>POS Verkocht</th>
                 <th style={thStyle}>Opmerking</th>
               </tr>
             </thead>
@@ -655,7 +665,11 @@ export default function KelderAnalysePage() {
                 const diff = (odooQty ?? 0) - r.scanQty;
                 const cat = r.active?.categName || r.archived?.categName || '';
                 const merk = computeMerk(r);
-                const rowStyle: React.CSSProperties = { borderTop: '1px solid #e5e7eb', background: diff !== 0 ? '#f3f4f6' : undefined };
+                const isMatched = r.matchedWithPosSales ?? false;
+                const rowStyle: React.CSSProperties = { 
+                  borderTop: '1px solid #e5e7eb', 
+                  background: diff !== 0 ? '#f3f4f6' : isMatched ? '#d1fae5' : undefined 
+                };
                 return (
                   <tr key={r.barcode} style={rowStyle}>
                     <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
@@ -681,6 +695,13 @@ export default function KelderAnalysePage() {
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{odooQty ?? ''}</td>
                     <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: diff === 0 ? '#059669' : diff > 0 ? '#2563eb' : '#dc2626' }}>{diff}</td>
                     <td style={tdStyle} title={cat}>{cat}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      {isMatched ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>✓</span>
+                      ) : (
+                        <span style={{ color: '#9ca3af' }}>-</span>
+                      )}
+                    </td>
                     <td style={tdStyle} title={r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}>
                       {r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}
                     </td>
@@ -689,7 +710,7 @@ export default function KelderAnalysePage() {
               })}
               {foundRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                  <td colSpan={10} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
                     Geen gevonden producten.
                   </td>
                 </tr>
@@ -724,6 +745,7 @@ export default function KelderAnalysePage() {
                 <SortableTh label="Voorraad" active={sortUnknown.key==='odooQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Verschil" active={sortUnknown.key==='diff'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
                 <SortableTh label="Categorie" active={sortUnknown.key==='category'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                <th style={thStyle}>POS Verkocht</th>
                 <th style={thStyle}>Opmerking</th>
                 <th style={thStyle}>Zoek</th>
               </tr>
@@ -734,8 +756,13 @@ export default function KelderAnalysePage() {
                 const cat = r.active?.categName || r.archived?.categName || '';
                 const merk = computeMerk(r);
                 const diff = 0 - r.scanQty;
+                const isMatched = r.matchedWithPosSales ?? false;
+                const rowStyle: React.CSSProperties = { 
+                  borderTop: '1px solid #e5e7eb',
+                  background: isMatched ? '#d1fae5' : undefined
+                };
                 return (
-                  <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
+                  <tr key={r.barcode} style={rowStyle}>
                     <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
                     <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb' }}>{idx + 1}</td>
                     <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
@@ -759,6 +786,13 @@ export default function KelderAnalysePage() {
                     <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}></td>
                     <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: '#dc2626' }}>{diff}</td>
                     <td style={tdStyle} title={cat}>{cat}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      {isMatched ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>✓</span>
+                      ) : (
+                        <span style={{ color: '#9ca3af' }}>-</span>
+                      )}
+                    </td>
                     <td style={tdStyle} title={r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}>
                       {r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}
                     </td>
@@ -768,7 +802,7 @@ export default function KelderAnalysePage() {
               })}
               {unknownRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                  <td colSpan={11} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
                     Geen niet-gevonden producten.
                   </td>
                 </tr>

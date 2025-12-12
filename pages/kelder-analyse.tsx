@@ -69,6 +69,8 @@ type FilterState = {
   category: string;
   text: string;
   onlyDifferences: boolean;
+  onlyOdooGreaterThanScan: boolean;
+  onlyScanGreaterThanOdoo: boolean;
 };
 
 type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' | 'category' | 'status' | 'merk';
@@ -126,7 +128,7 @@ export default function KelderAnalysePage() {
   const [analysed, setAnalysed] = useState<AnalyseRow[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [behandeld, setBehandeld] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '', onlyDifferences: false });
+  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '', onlyDifferences: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false });
   const fileRef = useRef<HTMLInputElement | null>(null);
   const draftFileRef = useRef<HTMLInputElement | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export default function KelderAnalysePage() {
         };
         if (parsed.upload) setUpload(parsed.upload);
         if (Array.isArray(parsed.analysed)) setAnalysed(parsed.analysed);
-        if (parsed.filter) setFilter(parsed.filter);
+        if (parsed.filter) setFilter({ ...{ status: 'alle', category: '', text: '', onlyDifferences: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false }, ...parsed.filter });
       }
     } catch {
       // ignore
@@ -436,6 +438,18 @@ export default function KelderAnalysePage() {
         const diff = (odooQty ?? 0) - r.scanQty;
         if (diff === 0) return false;
       }
+      if (filter.onlyOdooGreaterThanScan && r.status !== 'geen') {
+        // Alleen rijen waar Odoo voorraad > scan voorraad
+        const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+        if (odooQty === null) return false;
+        if (odooQty <= r.scanQty) return false;
+      }
+      if (filter.onlyScanGreaterThanOdoo && r.status !== 'geen') {
+        // Alleen rijen waar scan voorraad > Odoo voorraad
+        const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
+        if (odooQty === null) return false;
+        if (r.scanQty <= odooQty) return false;
+      }
       return true;
     });
   }, [analysed, filter]);
@@ -618,6 +632,22 @@ export default function KelderAnalysePage() {
             />
             Alleen verschillen
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyOdooGreaterThanScan}
+              onChange={e => setFilter(prev => ({ ...prev, onlyOdooGreaterThanScan: e.target.checked }))}
+            />
+            Odoo &gt; Scan
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyScanGreaterThanOdoo}
+              onChange={e => setFilter(prev => ({ ...prev, onlyScanGreaterThanOdoo: e.target.checked }))}
+            />
+            Scan &gt; Odoo
+          </label>
         </div>
 
         {/* TABEL 1: Gevonden (actief/archief) */}
@@ -632,9 +662,9 @@ export default function KelderAnalysePage() {
           </button>
         </div>
         {showFound ? (
-        <div ref={foundTableRef} style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+        <div ref={foundTableRef} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh', border: '1px solid #e5e7eb', borderRadius: 6 }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-            <thead style={{ background: '#f9fafb' }}>
+            <thead style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 10 }}>
               <tr>
                 <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
                 <th style={{ ...thStyle, width: 50, textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>#</th>
@@ -700,82 +730,79 @@ export default function KelderAnalysePage() {
         ) : null}
 
         {/* TABEL 2: Niet gevonden */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Niet gevonden — {unknownRows.length}</h2>
-          <button
-            onClick={() => setShowUnknown(v => !v)}
-            style={{ marginLeft: 8, padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4 }}
-            aria-expanded={showUnknown}
-          >
-            {showUnknown ? 'Inklappen' : 'Uitklappen'}
-          </button>
-        </div>
-        {showUnknown ? (
-        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-            <thead style={{ background: '#f9fafb' }}>
-              <tr>
-                <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
-                <th style={{ ...thStyle, width: 50, textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>#</th>
-                <SortableTh label="Barcode" active={sortUnknown.key==='barcode'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Variant" active={sortUnknown.key==='variant'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Merk" active={sortUnknown.key==='merk'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Aantal" active={sortUnknown.key==='scanQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Voorraad" active={sortUnknown.key==='odooQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Verschil" active={sortUnknown.key==='diff'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <SortableTh label="Categorie" active={sortUnknown.key==='category'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
-                <th style={thStyle}>Opmerking</th>
-                <th style={thStyle}>Zoek</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unknownRows.map((r, idx) => {
-                const variant = computeVariant(r);
-                const cat = r.active?.categName || r.archived?.categName || '';
-                const merk = computeMerk(r);
-                const diff = 0 - r.scanQty;
-                return (
-                  <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
-                    <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb' }}>{idx + 1}</td>
-                    <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
-                    <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>
-                      {variant}
-                      {(r.localVariantsExtra && r.localVariantsExtra.length > 0) ? (
-                        <span title={`Meer varianten:\n${r.localVariantsExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
-                      ) : null}
-                    </td>
-                    <td 
-                      style={{
-                        ...tdStyle,
-                        fontWeight: merk.fromName ? 'bold' : undefined,
-                        fontStyle: merk.fromName ? 'italic' : undefined,
-                      }}
-                      title={merk.fromName ? `Merk uit naam: ${merk.merk}` : merk.merk || ''}
-                    >
-                      {merk.merk || ''}
-                    </td>
-                    <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
-                    <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}></td>
-                    <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: '#dc2626' }}>{diff}</td>
-                    <td style={tdStyle} title={cat}>{cat}</td>
-                    <td style={tdStyle} title={r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}>
-                      {r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}
-                    </td>
-                    <td style={tdStyle}><a href={`https://www.google.com/search?q=${encodeURIComponent(r.barcode)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>Google</a></td>
+        {unknownRows.length > 0 ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Niet gevonden — {unknownRows.length}</h2>
+              <button
+                onClick={() => setShowUnknown(v => !v)}
+                style={{ marginLeft: 8, padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4 }}
+                aria-expanded={showUnknown}
+              >
+                {showUnknown ? 'Inklappen' : 'Uitklappen'}
+              </button>
+            </div>
+            {showUnknown ? (
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr>
+                    <th style={thStyle}><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
+                    <th style={{ ...thStyle, width: 50, textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>#</th>
+                    <SortableTh label="Barcode" active={sortUnknown.key==='barcode'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'barcode', dir: prev.key==='barcode' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Variant" active={sortUnknown.key==='variant'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'variant', dir: prev.key==='variant' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Merk" active={sortUnknown.key==='merk'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'merk', dir: prev.key==='merk' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Aantal" active={sortUnknown.key==='scanQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'scanQty', dir: prev.key==='scanQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Voorraad" active={sortUnknown.key==='odooQty'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'odooQty', dir: prev.key==='odooQty' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Verschil" active={sortUnknown.key==='diff'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'diff', dir: prev.key==='diff' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <SortableTh label="Categorie" active={sortUnknown.key==='category'} dir={sortUnknown.dir} onClick={() => setSortUnknown(prev => ({ key: 'category', dir: prev.key==='category' && prev.dir==='asc' ? 'desc' : 'asc' }))} />
+                    <th style={thStyle}>Opmerking</th>
+                    <th style={thStyle}>Zoek</th>
                   </tr>
-                );
-              })}
-              {unknownRows.length === 0 ? (
-                <tr>
-                  <td colSpan={10} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
-                    Geen niet-gevonden producten.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {unknownRows.map((r, idx) => {
+                    const variant = computeVariant(r);
+                    const cat = r.active?.categName || r.archived?.categName || '';
+                    const merk = computeMerk(r);
+                    const diff = 0 - r.scanQty;
+                    return (
+                      <tr key={r.barcode} style={{ borderTop: '1px solid #e5e7eb' }}>
+                        <td style={tdStyle}><input type="checkbox" checked={!!selected[r.barcode]} onChange={e => setSel(r.barcode, e.target.checked)} /></td>
+                        <td style={{ ...tdStyle, width: 50, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb' }}>{idx + 1}</td>
+                        <td style={tdStyle} title={r.barcode}>{r.barcode}</td>
+                        <td style={{ ...tdStyle, maxWidth: 260 }} title={variant}>
+                          {variant}
+                          {(r.localVariantsExtra && r.localVariantsExtra.length > 0) ? (
+                            <span title={`Meer varianten:\n${r.localVariantsExtra.join('\n')}`} style={{ marginLeft: 6, color: '#6b7280', cursor: 'help' }}>ⓘ</span>
+                          ) : null}
+                        </td>
+                        <td 
+                          style={{
+                            ...tdStyle,
+                            fontWeight: merk.fromName ? 'bold' : undefined,
+                            fontStyle: merk.fromName ? 'italic' : undefined,
+                          }}
+                          title={merk.fromName ? `Merk uit naam: ${merk.merk}` : merk.merk || ''}
+                        >
+                          {merk.merk || ''}
+                        </td>
+                        <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}>{r.scanQty}</td>
+                        <td style={{ ...tdStyle, width: 80, textAlign: 'right' }}></td>
+                        <td style={{ ...tdStyle, width: 90, textAlign: 'right', color: '#dc2626' }}>{diff}</td>
+                        <td style={tdStyle} title={cat}>{cat}</td>
+                        <td style={tdStyle} title={r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}>
+                          {r.localNotes && r.localNotes.length > 0 ? r.localNotes.join(', ') : ''}
+                        </td>
+                        <td style={tdStyle}><a href={`https://www.google.com/search?q=${encodeURIComponent(r.barcode)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>Google</a></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            ) : null}
+          </>
         ) : null}
         {keywordOpen ? (
           <div style={modalBackdropStyle} onClick={() => setKeywordOpen(false)}>

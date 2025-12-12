@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen'].includes(router.pathname);
+    return ['/inventaris-maken', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match'].includes(router.pathname);
   };
 
   return (
@@ -223,6 +223,9 @@ export default function Navigation() {
                     <Link href="/inventaris-maken" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-maken') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🏷️ Inventaris maken
                     </Link>
+                    <Link href="/pos-verkopen-ophalen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/pos-verkopen-ophalen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      📥 POS verkopen ophalen
+                    </Link>
                     <Link href="/inventaris-analyse" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-analyse') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📊 Inventaris analyse
                     </Link>
@@ -231,6 +234,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/inventaris-samenvoegen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-samenvoegen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🔗 Inventaris samenvoegen
+                    </Link>
+                    <Link href="/inventaris-pos-match" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-pos-match') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      ✅ Inventaris POS Match
                     </Link>
                   </div>
                 </div>
@@ -571,6 +577,17 @@ export default function Navigation() {
                   🏷️ Inventaris maken
                 </Link>
                 <Link
+                  href="/pos-verkopen-ophalen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/pos-verkopen-ophalen')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📥 POS verkopen ophalen
+                </Link>
+                <Link
                   href="/inventaris-analyse"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -602,6 +619,17 @@ export default function Navigation() {
                   }`}
                 >
                   🔗 Inventaris samenvoegen
+                </Link>
+                <Link
+                  href="/inventaris-pos-match"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/inventaris-pos-match')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  ✅ Inventaris POS Match
                 </Link>
               </div>
             )}
