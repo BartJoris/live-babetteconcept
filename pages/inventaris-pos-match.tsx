@@ -64,7 +64,7 @@ export default function InventarisPosMatchPage() {
   // Check if a barcode is matched
   const isMatched = (barcode: string): boolean => {
     const normalized = String(barcode).trim().toLowerCase();
-    return normalized && posSalesBarcodes.has(normalized);
+    return normalized.length > 0 && posSalesBarcodes.has(normalized);
   };
 
   // Statistics
