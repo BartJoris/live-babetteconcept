@@ -21,9 +21,7 @@ type SavedInventory = {
   timestamp: string;
   rowCount: number;
   data?: { rows: InventoryRow[]; settings?: unknown };
-  storage: 'local' | 's3';
-  key?: string; // S3 key
-  size?: number; // S3 file size
+  storage: 'local';
 };
 
 const STORAGE_KEY = 'savedInventories';
@@ -48,57 +46,18 @@ function saveLocalInventories(inventories: SavedInventory[]) {
 export default function InventarisBeheerPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
   const [localInventories, setLocalInventories] = useState<SavedInventory[]>([]);
-  const [s3Inventories, setS3Inventories] = useState<SavedInventory[]>([]);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
-  const [saveStorage, setSaveStorage] = useState<'local' | 's3'>('local');
-  const [isLoadingS3, setIsLoadingS3] = useState(false);
-  const [s3Available, setS3Available] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadLocalInventories = () => {
     setLocalInventories(getLocalInventories());
   };
 
-  const loadS3Inventories = async () => {
-    try {
-      setIsLoadingS3(true);
-      const res = await fetch('/api/inventaris/s3/list');
-      if (!res.ok) {
-        if (res.status === 500) {
-          const error = await res.json();
-          if (error.error === 'S3 bucket not configured') {
-            setS3Available(false);
-            return;
-          }
-        }
-        throw new Error(`Failed to load: ${res.status}`);
-      }
-      const data = await res.json();
-      const inventories = (data.inventories || []).map((inv: any) => ({
-        id: inv.key,
-        name: inv.name,
-        timestamp: inv.timestamp,
-        rowCount: 0, // Will be loaded on demand
-        storage: 's3' as const,
-        key: inv.key,
-        size: inv.size,
-      }));
-      setS3Inventories(inventories);
-      setS3Available(true);
-    } catch (error) {
-      console.error('Error loading S3 inventories:', error);
-      setS3Available(false);
-    } finally {
-      setIsLoadingS3(false);
-    }
-  };
-
   useEffect(() => {
     if (isLoggedIn) {
       loadLocalInventories();
-      void loadS3Inventories();
     }
   }, [isLoggedIn]);
 
@@ -163,39 +122,21 @@ export default function InventarisBeheerPage() {
     const name = saveName.trim() || `inventaris-${formatTs(new Date())}`;
 
     try {
-      if (saveStorage === 'local') {
-        // Save to localStorage
-        const id = `${name}-${Date.now()}`;
-        const newInventory: SavedInventory = {
-          id,
-          name,
-          timestamp: new Date().toISOString(),
-          rowCount: tempData.rows.length,
-          data: tempData,
-          storage: 'local',
-        };
+      // Save to localStorage
+      const id = `${name}-${Date.now()}`;
+      const newInventory: SavedInventory = {
+        id,
+        name,
+        timestamp: new Date().toISOString(),
+        rowCount: tempData.rows.length,
+        data: tempData,
+        storage: 'local',
+      };
 
-        const updated = [...localInventories, newInventory];
-        setLocalInventories(updated);
-        saveLocalInventories(updated);
-        setAlert(`Inventaris "${name}" lokaal opgeslagen (${tempData.rows.length} items)`);
-      } else {
-        // Save to S3
-        const res = await fetch('/api/inventaris/s3/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, data: tempData }),
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.message || `Failed to save: ${res.status}`);
-        }
-
-        const result = await res.json();
-        setAlert(result.message || `Inventaris "${name}" opgeslagen in S3`);
-        await loadS3Inventories();
-      }
+      const updated = [...localInventories, newInventory];
+      setLocalInventories(updated);
+      saveLocalInventories(updated);
+      setAlert(`Inventaris "${name}" lokaal opgeslagen (${tempData.rows.length} items)`);
 
       setShowSaveModal(false);
       setSaveName('');
@@ -211,24 +152,10 @@ export default function InventarisBeheerPage() {
     }
 
     try {
-      if (inventory.storage === 'local') {
-        const updated = localInventories.filter(inv => inv.id !== inventory.id);
-        setLocalInventories(updated);
-        saveLocalInventories(updated);
-        setAlert('Inventaris verwijderd.');
-      } else {
-        const res = await fetch(`/api/inventaris/s3/delete?key=${encodeURIComponent(inventory.key!)}`, {
-          method: 'DELETE',
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.message || `Failed to delete: ${res.status}`);
-        }
-
-        setAlert('Inventaris verwijderd uit S3.');
-        await loadS3Inventories();
-      }
+      const updated = localInventories.filter(inv => inv.id !== inventory.id);
+      setLocalInventories(updated);
+      saveLocalInventories(updated);
+      setAlert('Inventaris verwijderd.');
     } catch (error) {
       setAlert(`Fout bij verwijderen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
@@ -236,30 +163,19 @@ export default function InventarisBeheerPage() {
 
   const handleDownload = async (inventory: SavedInventory) => {
     try {
-      if (inventory.storage === 'local') {
-        // Download from localStorage
-        if (!inventory.data) {
-          setAlert('Geen data beschikbaar.');
-          return;
-        }
-        const blob = new Blob([JSON.stringify(inventory.data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${inventory.name}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        setAlert(`"${inventory.name}" gedownload.`);
-      } else {
-        // Download from S3
-        const res = await fetch(`/api/inventaris/s3/download?key=${encodeURIComponent(inventory.key!)}`);
-        if (!res.ok) {
-          throw new Error(`Failed to get download URL: ${res.status}`);
-        }
-        const { url } = await res.json();
-        window.open(url, '_blank');
-        setAlert(`"${inventory.name}" download gestart.`);
+      // Download from localStorage
+      if (!inventory.data) {
+        setAlert('Geen data beschikbaar.');
+        return;
       }
+      const blob = new Blob([JSON.stringify(inventory.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inventory.name}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setAlert(`"${inventory.name}" gedownload.`);
     } catch (error) {
       setAlert(`Fout bij downloaden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
@@ -292,7 +208,7 @@ export default function InventarisBeheerPage() {
     }
   };
 
-  const allInventories = [...localInventories, ...s3Inventories].sort(
+  const allInventories = [...localInventories].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -318,7 +234,6 @@ export default function InventarisBeheerPage() {
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Inventaris beheer</h1>
         <p style={{ marginBottom: 16, color: '#6b7280' }}>
           Upload inventarisbestanden of sla de actieve inventaris snel op. Beheer al je opgeslagen inventarissen op één plek.
-          {s3Available ? ' Lokale opslag en S3 zijn beide beschikbaar.' : ' Alleen lokale opslag beschikbaar (S3 niet geconfigureerd).'}
         </p>
 
         {alertMessage ? (
@@ -372,15 +287,8 @@ export default function InventarisBeheerPage() {
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
               Opgeslagen inventarissen ({allInventories.length})
             </h2>
-            <div style={{ fontSize: 12, color: '#6b7280' }}>
-              Lokaal: {localInventories.length} | S3: {s3Inventories.length}
-            </div>
           </div>
-          {isLoadingS3 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
-              Laden...
-            </div>
-          ) : allInventories.length === 0 ? (
+          {allInventories.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
               Nog geen inventarissen opgeslagen. Upload een bestand of sla de actieve inventaris op.
             </div>
@@ -407,10 +315,10 @@ export default function InventarisBeheerPage() {
                           padding: '2px 8px',
                           borderRadius: 4,
                           fontSize: 12,
-                          background: inventory.storage === 'local' ? '#eff6ff' : '#f0fdf4',
-                          color: inventory.storage === 'local' ? '#1e40af' : '#166534',
+                          background: '#eff6ff',
+                          color: '#1e40af',
                         }}>
-                          {inventory.storage === 'local' ? '💾 Lokaal' : '☁️ S3'}
+                          💾 Lokaal
                         </span>
                       </td>
                       <td style={tdStyle}>
@@ -470,7 +378,7 @@ export default function InventarisBeheerPage() {
             <div style={modalStyle} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, marginBottom: 8 }}>Inventaris opslaan</h3>
               <p style={{ marginTop: 0, marginBottom: 12, color: '#6b7280', fontSize: 14 }}>
-                Geef een naam op en kies waar je de inventaris wilt opslaan.
+                Geef een naam op voor de inventaris.
               </p>
               <div style={{ display: 'grid', gap: 12 }}>
                 <label style={labelStyle}>
@@ -489,19 +397,6 @@ export default function InventarisBeheerPage() {
                     placeholder="inventaris-naam"
                   />
                 </label>
-                <label style={labelStyle}>
-                  Opslag locatie
-                  <select
-                    value={saveStorage}
-                    onChange={e => setSaveStorage(e.target.value as 'local' | 's3')}
-                    style={inputStyle}
-                  >
-                    <option value="local">💾 Lokaal (localStorage)</option>
-                    <option value="s3" disabled={!s3Available}>
-                      ☁️ S3 Bucket {!s3Available && '(niet geconfigureerd)'}
-                    </option>
-                  </select>
-                </label>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
                 <button
@@ -516,14 +411,13 @@ export default function InventarisBeheerPage() {
                 </button>
                 <button
                   onClick={() => void handleSave()}
-                  disabled={saveStorage === 's3' && !s3Available}
                   style={{
                     padding: '6px 12px',
                     borderRadius: 4,
                     border: '1px solid #10b981',
-                    background: saveStorage === 's3' && !s3Available ? '#ccc' : '#10b981',
+                    background: '#10b981',
                     color: '#fff',
-                    cursor: saveStorage === 's3' && !s3Available ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                   }}
                 >
                   Opslaan
