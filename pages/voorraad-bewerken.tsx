@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
+import * as XLSX from 'xlsx';
 
 type InventoryRow = {
   productId?: number | null;
@@ -76,6 +77,7 @@ type FilterState = {
   withoutPosSales: boolean;
   onlyOdooGreaterThanScan: boolean;
   onlyScanGreaterThanOdoo: boolean;
+  onlyPosSales: boolean;
 };
 
 type SortKey = 'barcode' | 'name' | 'variant' | 'scanQty' | 'odooQty' | 'diff' | 'category' | 'status' | 'merk';
@@ -156,7 +158,7 @@ export default function VoorraadBewerkenPage() {
   const [grouped, setGrouped] = useState<Record<string, LocalAgg>>({});
   const [analysed, setAnalysed] = useState<AnalyseRow[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false });
+  const [filter, setFilter] = useState<FilterState>({ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false, onlyPosSales: false });
   const fileRef = useRef<HTMLInputElement | null>(null);
   const draftFileRef = useRef<HTMLInputElement | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -193,7 +195,7 @@ export default function VoorraadBewerkenPage() {
         };
         if (parsed.upload) setUpload(parsed.upload);
         if (Array.isArray(parsed.analysed)) setAnalysed(parsed.analysed);
-        if (parsed.filter) setFilter({ ...{ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false }, ...parsed.filter });
+        if (parsed.filter) setFilter({ ...{ status: 'alle', category: '', text: '', onlyDifferences: false, withoutPosSales: false, onlyOdooGreaterThanScan: false, onlyScanGreaterThanOdoo: false, onlyPosSales: false }, ...parsed.filter });
       }
     } catch {
       // ignore
@@ -482,6 +484,10 @@ export default function VoorraadBewerkenPage() {
         const odooQty = r.active?.qtyAvailable ?? r.archived?.qtyAvailable ?? null;
         if (odooQty === null) return false;
         if (r.scanQty <= odooQty) return false;
+      }
+      if (filter.onlyPosSales && !r.matchedWithPosSales) {
+        // Alleen rijen tonen die gematcht zijn met POS verkopen
+        return false;
       }
       return true;
     });
@@ -1020,6 +1026,49 @@ export default function VoorraadBewerkenPage() {
     draftFileRef.current?.click();
   };
 
+  const formatTs = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+  };
+
+  const exportExcel = () => {
+    if (filtered.length === 0) {
+      setAlert('Geen data om te exporteren.');
+      return;
+    }
+    try {
+      const exportRows = filtered.map(r => {
+        const odooQty = computeOdooQty(r);
+        const diff = computeDiff(r);
+        const merkInfo = computeMerk(r);
+        return {
+          Barcode: r.barcode,
+          Naam: computeName(r),
+          Variant: computeVariant(r),
+          Merk: merkInfo.merk || '',
+          'Scan hoeveelheid': r.scanQty,
+          'Odoo voorraad': odooQty ?? '',
+          Verschil: diff,
+          Status: r.status,
+          Categorie: computeCategory(r),
+          Label: r.labels && r.labels.length > 0 ? r.labels.join(', ') : '',
+          'POS Verkocht': r.matchedWithPosSales ? 'Ja' : 'Nee',
+          'Verkoopprijs': r.localSalePrice ?? '',
+          'Aankoopprijs': r.localPurchasePrice ?? '',
+          'Product ID': r.active?.id ?? r.archived?.id ?? '',
+          'Template ID': r.active?.productTmplId ?? r.archived?.productTmplId ?? '',
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(exportRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Voorraad Bewerken');
+      XLSX.writeFile(wb, `voorraad-bewerken-${formatTs(new Date())}.xlsx`);
+      setAlert('Excel export succesvol.');
+    } catch {
+      setAlert('Export mislukt.');
+    }
+  };
+
   const onDraftFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1072,6 +1121,17 @@ export default function VoorraadBewerkenPage() {
           <button onClick={saveDraft} style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 4 }}>Opslaan als draft</button>
           <button onClick={loadDraft} style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 4 }}>Laad draft</button>
           <input ref={draftFileRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={onDraftFileChange} />
+          <button onClick={exportExcel} disabled={filtered.length === 0} style={{ 
+            padding: '6px 10px', 
+            border: '1px solid #10b981', 
+            borderRadius: 4, 
+            background: '#ecfdf5', 
+            color: '#065f46',
+            opacity: filtered.length === 0 ? 0.5 : 1,
+            cursor: filtered.length === 0 ? 'not-allowed' : 'pointer'
+          }}>
+            Exporteer naar Excel
+          </button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
             <div><strong>Totaal items:</strong> {stats.totalItems} &nbsp; <strong>Aantallen:</strong> {stats.totalCount}</div>
           </div>
@@ -1253,6 +1313,14 @@ export default function VoorraadBewerkenPage() {
               onChange={e => setFilter(prev => ({ ...prev, onlyScanGreaterThanOdoo: e.target.checked }))}
             />
             Scan &gt; Odoo
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={filter.onlyPosSales}
+              onChange={e => setFilter(prev => ({ ...prev, onlyPosSales: e.target.checked }))}
+            />
+            Enkel POS verkocht
           </label>
         </div>
 

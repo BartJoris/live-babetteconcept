@@ -33,6 +33,43 @@ const formatEuro = (amount: number) =>
 const formatNumber = (num: number) =>
   num.toLocaleString('nl-BE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+// Functie om alleen echte producten te tellen (geen shipment, pickup of kortingen)
+const countRealProducts = (orderLines: PendingOrderItem['order_line']): number => {
+  return orderLines.filter(line => {
+    // Skip als er geen product_id is
+    if (!line.product_id || typeof line.product_id === 'boolean') {
+      return false;
+    }
+    
+    const productName = line.product_id[1] || '';
+    
+    // Skip shipment items
+    if (productName.toUpperCase().includes('[SHIPMENT]')) {
+      return false;
+    }
+    
+    // Skip pickup items
+    if (productName.toUpperCase().includes('[PICKUP]')) {
+      return false;
+    }
+    
+    // Skip kortingen (items met negatieve prijs of korting in naam)
+    if (line.price_unit < 0 || line.price_total < 0) {
+      return false;
+    }
+    
+    // Skip items met "koppelverkoop" of andere korting indicatoren in de naam
+    const lowerName = productName.toLowerCase();
+    if (lowerName.includes('koppelverkoop') || 
+        lowerName.includes('korting') || 
+        lowerName.includes('discount')) {
+      return false;
+    }
+    
+    return true;
+  }).length;
+};
+
 // ImageModal component for enlarged image view
 interface ImageModalProps {
   image: string;
@@ -126,7 +163,7 @@ const OrderCard = memo(({
           </span>
         </div>
         <div className="text-sm text-gray-700 mt-1">
-          👤 {order.partner_name} • {order.order_line.length} {order.order_line.length === 1 ? 'product' : 'producten'}
+          👤 {order.partner_name} • {countRealProducts(order.order_line)} {countRealProducts(order.order_line) === 1 ? 'product' : 'producten'}
         </div>
       </div>
       <div className="flex items-center gap-4">

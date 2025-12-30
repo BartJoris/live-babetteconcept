@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match'].includes(router.pathname);
   };
 
   return (
@@ -225,6 +225,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/pos-verkopen-ophalen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/pos-verkopen-ophalen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📥 POS verkopen ophalen
+                    </Link>
+                    <Link href="/webshop-verkopen-ophalen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/webshop-verkopen-ophalen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🌐 Webshop verkopen ophalen
                     </Link>
                     <Link href="/inventaris-analyse" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-analyse') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📊 Inventaris analyse
@@ -586,6 +589,17 @@ export default function Navigation() {
                   }`}
                 >
                   📥 POS verkopen ophalen
+                </Link>
+                <Link
+                  href="/webshop-verkopen-ophalen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/webshop-verkopen-ophalen')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🌐 Webshop verkopen ophalen
                 </Link>
                 <Link
                   href="/inventaris-analyse"

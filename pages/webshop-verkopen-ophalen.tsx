@@ -18,10 +18,10 @@ type ScannedRow = {
 
 type LoadMode = 'replace' | 'merge';
 
-const STORAGE_ROWS_KEY = 'posVerkopenRows';
-const STORAGE_SETTINGS_KEY = 'posVerkopenSettings';
-const STORAGE_LAST_FILENAME_KEY = 'posVerkopenLastFilename';
-const STORAGE_RECENT_FILENAMES_KEY = 'posVerkopenRecentFilenames';
+const STORAGE_ROWS_KEY = 'webshopVerkopenRows';
+const STORAGE_SETTINGS_KEY = 'webshopVerkopenSettings';
+const STORAGE_LAST_FILENAME_KEY = 'webshopVerkopenLastFilename';
+const STORAGE_RECENT_FILENAMES_KEY = 'webshopVerkopenRecentFilenames';
 
 type Settings = {
   fastScanIncrement: boolean;
@@ -33,7 +33,7 @@ const defaultSettings: Settings = {
   offlineMode: false,
 };
 
-export default function PosVerkopenOphalenPage() {
+export default function WebshopVerkopenOphalenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -177,7 +177,7 @@ export default function PosVerkopenOphalenPage() {
 
     setIsLoadingSales(true);
     try {
-      const res = await fetch('/api/pos-sales-by-date-range', {
+      const res = await fetch('/api/webshop-sales-by-date-range', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate, endDate }),
@@ -204,7 +204,7 @@ export default function PosVerkopenOphalenPage() {
 
       if (loadMode === 'replace') {
         setRows(fetchedRows);
-        setAlert(`${fetchedRows.length} POS verkopen opgehaald voor periode ${startDate} tot ${endDate}.`);
+        setAlert(`${fetchedRows.length} webshop verkopen opgehaald voor periode ${startDate} tot ${endDate}.`);
       } else {
         // merge: by barcode; if exists, sum qty
         setRows(prev => {
@@ -220,10 +220,10 @@ export default function PosVerkopenOphalenPage() {
           }
           return Array.from(map.values());
         });
-        setAlert(`${fetchedRows.length} POS verkopen toegevoegd aan bestaande lijst.`);
+        setAlert(`${fetchedRows.length} webshop verkopen toegevoegd aan bestaande lijst.`);
       }
     } catch (error) {
-      console.error('Error fetching POS sales:', error);
+      console.error('Error fetching webshop sales:', error);
       setAlert(`Fout bij ophalen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     } finally {
       setIsLoadingSales(false);
@@ -253,10 +253,10 @@ export default function PosVerkopenOphalenPage() {
   const saveDraft = () => {
     try {
       const lastFilename = localStorage.getItem(STORAGE_LAST_FILENAME_KEY);
-      const defaultName = lastFilename || `pos-verkopen-${formatTs(new Date())}`;
+      const defaultName = lastFilename || `webshop-verkopen-${formatTs(new Date())}`;
       setSaveFileName(defaultName);
     } catch {
-      const defaultName = `pos-verkopen-${formatTs(new Date())}`;
+      const defaultName = `webshop-verkopen-${formatTs(new Date())}`;
       setSaveFileName(defaultName);
     }
     setShowSaveModal(true);
@@ -270,7 +270,7 @@ export default function PosVerkopenOphalenPage() {
       const blob = new Blob([JSON.stringify({ rows, settings }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      let fileName = saveFileName.trim() || `pos-verkopen-${formatTs(new Date())}`;
+      let fileName = saveFileName.trim() || `webshop-verkopen-${formatTs(new Date())}`;
       
       // Update timestamp in filename if it contains a timestamp pattern
       const timestampPattern = /\d{8}-\d{4}/;
@@ -366,8 +366,8 @@ export default function PosVerkopenOphalenPage() {
       }));
       const ws = XLSX.utils.json_to_sheet(exportRows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'POS Verkopen');
-      XLSX.writeFile(wb, `pos-verkopen-${formatTs(new Date())}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, 'Webshop Verkopen');
+      XLSX.writeFile(wb, `webshop-verkopen-${formatTs(new Date())}.xlsx`);
     } catch {
       setAlert('Export mislukt.');
     }
@@ -377,7 +377,7 @@ export default function PosVerkopenOphalenPage() {
     return (
       <>
         <Head>
-          <title>POS verkopen ophalen</title>
+          <title>Webshop verkopen ophalen</title>
         </Head>
         <main style={{ padding: 16 }}>Laden...</main>
       </>
@@ -389,12 +389,12 @@ export default function PosVerkopenOphalenPage() {
   return (
     <>
       <Head>
-        <title>POS verkopen ophalen</title>
+        <title>Webshop verkopen ophalen</title>
       </Head>
       <main style={{ padding: 16, maxWidth: 1200, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>POS verkopen ophalen</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Webshop verkopen ophalen</h1>
         <p style={{ marginBottom: 16 }}>
-          Haal POS verkopen op uit Odoo voor een bepaalde tijdsperiode. Deze data kan worden gebruikt voor inventaris analyse.
+          Haal webshop verkopen op uit Odoo voor een bepaalde tijdsperiode. Deze data kan worden gebruikt voor inventaris analyse.
         </p>
 
         {alertMessage ? (
@@ -437,7 +437,7 @@ export default function PosVerkopenOphalenPage() {
               opacity: isLoadingSales ? 0.6 : 1,
             }}
           >
-            {isLoadingSales ? 'Ophalen...' : '📥 Ophalen POS verkopen'}
+            {isLoadingSales ? 'Ophalen...' : '📥 Ophalen webshop verkopen'}
           </button>
         </div>
 
@@ -623,7 +623,7 @@ export default function PosVerkopenOphalenPage() {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: 12, textAlign: 'center', color: '#6b7280', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
-                    Nog geen items. Selecteer een periode en klik op "Ophalen POS verkopen".
+                    Nog geen items. Selecteer een periode en klik op "Ophalen webshop verkopen".
                   </td>
                 </tr>
               ) : null}
@@ -634,7 +634,7 @@ export default function PosVerkopenOphalenPage() {
         {showSaveModal ? (
           <div style={modalBackdropStyle} onClick={() => setShowSaveModal(false)}>
             <div style={modalStyle} onClick={e => e.stopPropagation()}>
-              <h3 style={{ marginTop: 0, marginBottom: 8 }}>POS verkopen opslaan</h3>
+              <h3 style={{ marginTop: 0, marginBottom: 8 }}>Webshop verkopen opslaan</h3>
               <p style={{ marginTop: 0, marginBottom: 12, color: '#6b7280', fontSize: 14 }}>
                 Geef een naam op voor dit bestand.
               </p>
@@ -652,7 +652,7 @@ export default function PosVerkopenOphalenPage() {
                     }}
                     style={inputStyle}
                     autoFocus
-                    placeholder="pos-verkopen-naam"
+                    placeholder="webshop-verkopen-naam"
                     list="recent-filenames"
                   />
                   {recentFilenames.length > 0 && (
