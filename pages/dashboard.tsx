@@ -282,12 +282,15 @@ export default function DashboardPage() {
             <p className="mb-2 text-gray-700">
               Sessienaam: <strong>{data.session_name}</strong>
             </p>
-            <div className="mb-4 flex gap-4">
+            <div className="mb-4 flex gap-4 flex-wrap">
               <p className="text-gray-700">
                 Aantal orders: <strong>{data.orders.length}</strong>
               </p>
               <p className="text-gray-700">
                 Totale omzet: <strong>€ {data.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+              </p>
+              <p className="text-gray-700">
+                Gemiddelde orderwaarde: <strong>€ {data.orders.length > 0 ? (data.total / data.orders.length).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</strong>
               </p>
             </div>
             <ul className="space-y-2">
@@ -338,12 +341,15 @@ export default function DashboardPage() {
               <p className="text-blue-800 mb-3">
                 Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>
               </p>
-              <div className="flex justify-center gap-6 mb-3 text-sm">
+              <div className="flex justify-center gap-6 mb-3 text-sm flex-wrap">
                 <p className="text-blue-700">
                   Aantal orders: <strong>{lastSession.order_count}</strong>
                 </p>
                 <p className="text-blue-700">
                   Totale omzet: <strong>€ {lastSession.total_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                </p>
+                <p className="text-blue-700">
+                  Gemiddelde orderwaarde: <strong>€ {lastSession.order_count > 0 ? (lastSession.total_amount / lastSession.order_count).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</strong>
                 </p>
               </div>
               <p className="text-sm text-blue-600 mb-4">
