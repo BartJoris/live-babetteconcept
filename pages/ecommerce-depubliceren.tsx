@@ -36,6 +36,7 @@ export default function EcommerceDepublicerenPage() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [variants, setVariants] = useState<Map<number, ProductVariant[]>>(new Map());
   const [isLoadingVariants, setIsLoadingVariants] = useState(false);
+  const [hideUnlimited, setHideUnlimited] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -69,10 +70,19 @@ export default function EcommerceDepublicerenPage() {
   };
 
   const selectAll = () => {
-    if (selectedTemplates.size === products.length) {
-      setSelectedTemplates(new Set());
+    const filteredIds = filteredProducts.map((p) => p.id);
+    const allFilteredSelected = filteredIds.every((id) => selectedTemplates.has(id));
+    
+    if (allFilteredSelected && filteredProducts.length > 0) {
+      // Deselect all filtered products
+      const newSelected = new Set(selectedTemplates);
+      filteredIds.forEach((id) => newSelected.delete(id));
+      setSelectedTemplates(newSelected);
     } else {
-      setSelectedTemplates(new Set(products.map((p) => p.id)));
+      // Select all filtered products
+      const newSelected = new Set(selectedTemplates);
+      filteredIds.forEach((id) => newSelected.add(id));
+      setSelectedTemplates(newSelected);
     }
   };
 
@@ -159,6 +169,11 @@ export default function EcommerceDepublicerenPage() {
     }
   };
 
+  // Filter products based on hideUnlimited setting
+  const filteredProducts = hideUnlimited
+    ? products.filter((p) => !p.has_unlimited_stock)
+    : products;
+
   return (
     <>
       <Head>
@@ -176,8 +191,28 @@ export default function EcommerceDepublicerenPage() {
               Selecteer producten om ze te depubliceren (niet meer zichtbaar in de webshop).
             </p>
 
+            {/* Filter Controls */}
+            <div className="mb-4 flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hideUnlimited}
+                  onChange={(e) => setHideUnlimited(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Verberg producten met onbeperkte voorraad (-1)
+                </span>
+              </label>
+              {hideUnlimited && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  ({products.length - filteredProducts.length} verborgen)
+                </span>
+              )}
+            </div>
+
             {/* Bulk Unpublish Controls */}
-            {products.length > 0 && (
+            {filteredProducts.length > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -219,10 +254,12 @@ export default function EcommerceDepublicerenPage() {
               <div className="text-center py-8">
                 <p className="text-gray-600 dark:text-gray-400">Laden...</p>
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600 dark:text-gray-400">
-                  Geen gepubliceerde producten gevonden zonder voorraad.
+                  {hideUnlimited && products.length > 0
+                    ? 'Geen producten gevonden zonder onbeperkte voorraad.'
+                    : 'Geen gepubliceerde producten gevonden zonder voorraad.'}
                 </p>
               </div>
             ) : (
@@ -233,12 +270,17 @@ export default function EcommerceDepublicerenPage() {
                       onClick={selectAll}
                       className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                     >
-                      {selectedTemplates.size === products.length
+                      {selectedTemplates.size === filteredProducts.length && filteredProducts.length > 0
                         ? 'Alles deselecteren'
                         : 'Alles selecteren'}
                     </button>
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {selectedTemplates.size} van {products.length} geselecteerd
+                      {selectedTemplates.size} van {filteredProducts.length} geselecteerd
+                      {hideUnlimited && products.length > filteredProducts.length && (
+                        <span className="text-gray-400 dark:text-gray-500 ml-1">
+                          ({products.length} totaal)
+                        </span>
+                      )}
                     </span>
                   </div>
                   <button
@@ -256,8 +298,8 @@ export default function EcommerceDepublicerenPage() {
                         <input
                           type="checkbox"
                           checked={
-                            products.length > 0 &&
-                            selectedTemplates.size === products.length
+                            filteredProducts.length > 0 &&
+                            selectedTemplates.size === filteredProducts.length
                           }
                           onChange={selectAll}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -281,7 +323,7 @@ export default function EcommerceDepublicerenPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <>
                         <tr
                           key={product.id}
