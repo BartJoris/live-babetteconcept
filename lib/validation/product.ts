@@ -34,6 +34,7 @@ export const productSchema = z.object({
   })).default([]),
   originalName: z.string().optional(),
   isFavorite: z.boolean().default(false),
+  isPublished: z.boolean().default(true),
   sizeAttribute: z.string().optional(),
   images: z.array(z.string()).optional(),
 });

@@ -3,6 +3,14 @@ import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { odooClient } from '@/lib/odooClient';
 import { odooCallSchema } from '@/lib/validation/product';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+};
+
 async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Only POST allowed' });

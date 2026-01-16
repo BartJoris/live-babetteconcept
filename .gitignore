@@ -69,3 +69,29 @@ yarn-error.log*
 next-env.d.ts
 
 server.log
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+*.xcscmblueprint
+build/
+.DS_Store
+
+# iOS App - ignore Xcode project files (auto-generated)
+ios-app/**/*.xcodeproj/
+ios-app/**/*.xcworkspace/
+ios-app/**/xcuserdata/
+ios-app/**/DerivedData/
+ios-app/**/build/

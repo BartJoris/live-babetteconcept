@@ -91,16 +91,20 @@ async function handler(
           standard_price: product.variants[0].price || product.variants[0].rrp || 0,
           type: 'consu', // Verbruiksartikel
           is_storable: true, // Enable "Voorraad bijhouden" checkbox (can track inventory even for consumables)
-          default_code: product.reference,
           weight: 0.2, // Default weight 0.2kg for all products
           tracking: 'none', // No serial/lot tracking, but inventory is tracked
           available_in_pos: true, // Kan verkocht worden in Kassa
           website_id: 1, // Website: Babette.
-          website_published: true, // Kan gekocht worden (online)
+          website_published: product.isPublished, // Kan gekocht worden (online)
           purchase_ok: false, // Kan NIET gekocht worden (inkoop uitgeschakeld)
           out_of_stock_message: '<p>Verkocht!</p><p><br></p>', // Bericht bij geen voorraad
           is_favorite: product.isFavorite, // Favoriet product
         };
+
+        if (product.reference) {
+          // Store reference in Internal Notes
+          templateData.description = product.reference;
+        }
 
         // Add ecommerce description if available
         if (product.ecommerceDescription) {
@@ -149,6 +153,15 @@ async function handler(
 
         const merkAttributeId = merkAttrResult[0].id;
 
+        const normalizeSize = (size: string) => size?.trim().toUpperCase() || '';
+        const isUnitSize = (size: string) => normalizeSize(size) === 'UNIT';
+        const uniqueSizes = Array.from(
+          new Set(product.variants.map(variant => normalizeSize(variant.size)))
+        ).filter(Boolean);
+        const hasSingleSize = uniqueSizes.length === 1;
+        const isUnitOnly = hasSingleSize && isUnitSize(uniqueSizes[0]);
+        const isNoVariantProduct = product.variants.length > 0 && hasSingleSize;
+
         // Step 3: Determine which size attribute to use based on the product's sizes
         console.log('Step 3: Determining size attribute...');
         
@@ -190,28 +203,32 @@ async function handler(
           return 'MAAT Kinderen';
         };
         
-        // Use user-selected attribute if provided, otherwise auto-detect
-        const sizeAttributeName = product.sizeAttribute || determineSizeAttribute(product.variants);
-        console.log(`Using size attribute: ${sizeAttributeName}${product.sizeAttribute ? ' (user-selected)' : ' (auto-detected)'}`);
-        
-        const maatAttrResult = await callOdoo<Array<{ id: number; name: string }>>(
-          uid,
-          password,
-          'product.attribute',
-          'search_read',
-          [[['name', '=', sizeAttributeName]]],
-          { fields: ['id', 'name'] }
-        );
-
-        let maatAttributeId;
-        if (!maatAttrResult || maatAttrResult.length === 0) {
-          console.log(`Creating ${sizeAttributeName} attribute...`);
-          maatAttributeId = await callOdoo(uid, password, 'product.attribute', 'create', [{
-            name: sizeAttributeName,
-            display_type: 'radio',
-          }]);
+        let maatAttributeId: number | null = null;
+        if (isNoVariantProduct) {
+          console.log('Single-size product detected: skipping size attribute line');
         } else {
-          maatAttributeId = maatAttrResult[0].id;
+          // Use user-selected attribute if provided, otherwise auto-detect
+          const sizeAttributeName = product.sizeAttribute || determineSizeAttribute(product.variants);
+          console.log(`Using size attribute: ${sizeAttributeName}${product.sizeAttribute ? ' (user-selected)' : ' (auto-detected)'}`);
+          
+          const maatAttrResult = await callOdoo<Array<{ id: number; name: string }>>(
+            uid,
+            password,
+            'product.attribute',
+            'search_read',
+            [[['name', '=', sizeAttributeName]]],
+            { fields: ['id', 'name'] }
+          );
+
+          if (!maatAttrResult || maatAttrResult.length === 0) {
+            console.log(`Creating ${sizeAttributeName} attribute...`);
+            maatAttributeId = await callOdoo(uid, password, 'product.attribute', 'create', [{
+              name: sizeAttributeName,
+              display_type: 'radio',
+            }]);
+          } else {
+            maatAttributeId = maatAttrResult[0].id;
+          }
         }
 
         // Step 4: Create attribute lines on template
@@ -249,35 +266,37 @@ async function handler(
         }]);
 
         // Get or create size values
-        const sizeValueIds = [];
-        for (const variant of product.variants) {
-          const existingSize = await callOdoo<Array<{ id: number }>>(
-            uid,
-            password,
-            'product.attribute.value',
-            'search_read',
-            [[['attribute_id', '=', maatAttributeId], ['name', '=', variant.size]]],
-            { fields: ['id'] }
-          );
+        const sizeValueIds: number[] = [];
+        if (!isNoVariantProduct && maatAttributeId) {
+          for (const variant of product.variants) {
+            const existingSize = await callOdoo<Array<{ id: number }>>(
+              uid,
+              password,
+              'product.attribute.value',
+              'search_read',
+              [[['attribute_id', '=', maatAttributeId], ['name', '=', variant.size]]],
+              { fields: ['id'] }
+            );
 
-          let sizeValueId;
-          if (existingSize && existingSize.length > 0) {
-            sizeValueId = existingSize[0].id;
-          } else {
-            sizeValueId = await callOdoo(uid, password, 'product.attribute.value', 'create', [{
-              attribute_id: maatAttributeId,
-              name: variant.size,
-            }]);
+            let sizeValueId;
+            if (existingSize && existingSize.length > 0) {
+              sizeValueId = existingSize[0].id;
+            } else {
+              sizeValueId = await callOdoo(uid, password, 'product.attribute.value', 'create', [{
+                attribute_id: maatAttributeId,
+                name: variant.size,
+              }]);
+            }
+            sizeValueIds.push(sizeValueId);
           }
-          sizeValueIds.push(sizeValueId);
-        }
 
-        // Add MAAT line
-        await callOdoo(uid, password, 'product.template.attribute.line', 'create', [{
-          product_tmpl_id: templateId,
-          attribute_id: maatAttributeId,
-          value_ids: [[6, 0, sizeValueIds]],
-        }]);
+          // Add MAAT line
+          await callOdoo(uid, password, 'product.template.attribute.line', 'create', [{
+            product_tmpl_id: templateId,
+            attribute_id: maatAttributeId,
+            value_ids: [[6, 0, sizeValueIds]],
+          }]);
+        }
 
         console.log('✅ Attribute lines created');
 
@@ -304,95 +323,145 @@ async function handler(
         console.log('Step 7: Updating variants with barcodes and prices...');
         let updatedCount = 0;
 
-        for (const odooVariant of variantsResult) {
-          try {
-            // Get variant attribute values to match with CSV data
-            const variantValueIds = odooVariant.product_template_variant_value_ids || [];
-            
-            // Fetch the actual attribute values
-            if (variantValueIds.length === 0) continue;
+        if (isNoVariantProduct) {
+          const baseSize = uniqueSizes[0] || '';
+          const combinedVariant = product.variants.reduce<ProductVariant>(
+            (acc, variant) => ({
+              ...acc,
+              quantity: acc.quantity + (variant.quantity || 0),
+              ean: acc.ean || variant.ean,
+              sku: acc.sku || variant.sku,
+              price: acc.price || variant.price,
+              rrp: acc.rrp || variant.rrp,
+            }),
+            { size: baseSize, quantity: 0, ean: '', price: 0, rrp: 0 }
+          );
 
-            const valuesResult = await callOdoo<Array<{
-              product_attribute_value_id: [number, string];
-            }>>(
-              uid,
-              password,
-              'product.template.attribute.value',
-              'search_read',
-              [[['id', 'in', variantValueIds]]],
-              { fields: ['product_attribute_value_id'] }
-            );
-
-            // Get the size value name
-            let sizeValueId = null;
-            for (const val of valuesResult) {
-              const valueId = val.product_attribute_value_id[0];
-              if (sizeValueIds.includes(valueId)) {
-                sizeValueId = valueId;
-                break;
-              }
-            }
-
-            if (!sizeValueId) continue;
-
-            // Get size name
-            const sizeValueResult = await callOdoo<Array<{ name: string }>>(
-              uid,
-              password,
-              'product.attribute.value',
-              'read',
-              [[sizeValueId]]
-            );
-
-            if (!sizeValueResult || sizeValueResult.length === 0) continue;
-
-            const sizeName = sizeValueResult[0].name;
-
-            // Find matching variant in CSV data
-            const csvVariant = product.variants.find(v => v.size === sizeName);
-            if (!csvVariant) {
-              console.log(`⚠️ No CSV data for size ${sizeName}`);
-              continue;
-            }
-
-            console.log(`Updating variant: Size ${sizeName}, Barcode ${csvVariant.ean}, SKU ${csvVariant.sku || 'N/A'}`);
-
+          const odooVariant = variantsResult[0];
+          if (odooVariant) {
             const updateData: Record<string, unknown> = {
-              standard_price: csvVariant.price,
+              standard_price: combinedVariant.price || combinedVariant.rrp || 0,
               weight: 0.2, // Default weight 0.2kg for all variants
             };
 
-            // Set SKU/Internal Reference if available
-            if (csvVariant.sku) {
-              updateData.default_code = csvVariant.sku;
+            if (combinedVariant.sku) {
+              updateData.default_code = combinedVariant.sku;
             }
 
-            // Always set barcode from CSV for new imports
-            if (csvVariant.ean && csvVariant.ean.trim()) {
-              updateData.barcode = csvVariant.ean;
-              console.log(`📌 Setting barcode: ${csvVariant.ean}`);
+            if (combinedVariant.ean && combinedVariant.ean.trim()) {
+              updateData.barcode = combinedVariant.ean;
+              console.log(`📌 Setting barcode: ${combinedVariant.ean}`);
             }
 
-            console.log(`Updating variant ${odooVariant.id}:`, JSON.stringify(updateData));
+            console.log(`Updating single-size product variant ${odooVariant.id}:`, JSON.stringify(updateData));
             await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
-            console.log(`✅ Updated variant`);
+            console.log(`✅ Updated single-size product variant`);
 
-            // Update stock if quantity > 0
-            if (csvVariant.quantity > 0) {
+            if (combinedVariant.quantity > 0) {
               try {
                 await callOdoo(uid, password, 'stock.quant', 'create', [{
                   product_id: odooVariant.id,
                   location_id: 8, // Stock location - adjust if needed
-                  quantity: csvVariant.quantity,
+                  quantity: combinedVariant.quantity,
                 }]);
               } catch (stockError) {
                 console.log(`⚠️ Stock update failed: ${stockError}`);
               }
             }
 
-            updatedCount++;
-          } catch (variantError) {
-            console.error(`Error updating variant:`, variantError);
+            updatedCount = 1;
+          }
+        } else {
+          for (const odooVariant of variantsResult) {
+            try {
+              // Get variant attribute values to match with CSV data
+              const variantValueIds = odooVariant.product_template_variant_value_ids || [];
+              
+              // Fetch the actual attribute values
+              if (variantValueIds.length === 0) continue;
+
+              const valuesResult = await callOdoo<Array<{
+                product_attribute_value_id: [number, string];
+              }>>(
+                uid,
+                password,
+                'product.template.attribute.value',
+                'search_read',
+                [[['id', 'in', variantValueIds]]],
+                { fields: ['product_attribute_value_id'] }
+              );
+
+              // Get the size value name
+              let sizeValueId = null;
+              for (const val of valuesResult) {
+                const valueId = val.product_attribute_value_id[0];
+                if (sizeValueIds.includes(valueId)) {
+                  sizeValueId = valueId;
+                  break;
+                }
+              }
+
+              if (!sizeValueId) continue;
+
+              // Get size name
+              const sizeValueResult = await callOdoo<Array<{ name: string }>>(
+                uid,
+                password,
+                'product.attribute.value',
+                'read',
+                [[sizeValueId]]
+              );
+
+              if (!sizeValueResult || sizeValueResult.length === 0) continue;
+
+              const sizeName = sizeValueResult[0].name;
+
+              // Find matching variant in CSV data
+              const csvVariant = product.variants.find(v => v.size === sizeName);
+              if (!csvVariant) {
+                console.log(`⚠️ No CSV data for size ${sizeName}`);
+                continue;
+              }
+
+              console.log(`Updating variant: Size ${sizeName}, Barcode ${csvVariant.ean}, SKU ${csvVariant.sku || 'N/A'}`);
+
+              const updateData: Record<string, unknown> = {
+                standard_price: csvVariant.price,
+                weight: 0.2, // Default weight 0.2kg for all variants
+              };
+
+              // Set SKU/Internal Reference if available
+              if (csvVariant.sku) {
+                updateData.default_code = csvVariant.sku;
+              }
+
+              // Always set barcode from CSV for new imports
+              if (csvVariant.ean && csvVariant.ean.trim()) {
+                updateData.barcode = csvVariant.ean;
+                console.log(`📌 Setting barcode: ${csvVariant.ean}`);
+              }
+
+              console.log(`Updating variant ${odooVariant.id}:`, JSON.stringify(updateData));
+              await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
+              console.log(`✅ Updated variant`);
+
+              // Update stock if quantity > 0
+              if (csvVariant.quantity > 0) {
+                try {
+                  await callOdoo(uid, password, 'stock.quant', 'create', [{
+                    product_id: odooVariant.id,
+                    location_id: 8, // Stock location - adjust if needed
+                    quantity: csvVariant.quantity,
+                  }]);
+                } catch (stockError) {
+                  console.log(`⚠️ Stock update failed: ${stockError}`);
+                }
+              }
+
+              updatedCount++;
+            } catch (variantError) {
+              console.error(`Error updating variant:`, variantError);
+            }
           }
         }
 

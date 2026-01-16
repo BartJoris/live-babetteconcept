@@ -18,6 +18,7 @@ interface ParsedProduct {
   publicCategories: Array<{ id: number; name: string }>;
   productTags: Array<{ id: number; name: string }>;
   isFavorite: boolean; // Editable favorite flag
+  isPublished: boolean; // Editable website publish flag
   sizeAttribute?: string; // Manually editable size attribute (MAAT Baby's, MAAT Kinderen, etc.)
   images?: string[]; // Image URLs (for Play UP and other vendors)
   imagesFetched?: boolean; // Whether images have been fetched from website
@@ -32,7 +33,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | null;
 
 interface Brand {
   id: number;
@@ -202,8 +203,42 @@ function mapSizeTodutchName(size: string): string {
   return sizeMapping[size] || size;
 }
 
+const isUnitOnlyProduct = (product: ParsedProduct) =>
+  product.variants.length > 0 &&
+  product.variants.every(variant => variant.size?.trim().toUpperCase() === 'UNIT');
+
 // Transform product variants before sending to Odoo
 function transformProductForUpload(product: ParsedProduct): ParsedProduct {
+  const isUnitSize = (size: string) => size?.trim().toUpperCase() === 'UNIT';
+  const isUnitOnly =
+    product.variants.length > 0 &&
+    product.variants.every(variant => isUnitSize(variant.size));
+
+  if (isUnitOnly) {
+    const combinedVariant = product.variants.reduce<ProductVariant>(
+      (acc, variant) => ({
+        ...acc,
+        quantity: acc.quantity + (variant.quantity || 0),
+        ean: acc.ean || variant.ean,
+        sku: acc.sku || variant.sku,
+        price: acc.price || variant.price,
+        rrp: acc.rrp || variant.rrp,
+      }),
+      {
+        size: 'UNIT',
+        quantity: 0,
+        ean: '',
+        price: 0,
+        rrp: 0,
+      }
+    );
+
+    return {
+      ...product,
+      variants: [combinedVariant],
+    };
+  }
+
   // If product uses MAAT Volwassenen, map size codes to Dutch names
   if (product.sizeAttribute === 'MAAT Volwassenen') {
     return {
@@ -418,6 +453,8 @@ export default function ProductImportPage() {
         parsePlayUpCSV(text);
       } else if (selectedVendor === 'floss') {
         parseFlossCSV(text);
+      } else if (selectedVendor === 'tinycottons') {
+        parseTinycottonsCSV(text);
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -527,6 +564,7 @@ export default function ProductImportPage() {
             publicCategories: [],
             productTags: [],
             isFavorite: false,
+            isPublished: true,
             sizeAttribute: sizeAttr,
             images: images,
             imagesFetched: images.length > 0,
@@ -584,6 +622,14 @@ export default function ProductImportPage() {
         const name = row['Description'] || row['description'] || '';
         const material = row['Quality'] || row['Colour'] || row['material'] || '';
         const color = row['Colour'] || row['Color'] || row['color'] || '';
+
+        const toTitleCase = (str: string) =>
+          str
+            .toLowerCase()
+            .split(' ')
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
         
         // Auto-detect brand from name
         const nameLower = name.toLowerCase();
@@ -591,19 +637,22 @@ export default function ProductImportPage() {
           nameLower.includes(b.name.toLowerCase())
         );
 
+        const formattedName = `Ao76 - ${toTitleCase(name)}`;
+
         products[reference] = {
           reference,
-          name: name.toLowerCase(),
+          name: formattedName,
           originalName: name, // Store original name for image search
           material,
           color,
-          ecommerceDescription: name, // Store description for ecommerce (Ao76 uses name as description)
+          ecommerceDescription: formattedName,
           variants: [],
           suggestedBrand: suggestedBrand?.name,
           selectedBrand: suggestedBrand,
           publicCategories: [],
           productTags: [],
           isFavorite: false, // Default to not favorite
+          isPublished: true,
         };
       }
 
@@ -702,6 +751,7 @@ export default function ProductImportPage() {
           publicCategories: [],
           productTags: [],
           isFavorite: false, // Default to not favorite
+          isPublished: true,
         };
       }
 
@@ -1024,6 +1074,7 @@ export default function ProductImportPage() {
           publicCategories: [],
           productTags: [],
           isFavorite: false,
+          isPublished: true,
         };
         
         console.log(`➕ Created product: ${reference} - ${formattedName}`);
@@ -1243,6 +1294,7 @@ export default function ProductImportPage() {
           publicCategories: [],
           productTags: [],
           isFavorite: false,
+          isPublished: true,
         };
         
         console.log(`➕ Created product: ${reference} - ${formattedName}`);
@@ -1262,6 +1314,128 @@ export default function ProductImportPage() {
     productList.forEach(product => {
       product.sizeAttribute = determineSizeAttribute(product.variants);
     });
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  const parseTinycottonsCSV = (text: string) => {
+    // Tinycottons (Tiny Big Sister) format parser
+    // Semicolon-separated format with headers
+    // Format: Order id;Season;Brand name;Category;Product name;Composition;Size name;EAN13;Quantity;Unit price;RRP
+    
+    console.log(`🎀 Parsing Tinycottons CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🎀 Headers: ${JSON.stringify(headers)}`);
+    
+    // Validate headers
+    if (!headers.includes('Product name') || !headers.includes('EAN13')) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Order id, Season, Brand name, Category, Product name, Composition, Size name, EAN13, Quantity, Unit price, RRP');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';').map(v => v.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] || '';
+      });
+
+      const productName = row['Product name'] || '';
+      const category = row['Category'] || '';
+      const composition = row['Composition'] || '';
+      const size = row['Size name'] || '';
+      const quantity = parseInt(row['Quantity'] || '0');
+      const ean = row['EAN13'] || '';
+      const brandName = row['Brand name'] || 'Tinycottons';
+      
+      // Skip rows without product name or EAN
+      if (!productName || !ean) {
+        if (productName || ean) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data`);
+        }
+        continue;
+      }
+      
+      const price = parsePrice(row['Unit price'] || '0');
+      const rrp = parsePrice(row['RRP'] || '0');
+
+      // Use original product name as reference (for internal notes in Odoo)
+      // This will be stored in the description field and used to find products later
+      const reference = productName;
+
+      if (!products[reference]) {
+        // Format product name to match other vendors
+        const toSentenceCase = (str: string) => {
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `Tiny Big sister - ${toSentenceCase(productName)}`;
+        
+        // Auto-detect Tiny Big sister brand
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('tiny big sister') ||
+          b.name.toLowerCase().includes('tinycottons') || 
+          b.name.toLowerCase().includes('tiny cottons')
+        );
+
+        products[reference] = {
+          reference,
+          name: formattedName,
+          originalName: productName,
+          material: composition,
+          color: '', // No color field in Tinycottons CSV
+          ecommerceDescription: formattedName,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '', // Will be auto-determined
+        };
+
+        console.log(`✅ Created product: ${formattedName} (${reference})`);
+      }
+      
+      products[reference].variants.push({
+        size: size,
+        quantity: quantity,
+        ean: ean,
+        price: price,
+        rrp: rrp,
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🎀 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Set size attribute to MAAT Volwassenen for all Tiny Big sister products
+    productList.forEach(product => {
+      product.sizeAttribute = 'MAAT Volwassenen';
+    });
+    
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
@@ -1376,6 +1550,7 @@ export default function ProductImportPage() {
           publicCategories: [],
           productTags: [],
           isFavorite: false,
+          isPublished: true,
         };
         
         console.log(`➕ Created product: ${reference} - ${description}`);
@@ -1575,6 +1750,7 @@ export default function ProductImportPage() {
           publicCategories: [],
           productTags: [],
           isFavorite: false,
+          isPublished: true,
         };
         
         console.log(`➕ Created product: ${itemNumber} - ${description} - ${colorDisplay}`);
@@ -1975,6 +2151,26 @@ export default function ProductImportPage() {
       products.map(p =>
         p.reference === productRef ? { ...p, isFavorite: !p.isFavorite } : p
       )
+    );
+  };
+
+  const toggleProductPublished = (productRef: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef ? { ...p, isPublished: !p.isPublished } : p
+      )
+    );
+  };
+
+  const setAllFavorites = (value: boolean) => {
+    setParsedProducts(products =>
+      products.map(p => ({ ...p, isFavorite: value }))
+    );
+  };
+
+  const setAllPublished = (value: boolean) => {
+    setParsedProducts(products =>
+      products.map(p => ({ ...p, isPublished: value }))
     );
   };
 
@@ -2412,6 +2608,24 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('tinycottons')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'tinycottons'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🎀</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Tiny Big sister</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Order export met Product name, Category, EAN13, Unit price, RRP
+                      </p>
+                      {selectedVendor === 'tinycottons' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -2721,7 +2935,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : 'Flöss'}:
+                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -2744,6 +2958,23 @@ Hello Simone;Winter 25 - 26;Bear fleece jacket cookie;AW25-BFLJC;Cookie;Large ja
 
 → Wordt: "Play Up - Rib ls t-shirt - 100% ogco"
 → Gebruik Play UP PDF Converter om factuur PDF naar CSV te converteren`}
+                        </pre>
+                      ) : selectedVendor === 'tinycottons' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Order id;Season;Brand name;Category;Product name;Composition;Size name;EAN13;Quantity;Unit price;RRP
+3117410;SS26;Tinycottons;Shorts;Alma Fruits Short;100% cotton;34;8434525598872;1;47,6;119
+3117410;SS26;Tinycottons;Shorts;Alma Fruits Short;100% cotton;36;8434525598889;1;47,6;119
+
+→ Wordt: "Tiny Big sister - Alma fruits short"
+→ Variant: Maat 34 (MAAT Volwassenen), EAN: 8434525598872, Prijs: €47,60, RRP: €119,00`}
+                        </pre>
+                      ) : selectedVendor === 'armedangels' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Table 1
+Item Number;Description;Color;Size;SKU;Quantity;Price (EUR)
+10012345;Denim Jacket;Blue;S;10012345-BLU-S;1;89,95
+
+→ Wordt: "Armed Angels - Denim jacket - Blue"`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -3062,6 +3293,30 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     ✗ Alles Deselecteren
                   </button>
                   <button
+                    onClick={() => setAllFavorites(true)}
+                    className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                  >
+                    ⭐ Favoriet aan
+                  </button>
+                  <button
+                    onClick={() => setAllFavorites(false)}
+                    className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
+                  >
+                    ☆ Favoriet uit
+                  </button>
+                  <button
+                    onClick={() => setAllPublished(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    🌐 Gepubliceerd aan
+                  </button>
+                  <button
+                    onClick={() => setAllPublished(false)}
+                    className="px-4 py-2 bg-purple-100 text-purple-800 rounded hover:bg-purple-200"
+                  >
+                    🚫 Gepubliceerd uit
+                  </button>
+                  <button
                     onClick={() => {
                       // Set all variant quantities to 0
                       setParsedProducts(products =>
@@ -3117,16 +3372,22 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                   <span>•</span>
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs">📏</span>
-                                    <select
-                                      value={product.sizeAttribute || determineSizeAttribute(product.variants)}
-                                      onChange={(e) => updateProductSizeAttribute(product.reference, e.target.value)}
-                                      className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium border-purple-300 border focus:border-purple-500 focus:outline-none cursor-pointer"
-                                    >
-                                      <option value="MAAT Baby's">MAAT Baby&apos;s</option>
-                                      <option value="MAAT Kinderen">MAAT Kinderen</option>
-                                      <option value="MAAT Tieners">MAAT Tieners</option>
-                                      <option value="MAAT Volwassenen">MAAT Volwassenen</option>
-                                    </select>
+                                    {isUnitOnlyProduct(product) ? (
+                                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium border-purple-300 border">
+                                        Geen maat (UNIT)
+                                      </span>
+                                    ) : (
+                                      <select
+                                        value={product.sizeAttribute || determineSizeAttribute(product.variants)}
+                                        onChange={(e) => updateProductSizeAttribute(product.reference, e.target.value)}
+                                        className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium border-purple-300 border focus:border-purple-500 focus:outline-none cursor-pointer"
+                                      >
+                                        <option value="MAAT Baby's">MAAT Baby&apos;s</option>
+                                        <option value="MAAT Kinderen">MAAT Kinderen</option>
+                                        <option value="MAAT Tieners">MAAT Tieners</option>
+                                        <option value="MAAT Volwassenen">MAAT Volwassenen</option>
+                                      </select>
+                                    )}
                                   </div>
                                 </div>
                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -3137,6 +3398,15 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                     className="w-4 h-4"
                                   />
                                   <span className="text-xs font-medium">⭐ Favoriet</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={product.isPublished}
+                                    onChange={() => toggleProductPublished(product.reference)}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-xs font-medium">🌐 Gepubliceerd</span>
                                 </label>
                               </div>
                               <div className="text-sm text-gray-800 mt-1 font-medium">
@@ -4256,7 +4526,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         tracking: 'none',
                         available_in_pos: true,
                         website_id: 1,
-                        website_published: true,
+                        website_published: apiPreviewData.product.isPublished,
                         public_categ_ids: [[6, 0, apiPreviewData.product.publicCategories.map((c) => c.id)]],
                         product_tag_ids: [[6, 0, apiPreviewData.product.productTags.map((t) => t.id)]],
                       }
