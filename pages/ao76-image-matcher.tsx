@@ -75,7 +75,6 @@ export default function Ao76ImageMatcher() {
       return;
     }
 
-    const products: CSVProduct[] = [];
     const productMap = new Map<string, CSVProduct>();
 
     for (let i = 1; i < lines.length; i++) {

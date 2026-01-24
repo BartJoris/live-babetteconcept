@@ -154,12 +154,10 @@ async function handler(
         const merkAttributeId = merkAttrResult[0].id;
 
         const normalizeSize = (size: string) => size?.trim().toUpperCase() || '';
-        const isUnitSize = (size: string) => normalizeSize(size) === 'UNIT';
         const uniqueSizes = Array.from(
           new Set(product.variants.map(variant => normalizeSize(variant.size)))
         ).filter(Boolean);
         const hasSingleSize = uniqueSizes.length === 1;
-        const isUnitOnly = hasSingleSize && isUnitSize(uniqueSizes[0]);
         const isNoVariantProduct = product.variants.length > 0 && hasSingleSize;
 
         // Step 3: Determine which size attribute to use based on the product's sizes
@@ -278,11 +276,11 @@ async function handler(
               { fields: ['id'] }
             );
 
-            let sizeValueId;
+            let sizeValueId: number;
             if (existingSize && existingSize.length > 0) {
               sizeValueId = existingSize[0].id;
             } else {
-              sizeValueId = await callOdoo(uid, password, 'product.attribute.value', 'create', [{
+              sizeValueId = await callOdoo<number>(uid, password, 'product.attribute.value', 'create', [{
                 attribute_id: maatAttributeId,
                 name: variant.size,
               }]);

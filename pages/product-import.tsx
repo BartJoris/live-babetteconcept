@@ -33,7 +33,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | null;
 
 interface Brand {
   id: number;
@@ -175,8 +175,8 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
   return determineSizeAttribute(firstSize);
 }
 
-// Map size codes to Dutch size names for MAAT Volwassenen
-function mapSizeTodutchName(size: string): string {
+// Map size codes to Dutch size names for MAAT Volwassenen (matching Odoo attribute values)
+function mapSizeToOdooFormat(size: string): string {
   if (!size) return size;
   
   const sizeMapping: { [key: string]: string } = {
@@ -188,33 +188,34 @@ function mapSizeTodutchName(size: string): string {
     'XXL': 'XXL - 44',
   };
   
-  // If it's already a Dutch name (contains " - "), return as-is
+  // If it's already in Odoo format (contains " - "), return as-is
   if (size.includes(' - ')) {
     return size;
   }
   
-  // Try to extract the size code from the input
-  const match = size.match(/^(XS|S|M|L|XL|XXL)/i);
-  if (match) {
-    const code = match[1].toUpperCase();
-    return sizeMapping[code] || size;
-  }
-  
-  return sizeMapping[size] || size;
+  // Normalize to uppercase and map
+  const normalizedSize = size.trim().toUpperCase();
+  return sizeMapping[normalizedSize] || size;
 }
+
+// Check if a size represents a unit/universal size (no size variants)
+const isUnitSize = (size: string) => {
+  const normalized = size?.trim().toUpperCase();
+  return normalized === 'UNIT' || normalized === 'U' || normalized === 'TU';
+};
 
 const isUnitOnlyProduct = (product: ParsedProduct) =>
   product.variants.length > 0 &&
-  product.variants.every(variant => variant.size?.trim().toUpperCase() === 'UNIT');
+  product.variants.every(variant => isUnitSize(variant.size));
 
 // Transform product variants before sending to Odoo
 function transformProductForUpload(product: ParsedProduct): ParsedProduct {
-  const isUnitSize = (size: string) => size?.trim().toUpperCase() === 'UNIT';
   const isUnitOnly =
     product.variants.length > 0 &&
     product.variants.every(variant => isUnitSize(variant.size));
 
   if (isUnitOnly) {
+    // Combine all unit variants into a single product (sum quantities)
     const combinedVariant = product.variants.reduce<ProductVariant>(
       (acc, variant) => ({
         ...acc,
@@ -239,13 +240,13 @@ function transformProductForUpload(product: ParsedProduct): ParsedProduct {
     };
   }
 
-  // If product uses MAAT Volwassenen, map size codes to Dutch names
+  // For MAAT Volwassenen, map size codes to Odoo format (XS -> XS - 34, etc.)
   if (product.sizeAttribute === 'MAAT Volwassenen') {
     return {
       ...product,
       variants: product.variants.map(v => ({
         ...v,
-        size: mapSizeTodutchName(v.size),
+        size: mapSizeToOdooFormat(v.size),
       })),
     };
   }
@@ -455,6 +456,8 @@ export default function ProductImportPage() {
         parseFlossCSV(text);
       } else if (selectedVendor === 'tinycottons') {
         parseTinycottonsCSV(text);
+      } else if (selectedVendor === 'indee') {
+        parseIndeeCSV(text);
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -514,6 +517,253 @@ export default function ProductImportPage() {
       alert(`✅ ${priceMap.size} prijzen geladen uit CSV`);
     };
     reader.readAsText(file);
+  };
+
+  const handleThinkingMuPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await fetch('/api/parse-thinkingmu-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.products) {
+        parseThinkingMuProducts(data.products);
+        alert(`✅ ${data.productCount} producten geparsed uit PDF\nTotaal aantal: ${data.totalQuantity}\nTotale waarde: €${data.totalValue?.toFixed(2) || '0.00'}`);
+      } else {
+        alert(`❌ Fout bij parsen PDF: ${data.error || 'Onbekende fout'}`);
+        if (data.debugText) {
+          console.log('Debug text:', data.debugText);
+        }
+      }
+    } catch (error: any) {
+      alert(`❌ Fout bij uploaden PDF: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Convert product name from "QUICK STRIPES RAIDA TOP" to "Quick stripes raida top"
+  const formatProductName = (name: string): string => {
+    if (!name) return name;
+    // Convert to lowercase, then capitalize first letter
+    const lowercased = name.toLowerCase();
+    return lowercased.charAt(0).toUpperCase() + lowercased.slice(1);
+  };
+
+  const parseThinkingMuProducts = (pdfProducts: Array<{
+    barcode: string;
+    name: string;
+    styleCode: string;
+    size: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>) => {
+    console.log(`🌿 Parsing ${pdfProducts.length} Thinking Mu products...`);
+    
+    const products: Map<string, ParsedProduct> = new Map();
+    
+    for (const item of pdfProducts) {
+      // Create a product key based on style code + color (product name)
+      const productKey = `${item.styleCode}-${item.name}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      
+      // Format product name: "QUICK STRIPES RAIDA TOP" -> "Quick stripes raida top"
+      const formattedName = formatProductName(item.name);
+      
+      if (!products.has(productKey)) {
+        // Auto-detect Thinking Mu brand
+        const suggestedBrand = brands.find(b => 
+          b.name.toLowerCase().includes('thinking') || b.name.toLowerCase().includes('mu')
+        );
+        
+        products.set(productKey, {
+          reference: item.styleCode,
+          name: `Thinking Mu - ${formattedName}`,
+          originalName: formattedName,
+          color: '',
+          material: '',
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: 'Maat',
+        });
+      }
+      
+      const product = products.get(productKey)!;
+      
+      // Add variant for this size
+      product.variants.push({
+        size: item.size,
+        ean: item.barcode,
+        sku: `${item.styleCode}-${item.size}`,
+        quantity: item.quantity,
+        price: item.price, // Cost price from invoice
+        rrp: item.price * 2.5, // Default markup for retail price
+      });
+    }
+    
+    // Convert to array and determine size attribute
+    const productList = Array.from(products.values());
+    
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    console.log(`🌿 Parsed ${productList.length} Thinking Mu products`);
+    
+    setParsedProducts(productList);
+    if (productList.length > 0) {
+      setCurrentStep(2);
+    }
+  };
+
+  // Convert product name from "LONG SLEEVES OVERSIZED DRESS" to "Long sleeves oversized dress"
+  const formatIndeeName = (name: string): string => {
+    if (!name) return name;
+    const lowercased = name.toLowerCase();
+    return lowercased.charAt(0).toUpperCase() + lowercased.slice(1);
+  };
+
+  const parseIndeeCSV = (text: string) => {
+    // Indee CSV format (semicolon separated):
+    // Season;Product Category 1;Product Category 2;Style;Colour;Description;Size;Barcode;Textile Content;WSP EUR;Ccy Symbol;RRP;Sales Order Quantity
+    console.log('👗 Parsing Indee CSV...');
+    
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log('Headers:', headers);
+
+    // Find column indexes
+    const styleIdx = headers.findIndex(h => h.toLowerCase() === 'style');
+    const colourIdx = headers.findIndex(h => h.toLowerCase() === 'colour');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
+    const barcodeIdx = headers.findIndex(h => h.toLowerCase() === 'barcode');
+    const textileIdx = headers.findIndex(h => h.toLowerCase() === 'textile content');
+    const wspIdx = headers.findIndex(h => h.toLowerCase() === 'wsp eur');
+    const rrpIdx = headers.findIndex(h => h.toLowerCase() === 'rrp');
+    const qtyIdx = headers.findIndex(h => h.toLowerCase() === 'sales order quantity');
+    if (styleIdx === -1 || sizeIdx === -1 || barcodeIdx === -1) {
+      alert('CSV mist verplichte kolommen: Style, Size, of Barcode');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Auto-detect Indee brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('indee')
+    );
+
+    // Parse data lines
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(';').map(v => v.trim());
+      
+      const style = values[styleIdx] || '';
+      const colour = values[colourIdx] || '';
+      const description = values[descriptionIdx] || '';
+      let size = values[sizeIdx] || '';
+      const barcode = values[barcodeIdx] || '';
+      const textileContent = textileIdx !== -1 ? values[textileIdx] || '' : '';
+      const wspStr = wspIdx !== -1 ? values[wspIdx] || '0' : '0';
+      const rrpStr = rrpIdx !== -1 ? values[rrpIdx] || '0' : '0';
+      const qtyStr = qtyIdx !== -1 ? values[qtyIdx] || '1' : '1';
+
+      if (!style || !barcode) continue;
+
+      // Parse prices - WSP is wholesale price (cost), RRP is retail price
+      const costPrice = parseFloat(wspStr.replace(',', '.')) || 0;
+      // RRP might have "€" symbol, e.g., "€ 155.00"
+      const rrpClean = rrpStr.replace(/[€\s]/g, '').replace(',', '.');
+      const retailPrice = parseFloat(rrpClean) || 0;
+
+      const quantity = parseInt(qtyStr) || 1;
+
+      // Handle TU (Taille Unique = One Size) as unit size
+      if (size.toUpperCase() === 'TU') {
+        size = 'U';
+      }
+
+      // Create product key based on style + colour
+      const productKey = `${style}-${colour}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        // Format names: "VILLAGGIO" -> "Villaggio", "LONG SLEEVES OVERSIZED DRESS" -> "Long sleeves oversized dress"
+        const formattedStyle = formatIndeeName(style);
+        const formattedDescription = formatIndeeName(description);
+        const formattedColour = formatIndeeName(colour);
+        
+        // Product name: "Indee - Villaggio long sleeves oversized dress tomato red"
+        const productName = `Indee - ${formattedStyle} ${formattedDescription.toLowerCase()} ${formattedColour.toLowerCase()}`.trim();
+
+        products[productKey] = {
+          reference: style,
+          name: productName,
+          originalName: `${style} ${description}`,
+          color: colour,
+          material: textileContent,
+          ecommerceDescription: description,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name || 'Indee',
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+        };
+      }
+
+      // Add variant
+      products[productKey].variants.push({
+        size,
+        ean: barcode,
+        sku: `${style}-${colour}-${size}`.replace(/\s+/g, '-'),
+        quantity,
+        price: costPrice,
+        rrp: retailPrice,
+      });
+    }
+
+    const productList = Object.values(products);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+
+    console.log(`👗 Parsed ${productList.length} Indee products`);
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    
+    if (productList.length > 0) {
+      setCurrentStep(2);
+      alert(`✅ ${productList.length} producten geparsed uit Indee CSV`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
   };
 
   const loadMatchedProducts = (data: {
@@ -1361,12 +1611,10 @@ export default function ProductImportPage() {
       });
 
       const productName = row['Product name'] || '';
-      const category = row['Category'] || '';
       const composition = row['Composition'] || '';
       const size = row['Size name'] || '';
       const quantity = parseInt(row['Quantity'] || '0');
       const ean = row['EAN13'] || '';
-      const brandName = row['Brand name'] || 'Tinycottons';
       
       // Skip rows without product name or EAN
       if (!productName || !ean) {
@@ -2626,6 +2874,42 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('thinkingmu')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'thinkingmu'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌿</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Thinking Mu</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        PDF factuur met EAN, product name, style code, maat, prijs
+                      </p>
+                      {selectedVendor === 'thinkingmu' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('indee')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'indee'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">👗</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Indee</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        CSV met style, colour, description, maat, barcode, prijs
+                      </p>
+                      {selectedVendor === 'indee' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -2681,6 +2965,8 @@ export default function ProductImportPage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-4">
+                        {/* CSV Upload - NOT for Thinking Mu */}
+                        {selectedVendor !== 'thinkingmu' && (
                         <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">📄</div>
                           <h3 className="font-bold text-gray-900 mb-2 text-gray-900">CSV File</h3>
@@ -2720,6 +3006,7 @@ export default function ProductImportPage() {
                             </p>
                           )}
                         </div>
+                        )}
 
                         {/* EAN Retail List for Play UP */}
                         {selectedVendor === 'playup' && (
@@ -2752,8 +3039,8 @@ export default function ProductImportPage() {
                           </div>
                         )}
 
-                        {/* Prijzen CSV - NOT for Armed Angels */}
-                        {selectedVendor !== 'armedangels' && (
+                        {/* Prijzen CSV - NOT for Armed Angels or Thinking Mu */}
+                        {selectedVendor !== 'armedangels' && selectedVendor !== 'thinkingmu' && (
                         <div className="border-2 border-orange-400 dark:border-orange-600 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
                           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Prijzen CSV</h3>
@@ -2829,6 +3116,40 @@ export default function ProductImportPage() {
                                 ⚠️ Upload this FIRST! All product info, EAN codes & prices.
                               </p>
                             )}
+                          </div>
+                        )}
+
+                        {/* PDF Upload for Thinking Mu */}
+                        {selectedVendor === 'thinkingmu' && (
+                          <div className="border-2 border-emerald-400 dark:border-emerald-600 rounded-lg p-6 text-center">
+                            <div className="text-4xl mb-3">📄</div>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">PDF Factuur</h3>
+                            <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Upload de Thinking Mu PDF factuur</p>
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              onChange={handleThinkingMuPdfUpload}
+                              className="hidden"
+                              id="thinkingmu-pdf-upload"
+                            />
+                            <label
+                              htmlFor="thinkingmu-pdf-upload"
+                              className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                parsedProducts.length > 0
+                                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              }`}
+                            >
+                              {isLoading ? '⏳ PDF verwerken...' : parsedProducts.length > 0 ? `✓ ${parsedProducts.length} producten` : 'Kies PDF Factuur'}
+                            </label>
+                            {parsedProducts.length > 0 && (
+                              <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                                ✅ PDF geparsed! Ga door naar de volgende stap.
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                              💡 De PDF wordt automatisch geparsed voor EAN, product naam, maat en prijs
+                            </p>
                           </div>
                         )}
                       </div>
@@ -2935,7 +3256,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht CSV Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -2975,6 +3296,16 @@ Item Number;Description;Color;Size;SKU;Quantity;Price (EUR)
 10012345;Denim Jacket;Blue;S;10012345-BLU-S;1;89,95
 
 → Wordt: "Armed Angels - Denim jacket - Blue"`}
+                        </pre>
+                      ) : selectedVendor === 'thinkingmu' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`PDF Factuur met tabel structuur:
+CODE          | CONCEPT                              | PRICE  | UNITS | TOTAL
+8435512930002 | NAVY NOCTIS KNITTED TOP WKN00266,L   | 36,00€ | 1     | 36,00€
+8435512930934 | POPPY GREY JODIE SWEATSHIRT WSS00188,XS | 50,00€ | 1  | 50,00€
+
+→ Wordt: "Thinking Mu - NAVY NOCTIS KNITTED TOP"
+→ Variant: Maat L, EAN: 8435512930002, Prijs: €36,00`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -3438,7 +3769,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                     <td className="p-2 text-gray-900 dark:text-gray-100">
                                       <input
                                         type="text"
-                                        value={product.sizeAttribute === 'MAAT Volwassenen' ? mapSizeTodutchName(variant.size) : variant.size}
+                                        value={product.sizeAttribute === 'MAAT Volwassenen' ? mapSizeToOdooFormat(variant.size) : variant.size}
                                         onChange={(e) => {
                                           // Extract the original size code from the input (e.g., "S" from "S - 36")
                                           let originalSize = e.target.value;

@@ -713,7 +713,7 @@ export default function Ao76ImagesImport() {
 
               {/* Products list */}
               <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {filteredProducts.map((product, idx) => (
+                {filteredProducts.map((product) => (
                   <div
                     key={product.reference}
                     className={`border-2 rounded-lg p-4 ${

@@ -112,7 +112,7 @@ export default async function handler(
       }));
 
       const total = mappedOrders.reduce(
-        (sum: number, o: { amount_total: number }) => sum + o.amount_total,
+        (sum: number, o: { total: number }) => sum + o.total,
         0
       );
 
@@ -143,7 +143,7 @@ export default async function handler(
     }));
 
     const total = mappedOrders.reduce(
-      (sum: number, o: { amount_total: number }) => sum + o.amount_total,
+      (sum, o) => sum + o.total,
       0
     );
 
