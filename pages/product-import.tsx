@@ -669,10 +669,18 @@ export default function ProductImportPage() {
 
     const products: { [key: string]: ParsedProduct } = {};
 
-    // Auto-detect Indee brand
+    // Auto-detect Indee brand (search for variations)
+    console.log(`👗 Looking for Indee brand among ${brands.length} brands...`);
     const suggestedBrand = brands.find(b => 
-      b.name.toLowerCase().includes('indee')
+      b.name.toLowerCase().includes('indee') || 
+      b.name.toLowerCase() === 'indee'
     );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Indee brand not found in Odoo. Available brands:', brands.map(b => b.name).slice(0, 20));
+    }
 
     // Parse data lines
     for (let i = 1; i < lines.length; i++) {
@@ -760,7 +768,13 @@ export default function ProductImportPage() {
     
     if (productList.length > 0) {
       setCurrentStep(2);
-      alert(`✅ ${productList.length} producten geparsed uit Indee CSV`);
+      
+      // Provide feedback about brand detection
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk "Indee" niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Indee CSV${brandMessage}`);
     } else {
       alert('⚠️ Geen producten gevonden in CSV');
     }
