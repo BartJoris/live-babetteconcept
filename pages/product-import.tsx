@@ -33,7 +33,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | null;
 
 interface Brand {
   id: number;
@@ -777,6 +777,149 @@ export default function ProductImportPage() {
       alert(`✅ ${productList.length} producten geparsed uit Indee CSV${brandMessage}`);
     } else {
       alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
+  // Sunday Collective PDF upload handler
+  const handleSundayCollectivePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await fetch('/api/parse-sundaycollective-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.products) {
+        parseSundayCollectiveProducts(data.products);
+        alert(`✅ ${data.productCount} producten geparsed uit PDF\nTotaal aantal: ${data.totalQuantity}\nTotale waarde: €${data.totalValue?.toFixed(2) || '0.00'}\n\n⚠️ Let op: Barcodes moeten handmatig worden toegevoegd!`);
+      } else {
+        console.error('Failed to parse PDF:', data.error);
+        if (data.debugLines) {
+          console.log('Debug lines:', data.debugLines);
+        }
+        alert(`❌ Fout bij parsen PDF: ${data.error}\n\nControleer de browser console voor meer details.`);
+      }
+    } catch (error: unknown) {
+      alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Convert product name to sentence case for Sunday Collective
+  const formatSundayCollectiveName = (name: string): string => {
+    if (!name) return name;
+    // "Avenue Shorts" -> "Avenue shorts"
+    const words = name.split(' ');
+    return words.map((word, idx) => 
+      idx === 0 ? word : word.toLowerCase()
+    ).join(' ');
+  };
+
+  const parseSundayCollectiveProducts = (pdfProducts: Array<{
+    sku: string;
+    name: string;
+    color: string;
+    size: string;
+    quantity: number;
+    price: number;
+    msrp: number;
+    total: number;
+  }>) => {
+    console.log(`☀️ Parsing ${pdfProducts.length} Sunday Collective products...`);
+    
+    const products: Map<string, ParsedProduct> = new Map();
+    
+    // Auto-detect Sunday Collective brand
+    console.log(`☀️ Looking for Sunday Collective brand among ${brands.length} brands...`);
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('sunday') || 
+      b.name.toLowerCase().includes('collective') ||
+      b.name.toLowerCase() === 'the sunday collective'
+    );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Sunday Collective brand not found in Odoo');
+    }
+    
+    for (const item of pdfProducts) {
+      // Create a product key based on SKU prefix (without size) + color
+      // SKU format: S26W2161-GR-2 -> S26W2161-GR
+      const skuBase = item.sku.replace(/-\d{1,2}$/, '');
+      const productKey = `${skuBase}-${item.color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      
+      // Format product name: "The Sunday Collective - Avenue shorts in cucumber stripe"
+      const formattedName = formatSundayCollectiveName(item.name);
+      const formattedColor = item.color.toLowerCase();
+      const productName = `The Sunday Collective - ${formattedName} in ${formattedColor}`;
+      
+      if (!products.has(productKey)) {
+        products.set(productKey, {
+          reference: skuBase,
+          name: productName,
+          originalName: `${item.name} In ${item.color}`,
+          color: item.color,
+          material: '',
+          variants: [],
+          suggestedBrand: suggestedBrand?.name || 'The Sunday Collective',
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: 'MAAT Kinderen', // Sunday Collective is kids clothing
+        });
+      }
+      
+      const product = products.get(productKey)!;
+      
+      // Add variant for this size (no barcode - will be added manually)
+      product.variants.push({
+        size: item.size,
+        ean: '', // No barcode available - to be filled manually
+        sku: item.sku,
+        quantity: item.quantity,
+        price: item.price, // Cost price from invoice
+        rrp: item.msrp, // MSRP from invoice
+      });
+    }
+    
+    // Convert to array
+    const productList = Array.from(products.values());
+    
+    // Determine size attributes (should already be MAAT Kinderen for Sunday Collective)
+    productList.forEach(product => {
+      // Keep MAAT Kinderen as default for Sunday Collective (kids clothing)
+      if (!product.sizeAttribute) {
+        product.sizeAttribute = determineSizeAttribute(product.variants);
+      }
+    });
+    
+    console.log(`☀️ Parsed ${productList.length} Sunday Collective products`);
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    
+    if (productList.length > 0) {
+      setCurrentStep(2);
+      
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Sunday Collective PDF${brandMessage}\n\n⚠️ Barcodes zijn leeg - vul deze handmatig aan in stap 3!`);
+    } else {
+      alert('⚠️ Geen producten gevonden in PDF');
     }
   };
 
@@ -2924,6 +3067,24 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('sundaycollective')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'sundaycollective'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">☀️</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">The Sunday Collective</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        PDF factuur met SKU, product name, maat, prijs (kinderkleding)
+                      </p>
+                      {selectedVendor === 'sundaycollective' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -3166,6 +3327,43 @@ export default function ProductImportPage() {
                             </p>
                           </div>
                         )}
+
+                        {/* PDF Upload for Sunday Collective */}
+                        {selectedVendor === 'sundaycollective' && (
+                          <div className="border-2 border-orange-400 dark:border-orange-600 rounded-lg p-6 text-center">
+                            <div className="text-4xl mb-3">☀️</div>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">PDF Factuur</h3>
+                            <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Upload de Sunday Collective PDF factuur</p>
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              onChange={handleSundayCollectivePdfUpload}
+                              className="hidden"
+                              id="sundaycollective-pdf-upload"
+                            />
+                            <label
+                              htmlFor="sundaycollective-pdf-upload"
+                              className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                parsedProducts.length > 0
+                                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                                  : 'bg-orange-600 text-white hover:bg-orange-700'
+                              }`}
+                            >
+                              {isLoading ? '⏳ PDF verwerken...' : parsedProducts.length > 0 ? `✓ ${parsedProducts.length} producten` : 'Kies PDF Factuur'}
+                            </label>
+                            {parsedProducts.length > 0 && (
+                              <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                                ✅ PDF geparsed! Ga door naar de volgende stap.
+                              </p>
+                            )}
+                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-3">
+                              ⚠️ Barcodes zijn niet beschikbaar in de PDF - vul deze handmatig aan in stap 3 (Voorraad)
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              💡 De PDF wordt geparsed voor SKU, product naam, maat en prijs (kinderkleding maten)
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {pdfPrices.size > 0 && (
@@ -3270,7 +3468,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -3318,8 +3516,29 @@ CODE          | CONCEPT                              | PRICE  | UNITS | TOTAL
 8435512930002 | NAVY NOCTIS KNITTED TOP WKN00266,L   | 36,00€ | 1     | 36,00€
 8435512930934 | POPPY GREY JODIE SWEATSHIRT WSS00188,XS | 50,00€ | 1  | 50,00€
 
-→ Wordt: "Thinking Mu - NAVY NOCTIS KNITTED TOP"
-→ Variant: Maat L, EAN: 8435512930002, Prijs: €36,00`}
+→ Wordt: "Thinking Mu - Navy noctis knitted top"
+→ Variant: Maat L - 40, EAN: 8435512930002, Prijs: €36,00`}
+                        </pre>
+                      ) : selectedVendor === 'indee' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Season;Product Category 1;Product Category 2;Style;Colour;Description;Size;Barcode;Textile Content;WSP EUR;Ccy Symbol;RRP;Sales Order Quantity
+SS26;SS26;DRESS;VILLAGGIO;TOMATO RED;LONG SLEEVES OVERSIZED DRESS;L;5404045609481;50% COTTON;60.00;€;€ 155.00;1
+SS26;SS26;KNIT SWEATER;VIETNAM;GREEN;POLO PULLOVER WITH CONTRAST;M;5404045608842;52% VISCOSE;34.50;€;€ 89.00;1
+
+→ Wordt: "Indee - Villaggio long sleeves oversized dress tomato red"
+→ Variant: Maat L - 40, EAN: 5404045609481, Kostprijs: €60,00, RRP: €155,00`}
+                        </pre>
+                      ) : selectedVendor === 'sundaycollective' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`PDF Factuur met tabel structuur:
+ITEM                              | SKU           | QTY | MSRP   | PRICE  | TOTAL
+Avenue Shorts In Cucumber Stripe  |               |     |        |        |
+Size: 2Y-3Y                       | S26W2161-GR-2 | 1   | €64,00 | €28,00 | €28,00
+Size: 4Y-5Y                       | S26W2161-GR-4 | 1   | €64,00 | €28,00 | €28,00
+
+→ Wordt: "The Sunday Collective - Avenue shorts in cucumber stripe"
+→ Variant: Maat 2Y-3Y (MAAT Kinderen), SKU: S26W2161-GR-2, Prijs: €28,00
+⚠️ Barcodes niet beschikbaar - handmatig aanvullen!`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
