@@ -33,7 +33,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | null;
 
 interface Brand {
   id: number;
@@ -273,6 +273,18 @@ export default function ProductImportPage() {
   }>>([]);
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [goldieAndAceCsvData, setGoldieAndAceCsvData] = useState<Map<string, {
+    styleCode: string;
+    description: string;
+    colourName: string;
+    composition: string;
+    size: string;
+    barcode: string;
+    retailPrice: number;
+    wholesalePrice: number;
+    fitComments: string;
+    productFeatures: string;
+  }>>(new Map());
   const [brands, setBrands] = useState<Brand[]>([]);
   const [internalCategories, setInternalCategories] = useState<Category[]>([]);
   const [publicCategories, setPublicCategories] = useState<Category[]>([]);
@@ -920,6 +932,399 @@ export default function ProductImportPage() {
       alert(`✅ ${productList.length} producten geparsed uit Sunday Collective PDF${brandMessage}\n\n⚠️ Barcodes zijn leeg - vul deze handmatig aan in stap 3!`);
     } else {
       alert('⚠️ Geen producten gevonden in PDF');
+    }
+  };
+
+  // Parse Goldie and Ace CSV (handles multi-line PRODUCT FEATURES)
+  const parseGoldieAndAceCSV = (text: string) => {
+    console.log('🌻 Parsing Goldie and Ace CSV...');
+    
+    const lines = text.split('\n');
+    if (lines.length < 2) {
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header
+    const headers = lines[0].split(';').map(h => h.trim());
+    const styleCodeIdx = headers.findIndex(h => h.toLowerCase() === 'style code');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    const colourNameIdx = headers.findIndex(h => h.toLowerCase() === 'colour name');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
+    const barcodesIdx = headers.findIndex(h => h.toLowerCase() === 'barcodes');
+    const retailEurIdx = headers.findIndex(h => h.toLowerCase() === 'retail eur');
+    const wsEurIdx = headers.findIndex(h => h.toLowerCase() === 'w/s eur');
+    const fitCommentsIdx = headers.findIndex(h => h.toLowerCase() === 'fit comments');
+    const productFeaturesIdx = headers.findIndex(h => h.toLowerCase() === 'product features');
+
+    if (styleCodeIdx === -1 || descriptionIdx === -1 || sizeIdx === -1) {
+      alert('CSV mist verplichte kolommen: Style Code, Description, of Size');
+      return;
+    }
+
+    const csvData = new Map<string, {
+      styleCode: string;
+      description: string;
+      colourName: string;
+      composition: string;
+      size: string;
+      barcode: string;
+      retailPrice: number;
+      wholesalePrice: number;
+      fitComments: string;
+      productFeatures: string;
+    }>();
+
+    // Parse CSV with proper handling of quoted multi-line PRODUCT FEATURES
+    let i = 1;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) {
+        i++;
+        continue;
+      }
+      
+      // Split by semicolon to check PRODUCT FEATURES column
+      const parts = line.split(';');
+      
+      // Check if PRODUCT FEATURES (last column) starts with quote but doesn't end with quote on same line
+      const productFeaturesValue = parts[productFeaturesIdx] || '';
+      const isMultiLineFeatures = productFeaturesValue.startsWith('"') && !productFeaturesValue.endsWith('"');
+      
+      if (isMultiLineFeatures) {
+        // Multi-line PRODUCT FEATURES - collect until we find closing quote
+        // First line contains all fields before PRODUCT FEATURES, and PRODUCT FEATURES starts with quote
+        const productFeaturesLines: string[] = [];
+        let j = i;
+        let foundClosingQuote = false;
+        
+        // Extract all fields from first line (before PRODUCT FEATURES)
+        const styleCode = parts[styleCodeIdx]?.trim() || '';
+        const description = parts[descriptionIdx]?.trim() || '';
+        const colourName = parts[colourNameIdx]?.trim() || '';
+        const composition = parts[compositionIdx]?.trim() || '';
+        const size = parts[sizeIdx]?.trim() || '';
+        const barcode = parts[barcodesIdx]?.trim() || '';
+        const retailStr = parts[retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+        const wholesaleStr = parts[wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+        const fitComments = parts[fitCommentsIdx]?.trim() || '';
+        
+        // Get PRODUCT FEATURES start (remove the opening quote)
+        const firstFeaturesLine = parts[productFeaturesIdx]?.replace(/^"/, '') || '';
+        productFeaturesLines.push(firstFeaturesLine);
+        
+        // Continue reading lines until we find the closing quote
+        j = i + 1;
+        while (j < lines.length && !foundClosingQuote) {
+          const nextLine = lines[j].trim();
+          productFeaturesLines.push(nextLine);
+          
+          // Check if this line ends with a quote (closing the PRODUCT FEATURES field)
+          if (nextLine.endsWith('"')) {
+            // Remove the closing quote from the last line
+            productFeaturesLines[productFeaturesLines.length - 1] = nextLine.slice(0, -1);
+            foundClosingQuote = true;
+          }
+          j++;
+        }
+        
+        // Combine PRODUCT FEATURES lines
+        const productFeatures = productFeaturesLines.join('\n').trim();
+        
+        const retailPrice = parseFloat(retailStr) || 0;
+        const wholesalePrice = parseFloat(wholesaleStr) || 0;
+        
+        const key = `${description}-${colourName}-${size}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        
+        csvData.set(key, {
+          styleCode,
+          description,
+          colourName,
+          composition,
+          size,
+          barcode,
+          retailPrice,
+          wholesalePrice,
+          fitComments,
+          productFeatures,
+        });
+        
+        i = j;
+      } else {
+        // Single-line product (PRODUCT FEATURES on same line or empty)
+        if (parts.length > productFeaturesIdx) {
+          const styleCode = parts[styleCodeIdx]?.trim() || '';
+          const description = parts[descriptionIdx]?.trim() || '';
+          const colourName = parts[colourNameIdx]?.trim() || '';
+          const composition = parts[compositionIdx]?.trim() || '';
+          const size = parts[sizeIdx]?.trim() || '';
+          const barcode = parts[barcodesIdx]?.trim() || '';
+          const retailStr = parts[retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+          const wholesaleStr = parts[wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+          const fitComments = parts[fitCommentsIdx]?.trim() || '';
+          const productFeatures = parts[productFeaturesIdx]?.replace(/^"/, '').replace(/"$/, '').trim() || '';
+          
+          const retailPrice = parseFloat(retailStr) || 0;
+          const wholesalePrice = parseFloat(wholesaleStr) || 0;
+          
+          const key = `${description}-${colourName}-${size}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          
+          csvData.set(key, {
+            styleCode,
+            description,
+            colourName,
+            composition,
+            size,
+            barcode,
+            retailPrice,
+            wholesalePrice,
+            fitComments,
+            productFeatures,
+          });
+        }
+        
+        i++;
+      }
+    }
+
+    console.log(`🌻 Parsed ${csvData.size} products from CSV`);
+    setGoldieAndAceCsvData(csvData);
+    
+    if (csvData.size > 0) {
+      alert(`✅ ${csvData.size} producten geladen uit CSV Line Sheet\n\nUpload nu de PDF factuur om de producten te importeren.`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
+  // Goldie and Ace PDF upload handler
+  const handleGoldieAndAcePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (goldieAndAceCsvData.size === 0) {
+      alert('⚠️ Upload eerst de CSV Line Sheet!\n\n1. Upload CSV Line Sheet\n2. Upload PDF Factuur');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await fetch('/api/parse-goldieandace-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.products) {
+        parseGoldieAndAceProducts(data.products);
+      } else {
+        console.error('Failed to parse PDF:', data.error);
+        if (data.debugLines) {
+          console.log('Debug lines:', data.debugLines);
+        }
+        alert(`❌ Fout bij parsen PDF: ${data.error}\n\nControleer de browser console voor meer details.`);
+      }
+    } catch (error: unknown) {
+      alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Goldie and Ace CSV upload handler
+  const handleGoldieAndAceCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseGoldieAndAceCSV(text);
+    };
+    reader.readAsText(file);
+  };
+
+  // Parse Goldie and Ace products (match PDF invoice with CSV data)
+  const parseGoldieAndAceProducts = (invoiceProducts: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  }>) => {
+    console.log(`🌻 Parsing ${invoiceProducts.length} Goldie and Ace invoice products...`);
+    
+    // Auto-detect Goldie and Ace brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('goldie') || 
+      b.name.toLowerCase().includes('ace') ||
+      b.name.toLowerCase().includes('goldie and ace')
+    );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Goldie and Ace brand not found in Odoo');
+    }
+
+    const products: Map<string, ParsedProduct> = new Map();
+
+    for (const invoiceItem of invoiceProducts) {
+      // Extract product name and size from invoice description
+      // Format: "COLOUR BLOCK OXFORD BURTON OVERALLS 2Y" or "RIB APPLE TANK 3Y"
+      const invoiceDesc = invoiceItem.description.trim();
+      
+      // Try to extract size (last part: 2Y, 3Y, 1-2Y, 0-3M, etc.)
+      const sizeMatch = invoiceDesc.match(/(\d+Y|\d+-\d+Y|\d+-\d+M|\d+M|\dY)$/i);
+      if (!sizeMatch) continue;
+      
+      const size = sizeMatch[1];
+      const productName = invoiceDesc.substring(0, invoiceDesc.length - size.length).trim();
+      
+      // Try to match with CSV data
+      // We need to find matching description + colour + size
+      let matchedCsvData: typeof goldieAndAceCsvData extends Map<string, infer V> ? V : never | null = null;
+      
+      // Try exact match first
+      for (const [key, csvItem] of goldieAndAceCsvData.entries()) {
+        // Normalize sizes for comparison (2Y vs 2Y, 1-2Y vs 1-2Y)
+        const csvSizeNormalized = csvItem.size.toUpperCase();
+        const invoiceSizeNormalized = size.toUpperCase();
+        
+        // Check if description matches (case insensitive, allow partial match)
+        const csvDescNormalized = csvItem.description.trim().toUpperCase();
+        const invoiceNameNormalized = productName.toUpperCase();
+        
+        if (csvSizeNormalized === invoiceSizeNormalized && 
+            (csvDescNormalized === invoiceNameNormalized || 
+             csvDescNormalized.includes(invoiceNameNormalized) ||
+             invoiceNameNormalized.includes(csvDescNormalized))) {
+          matchedCsvData = csvItem;
+          break;
+        }
+      }
+      
+      // If no exact match, try to find by description only (might have different color name)
+      if (!matchedCsvData) {
+        for (const csvItem of goldieAndAceCsvData.values()) {
+          const csvDescNormalized = csvItem.description.trim().toUpperCase();
+          const invoiceNameNormalized = productName.toUpperCase();
+          
+          if (csvDescNormalized === invoiceNameNormalized || 
+              csvDescNormalized.includes(invoiceNameNormalized) ||
+              invoiceNameNormalized.includes(csvDescNormalized)) {
+            // Check if size matches
+            const csvSizeNormalized = csvItem.size.toUpperCase();
+            const invoiceSizeNormalized = size.toUpperCase();
+            
+            if (csvSizeNormalized === invoiceSizeNormalized) {
+              matchedCsvData = csvItem;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!matchedCsvData) {
+        console.warn(`⚠️ No CSV match found for: ${invoiceDesc}`);
+        continue;
+      }
+      
+      // Convert size to Dutch format
+      const convertSizeToDutch = (sizeStr: string): string => {
+        // Handle age ranges: 1-2Y -> 1 jaar, 3-4Y -> 3 jaar, etc.
+        if (sizeStr.match(/^\d+-\d+Y$/i)) {
+          const match = sizeStr.match(/^(\d+)-\d+Y$/i);
+          return match ? `${match[1]} jaar` : sizeStr;
+        }
+        // Handle single ages: 2Y -> 2 jaar
+        if (sizeStr.match(/^\d+Y$/i)) {
+          const match = sizeStr.match(/^(\d+)Y$/i);
+          return match ? `${match[1]} jaar` : sizeStr;
+        }
+        // Handle months: 0-3M -> 0-3 maand, 6-12M -> 6-12 maand
+        if (sizeStr.match(/\d+-\d+M$/i)) {
+          return sizeStr.replace(/M$/i, ' maand');
+        }
+        // Handle single months: 3M -> 3 maand
+        if (sizeStr.match(/^\d+M$/i)) {
+          return sizeStr.replace(/M$/i, ' maand');
+        }
+        return sizeStr;
+      };
+      
+      const dutchSize = convertSizeToDutch(size);
+      
+      // Create product key: styleCode + colourName
+      const productKey = `${matchedCsvData.styleCode}-${matchedCsvData.colourName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      
+      // Format product name: "Goldie and Ace - Colour block oxford burton overalls"
+      const formattedDescription = matchedCsvData.description.trim();
+      const productNameFormatted = `Goldie and Ace - ${formattedDescription.charAt(0).toUpperCase() + formattedDescription.slice(1).toLowerCase()}`;
+      
+      // Combine FIT COMMENTS + PRODUCT FEATURES for ecommerceDescription
+      const ecommerceDescription = [
+        matchedCsvData.fitComments,
+        matchedCsvData.productFeatures
+      ].filter(Boolean).join('\n\n').trim();
+      
+      if (!products.has(productKey)) {
+        products.set(productKey, {
+          reference: matchedCsvData.styleCode,
+          name: productNameFormatted,
+          originalName: formattedDescription,
+          color: matchedCsvData.colourName,
+          material: matchedCsvData.composition,
+          ecommerceDescription: ecommerceDescription,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name || 'Goldie and Ace',
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+        });
+      }
+      
+      const product = products.get(productKey)!;
+      
+      // Add variant
+      product.variants.push({
+        size: dutchSize,
+        ean: matchedCsvData.barcode,
+        sku: `${matchedCsvData.styleCode}-${matchedCsvData.colourName}-${size}`.replace(/\s+/g, '-'),
+        quantity: invoiceItem.quantity,
+        price: invoiceItem.unitPrice, // Use price from invoice
+        rrp: matchedCsvData.retailPrice, // Use retail price from CSV
+      });
+    }
+    
+    const productList = Array.from(products.values());
+    
+    // Determine size attributes
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    console.log(`🌻 Parsed ${productList.length} Goldie and Ace products`);
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    
+    if (productList.length > 0) {
+      setCurrentStep(2);
+      
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Goldie and Ace invoice${brandMessage}`);
+    } else {
+      alert('⚠️ Geen producten gevonden - controleer of CSV en PDF matchen');
     }
   };
 
@@ -3085,6 +3490,24 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('goldieandace')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'goldieandace'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌻</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Goldie and Ace</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        PDF factuur + CSV Line Sheet (product info met FIT COMMENTS & PRODUCT FEATURES)
+                      </p>
+                      {selectedVendor === 'goldieandace' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -3364,6 +3787,87 @@ export default function ProductImportPage() {
                             </p>
                           </div>
                         )}
+
+                        {/* CSV + PDF Upload for Goldie and Ace */}
+                        {selectedVendor === 'goldieandace' && (
+                          <div className="space-y-4">
+                            {/* CSV Upload */}
+                            <div className="border-2 border-yellow-400 dark:border-yellow-600 rounded-lg p-6 text-center">
+                              <div className="text-4xl mb-3">📋</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">1. CSV Line Sheet</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Upload eerst de CSV Line Sheet met product informatie</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleGoldieAndAceCsvUpload}
+                                className="hidden"
+                                id="goldieandace-csv-upload"
+                              />
+                              <label
+                                htmlFor="goldieandace-csv-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  goldieAndAceCsvData.size > 0
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                                }`}
+                              >
+                                {goldieAndAceCsvData.size > 0 ? `✓ ${goldieAndAceCsvData.size} producten geladen` : 'Kies CSV Line Sheet'}
+                              </label>
+                              {goldieAndAceCsvData.size > 0 && (
+                                <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                                  ✅ CSV geladen! Upload nu de PDF factuur.
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 De CSV bevat product details, barcodes, FIT COMMENTS en PRODUCT FEATURES
+                              </p>
+                            </div>
+
+                            {/* PDF Upload */}
+                            <div className={`border-2 rounded-lg p-6 text-center ${
+                              goldieAndAceCsvData.size > 0 
+                                ? 'border-yellow-400 dark:border-yellow-600' 
+                                : 'border-gray-300 dark:border-gray-600 opacity-50'
+                            }`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">2. PDF Factuur</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Upload de PDF factuur met bestelde producten</p>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleGoldieAndAcePdfUpload}
+                                disabled={goldieAndAceCsvData.size === 0}
+                                className="hidden"
+                                id="goldieandace-pdf-upload"
+                              />
+                              <label
+                                htmlFor="goldieandace-pdf-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  goldieAndAceCsvData.size === 0
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    : parsedProducts.length > 0
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                                }`}
+                              >
+                                {isLoading ? '⏳ PDF verwerken...' : parsedProducts.length > 0 ? `✓ ${parsedProducts.length} producten` : goldieAndAceCsvData.size === 0 ? 'Wacht op CSV ⏳' : 'Kies PDF Factuur'}
+                              </label>
+                              {goldieAndAceCsvData.size === 0 && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Upload eerst de CSV Line Sheet!
+                                </p>
+                              )}
+                              {parsedProducts.length > 0 && (
+                                <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                                  ✅ Producten geïmporteerd! FIT COMMENTS + PRODUCT FEATURES zijn toegevoegd aan Ecommerce Description.
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 De PDF wordt gematcht met de CSV data om volledige product informatie te krijgen
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {pdfPrices.size > 0 && (
@@ -3468,7 +3972,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -3540,6 +4044,30 @@ Size: 4Y-5Y                       | S26W2161-GR-4 | 1   | €64,00 | €28,00 | 
 → Variant: Maat 2Y-3Y (MAAT Kinderen), SKU: S26W2161-GR-2, Prijs: €28,00
 ⚠️ Barcodes niet beschikbaar - handmatig aanvullen!`}
                         </pre>
+                      ) : selectedVendor === 'goldieandace' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <h5 className="font-bold mb-2">CSV Line Sheet:</h5>
+                            <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`CATEGORY;STYLE CODE;DESCRIPTION;COLOUR NAME;SIZE;BARCODES;RETAIL EUR;W/S EUR;FIT COMMENTS;PRODUCT FEATURES
+TEES;20001GA006;OUTBACK ROO T-SHIRT;CLASSIC BLUE;2Y;9361499023965;€29,00;€11,60;TRUE TO SIZE, RELAXED FIT;"Mid weight classic tee
+Iconic Australian drawn feature print
+Designed in Australia"`}
+                            </pre>
+                          </div>
+                          <div>
+                            <h5 className="font-bold mb-2">PDF Factuur:</h5>
+                            <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Description | Quantity | Unit Price | GST | Amount EUR
+OUTBACK ROO T-SHIRT 2Y | 1.00 | 11.60 | GST Free | 11.60`}
+                            </pre>
+                          </div>
+                          <p className="text-xs text-gray-700 mt-2">
+                            → Wordt: "Goldie and Ace - Outback roo t-shirt"<br/>
+                            → Variant: Maat 2 jaar (MAAT Kinderen), EAN: 9361499023965, Prijs: €11,60<br/>
+                            → Ecommerce Description: FIT COMMENTS + PRODUCT FEATURES gecombineerd
+                          </p>
+                        </div>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`Table 1

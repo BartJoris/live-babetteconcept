@@ -342,10 +342,6 @@ async function handler(
               weight: 0.2, // Default weight 0.2kg for all variants
             };
 
-            if (combinedVariant.sku) {
-              updateData.default_code = combinedVariant.sku;
-            }
-
             if (combinedVariant.ean && combinedVariant.ean.trim()) {
               updateData.barcode = combinedVariant.ean;
               console.log(`📌 Setting barcode: ${combinedVariant.ean}`);
@@ -427,11 +423,6 @@ async function handler(
                 standard_price: csvVariant.price,
                 weight: 0.2, // Default weight 0.2kg for all variants
               };
-
-              // Set SKU/Internal Reference if available
-              if (csvVariant.sku) {
-                updateData.default_code = csvVariant.sku;
-              }
 
               // Always set barcode from CSV for new imports
               if (csvVariant.ean && csvVariant.ean.trim()) {
