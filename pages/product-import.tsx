@@ -33,7 +33,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | null;
 
 interface Brand {
   id: number;
@@ -470,6 +470,8 @@ export default function ProductImportPage() {
         parseTinycottonsCSV(text);
       } else if (selectedVendor === 'indee') {
         parseIndeeCSV(text);
+      } else if (selectedVendor === 'jenest') {
+        parseJenestCSV(text);
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -2251,6 +2253,201 @@ export default function ProductImportPage() {
     setCurrentStep(2);
   };
 
+  const parseJenestCSV = (text: string) => {
+    // Jenest format parser
+    // Semicolon-separated format with headers
+    // Format: Order no.;Date;Currency;Drop;Total Quantity;Total price;VAT;Shipping;Handling fee;VAT Amount;Total price after VAT;Comments;Order reference;Product name;Item number;Color;Size;Collection;SKU;EAN Number;Rec retail price;Line quantity;Line unit price;Total line price;Product description;Top categories;Sub categories;HS Tariff Code;Country of origin;Composition;Wash and care
+    
+    console.log(`👕 Parsing Jenest CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`👕 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Find column indices
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const itemNumberIdx = headers.findIndex(h => h.toLowerCase() === 'item number');
+    const colorIdx = headers.findIndex(h => h.toLowerCase() === 'color');
+    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
+    const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
+    const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean number');
+    const retailPriceIdx = headers.findIndex(h => h.toLowerCase() === 'rec retail price');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'line quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'line unit price');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'product description');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    
+    // Validate required headers
+    if (itemNumberIdx === -1 || productNameIdx === -1 || sizeIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Product name, Item number, Color, Size, EAN Number, Rec retail price, Line unit price, Product description');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      // Remove € symbol and spaces, replace comma with dot
+      return parseFloat(str.replace(/[€\s]/g, '').replace(',', '.')) || 0;
+    };
+
+    // Auto-detect Jenest brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('jenest')
+    );
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(';').map(v => v.trim());
+      
+      const productName = values[productNameIdx] || '';
+      const itemNumber = values[itemNumberIdx] || '';
+      const color = values[colorIdx] || '';
+      const size = values[sizeIdx] || '';
+      const sku = values[skuIdx] || '';
+      const ean = values[eanIdx] || '';
+      const retailPriceStr = values[retailPriceIdx] || '0';
+      const quantityStr = values[quantityIdx] || '0';
+      const unitPriceStr = values[unitPriceIdx] || '0';
+      const description = values[descriptionIdx] || '';
+      const composition = values[compositionIdx] || '';
+
+      // Skip rows without item number or product name
+      if (!itemNumber || !productName) {
+        continue;
+      }
+
+      const retailPrice = parsePrice(retailPriceStr);
+      const unitPrice = parsePrice(unitPriceStr);
+      const quantity = parseInt(quantityStr) || 0;
+
+      // Convert size to Dutch format (same as Goldie and Ace, with exceptions)
+      const convertSizeToDutch = (sizeStr: string): string => {
+        // Normalize: remove spaces and convert to uppercase for matching
+        const normalized = sizeStr.trim().replace(/\s+/g, '').toUpperCase();
+        
+        // Handle age ranges: X-Yy -> X jaar (or Y jaar for exceptions)
+        // Pattern: X-Yy or X-Y y (with or without space, case insensitive)
+        if (normalized.match(/^\d+-\d+Y$/)) {
+          const match = normalized.match(/^(\d+)-(\d+)Y$/);
+          if (match) {
+            const first = parseInt(match[1]);
+            const second = parseInt(match[2]);
+            
+            // Exceptions: use second number for these ranges
+            if ((first === 7 && second === 8) || 
+                (first === 9 && second === 10) || 
+                (first === 11 && second === 12)) {
+              return `${second} jaar`;
+            }
+            // Default: use first number
+            return `${first} jaar`;
+          }
+          return sizeStr;
+        }
+        // Handle single ages: 2Y -> 2 jaar
+        if (normalized.match(/^\d+Y$/)) {
+          const match = normalized.match(/^(\d+)Y$/);
+          return match ? `${match[1]} jaar` : sizeStr;
+        }
+        // Handle months: 0-3M -> 0-3 maand, 6-12M -> 6-12 maand
+        if (normalized.match(/^\d+-\d+M$/)) {
+          return normalized.replace(/M$/, ' maand');
+        }
+        // Handle single months: 3M -> 3 maand
+        if (normalized.match(/^\d+M$/)) {
+          return normalized.replace(/M$/, ' maand');
+        }
+        // Convert SIZE formats: SIZE 24-27 -> 24/27, SIZE 28-31 -> 28/31, etc.
+        if (normalized.startsWith('SIZE')) {
+          const sizeMatch = normalized.match(/SIZE(\d+)-(\d+)/);
+          if (sizeMatch) {
+            return `${sizeMatch[1]}/${sizeMatch[2]}`;
+          }
+          return sizeStr;
+        }
+        return sizeStr;
+      };
+
+      const dutchSize = convertSizeToDutch(size);
+
+      // Create product key based on item number + color
+      const productKey = `${itemNumber}-${color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        // Format product name: "Jenest - Product name - Color"
+        const toSentenceCase = (str: string) => {
+          if (!str) return str;
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `Jenest - ${toSentenceCase(productName)}${color ? ` - ${toSentenceCase(color)}` : ''}`;
+
+        products[productKey] = {
+          reference: itemNumber,
+          name: formattedName,
+          originalName: productName,
+          material: composition,
+          color: color,
+          ecommerceDescription: description, // Use Product description for ecommerce description
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+        };
+
+        console.log(`✅ Created product: ${formattedName} (${itemNumber})`);
+      }
+      
+      products[productKey].variants.push({
+        size: dutchSize, // Use converted Dutch size format
+        quantity: quantity,
+        ean: ean,
+        sku: sku,
+        price: unitPrice, // Line unit price is wholesale/cost price
+        rrp: retailPrice, // Rec retail price is retail price
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`👕 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+    
+    if (productList.length > 0) {
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Jenest CSV${brandMessage}`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
   const parseArmedAngelsCSV = (text: string) => {
     // Armed Angels format parser
     // CSV format with headers: Item Number, Description, Color, Size, SKU, Quantity, Price (EUR)
@@ -2743,6 +2940,237 @@ export default function ProductImportPage() {
             for (const result of imageResult.results) {
               results.push({
                 reference: result.styleNo,
+                success: result.success,
+                imagesUploaded: result.success ? 1 : 0,
+                error: result.error,
+              });
+            }
+          }
+        }
+      }
+      
+      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
+      setImageImportResults(results);
+      setIsLoading(false);
+      setCurrentStep(7);
+
+    } catch (error) {
+      console.error('❌ Error uploading images:', error);
+      alert(`❌ Error: ${String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchJenestImages = async (imageFolder: File[]) => {
+    if (imageFolder.length === 0) {
+      alert('Geen afbeeldingen geselecteerd');
+      return;
+    }
+
+    if (!importResults || !importResults.results) {
+      alert('Geen import resultaten gevonden');
+      return;
+    }
+
+    const { uid, password } = await getCredentials();
+    if (!uid || !password) {
+      alert('Geen Odoo credentials gevonden');
+      return;
+    }
+
+    setIsLoading(true);
+    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+    try {
+      // Get successful products with Template IDs
+      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
+
+      // Create mapping from product key (itemNumber-color) to Template ID
+      // We need to match based on the original parsed products to get itemNumber and color
+      const productKeyToTemplateId: Record<string, number> = {};
+      const referenceToProductKey: Record<string, string> = {};
+      
+      // Build mapping from parsed products
+      for (const product of parsedProducts) {
+        // Product key format: itemNumber-color (same as in parseJenestCSV)
+        const productKey = `${product.reference}-${product.color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        referenceToProductKey[product.reference] = productKey;
+      }
+
+      // Map import results to product keys
+      for (const result of successfulProducts) {
+        if (result.templateId && result.reference) {
+          const productKey = referenceToProductKey[result.reference];
+          if (productKey) {
+            productKeyToTemplateId[productKey] = result.templateId;
+          }
+        }
+      }
+
+      console.log(`👕 Processing ${imageFolder.length} images...`);
+
+      // Read and convert images
+      const imagesToUpload: Array<{ base64: string; filename: string; productKey: string }> = [];
+      
+      for (const file of imageFolder) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          // Extract product name and color from filename
+          // Format: "LIVIA TSHIRT LT FUCHSIA PINK.jpg" or "BALLOON DENIM PANTS MEDIUM WASH primary.jpg"
+          // Remove extension, "primary", and trailing numbers for matching
+          let filenameWithoutExt = file.name.replace(/\.[^.]+$/, '').trim();
+          // Remove "primary" and trailing numbers (e.g., " 2", " 3", " 10")
+          filenameWithoutExt = filenameWithoutExt.replace(/\s+primary$/i, '').replace(/\s+\d+$/, '').trim();
+          
+          // Normalize: uppercase and normalize spaces
+          const normalizedFilename = filenameWithoutExt.toUpperCase().replace(/\s+/g, ' ').trim();
+          
+          // Try to match with parsed products
+          let matchedProductKey: string | null = null;
+          let bestMatch: { product: ParsedProduct; score: number } | null = null;
+          
+          for (const product of parsedProducts) {
+            // Normalize product name and color for matching
+            const normalizedProductName = product.originalName.toUpperCase().trim().replace(/\s+/g, ' ');
+            const normalizedColor = product.color.toUpperCase().trim().replace(/\s+/g, ' ');
+            
+            // Build expected pattern: "PRODUCT NAME COLOR"
+            const expectedPattern = `${normalizedProductName} ${normalizedColor}`;
+            
+            // Calculate match score
+            let score = 0;
+            
+            // Exact match gets highest score
+            if (normalizedFilename === expectedPattern) {
+              score = 100;
+            } else if (normalizedFilename.startsWith(expectedPattern)) {
+              score = 90; // Starts with expected pattern
+            } else {
+              // Check if all words from product name and color are present
+              const productNameWords = normalizedProductName.split(/\s+/).filter(w => w.length > 0);
+              const colorWords = normalizedColor.split(/\s+/).filter(w => w.length > 0);
+              const allWords = [...productNameWords, ...colorWords];
+              
+              const matchingWords = allWords.filter(word => normalizedFilename.includes(word));
+              score = (matchingWords.length / allWords.length) * 80; // Max 80 for partial match
+            }
+            
+            if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+              bestMatch = { product, score };
+            }
+          }
+          
+          // Use best match if score is high enough (at least 70%)
+          if (bestMatch && bestMatch.score >= 70) {
+            matchedProductKey = `${bestMatch.product.reference}-${bestMatch.product.color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            console.log(`✅ Matched "${file.name}" to product "${bestMatch.product.originalName} - ${bestMatch.product.color}" (score: ${bestMatch.score.toFixed(1)})`);
+          }
+
+          if (!matchedProductKey) {
+            console.log(`⚠️ Could not match image: ${file.name}`);
+            continue;
+          }
+
+          if (!productKeyToTemplateId[matchedProductKey]) {
+            console.log(`⚠️ No template ID found for product key ${matchedProductKey}`);
+            continue;
+          }
+
+          imagesToUpload.push({
+            base64,
+            filename: file.name,
+            productKey: matchedProductKey,
+          });
+
+          console.log(`✅ Loaded image: ${file.name} (Product key: ${matchedProductKey})`);
+        } catch (error) {
+          console.error(`❌ Error reading file ${file.name}:`, error);
+        }
+      }
+
+      if (imagesToUpload.length === 0) {
+        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen overeenkomen met Product name + Color uit de CSV.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`👕 Uploading ${imagesToUpload.length} images...`);
+
+      // Upload images in batches to avoid exceeding request size limits
+      const BATCH_SIZE = 2; // Process 2 images per request
+      const batches = [];
+      
+      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
+        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
+      
+      let totalSize = 0;
+      for (const img of imagesToUpload) {
+        totalSize += img.base64.length;
+      }
+      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+      
+      let totalUploaded = 0;
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        let batchSize = 0;
+        for (const img of batch) {
+          batchSize += img.base64.length;
+        }
+        console.log(`👕 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
+        
+        // Upload batch
+        const response = await fetch('/api/jenest-upload-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: batch,
+            productKeyToTemplateId,
+            odooUid: uid,
+            odooPassword: password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
+          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
+        }
+
+        const imageResult = await response.json();
+        
+        if (!imageResult.success) {
+          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
+          for (const result of imageResult.results || []) {
+            results.push({
+              reference: result.productKey,
+              success: false,
+              imagesUploaded: 0,
+              error: result.error || 'Unknown error',
+            });
+          }
+        } else {
+          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded}/${imageResult.totalImages} uploaded`);
+          totalUploaded += imageResult.imagesUploaded;
+          
+          if (imageResult.results) {
+            for (const result of imageResult.results) {
+              results.push({
+                reference: result.productKey,
                 success: result.success,
                 imagesUploaded: result.success ? 1 : 0,
                 error: result.error,
@@ -3508,6 +3936,24 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('jenest')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'jenest'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">👕</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Jenest</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        CSV bestand (Product description wordt gebruikt voor E-Commerce beschrijving)
+                      </p>
+                      {selectedVendor === 'jenest' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -3972,7 +4418,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -4068,6 +4514,15 @@ OUTBACK ROO T-SHIRT 2Y | 1.00 | 11.60 | GST Free | 11.60`}
                             → Ecommerce Description: FIT COMMENTS + PRODUCT FEATURES gecombineerd
                           </p>
                         </div>
+                      ) : selectedVendor === 'jenest' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Order no.;Date;Currency;Drop;Total Quantity;Total price;VAT;Shipping;Handling fee;VAT Amount;Total price after VAT;Comments;Order reference;Product name;Item number;Color;Size;Collection;SKU;EAN Number;Rec retail price;Line quantity;Line unit price;Total line price;Product description;Top categories;Sub categories;HS Tariff Code;Country of origin;Composition;Wash and care
+SO-1239;2025-08-07 19:49:27;EUR;SS26;333;7148,25;0;0;0;0;7148,25;;;LIVIA TSHIRT;1222;LT FUCHSIA PINK;2-3Y;SS26;1222.2-3Y.LF;8721458809046;39,95;1;16,65;16,65;This shortsleeve T-shirt is made of our softest 100% organic cotton jersey and it carries a print at back panel - Rounded collar  Wide fit Print at back panel 100% Organic cotton jersey ;;;;PT;100% ORGANIC  COTTON JERSEY;Machine wash 30 °C, no tumble dry, iron low, wash with similar colours, wash inside out
+
+→ Wordt: "Jenest - Livia tshirt - Lt fuchsia pink"
+→ Variant: Maat 2-3Y, EAN: 8721458809046, Prijs: €16,65, RRP: €39,95
+→ Ecommerce Description: "Product description" veld wordt gebruikt`}
+                        </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`Table 1
@@ -5453,6 +5908,68 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
                       <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Flöss order in een keer selecteren. Het systeem matcher ze automatisch op Style No.</p>
                       <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> F10625 - Apple Knit Cardigan - Red Apple - Main.jpg</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Import for Jenest */}
+                {selectedVendor === 'jenest' && imageImportResults.length === 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
+                    <h3 className="font-bold text-blue-900 text-gray-900 mb-3">👕 Afbeeldingen Importeren (Optioneel)</h3>
+                    <p className="text-sm text-blue-800 mb-4">
+                      Upload afbeeldingen van je Jenest order folder voor de succesvol geïmporteerde producten.
+                    </p>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Bestandsnamen moeten Product name + Color bevatten (bijv. LIVIA TSHIRT LT FUCHSIA PINK.jpg)</li>
+                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
+                        <li>Primary image: eindigt op "primary.jpg" of heeft geen nummer</li>
+                        <li>Extra images: eindigt op " 2.jpg", " 3.jpg", etc.</li>
+                      </ul>
+                    </div>
+
+                    <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center mb-4">
+                      <div className="text-4xl mb-3">📁</div>
+                      <h4 className="font-bold text-blue-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
+                      <p className="text-sm text-blue-700 mb-4">Klik om meerdere afbeeldingen uit je Jenest order folder te selecteren</p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const files = Array.from(e.target.files);
+                            console.log(`📁 Selected ${files.length} images`);
+                            
+                            // Show summary
+                            alert(`✅ ${files.length} afbeeldingen geselecteerd\n\nHet systeem zal automatisch proberen te matchen met geïmporteerde producten op basis van Product name + Color.`);
+                            
+                            // Start upload
+                            fetchJenestImages(files);
+                          }
+                        }}
+                        className="hidden"
+                        id="jenest-images-upload"
+                      />
+                      <label
+                        htmlFor="jenest-images-upload"
+                        className="bg-blue-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-blue-700 font-bold inline-block"
+                      >
+                        📁 Selecteer Afbeeldingen
+                      </label>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
+                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Jenest order in een keer selecteren. Het systeem matcher ze automatisch op Product name + Color.</p>
+                      <p className="mt-2"><strong>ℹ️ Bestandsnaam voorbeelden:</strong></p>
+                      <ul className="list-disc ml-5 mt-1 space-y-1">
+                        <li>LIVIA TSHIRT LT FUCHSIA PINK.jpg (primary)</li>
+                        <li>LIVIA TSHIRT LT FUCHSIA PINK 2.jpg (extra)</li>
+                        <li>BALLOON DENIM PANTS MEDIUM WASH primary.jpg (primary)</li>
+                        <li>BALLOON DENIM PANTS MEDIUM WASH 2.jpg (extra)</li>
+                      </ul>
                     </div>
                   </div>
                 )}
