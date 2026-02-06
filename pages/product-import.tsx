@@ -8,6 +8,7 @@ interface ParsedProduct {
   reference: string;
   name: string;
   originalName?: string; // Original product name from CSV (for image search)
+  productName?: string; // Product name from CSV (e.g., "26s063" for 1+ - used in image filenames)
   material: string;
   color: string;
   ecommerceDescription?: string; // Description for ecommerce/website
@@ -33,7 +34,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | null;
 
 interface Brand {
   id: number;
@@ -133,11 +134,13 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
     if (!size) return 'MAAT Kinderen';
     
     // Baby sizes: ends with "maand" or month numbers (3M, 6M, etc.)
-    if (size.includes('maand') || /^\d+\s*M$/i.test(size)) {
+    // Also handle Weekend House Kids format: 3/6m, 6/12m, 12/18m, 18/24m
+    if (size.includes('maand') || /^\d+\s*M$/i.test(size) || /\d+\/\d+\s*m$/i.test(size)) {
       return "MAAT Baby's";
     }
     
     // Teen sizes: "jaar" with number >= 10, or Y sizes >= 10 (including 16Y, 18Y)
+    // Also handle Weekend House Kids format: 11/12, 13/14 (these are teen sizes)
     if (size.includes('jaar')) {
       const match = size.match(/^(\d+)\s*jaar/i);
       if (match && parseInt(match[1]) >= 10) {
@@ -150,9 +153,18 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
         return 'MAAT Tieners';  // Covers 10Y, 12Y, 14Y, 16Y, 18Y
       }
     }
+    // Weekend House Kids teen sizes: 11/12, 13/14
+    if (/^(11\/12|13\/14)$/i.test(size)) {
+      return 'MAAT Tieners';
+    }
     
     // Kids sizes: "jaar" with number < 10, or Y sizes < 10
+    // Also handle Weekend House Kids format: 2, 3/4, 5/6, 7/8, 9/10 (these are kids sizes)
     if (size.includes('jaar') || /^\d+\s*Y$/i.test(size)) {
+      return 'MAAT Kinderen';
+    }
+    // Weekend House Kids kids sizes: 2, 3/4, 5/6, 7/8, 9/10
+    if (/^(2|3\/4|5\/6|7\/8|9\/10)$/i.test(size)) {
       return 'MAAT Kinderen';
     }
     
@@ -285,6 +297,34 @@ export default function ProductImportPage() {
     fitComments: string;
     productFeatures: string;
   }>>(new Map());
+  const [wynckenPdfProducts, setWynckenPdfProducts] = useState<Array<{
+    style: string;
+    fabric: string;
+    colour: string;
+    materialContent: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>>([]);
+  const [wynckenDescriptions, setWynckenDescriptions] = useState<Map<string, {
+    productId: string;
+    style: string;
+    fabric: string;
+    colour: string;
+    description: string;
+    sizes: string;
+    textileContent: string;
+    wspEur: number;
+    rrpEur: number;
+  }>>(new Map());
+  const [wynckenBarcodes, setWynckenBarcodes] = useState<Map<string, {
+    productId: string;
+    style: string;
+    fabric: string;
+    colour: string;
+    size: string;
+    barcode: string;
+  }>>(new Map());
   const [brands, setBrands] = useState<Brand[]>([]);
   const [internalCategories, setInternalCategories] = useState<Category[]>([]);
   const [publicCategories, setPublicCategories] = useState<Category[]>([]);
@@ -300,11 +340,34 @@ export default function ProductImportPage() {
   const [publicCategorySearch, setPublicCategorySearch] = useState('');
   const [productTagSearch, setProductTagSearch] = useState('');
   
-  const [importResults, setImportResults] = useState<{ success: boolean; results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; message?: string }> } | null>(null);
+  const [importResults, setImportResults] = useState<{ 
+    success: boolean; 
+    results: Array<{ 
+      success: boolean; 
+      reference: string; 
+      name?: string; 
+      templateId?: number; 
+      variantsCreated?: number; 
+      variantsUpdated?: number;
+      imagesUploaded?: number;
+      message?: string 
+    }>;
+    summary?: {
+      total: number;
+      successful: number;
+      failed: number;
+      totalVariantsCreated: number;
+      totalVariantsUpdated: number;
+      vendor: string;
+      timestamp: string;
+    };
+  } | null>(null);
   const [showApiPreview, setShowApiPreview] = useState(false);
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; currentProduct?: string } | null>(null);
   const [imageImportResults, setImageImportResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
+  const [thenewsocietyOrderConfirmationLoaded, setThenewsocietyOrderConfirmationLoaded] = useState(false);
+  const [thenewsocietyOrderLoaded, setThenewsocietyOrderLoaded] = useState(false);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -458,6 +521,11 @@ export default function ProductImportPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
+      
+      // Reset file input so same file can be selected again if needed
+      if (e.target) {
+        e.target.value = '';
+      }
       if (selectedVendor === 'ao76') {
         parseAo76CSV(text);
       } else if (selectedVendor === 'lenewblack') {
@@ -472,6 +540,111 @@ export default function ProductImportPage() {
         parseIndeeCSV(text);
       } else if (selectedVendor === 'jenest') {
         parseJenestCSV(text);
+      } else if (selectedVendor === 'wyncken') {
+        // Detect which CSV file this is
+        const firstLine = text.split('\n')[0].toLowerCase();
+        if (firstLine.includes('product id') && firstLine.includes('style') && firstLine.includes('barcode')) {
+          // This is the BARCODES CSV
+          handleWynckenBarcodesCsv(text);
+        } else if (firstLine.includes('product id') && firstLine.includes('style') && firstLine.includes('description')) {
+          // This is the PRODUCT DESCRIPTIONS CSV
+          handleWynckenDescriptionsCsv(text);
+        } else {
+          alert('⚠️ Onbekend CSV formaat. Upload PRODUCT DESCRIPTIONS.csv of SS26 BARCODES.csv');
+        }
+      } else if (selectedVendor === 'onemore') {
+        parseOnemoreCSV(text);
+      } else if (selectedVendor === 'weekendhousekids') {
+        // Check if this is the correct file (order-*.csv, not export-Order-*.csv)
+        const fileName = file.name.toLowerCase();
+        if (fileName.includes('export-order') || fileName.startsWith('export-')) {
+          alert('⚠️ Verkeerd bestand gedetecteerd!\n\nGebruik het "order-*.csv" bestand, niet het "export-Order-*.csv" bestand.\n\nHet order-*.csv bestand heeft headers zoals: Order id;Date;Status;Product reference;Product name;...');
+          return;
+        }
+        parseWeekendHouseKidsCSV(text);
+      } else if (selectedVendor === 'thenewsociety') {
+        // Detect if this is order confirmation CSV (with SRP) or order CSV (with EAN13)
+        const lines = text.trim().split('\n');
+        console.log(`🌿 The New Society: Checking ${lines.length} lines`);
+        if (lines.length > 0) {
+          // Find header line (can start with ; for Order Confirmation format)
+          let headerLine = '';
+          let foundOrderConfirmation = false;
+          let foundOrderCSV = false;
+          
+          // Debug: show first few lines
+          console.log('🌿 First 10 lines:', lines.slice(0, 10).map((l, i) => `${i + 1}: ${l.substring(0, 80)}`));
+          
+          for (let i = 0; i < Math.min(50, lines.length); i++) {
+            const line = lines[i].trim();
+            if (!line || !line.includes(';')) continue;
+            
+            const lineUpper = line.toUpperCase();
+            console.log(`🌿 Checking line ${i + 1}: ${line.substring(0, 80)}`);
+            
+            // Check for Order Confirmation format: SRP + REFERENCIA + VARIANTE
+            const hasSRP = lineUpper.includes('SRP');
+            const hasREFERENCIA = lineUpper.includes('REFERENCIA');
+            const hasVARIANTE = lineUpper.includes('VARIANTE');
+            
+            if (hasSRP && hasREFERENCIA && hasVARIANTE) {
+              headerLine = lineUpper;
+              foundOrderConfirmation = true;
+              console.log(`✅ Found Order Confirmation header at line ${i + 1}: ${line.substring(0, 100)}`);
+              break;
+            }
+            
+            // Check for Order CSV format: Product reference + EAN13
+            const hasProductRef = lineUpper.includes('PRODUCT REFERENCE');
+            const hasEAN = lineUpper.includes('EAN13') || lineUpper.includes('EAN');
+            
+            if (hasProductRef && hasEAN) {
+              headerLine = lineUpper;
+              foundOrderCSV = true;
+              console.log(`✅ Found Order CSV header at line ${i + 1}: ${line.substring(0, 100)}`);
+              break;
+            }
+          }
+          
+          // If we didn't find a clear header, try to find any line with SRP or Product reference
+          if (!headerLine) {
+            console.log('⚠️ No clear header found, trying fallback detection...');
+            for (let i = 0; i < Math.min(50, lines.length); i++) {
+              const line = lines[i].trim();
+              if (line && line.includes(';')) {
+                const lineUpper = line.toUpperCase();
+                if (lineUpper.includes('SRP')) {
+                  headerLine = lineUpper;
+                  foundOrderConfirmation = true;
+                  console.log(`⚠️ Found potential Order Confirmation header (SRP only) at line ${i + 1}`);
+                  break;
+                }
+                if (lineUpper.includes('PRODUCT REFERENCE')) {
+                  headerLine = lineUpper;
+                  foundOrderCSV = true;
+                  console.log(`⚠️ Found potential Order CSV header at line ${i + 1}`);
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (foundOrderCSV) {
+            console.log('🌿 Detected The New Society Order CSV (with EAN13)');
+            parseTheNewSocietyOrderCSV(text);
+          } else if (foundOrderConfirmation) {
+            console.log('🌿 Detected The New Society Order Confirmation CSV (with SRP, REFERENCIA, VARIANTE)');
+            // Order Confirmation CSV should come after Order CSV - it only provides SRP prices
+            if (parsedProducts.length === 0) {
+              alert('⚠️ EERST de Order CSV uploaden!\n\nUpload first:\n1. Order CSV (met EAN13, SKU\'s, sizes, quantities, etc.)\n2. Then Order Confirmation CSV (alleen voor SRP/verkoopprijs)\n\nThe Order CSV contains all the import data!');
+              return;
+            }
+            parseTheNewSocietyOrderConfirmationCSV(text);
+          } else {
+            console.error('❌ Could not detect CSV format. Header line:', headerLine);
+            alert('⚠️ Onbekend CSV-formaat!\n\nVerwacht:\n- Order Confirmation CSV met SRP en REFERENCIA kolommen\n- Order CSV met Product reference en EAN13 kolommen');
+          }
+        }
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -1100,6 +1273,13 @@ export default function ProductImportPage() {
     }
   };
 
+  // Wyncken PDF upload handler
+  const handleWynckenPdfUploadHandler = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleWynckenPdfUpload(file);
+  };
+
   // Goldie and Ace PDF upload handler
   const handleGoldieAndAcePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1189,10 +1369,21 @@ export default function ProductImportPage() {
       
       // Try to match with CSV data
       // We need to find matching description + colour + size
-      let matchedCsvData: typeof goldieAndAceCsvData extends Map<string, infer V> ? V : never | null = null;
+      let matchedCsvData: {
+        styleCode: string;
+        description: string;
+        colourName: string;
+        composition: string;
+        size: string;
+        barcode: string;
+        retailPrice: number;
+        wholesalePrice: number;
+        fitComments: string;
+        productFeatures: string;
+      } | null = null;
       
       // Try exact match first
-      for (const [key, csvItem] of goldieAndAceCsvData.entries()) {
+      for (const [, csvItem] of goldieAndAceCsvData.entries()) {
         // Normalize sizes for comparison (2Y vs 2Y, 1-2Y vs 1-2Y)
         const csvSizeNormalized = csvItem.size.toUpperCase();
         const invoiceSizeNormalized = size.toUpperCase();
@@ -2448,6 +2639,1657 @@ export default function ProductImportPage() {
     }
   };
 
+  const parseOnemoreCSV = (text: string) => {
+    // One More in the Family format parser
+    // Semicolon-separated format with headers
+    // Format: Order id;Date;Status;Season;Brand name;Brand sales person;Collection;Category;Product name;Product reference;Color name;Description;Composition;Fabric / print;Size family name;Size name;EAN13;SKU;Quantity;Unit price;Net amount;Pre-discount amount;Discount rate;Currency
+    
+    console.log(`👶 Parsing One More in the Family CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`👶 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Find column indices
+    const productReferenceIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name'); // e.g., "26s063" (used in image filenames)
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
+    const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
+    const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
+    const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    
+    // Validate required columns
+    if (productReferenceIdx === -1 || descriptionIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || eanIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Product reference, Description, Color name, Size name, EAN13');
+      return;
+    }
+
+    // Auto-detect One More in the Family brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('one more') ||
+      b.name.toLowerCase().includes('1+ in the family') ||
+      b.name.toLowerCase().includes('onemore')
+    );
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    // Convert size to Dutch format
+    const convertSizeToDutch = (sizeStr: string): string => {
+      if (!sizeStr) return sizeStr;
+      const normalized = sizeStr.trim().toUpperCase();
+      
+      // Handle T sizes (T0, T1, T2, T3, T4) - these are baby sizes
+      if (normalized.match(/^T\d+$/)) {
+        return sizeStr; // Keep as-is for baby sizes
+      }
+      
+      // Handle month sizes (1m, 3m, 6m, etc.)
+      if (normalized.match(/^\d+M$/)) {
+        return normalized.replace(/M$/, ' maand');
+      }
+      
+      // Handle age sizes (18m, 24m, 36m, 48m) - convert to years if >= 12
+      if (normalized.match(/^(\d+)M$/)) {
+        const months = parseInt(normalized.replace(/M$/, ''));
+        if (months >= 12) {
+          const years = Math.floor(months / 12);
+          return `${years} jaar`;
+        }
+        return `${months} maand`;
+      }
+      
+      return sizeStr;
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';').map(v => v.trim());
+      
+      if (values.length < headers.length) {
+        console.log(`⚠️ Skipping row ${i}: insufficient columns`);
+        continue;
+      }
+
+      const productReference = values[productReferenceIdx] || '';
+      const productName = productNameIdx >= 0 ? (values[productNameIdx] || '') : ''; // e.g., "26s063" (used in image filenames)
+      const description = values[descriptionIdx] || '';
+      const colorName = values[colorNameIdx] || '';
+      const sizeName = values[sizeNameIdx] || '';
+      const ean = values[eanIdx] || '';
+      const sku = values[skuIdx] || '';
+      const quantity = parseInt(values[quantityIdx] || '0');
+      const unitPrice = parsePrice(values[unitPriceIdx] || '0');
+      const composition = values[compositionIdx] || '';
+      void (values[categoryIdx] || ''); // category parsed but not used
+      
+      // Skip rows without required data
+      if (!productReference || !description || !colorName || !sizeName || !ean) {
+        if (productReference || description) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data`);
+        }
+        continue;
+      }
+      
+      // Create product key based on Product reference + Color name
+      const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        // Format product name: "1+ in the family - Description - Color"
+        const toSentenceCase = (str: string) => {
+          if (!str) return str;
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `1+ in the family - ${toSentenceCase(description)}${colorName ? ` - ${toSentenceCase(colorName)}` : ''}`;
+
+        // Normalize reference to ensure uniqueness (same normalization as productKey)
+        const normalizedReference = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+        products[productKey] = {
+          reference: normalizedReference, // Make reference unique by including color, normalized for consistency
+          name: formattedName,
+          originalName: description,
+          material: composition,
+          color: colorName,
+          ecommerceDescription: formattedName,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          // Store productName (e.g., "26s063") for use in image matching and internal notes
+          productName: productName, // This will be stored in description field in Odoo
+        };
+
+        console.log(`✅ Created product: ${formattedName} (${productReference})`);
+      }
+      
+      const dutchSize = convertSizeToDutch(sizeName);
+      
+      products[productKey].variants.push({
+        size: dutchSize,
+        quantity: quantity,
+        ean: ean,
+        sku: sku,
+        price: unitPrice,
+        rrp: unitPrice * 2.5, // Default RRP is 2.5x unit price (can be adjusted later)
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`👶 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+    
+    if (productList.length > 0) {
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit One More in the Family CSV${brandMessage}`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
+  const parseWeekendHouseKidsCSV = (text: string) => {
+    // Weekend House Kids format parser
+    // Semicolon-separated format with headers
+    // Format: Order id;Date;Status;Season;Brand name;Brand sales person;Collection;Category;Product name;Product reference;Color name;Description;Composition;Fabric / print;Size family name;Size name;EAN13;SKU;Quantity;Unit price;Net amount;Pre-discount amount;Discount rate;Currency
+    
+    console.log(`🏠 Parsing Weekend House Kids CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🏠 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Find column indices
+    const productReferenceIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
+    const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
+    const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    
+    // Validate required columns
+    if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || eanIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('⚠️ Verkeerd CSV-bestand gedetecteerd!\n\nGebruik het "order-*.csv" bestand (met headers zoals: Order id;Date;Status;Product reference;Product name;Color name;Size name;EAN13;...)\n\nNIET het "export-Order-*.csv" bestand gebruiken!');
+      return;
+    }
+
+    // Auto-detect Weekend House Kids brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('weekend house kids') ||
+      b.name.toLowerCase().includes('weekendhousekids') ||
+      b.name.toLowerCase().includes('whk')
+    );
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    // Convert size to Dutch format
+    // Handles Weekend House Kids formats: 3/6m -> 6 maand, 6/12m -> 12 maand, etc.
+    const convertSizeToDutch = (sizeStr: string): string => {
+      if (!sizeStr) return sizeStr;
+      const normalized = sizeStr.trim();
+      
+      // Handle month ranges: 3/6m -> 6 maand, 6/12m -> 12 maand, 12/18m -> 18 maand, 18/24m -> 24 maand
+      // Take the second number (end of range) and convert to "X maand"
+      if (normalized.match(/^\d+\/\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\/(\d+)\s*m$/i);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} maand`;
+        }
+      }
+      
+      // Handle single month format: 6m -> 6 maand (if not already converted)
+      if (normalized.match(/^\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\s*m$/i);
+        if (match) {
+          return `${match[1]} maand`;
+        }
+      }
+      
+      // Handle year ranges: 3/4 -> 4 jaar, 5/6 -> 6 jaar, 7/8 -> 8 jaar, 9/10 -> 10 jaar, 11/12 -> 12 jaar, 13/14 -> 14 jaar
+      // Take the second number (end of range) and convert to "X jaar"
+      if (normalized.match(/^\d+\/\d+$/)) {
+        const match = normalized.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} jaar`;
+        }
+      }
+      
+      // Handle single year: 2 -> 2 jaar
+      if (normalized.match(/^\d+$/)) {
+        const num = parseInt(normalized);
+        // If it's a small number (likely a year), convert to "X jaar"
+        if (num >= 2 && num <= 14) {
+          return `${num} jaar`;
+        }
+      }
+      
+      return sizeStr; // Return as-is if no match
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';').map(v => v.trim());
+      
+      if (values.length < headers.length) {
+        console.log(`⚠️ Skipping row ${i}: insufficient columns`);
+        continue;
+      }
+
+      const productReference = values[productReferenceIdx] || '';
+      const productName = values[productNameIdx] || '';
+      const colorName = values[colorNameIdx] || '';
+      const sizeName = values[sizeNameIdx] || '';
+      const ean = values[eanIdx] || '';
+      const quantity = parseInt(values[quantityIdx] || '0');
+      const unitPrice = parsePrice(values[unitPriceIdx] || '0');
+      const composition = values[compositionIdx] || '';
+      void (values[categoryIdx] || ''); // category parsed but not used
+      const description = values[descriptionIdx] || '';
+      
+      // Skip rows without required data
+      if (!productReference || !productName || !colorName || !sizeName || !ean) {
+        if (productReference || productName) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data`);
+        }
+        continue;
+      }
+      
+      // Create product key based on Product reference + Color name
+      const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        // Format product name: "Weekend House Kids - Product name - Color"
+        const toSentenceCase = (str: string) => {
+          if (!str) return str;
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `Weekend House Kids - ${toSentenceCase(productName)}${colorName ? ` - ${toSentenceCase(colorName)}` : ''}`;
+
+        products[productKey] = {
+          reference: productReference,
+          name: formattedName,
+          originalName: productName,
+          material: composition,
+          color: colorName,
+          ecommerceDescription: description || formattedName,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+        };
+
+        console.log(`✅ Created product: ${formattedName} (${productReference})`);
+      }
+      
+      // Convert size to Dutch format (3/6m -> 6 maand, etc.)
+      const dutchSize = convertSizeToDutch(sizeName);
+      
+      products[productKey].variants.push({
+        size: dutchSize,
+        quantity: quantity,
+        ean: ean,
+        price: unitPrice,
+        rrp: unitPrice * 2.5, // Default RRP is 2.5x unit price (can be adjusted later)
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🏠 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+    
+    if (productList.length > 0) {
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Weekend House Kids CSV${brandMessage}`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
+  const parseTheNewSocietyOrderConfirmationCSV = (text: string) => {
+    // The New Society format parser
+    // Supports two formats:
+    // 1. Standard format: Order id;Date;Status;Season;Brand name;...;Product reference;Color name;Size name;EAN13;Quantity;Unit price;...
+    // 2. Order confirmation format: ESTILO;REFERENCIA;VARIANTE;SRP;TALLAS;...;CANT.;UNIDAD;TOTAL (SRP = Suggested Retail Price, UNIDAD = Unit price)
+    
+    console.log(`🌿 Parsing The New Society CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Find the header row (can start with ; for Order Confirmation format)
+    let headerLineIdx = -1;
+    for (let i = 0; i < Math.min(50, lines.length); i++) {
+      const line = lines[i].trim();
+      if (line && line.includes(';')) {
+        const lineUpper = line.toUpperCase();
+        // Look for Order Confirmation format: SRP + REFERENCIA + VARIANTE
+        if (lineUpper.includes('SRP') && lineUpper.includes('REFERENCIA') && lineUpper.includes('VARIANTE')) {
+          headerLineIdx = i;
+          console.log(`🌿 Found Order Confirmation header at line ${i + 1}`);
+          break;
+        }
+        // Look for Order CSV format: Product reference + EAN13
+        if (lineUpper.includes('PRODUCT REFERENCE') && (lineUpper.includes('EAN13') || lineUpper.includes('EAN'))) {
+          headerLineIdx = i;
+          console.log(`🌿 Found Order CSV header at line ${i + 1}`);
+          break;
+        }
+      }
+    }
+    
+    if (headerLineIdx === -1) {
+      console.error('❌ Could not find header row');
+      alert('Kan de header regel niet vinden in het CSV bestand. Controleer of het bestand de juiste kolommen bevat.');
+      return;
+    }
+
+    // Parse header
+    const headers = lines[headerLineIdx].split(';').map(h => h.trim());
+    console.log(`🌿 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Detect format: check for SRP column (order confirmation format) vs Product reference (standard format)
+    const srpIdx = headers.findIndex(h => h.toUpperCase() === 'SRP');
+    const referenciaIdx = headers.findIndex(h => h.toUpperCase() === 'REFERENCIA');
+    const varianteIdx = headers.findIndex(h => h.toUpperCase() === 'VARIANTE');
+    const unidadIdx = headers.findIndex(h => h.toUpperCase() === 'UNIDAD');
+    const cantIdx = headers.findIndex(h => h.toUpperCase() === 'CANT.' || h.toUpperCase() === 'CANT');
+    
+    const isOrderConfirmationFormat = srpIdx !== -1 && referenciaIdx !== -1 && varianteIdx !== -1 && unidadIdx !== -1;
+    
+    // Find column indices for standard format
+    const productReferenceIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
+    const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
+    const standardEanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
+    const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    
+    // Validate required columns based on format
+    if (isOrderConfirmationFormat) {
+      if (referenciaIdx === -1 || varianteIdx === -1 || srpIdx === -1 || unidadIdx === -1) {
+        console.error('❌ Missing required headers for order confirmation format. Found:', headers);
+        alert('Ongeldig CSV-formaat. Verwachte headers: REFERENCIA, VARIANTE, SRP, UNIDAD');
+        return;
+      }
+      console.log(`✅ Detected order confirmation format (SRP/UNIDAD)`);
+    } else {
+      if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || standardEanIdx === -1) {
+        console.error('❌ Missing required headers for standard format. Found:', headers);
+        alert('Ongeldig CSV-formaat. Verwachte headers: Product reference, Product name, Color name, Size name, EAN13');
+        return;
+      }
+      console.log(`✅ Detected standard format (Product reference/Unit price)`);
+    }
+
+    // Auto-detect The New Society brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('the new society') ||
+      b.name.toLowerCase().includes('thenewsociety') ||
+      b.name.toLowerCase().includes('tns')
+    );
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    // Convert size to Dutch format
+    // Handles The New Society formats: 2y -> 2 jaar, 3y -> 3 jaar, 8y -> 8 jaar, 10y -> 10 jaar, etc.
+    // Also handles: 3/6m -> 6 maand, 6/12m -> 12 maand, etc.
+    const convertSizeToDutch = (sizeStr: string): string => {
+      if (!sizeStr) return sizeStr;
+      const normalized = sizeStr.trim();
+      
+      // Handle year format with 'y' suffix: 2y -> 2 jaar, 3y -> 3 jaar, 8y -> 8 jaar, 10y -> 10 jaar, etc.
+      if (normalized.match(/^\d+\s*y$/i)) {
+        const match = normalized.match(/^(\d+)\s*y$/i);
+        if (match) {
+          return `${match[1]} jaar`;
+        }
+      }
+      
+      // Handle month ranges: 3/6m -> 6 maand, 6/12m -> 12 maand, 12/18m -> 18 maand, 18/24m -> 24 maand
+      // Take the second number (end of range) and convert to "X maand"
+      if (normalized.match(/^\d+\/\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\/(\d+)\s*m$/i);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} maand`;
+        }
+      }
+      
+      // Handle single month format: 3m -> 3 maand, 6m -> 6 maand, 12m -> 12 maand, 18m -> 18 maand, 24m -> 24 maand
+      if (normalized.match(/^\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\s*m$/i);
+        if (match) {
+          return `${match[1]} maand`;
+        }
+      }
+      
+      // Handle year ranges: 3/4 -> 4 jaar, 5/6 -> 6 jaar, 7/8 -> 8 jaar, 9/10 -> 10 jaar, 11/12 -> 12 jaar, 13/14 -> 14 jaar
+      // Take the second number (end of range) and convert to "X jaar"
+      if (normalized.match(/^\d+\/\d+$/)) {
+        const match = normalized.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} jaar`;
+        }
+      }
+      
+      // Handle single year: 2 -> 2 jaar (for numbers without suffix)
+      if (normalized.match(/^\d+$/)) {
+        const num = parseInt(normalized);
+        // If it's a small number (likely a year), convert to "X jaar"
+        if (num >= 2 && num <= 18) {
+          return `${num} jaar`;
+        }
+      }
+      
+      return sizeStr; // Return as-is if no match (e.g., S, M, L for accessories)
+    };
+
+    if (isOrderConfirmationFormat) {
+      // Parse order confirmation format: ESTILO;REFERENCIA;VARIANTE;SRP;TALLAS (sizes);...;CANT.;UNIDAD;TOTAL
+      // The header has "TALLAS" but actual sizes are in product name rows (rows with ESTILO but no REFERENCIA)
+      // Example: line 40: ;Tilo Cap  Deep Sea Blue;;;;S;M;L;;;;;;;;;;;
+      // Different products can have different sizes, so we need to extract sizes from each product name row
+      
+      // Find ESTILO column for product name
+      const estiloIdx = headers.findIndex(h => h.toUpperCase() === 'ESTILO');
+      
+      // Parse data rows (skip header and empty rows)
+      let currentProductName = '';
+      let currentSizeColumns: { idx: number; size: string }[] = [];
+      
+      for (let i = headerLineIdx + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || (line.startsWith(';') && line.split(';').filter(c => c.trim()).length <= 1)) {
+          continue; // Skip empty or comment rows
+        }
+        
+        const values = line.split(';').map(v => v.trim());
+        
+        // Check if this is a product name row (has ESTILO but no REFERENCIA)
+        const estiloValue = estiloIdx >= 0 ? values[estiloIdx] || '' : '';
+        const referenciaValue = referenciaIdx >= 0 ? values[referenciaIdx] || '' : '';
+        
+        if (estiloValue && !referenciaValue) {
+          // This is a product name row - extract sizes from this row
+          currentProductName = estiloValue;
+          currentSizeColumns = [];
+          
+          // Find size columns by checking values between SRP and CANT positions
+          for (let j = srpIdx + 1; j < cantIdx; j++) {
+            const value = values[j] || '';
+            // Skip empty values and header words
+            if (!value || value.length === 0) continue;
+            
+            const valueUpper = value.toUpperCase();
+            // Skip "TALLAS" and other header words
+            if (valueUpper === 'TALLAS' || valueUpper === 'TALLA' || valueUpper === 'SIZE' || valueUpper === 'SIZES') {
+              continue;
+            }
+            
+            // Check if this looks like a size (S, M, L, or number with m/y suffix, or number ranges)
+            if (value.match(/^[A-Z]$/i) || // Single letter: S, M, L
+                value.match(/^\d+[my]$/i) || // Number with suffix: 3m, 6m, 2y, 3y
+                value.match(/^\d+\/\d+[my]?$/i) || // Range: 3/6m, 2/3y
+                value.match(/^\d+$/)) { // Just number: 2, 3, 4 (for years)
+              currentSizeColumns.push({ idx: j, size: value });
+            }
+          }
+          
+          console.log(`📏 Product "${currentProductName}": Found ${currentSizeColumns.length} size columns: ${currentSizeColumns.map(s => `${s.size} (col ${s.idx})`).join(', ')}`);
+          continue;
+        }
+        
+        // Check if this is a data row (has REFERENCIA)
+        if (!referenciaValue) {
+          continue; // Skip rows without product reference
+        }
+        
+        // Make sure we have size columns for this product
+        if (currentSizeColumns.length === 0) {
+          console.warn(`⚠️ No size columns found for product "${currentProductName}" - skipping data row`);
+          continue;
+        }
+        
+        const productReference = referenciaValue;
+        const colorName = varianteIdx >= 0 ? values[varianteIdx] || '' : '';
+        const srp = parsePrice(values[srpIdx] || '0');
+        const unitPrice = parsePrice(values[unidadIdx] || '0');
+        void parseInt(values[cantIdx] || '0'); // totalQuantity parsed but not used
+        
+        if (!productReference || !colorName || srp === 0) {
+          continue; // Skip incomplete rows
+        }
+        
+        // Create product key
+        const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        
+        if (!products[productKey]) {
+          const toSentenceCase = (str: string) => {
+            if (!str) return str;
+            const lower = str.toLowerCase();
+            return lower.charAt(0).toUpperCase() + lower.slice(1);
+          };
+          
+          const formattedName = `The New Society - ${toSentenceCase(currentProductName || productReference)}${colorName ? ` - ${toSentenceCase(colorName)}` : ''}`;
+          
+          products[productKey] = {
+            reference: productReference,
+            name: formattedName,
+            originalName: currentProductName || productReference,
+            material: '',
+            color: colorName,
+            ecommerceDescription: formattedName,
+            variants: [],
+            suggestedBrand: suggestedBrand?.name,
+            selectedBrand: suggestedBrand,
+            publicCategories: [],
+            productTags: [],
+            isFavorite: false,
+            isPublished: true,
+          };
+          
+          console.log(`✅ Created product: ${formattedName} (${productReference}), SRP: €${srp.toFixed(2)}, Unit: €${unitPrice.toFixed(2)}`);
+        }
+        
+        // Create variants for each size with quantity > 0 (use currentSizeColumns for this product)
+        for (const sizeCol of currentSizeColumns) {
+          const quantity = parseInt(values[sizeCol.idx] || '0');
+          if (quantity > 0) {
+            const dutchSize = convertSizeToDutch(sizeCol.size);
+            products[productKey].variants.push({
+              size: dutchSize,
+              quantity: quantity,
+              ean: '', // EAN not available in this format
+              sku: '',
+              price: unitPrice, // UNIDAD = wholesale/unit price
+              rrp: srp, // SRP = Suggested Retail Price (verkoopprijs)
+            });
+          }
+        }
+      }
+    } else {
+      // Parse standard format: Product reference;Product name;Color name;Size name;EAN13;Quantity;Unit price;...
+      for (let i = headerLineIdx + 1; i < lines.length; i++) {
+        const values = lines[i].split(';').map(v => v.trim());
+        
+        if (values.length < headers.length) {
+          console.log(`⚠️ Skipping row ${i}: insufficient columns`);
+          continue;
+        }
+
+        const productReference = values[productReferenceIdx] || '';
+        const productName = values[productNameIdx] || '';
+        const colorName = values[colorNameIdx] || '';
+        const sizeName = values[sizeNameIdx] || '';
+        const ean = values[standardEanIdx] || '';
+        const sku = values[skuIdx] || '';
+        const quantity = parseInt(values[quantityIdx] || '0');
+        const unitPrice = parsePrice(values[unitPriceIdx] || '0');
+        const composition = values[compositionIdx] || '';
+        void (values[categoryIdx] || ''); // category parsed but not used
+        const description = values[descriptionIdx] || '';
+        
+        // Skip rows without required data
+        if (!productReference || !productName || !colorName || !sizeName || !ean) {
+          if (productReference || productName) {
+            console.log(`⚠️ Skipping row ${i}: incomplete data`);
+          }
+          continue;
+        }
+        
+        // Create product key based on Product reference + Color name
+        const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+        if (!products[productKey]) {
+          // Format product name: "The New Society - Product name - Color"
+          const toSentenceCase = (str: string) => {
+            if (!str) return str;
+            const lower = str.toLowerCase();
+            return lower.charAt(0).toUpperCase() + lower.slice(1);
+          };
+          
+          const formattedName = `The New Society - ${toSentenceCase(productName)}${colorName ? ` - ${toSentenceCase(colorName)}` : ''}`;
+
+          products[productKey] = {
+            reference: productReference,
+            name: formattedName,
+            originalName: productName,
+            material: composition,
+            color: colorName,
+            ecommerceDescription: description || formattedName,
+            variants: [],
+            suggestedBrand: suggestedBrand?.name,
+            selectedBrand: suggestedBrand,
+            publicCategories: [],
+            productTags: [],
+            isFavorite: false,
+            isPublished: true,
+          };
+
+          console.log(`✅ Created product: ${formattedName} (${productReference})`);
+        }
+        
+        // Convert size to Dutch format (3/6m -> 6 maand, etc.)
+        const dutchSize = convertSizeToDutch(sizeName);
+        
+        products[productKey].variants.push({
+          size: dutchSize,
+          quantity: quantity,
+          ean: ean,
+          sku: sku,
+          price: unitPrice,
+          rrp: unitPrice * 2.5, // Default RRP is 2.5x unit price (can be adjusted later)
+        });
+      }
+    }
+
+    const productList = Object.values(products);
+    console.log(`🌿 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    // If Order CSV products already exist, enrich them with SRP prices from Order Confirmation
+    if (parsedProducts.length > 0) {
+      console.log(`🔄 Enriching ${parsedProducts.length} Order CSV products with SRP prices from Order Confirmation...`);
+      enrichTheNewSocietyProductsWithSRP(parsedProducts, productList);
+      setThenewsocietyOrderConfirmationLoaded(true);
+      // NOW go to step 2 after combining both files
+      setCurrentStep(2);
+      alert(`✅ Order Confirmation CSV geparsed en SRP prijzen toegevoegd aan Order CSV producten!\n\n${parsedProducts.length} producten verrijkt met verkoopprijzen (SRP).\n\nJe kunt nu doorgaan naar stap 2.`);
+    } else {
+      // Order Confirmation uploaded but no Order CSV - this shouldn't happen due to validation
+      alert('⚠️ Geen Order CSV data gevonden! Upload eerst het Order CSV bestand (met EAN13, SKU\'s, etc.).');
+    }
+  };
+
+  const parseTheNewSocietyOrderCSV = (text: string) => {
+    // The New Society Order CSV format parser (standard format with EAN13, SKU, etc.)
+    // Format: Order id;Date;Status;Season;Brand name;...;Product reference;Color name;Size name;EAN13;SKU;Quantity;Unit price;...
+    
+    console.log(`🌿 Parsing The New Society Order CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🌿 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    
+    // Find column indices
+    const productReferenceIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
+    const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
+    const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
+    const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    
+    // Validate required columns
+    if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || eanIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Product reference, Product name, Color name, Size name, EAN13');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.'));
+    };
+
+    // Convert size to Dutch format
+    const convertSizeToDutch = (sizeStr: string): string => {
+      if (!sizeStr) return sizeStr;
+      const normalized = sizeStr.trim();
+      
+      if (normalized.match(/^\d+\s*y$/i)) {
+        const match = normalized.match(/^(\d+)\s*y$/i);
+        if (match) {
+          return `${match[1]} jaar`;
+        }
+      }
+      
+      if (normalized.match(/^\d+\/\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\/(\d+)\s*m$/i);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} maand`;
+        }
+      }
+      
+      if (normalized.match(/^\d+\s*m$/i)) {
+        const match = normalized.match(/^(\d+)\s*m$/i);
+        if (match) {
+          return `${match[1]} maand`;
+        }
+      }
+      
+      if (normalized.match(/^\d+\/\d+$/)) {
+        const match = normalized.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          const second = parseInt(match[2]);
+          return `${second} jaar`;
+        }
+      }
+      
+      if (normalized.match(/^\d+$/)) {
+        const num = parseInt(normalized);
+        if (num >= 2 && num <= 18) {
+          return `${num} jaar`;
+        }
+      }
+      
+      return sizeStr;
+    };
+
+    // Parse standard format
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';').map(v => v.trim());
+      
+      if (values.length < headers.length) {
+        console.log(`⚠️ Skipping row ${i}: insufficient columns`);
+        continue;
+      }
+
+      const productReference = values[productReferenceIdx] || '';
+      const productName = values[productNameIdx] || '';
+      const colorName = values[colorNameIdx] || '';
+      const sizeName = values[sizeNameIdx] || '';
+      const ean = values[eanIdx] || '';
+      const sku = values[skuIdx] || '';
+      const quantity = parseInt(values[quantityIdx] || '0');
+      const unitPrice = parsePrice(values[unitPriceIdx] || '0');
+      const composition = values[compositionIdx] || '';
+      void (values[categoryIdx] || ''); // category parsed but not used
+      const description = values[descriptionIdx] || '';
+      
+      // Skip rows without required data
+      if (!productReference || !productName || !colorName || !sizeName || !ean) {
+        if (productReference || productName) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data`);
+        }
+        continue;
+      }
+      
+      // Create product key based on Product reference + Color name
+      const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        const toSentenceCase = (str: string) => {
+          if (!str) return str;
+          const lower = str.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+        
+        const formattedName = `The New Society - ${toSentenceCase(productName)}${colorName ? ` - ${toSentenceCase(colorName)}` : ''}`;
+
+        products[productKey] = {
+          reference: productReference,
+          name: formattedName,
+          originalName: productName,
+          material: composition,
+          color: colorName,
+          ecommerceDescription: description || formattedName,
+          variants: [],
+          suggestedBrand: undefined,
+          selectedBrand: undefined,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+        };
+
+        console.log(`✅ Created product: ${formattedName} (${productReference})`);
+      }
+      
+      // Convert size to Dutch format
+      const dutchSize = convertSizeToDutch(sizeName);
+      
+      products[productKey].variants.push({
+        size: dutchSize,
+        quantity: quantity,
+        ean: ean,
+        sku: sku,
+        price: unitPrice,
+        rrp: unitPrice * 2.5, // This will be overwritten by order confirmation data if available
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🌿 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants from Order CSV`);
+    
+    // Determine size attributes for all products
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    // Auto-detect The New Society brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('the new society') ||
+      b.name.toLowerCase().includes('thenewsociety') ||
+      b.name.toLowerCase().includes('tns')
+    );
+    
+    // Set brand for all products
+    productList.forEach(product => {
+      product.suggestedBrand = suggestedBrand?.name;
+      product.selectedBrand = suggestedBrand;
+    });
+    
+    // Store Order CSV products as the base (don't go to step 2 yet - wait for Order Confirmation CSV for SRP prices)
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setThenewsocietyOrderLoaded(true);
+    // DON'T setCurrentStep(2) here - wait for Order Confirmation CSV
+    
+    if (productList.length > 0) {
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten geparsed uit Order CSV (met EAN13, SKU's, sizes, quantities)${brandMessage}\n\n📄 Upload nu het Order Confirmation CSV bestand (alleen voor SRP/verkoopprijs) om de prijzen toe te voegen en door te gaan.`);
+    } else {
+      alert('⚠️ Geen producten gevonden in CSV');
+    }
+  };
+
+  const enrichTheNewSocietyProductsWithSRP = (orderProducts: ParsedProduct[], confirmationProducts: ParsedProduct[]) => {
+    // Enrich Order CSV products (base with all data) with SRP prices from Order Confirmation CSV
+    // Order CSV is the source of truth for everything except prices
+    
+    // Helper function to normalize sizes for matching
+    const normalizeSizeForMatching = (size: string): string => {
+      if (!size) return '';
+      const normalized = size.trim().toLowerCase();
+      // Convert "2 jaar" back to "2y" for matching, or keep as is
+      const jaarMatch = normalized.match(/^(\d+)\s*jaar$/);
+      if (jaarMatch) {
+        return `${jaarMatch[1]}y`;
+      }
+      const maandMatch = normalized.match(/^(\d+)\s*maand$/);
+      if (maandMatch) {
+        return `${maandMatch[1]}m`;
+      }
+      // For S-36, M-38, L-40 format, extract just the letter
+      const sizeMatch = normalized.match(/^([a-z])\s*-\s*\d+$/);
+      if (sizeMatch) {
+        return sizeMatch[1];
+      }
+      return normalized.replace(/\s+/g, '');
+    };
+    
+    let enrichedCount = 0;
+    
+    orderProducts.forEach(orderProduct => {
+      const confirmationProduct = confirmationProducts.find(p => {
+        // Match by reference and color (case-insensitive)
+        const refMatch = p.reference.toLowerCase() === orderProduct.reference.toLowerCase();
+        const colorMatch = p.color.toLowerCase() === orderProduct.color.toLowerCase();
+        return refMatch && colorMatch;
+      });
+      
+      if (confirmationProduct) {
+        console.log(`✨ Adding SRP prices to ${orderProduct.reference} (${orderProduct.color}) from Order Confirmation`);
+        enrichedCount++;
+        
+        // Create a map of confirmation variants by normalized size for faster lookup
+        const confirmationVariantsBySize = new Map<string, typeof confirmationProduct.variants[0]>();
+        confirmationProduct.variants.forEach(cv => {
+          const normalizedSize = normalizeSizeForMatching(cv.size);
+          if (!confirmationVariantsBySize.has(normalizedSize)) {
+            confirmationVariantsBySize.set(normalizedSize, cv);
+          }
+        });
+        
+        // Update Order CSV variants: match by size and add SRP price from confirmation
+        orderProduct.variants.forEach(orderVariant => {
+          const normalizedOrderSize = normalizeSizeForMatching(orderVariant.size);
+          const confirmationVariant = confirmationVariantsBySize.get(normalizedOrderSize);
+          
+          if (confirmationVariant) {
+            // Add SRP price from Order Confirmation, keep all other data from Order CSV
+            orderVariant.rrp = confirmationVariant.rrp || orderVariant.rrp;
+            console.log(`  ✅ Added SRP €${confirmationVariant.rrp.toFixed(2)} to ${orderProduct.reference} size ${orderVariant.size} (normalized: ${normalizedOrderSize})`);
+          } else {
+            // No matching size in confirmation - use average SRP from other variants of this product
+            const avgRrp = confirmationProduct.variants.length > 0 
+              ? confirmationProduct.variants.reduce((sum, v) => sum + v.rrp, 0) / confirmationProduct.variants.length
+              : orderVariant.rrp;
+            orderVariant.rrp = avgRrp;
+            console.log(`  ⚠️ No SRP match for ${orderProduct.reference} size ${orderVariant.size}, using average SRP €${avgRrp.toFixed(2)}`);
+          }
+        });
+      } else {
+        console.log(`⚠️ No Order Confirmation match found for ${orderProduct.reference} (${orderProduct.color}) - keeping calculated RRP`);
+      }
+    });
+    
+    console.log(`✅ Successfully added SRP prices to ${enrichedCount} Order CSV products from Order Confirmation`);
+    
+    // Keep Order CSV products as-is (they're already in parsedProducts)
+    // No need to update state here as we're modifying the existing products in place
+  };
+
+  // Wyncken handlers
+  const handleWynckenPdfUpload = async (file: File) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await fetch('/api/parse-wyncken-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success && data.products) {
+        setWynckenPdfProducts(data.products);
+        const hasDescriptions = wynckenDescriptions.size > 0;
+        const hasBarcodes = wynckenBarcodes.size > 0;
+        
+        if (hasDescriptions && hasBarcodes) {
+          alert(`✅ ${data.products.length} producten geparsed uit Wynken PDF\n\nAlle bestanden geladen! Je kunt nu doorgaan met verwerken.`);
+        } else {
+          alert(`✅ ${data.products.length} producten geparsed uit Wynken PDF\n\n${!hasDescriptions ? '💡 Tip: Upload PRODUCT DESCRIPTIONS.csv voor extra informatie (optioneel)\n' : ''}${!hasBarcodes ? '💡 Tip: Upload SS26 BARCODES.csv voor barcodes (optioneel)\n' : ''}\nJe kunt nu doorgaan met alleen de PDF data, of eerst de CSV bestanden uploaden.`);
+        }
+      } else {
+        alert(`❌ Fout bij parsen PDF: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleWynckenDescriptionsCsv = (text: string) => {
+    console.log('🌻 Parsing Wynken PRODUCT DESCRIPTIONS CSV...');
+    
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (semicolon-separated)
+    const headers = lines[0].split(';').map(h => h.trim());
+    
+    const productIdIdx = headers.findIndex(h => h.toLowerCase() === 'product id');
+    const styleIdx = headers.findIndex(h => h.toLowerCase() === 'style');
+    const fabricIdx = headers.findIndex(h => h.toLowerCase() === 'fabric');
+    const colourIdx = headers.findIndex(h => h.toLowerCase() === 'colour');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    const sizesIdx = headers.findIndex(h => h.toLowerCase() === 'sizes');
+    const textileContentIdx = headers.findIndex(h => h.toLowerCase() === 'textile content');
+    const productCategory1Idx = headers.findIndex(h => h.toLowerCase() === 'product category 1');
+    const wspEurIdx = headers.findIndex(h => h.toLowerCase().includes('wsp') && h.toLowerCase().includes('eur'));
+    const rrpEurIdx = headers.findIndex(h => h.toLowerCase().includes('rrp') && h.toLowerCase().includes('eur'));
+    const imagePathIdx = headers.findIndex(h => {
+      const lower = h.toLowerCase();
+      return lower === 'full size image path' || 
+             lower === 'image path' || 
+             (lower.includes('image') && lower.includes('path'));
+    });
+    
+    console.log(`📸 Image Path column index: ${imagePathIdx}, header: ${imagePathIdx >= 0 ? headers[imagePathIdx] : 'NOT FOUND'}`);
+    console.log(`💰 WSP (EUR) column index: ${wspEurIdx}, header: ${wspEurIdx >= 0 ? headers[wspEurIdx] : 'NOT FOUND'}`);
+    console.log(`💰 RRP (EUR) column index: ${rrpEurIdx}, header: ${rrpEurIdx >= 0 ? headers[rrpEurIdx] : 'NOT FOUND'}`);
+
+    if (productIdIdx === -1 || styleIdx === -1) {
+      alert('Ongeldig CSV-formaat. Verwachte kolommen: Product ID, Style');
+      return;
+    }
+
+    const descriptions = new Map<string, {
+      productId: string;
+      style: string;
+      fabric: string;
+      colour: string;
+      description: string;
+      sizes: string;
+      textileContent: string;
+      productCategory1: string;
+      wspEur: number;
+      rrpEur: number;
+      imagePath: string;
+    }>();
+
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      // Handle formats like "26,50 €", "26.50 €", "€26.50", "26,50", etc.
+      // Remove currency symbols and spaces, then handle comma as decimal separator
+      let cleaned = str.toString().trim();
+      // Remove currency symbols
+      cleaned = cleaned.replace(/[€£$]/g, '');
+      // Remove spaces
+      cleaned = cleaned.replace(/\s/g, '');
+      // If comma is present, assume it's decimal separator (European format)
+      if (cleaned.includes(',')) {
+        cleaned = cleaned.replace(/\./g, ''); // Remove thousand separators (dots)
+        cleaned = cleaned.replace(',', '.'); // Convert comma to dot for parseFloat
+      }
+      return parseFloat(cleaned) || 0;
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(';').map(v => v.trim());
+      const productId = values[productIdIdx] || '';
+      const style = values[styleIdx] || '';
+      
+      if (!productId || !style) continue;
+
+      descriptions.set(productId, {
+        productId,
+        style: values[styleIdx] || '',
+        fabric: values[fabricIdx] || '',
+        colour: values[colourIdx] || '',
+        description: values[descriptionIdx] || '',
+        sizes: values[sizesIdx] || '',
+        textileContent: values[textileContentIdx] || '',
+        productCategory1: values[productCategory1Idx] || '',
+        wspEur: parsePrice(values[wspEurIdx] || '0'),
+        rrpEur: parsePrice(values[rrpEurIdx] || '0'),
+        imagePath: values[imagePathIdx] || '',
+      });
+    }
+
+    setWynckenDescriptions(descriptions);
+    console.log(`✅ Loaded ${descriptions.size} product descriptions`);
+    
+    // Try to combine if PDF is loaded (CSV files are optional)
+    if (wynckenPdfProducts.length > 0) {
+      alert(`✅ ${descriptions.size} product beschrijvingen geladen\n\nJe kunt nu doorgaan met verwerken. De beschrijvingen worden gebruikt om extra informatie toe te voegen aan de producten uit de PDF.`);
+    } else {
+      alert(`✅ ${descriptions.size} product beschrijvingen geladen\n\n📄 Upload nu eerst de PDF invoice (verplicht) om door te gaan.`);
+    }
+  };
+
+  const handleWynckenBarcodesCsv = (text: string) => {
+    console.log('🌻 Parsing Wynken BARCODES CSV...');
+    
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (comma-separated)
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    const productIdIdx = headers.findIndex(h => h.toLowerCase() === 'product id');
+    const styleIdx = headers.findIndex(h => h.toLowerCase() === 'style');
+    const fabricIdx = headers.findIndex(h => h.toLowerCase() === 'fabric');
+    const colourIdx = headers.findIndex(h => h.toLowerCase() === 'colour');
+    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
+    const barcodeIdx = headers.findIndex(h => h.toLowerCase() === 'barcode');
+
+    if (productIdIdx === -1 || styleIdx === -1 || sizeIdx === -1 || barcodeIdx === -1) {
+      alert('Ongeldig CSV-formaat. Verwachte kolommen: Product ID, Style, Size, Barcode');
+      return;
+    }
+
+    const barcodes = new Map<string, {
+      productId: string;
+      style: string;
+      fabric: string;
+      colour: string;
+      size: string;
+      barcode: string;
+    }>();
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(',').map(v => v.trim());
+      const productId = values[productIdIdx] || '';
+      const style = values[styleIdx] || '';
+      const size = values[sizeIdx] || '';
+      const barcode = values[barcodeIdx] || '';
+      
+      if (!productId || !style || !size || !barcode) continue;
+
+      // Create key: productId-size
+      const key = `${productId}-${size}`;
+      barcodes.set(key, {
+        productId,
+        style: values[styleIdx] || '',
+        fabric: values[fabricIdx] || '',
+        colour: values[colourIdx] || '',
+        size,
+        barcode,
+      });
+    }
+
+    setWynckenBarcodes(barcodes);
+    console.log(`✅ Loaded ${barcodes.size} barcodes`);
+    
+    // Try to combine if PDF is loaded (CSV files are optional)
+    if (wynckenPdfProducts.length > 0) {
+      alert(`✅ ${barcodes.size} barcodes geladen\n\nJe kunt nu doorgaan met verwerken. De barcodes worden gebruikt om EAN codes toe te voegen aan de producten uit de PDF.`);
+    } else {
+      alert(`✅ ${barcodes.size} barcodes geladen\n\n📄 Upload nu eerst de PDF invoice (verplicht) om door te gaan.`);
+    }
+  };
+
+  // Format Wynken product name: remove style code and convert to lowercase (except brand name)
+  const formatWynkenProductName = (style: string, colour: string): string => {
+    // Remove style code (e.g., WK20W170, WK20J14 - codes starting with letters and numbers)
+    const removeStyleCode = (text: string): string => {
+      if (!text) return '';
+      // Match style codes like WK20W170, WK20J14 (2+ letters followed by numbers and more letters/numbers)
+      // Pattern: starts with 2+ letters, then digits, then letters/numbers, followed by space
+      const styleCodePattern = /^[A-Z]{2,}\d+[A-Z0-9]*\s+/i;
+      let cleaned = text.replace(styleCodePattern, '').trim();
+      
+      // If pattern didn't match, try to find and remove first word if it looks like a code
+      // (starts with letters, contains numbers)
+      if (cleaned === text) {
+        const words = text.split(' ');
+        if (words.length > 0 && /^[A-Z]{2,}.*\d+.*/i.test(words[0])) {
+          cleaned = words.slice(1).join(' ').trim();
+        }
+      }
+      
+      return cleaned || text; // Return original if nothing was removed
+    };
+    
+    // Convert to lowercase (all lowercase)
+    const toLowerCase = (text: string): string => {
+      if (!text) return '';
+      return text.toLowerCase().trim();
+    };
+    
+    const cleanedStyle = removeStyleCode(style);
+    const formattedStyle = toLowerCase(cleanedStyle);
+    const formattedColour = colour ? toLowerCase(colour) : '';
+    
+    return `Wynken - ${formattedStyle}${formattedColour ? ` - ${formattedColour}` : ''}`;
+  };
+
+  const combineWynckenData = () => {
+    console.log('🌻 Combining Wynken data...');
+    
+    if (wynckenPdfProducts.length === 0) {
+      alert('⚠️ Upload eerst de PDF (proforma invoice)');
+      return;
+    }
+    
+    // CSV bestanden zijn nu optioneel - alleen gebruikt om extra informatie te vinden
+    const hasDescriptions = wynckenDescriptions.size > 0;
+    const hasBarcodes = wynckenBarcodes.size > 0;
+    
+    if (!hasDescriptions && !hasBarcodes) {
+      const proceed = confirm('⚠️ Geen CSV bestanden geüpload.\n\nJe kunt doorgaan met alleen de PDF data, maar je mist dan:\n- Product beschrijvingen\n- Barcodes\n- Exacte maten\n\nWil je doorgaan met alleen PDF data?');
+      if (!proceed) {
+        return;
+      }
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('wyncken') || b.name.toLowerCase().includes('wynken')
+    );
+
+    // Process each product from PDF (these are the products we bought)
+    console.log(`🔍 Processing ${wynckenPdfProducts.length} PDF products${hasDescriptions ? ` with ${wynckenDescriptions.size} descriptions` : ' (no descriptions CSV)'}...`);
+    
+    for (const pdfProduct of wynckenPdfProducts) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3125',message:'PDF product before normalization',data:{style:pdfProduct.style,colour:pdfProduct.colour,rawStyle:pdfProduct.style,rawColour:pdfProduct.colour},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Normalize style and colour for matching
+      const normalizeStyle = (s: string) => s.toUpperCase().trim().replace(/\s+/g, ' ');
+      const normalizeColour = (c: string) => c.toUpperCase().trim().replace(/\s+/g, ' ');
+      
+      const pdfStyle = normalizeStyle(pdfProduct.style);
+      const pdfColour = normalizeColour(pdfProduct.colour);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3131',message:'PDF product after normalization',data:{pdfStyle,pdfColour,normalizedStyle:pdfStyle,normalizedColour:pdfColour},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      // Find matching description by Style + Colour (only if CSV is loaded)
+      let matchedDescription: {
+        productId: string;
+        style: string;
+        fabric: string;
+        colour: string;
+        description: string;
+        sizes: string;
+        textileContent: string;
+        wspEur: number;
+        rrpEur: number;
+      } | null = null;
+
+      // Try exact match first (only if descriptions CSV is loaded)
+      if (hasDescriptions) {
+        let exactMatchAttempts = 0;
+        for (const [productId, desc] of wynckenDescriptions.entries()) {
+          exactMatchAttempts++;
+          const descStyle = normalizeStyle(desc.style);
+          const descColour = normalizeColour(desc.colour);
+          
+          // #region agent log
+          if (exactMatchAttempts <= 3 || descStyle === pdfStyle) {
+            fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3153',message:'Exact match attempt',data:{pdfStyle,pdfColour,descStyle,descColour,styleMatch:descStyle===pdfStyle,colourMatch:descColour===pdfColour,productId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          }
+          // #endregion
+          
+          if (descStyle === pdfStyle && descColour === pdfColour) {
+            matchedDescription = desc;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3155',message:'Exact match found',data:{pdfStyle,pdfColour,descStyle,descColour,productId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            console.log(`✅ Matched: "${pdfProduct.style}" + "${pdfProduct.colour}"`);
+            break;
+          }
+        }
+        
+        // If no exact match, try partial match (style starts with PDF style or vice versa)
+        if (!matchedDescription) {
+          // First, find all descriptions with matching styles
+          type DescriptionType = {
+            productId: string;
+            style: string;
+            fabric: string;
+            colour: string;
+            description: string;
+            sizes: string;
+            textileContent: string;
+            wspEur: number;
+            rrpEur: number;
+          };
+          const matchingStyles: DescriptionType[] = [];
+          for (const [, desc] of wynckenDescriptions.entries()) {
+            const descStyle = normalizeStyle(desc.style);
+            const stylesMatch = descStyle.includes(pdfStyle) || pdfStyle.includes(descStyle) || 
+                               descStyle.split(' ')[0] === pdfStyle.split(' ')[0]; // Match first word (style code)
+            if (stylesMatch) {
+              matchingStyles.push(desc);
+            }
+          }
+          
+          // If we have matching styles, try to match by colour
+          if (matchingStyles.length > 0) {
+          // If PDF has no colour, only match if there's exactly one variant
+          if (!pdfColour || pdfColour.trim() === '') {
+            if (matchingStyles.length === 1) {
+              matchedDescription = matchingStyles[0];
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3185',message:'Partial match found (no colour, single variant)',data:{pdfStyle,pdfColour,descStyle:matchingStyles[0].style,descColour:matchingStyles[0].colour,productId:matchingStyles[0].productId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              console.log(`✅ Matched (no colour, single variant): "${pdfProduct.style}" -> "${matchingStyles[0].style}" + "${matchingStyles[0].colour}"`);
+            } else {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3187',message:'Multiple variants found, no colour to match',data:{pdfStyle,pdfColour,matchingVariants:matchingStyles.map(d=>({style:d.style,colour:d.colour,productId:d.productId})),variantCount:matchingStyles.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              // Multiple variants but no colour - can't determine which one
+              console.log(`⚠️ Multiple variants found for "${pdfProduct.style}" but no colour in PDF. Available colours: ${matchingStyles.map(d => d.colour).join(', ')}`);
+            }
+          } else {
+            // PDF has colour, try to match by colour
+            let partialMatchAttempts = 0;
+            for (const desc of matchingStyles) {
+              partialMatchAttempts++;
+              const descStyle = normalizeStyle(desc.style);
+              const descColour = normalizeColour(desc.colour);
+              
+              const coloursMatch = descColour === pdfColour || 
+                                  descColour.includes(pdfColour) || 
+                                  pdfColour.includes(descColour);
+              
+              // #region agent log
+              if (partialMatchAttempts <= 5) {
+                fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3195',message:'Partial match attempt (with colour)',data:{pdfStyle,pdfColour,descStyle,descColour,coloursMatch,colourExact:descColour===pdfColour,colourContains:descColour.includes(pdfColour)||pdfColour.includes(descColour),productId:desc.productId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              }
+              // #endregion
+              
+              if (coloursMatch) {
+                matchedDescription = desc;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3200',message:'Partial match found (with colour)',data:{pdfStyle,pdfColour,descStyle,descColour,coloursMatch,productId:desc.productId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                console.log(`✅ Matched (partial): "${pdfProduct.style}" + "${pdfProduct.colour}" -> "${desc.style}" + "${desc.colour}"`);
+                break;
+              }
+            }
+          }
+          }
+        }
+      }
+
+      // If no match found in CSV, create product from PDF data only
+      if (!matchedDescription) {
+        if (hasDescriptions) {
+          // #region agent log
+          const availableColours = Array.from(wynckenDescriptions.values())
+            .filter(d => normalizeStyle(d.style) === pdfStyle)
+            .map(d => ({raw: d.colour, normalized: normalizeColour(d.colour)}))
+            .slice(0, 10);
+          fetch('http://127.0.0.1:7242/ingest/221d77e6-f045-4c4e-bd83-7ca2ba49545a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'product-import.tsx:3181',message:'No match found - logging available colours for same style',data:{pdfStyle,pdfColour,availableColours,availableColoursCount:availableColours.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
+          console.log(`⚠️ No description found in CSV for: "${pdfProduct.style}" (${pdfStyle}) + "${pdfProduct.colour}" (${pdfColour}) - using PDF data only`);
+        } else {
+          console.log(`ℹ️ No CSV descriptions loaded - using PDF data only for: "${pdfProduct.style}" + "${pdfProduct.colour}"`);
+        }
+        
+        // Create product from PDF data only
+        const productKey = `${pdfProduct.style}-${pdfProduct.colour}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const formattedName = formatWynkenProductName(pdfProduct.style, pdfProduct.colour);
+        
+        if (!products[productKey]) {
+          products[productKey] = {
+            reference: pdfProduct.style,
+            name: formattedName,
+            originalName: pdfProduct.style,
+            color: pdfProduct.colour || '',
+            material: pdfProduct.materialContent || '',
+            ecommerceDescription: `${pdfProduct.style}${pdfProduct.colour ? ` - ${pdfProduct.colour}` : ''}`,
+            variants: [],
+            suggestedBrand: suggestedBrand?.name,
+            selectedBrand: suggestedBrand,
+            publicCategories: [],
+            productTags: [],
+            isFavorite: false,
+            isPublished: true,
+            sizeAttribute: 'MAAT Kinderen', // Default, will be determined later
+            images: [],
+            imagesFetched: false,
+          };
+        }
+        
+        // Add variant with quantity from PDF (no size info, so create single variant)
+        // If barcodes CSV is loaded, try to find matching barcodes
+        let sizes: string[] = [];
+        if (hasDescriptions) {
+          // Try to find sizes from any matching style (even if colour doesn't match)
+          const styleMatches = Array.from(wynckenDescriptions.values())
+            .filter(d => normalizeStyle(d.style) === pdfStyle);
+          if (styleMatches.length > 0) {
+            // Use sizes from first match
+            sizes = styleMatches[0].sizes.split(',').map(s => s.trim()).filter(s => s);
+          }
+        }
+        
+        // If no sizes found, create a single variant with the total quantity
+        if (sizes.length === 0) {
+          sizes = ['ONE SIZE']; // Placeholder
+        }
+        
+        for (const size of sizes) {
+          let barcodeData = null;
+          if (hasBarcodes && matchedDescription) {
+            const matched = matchedDescription as { productId: string };
+            const barcodeKey = `${matched.productId}-${size}`;
+            barcodeData = wynckenBarcodes.get(barcodeKey);
+          }
+          
+          // Simple size conversion (basic handling)
+          let dutchSize = size;
+          if (size.match(/^\d+M$/i)) {
+            const match = size.match(/^(\d+)M$/i);
+            if (match) dutchSize = `${match[1]} maand`;
+          } else if (/^\d+$/.test(size)) {
+            dutchSize = `${size} jaar`;
+          } else if (size === 'ONE SIZE') {
+            dutchSize = 'One size';
+          }
+          
+          const variantExists = products[productKey].variants.some(v => v.size === dutchSize);
+          if (!variantExists) {
+            products[productKey].variants.push({
+              size: dutchSize,
+              quantity: pdfProduct.quantity,
+              ean: barcodeData?.barcode || '',
+              sku: `${pdfProduct.style}-${size}`,
+              price: pdfProduct.unitPrice,
+              rrp: pdfProduct.unitPrice * 2.5,
+            });
+          }
+        }
+        
+        continue; // Skip to next PDF product
+      }
+
+      // Parse sizes from description (e.g., "6M,9M,12M,18M,24M")
+      const sizes = matchedDescription.sizes.split(',').map(s => s.trim()).filter(s => s);
+      
+      // Create product key: style-colour
+      const productKey = `${matchedDescription.style}-${matchedDescription.colour}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      if (!products[productKey]) {
+        const formattedName = formatWynkenProductName(matchedDescription.style, matchedDescription.colour);
+        
+        // Determine size attribute based on Product Category 1 (no longer available in CSV)
+        // Default to 'MAAT Kinderen' - can be adjusted manually if needed
+        const sizeAttribute = 'MAAT Kinderen';
+
+        // Don't use imagePath - images will be uploaded via image import system
+        // Images array remains empty - use wyncken-images-import page instead
+        const images: string[] = [];
+
+        products[productKey] = {
+          reference: matchedDescription.style,
+          name: formattedName,
+          originalName: matchedDescription.style,
+          color: matchedDescription.colour,
+          material: matchedDescription.textileContent,
+          ecommerceDescription: matchedDescription.description,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: sizeAttribute,
+          images: images,
+          imagesFetched: images.length > 0,
+        };
+      }
+
+      // Determine size category (productCategory1 no longer available in CSV)
+      // Default to non-baby sizes
+      const isBaby = false;
+      const isKids = true;
+      
+      // Add variants for each size
+      // The PDF quantity is the total quantity, we need to distribute it across sizes
+      // For now, we'll create variants with the sizes from the description
+      // The actual quantity per size would need to come from the PDF if available
+      for (const size of sizes) {
+        // Find barcode for this product + size
+        const barcodeKey = `${matchedDescription.productId}-${size}`;
+        const barcodeData = wynckenBarcodes.get(barcodeKey);
+
+        // Convert size to Dutch format
+        const convertSize = (sizeStr: string, _category1: string): string => {
+          void _category1; // category1 parameter kept for compatibility
+          
+          // Handle months: 6M -> 6 maand, 12M -> 12 maand, etc. (for BABY)
+          if (sizeStr.match(/^\d+M$/i)) {
+            const match = sizeStr.match(/^(\d+)M$/i);
+            if (match) {
+              return `${match[1]} maand`;
+            }
+          }
+          
+          // Handle single numbers: 2 -> 2 jaar, 3 -> 3 jaar, etc.
+          if (/^\d+$/.test(sizeStr)) {
+            const num = parseInt(sizeStr);
+            if (isBaby) {
+              return `${num} maand`; // For babies, assume months if just a number
+            } else if (isKids) {
+              return `${num} jaar`; // For kids, convert to years
+            }
+            return `${num} jaar`; // Default to years
+          }
+          
+          // Handle age ranges: 2Y-6Y -> 2 jaar, etc.
+          if (sizeStr.match(/^\d+Y-\d+Y$/i)) {
+            const match = sizeStr.match(/^(\d+)Y-\d+Y$/i);
+            return match ? `${match[1]} jaar` : sizeStr;
+          }
+          
+          // Handle Y suffix: 2Y -> 2 jaar, 3Y -> 3 jaar, etc.
+          if (sizeStr.match(/^\d+Y$/i)) {
+            const match = sizeStr.match(/^(\d+)Y$/i);
+            return match ? `${match[1]} jaar` : sizeStr;
+          }
+          
+          return sizeStr;
+        };
+
+        const dutchSize = convertSize(size, ''); // productCategory1 no longer available
+
+        // Check if variant already exists
+        const variantExists = products[productKey].variants.some(v => v.size === dutchSize);
+        if (!variantExists) {
+          // Use WSP (EUR) for cost price (kostprijs) and RRP (EUR) for retail price (verkoopprijs)
+          const costPrice = matchedDescription.wspEur > 0 ? matchedDescription.wspEur : pdfProduct.unitPrice;
+          const retailPrice = matchedDescription.rrpEur > 0 ? matchedDescription.rrpEur : (costPrice * 2.5);
+          
+          products[productKey].variants.push({
+            size: dutchSize,
+            quantity: pdfProduct.quantity, // Total quantity from PDF (will need to be adjusted per size if PDF has size breakdown)
+            ean: barcodeData?.barcode || '',
+            sku: `${matchedDescription.style}-${size}`,
+            price: costPrice, // Kostprijs = WSP (EUR)
+            rrp: retailPrice, // Verkoopprijs = RRP (EUR)
+          });
+        }
+      }
+    }
+
+    const productList = Object.values(products);
+    productList.forEach(product => {
+      // SizeAttribute is already set based on Product Category 1, but use determineSizeAttribute as fallback
+      if (!product.sizeAttribute || product.sizeAttribute === '') {
+        product.sizeAttribute = determineSizeAttribute(product.variants);
+      }
+    });
+
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+
+    if (productList.length > 0) {
+      const brandMessage = suggestedBrand 
+        ? `\n✅ Merk "${suggestedBrand.name}" automatisch gedetecteerd`
+        : '\n⚠️ Merk niet gevonden in Odoo - selecteer handmatig in stap 4';
+      
+      alert(`✅ ${productList.length} producten gecombineerd uit Wynken bestanden${brandMessage}`);
+    } else {
+      alert('⚠️ Geen producten gevonden na combineren');
+    }
+  };
+
   const parseArmedAngelsCSV = (text: string) => {
     // Armed Angels format parser
     // CSV format with headers: Item Number, Description, Color, Size, SKU, Quantity, Price (EUR)
@@ -2962,6 +4804,263 @@ export default function ProductImportPage() {
     }
   };
 
+  const fetchTheNewSocietyImages = async (imageFolder: File[]) => {
+    if (imageFolder.length === 0) {
+      alert('Geen afbeeldingen geselecteerd');
+      return;
+    }
+
+    if (!importResults || !importResults.results) {
+      alert('Geen import resultaten gevonden');
+      return;
+    }
+
+    const { uid, password } = await getCredentials();
+    if (!uid || !password) {
+      alert('Geen Odoo credentials gevonden');
+      return;
+    }
+
+    setIsLoading(true);
+    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+    try {
+      // Get successful products with Template IDs
+      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
+
+      // Create mapping from product key (reference-color) to Template ID
+      // We need to match based on the original parsed products to get reference and color
+      const productKeyToTemplateId: Record<string, number> = {};
+      
+      for (const result of successfulProducts) {
+        if (result.templateId) {
+          // Find the original product to get reference and color
+          const originalProduct = parsedProducts.find(p => p.reference === result.reference);
+          if (originalProduct) {
+            // Create product key: "S26AHB1P362-Pink Lavander Bow"
+            const productKey = `${originalProduct.reference}-${originalProduct.color}`;
+            productKeyToTemplateId[productKey] = result.templateId;
+          }
+        }
+      }
+
+      console.log(`🌿 Processing ${imageFolder.length} images...`);
+
+      // Read and convert images
+      const imagesToUpload: Array<{ base64: string; filename: string; productReference: string; colorName: string }> = [];
+      
+      for (const file of imageFolder) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          // Extract product reference and color from filename
+          // Format: "s26ahb1p362-pink_lavander_bow-1-3dc260.jpg"
+          // Pattern: {reference_lowercase}-{color_lowercase_with_underscores}-{number}-{hash}.jpg
+          const filenameWithoutExt = file.name.replace(/\.[^.]+$/, '').toLowerCase();
+          
+          // Match pattern: {reference}-{color}-{number}-{hash}
+          const match = filenameWithoutExt.match(/^([a-z0-9]+)-(.+?)-(\d+)-[a-f0-9]+$/);
+          
+          if (!match) {
+            console.log(`⚠️ Could not parse filename: ${file.name}`);
+            continue;
+          }
+
+          const referenceLower = match[1]; // e.g., "s26ahb1p362"
+          const colorLower = match[2]; // e.g., "pink_lavander_bow"
+          
+          // Convert reference to uppercase: "S26AHB1P362"
+          const productReference = referenceLower.toUpperCase();
+          
+          // Convert color to title case: "Pink Lavander Bow"
+          const colorName = colorLower
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+
+          // Create product key to match with template IDs
+          const productKey = `${productReference}-${colorName}`;
+
+          if (!productKeyToTemplateId[productKey]) {
+            console.log(`⚠️ No template ID found for product ${productKey}`);
+            continue;
+          }
+
+          imagesToUpload.push({
+            base64,
+            filename: file.name,
+            productReference,
+            colorName,
+          });
+
+          console.log(`✅ Loaded image: ${file.name} (Reference: ${productReference}, Color: ${colorName})`);
+        } catch (error) {
+          console.error(`❌ Error reading file ${file.name}:`, error);
+        }
+      }
+
+      if (imagesToUpload.length === 0) {
+        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`🌿 Uploading ${imagesToUpload.length} images...`);
+
+      // Upload images in batches to avoid exceeding request size limits
+      const BATCH_SIZE = 2; // Process 2 images per request
+      const batches = [];
+      
+      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
+        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
+      
+      let totalSize = 0;
+      for (const img of imagesToUpload) {
+        totalSize += img.base64.length;
+      }
+      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+      
+      let totalUploaded = 0;
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        let batchSize = 0;
+        for (const img of batch) {
+          batchSize += img.base64.length;
+        }
+        console.log(`🌿 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
+        
+        // Upload batch
+        const response = await fetch('/api/thenewsociety-upload-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: batch,
+            productKeyToTemplateId,
+            odooUid: uid,
+            odooPassword: password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
+          // Add failed results for this batch
+          for (const img of batch) {
+            const existingResult = results.find(r => r.reference === img.productReference);
+            if (existingResult) {
+              existingResult.success = false;
+              existingResult.error = `Batch ${batchIndex + 1} upload failed with status ${response.status}`;
+            } else {
+              results.push({
+                reference: img.productReference,
+                success: false,
+                imagesUploaded: 0,
+                error: `Batch ${batchIndex + 1} upload failed`,
+              });
+            }
+          }
+          continue;
+        }
+
+        const imageResult = await response.json();
+        
+        if (!imageResult.success) {
+          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
+          for (const img of batch) {
+            const existingResult = results.find(r => r.reference === img.productReference);
+            if (existingResult) {
+              existingResult.success = false;
+              existingResult.error = imageResult.error || 'Unknown error';
+            } else {
+              results.push({
+                reference: img.productReference,
+                success: false,
+                imagesUploaded: 0,
+                error: imageResult.error || 'Unknown error',
+              });
+            }
+          }
+        } else {
+          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded || imageResult.results?.filter((r: any) => r.success).length || 0}/${batch.length} uploaded`);
+          totalUploaded += imageResult.imagesUploaded || imageResult.results?.filter((r: any) => r.success).length || 0;
+          
+          if (imageResult.results) {
+            // Group results by product reference
+            const resultsByProduct: Record<string, number> = {};
+            for (const result of imageResult.results) {
+              if (result.success) {
+                if (!resultsByProduct[result.productReference]) {
+                  resultsByProduct[result.productReference] = 0;
+                }
+                resultsByProduct[result.productReference]++;
+              }
+            }
+            
+            // Add to results
+            for (const [productReference, count] of Object.entries(resultsByProduct)) {
+              const existingResult = results.find(r => r.reference === productReference);
+              if (existingResult) {
+                existingResult.imagesUploaded += count;
+              } else {
+                results.push({
+                  reference: productReference,
+                  success: true,
+                  imagesUploaded: count,
+                });
+              }
+            }
+            
+            // Add failed results
+            for (const result of imageResult.results) {
+              if (!result.success) {
+                const existingResult = results.find(r => r.reference === result.productReference);
+                if (existingResult) {
+                  existingResult.success = false;
+                  existingResult.error = result.error || 'Unknown error';
+                } else {
+                  results.push({
+                    reference: result.productReference,
+                    success: false,
+                    imagesUploaded: 0,
+                    error: result.error || 'Unknown error',
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
+      
+      setImageImportResults(results);
+      setIsLoading(false);
+      setCurrentStep(7);
+      
+      const successCount = results.filter(r => r.success).length;
+      alert(`✅ Upload voltooid!\n${totalUploaded}/${imagesToUpload.length} images geüpload\n${successCount}/${results.length} producten succesvol`);
+
+    } catch (error) {
+      console.error('❌ Error uploading images:', error);
+      alert(`❌ Error: ${String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchJenestImages = async (imageFolder: File[]) => {
     if (imageFolder.length === 0) {
       alert('Geen afbeeldingen geselecteerd');
@@ -3042,7 +5141,7 @@ export default function ProductImportPage() {
           
           for (const product of parsedProducts) {
             // Normalize product name and color for matching
-            const normalizedProductName = product.originalName.toUpperCase().trim().replace(/\s+/g, ' ');
+            const normalizedProductName = (product.originalName || product.name).toUpperCase().trim().replace(/\s+/g, ' ');
             const normalizedColor = product.color.toUpperCase().trim().replace(/\s+/g, ' ');
             
             // Build expected pattern: "PRODUCT NAME COLOR"
@@ -3619,6 +5718,7 @@ export default function ProductImportPage() {
             body: JSON.stringify({
               products: [transformProductForUpload(product)], // Apply Dutch size names before upload
               testMode,
+              vendor: selectedVendor || 'unknown', // Include vendor for audit logging
               uid,
               password,
             }),
@@ -3648,7 +5748,22 @@ export default function ProductImportPage() {
       }
 
       setImportProgress(null);
-      setImportResults({ success: true, results });
+      
+      // Calculate summary statistics
+      const summary = {
+        total: results.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length,
+        totalVariantsCreated: results.reduce((sum, r) => sum + (r.variantsCreated || 0), 0),
+        totalVariantsUpdated: results.reduce((sum, r) => sum + (r.variantsUpdated || 0), 0),
+        vendor: selectedVendor || 'unknown',
+        timestamp: new Date().toISOString(),
+      };
+      
+      setImportResults({ success: true, results, summary });
+      
+      // Log to console for debugging
+      console.log('📊 Import Summary:', summary);
       
       // Save Play UP import results to sessionStorage for image upload
       if (selectedVendor === 'playup') {
@@ -3954,6 +6069,89 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('wyncken')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'wyncken'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌻</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Wynken</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        PDF Proforma + PRODUCT DESCRIPTIONS.csv + SS26 BARCODES.csv
+                      </p>
+                      {selectedVendor === 'wyncken' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    {/* One More in the Family */}
+                    <button
+                      onClick={() => setSelectedVendor('onemore')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'onemore'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">👶</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">1+ in the family</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Order export met Product reference, Description, Color name, Size name, EAN13, Unit price
+                      </p>
+                      {selectedVendor === 'onemore' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('weekendhousekids')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'weekendhousekids'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🏠</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Weekend House Kids</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Gebruik het <strong>order-*.csv</strong> bestand (NIET export-Order-*.csv)
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Met headers: Product reference, Product name, Color name, Size name, EAN13, Unit price
+                      </p>
+                      {selectedVendor === 'weekendhousekids' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('thenewsociety');
+                        // Reset The New Society upload states when selecting vendor
+                        setThenewsocietyOrderConfirmationLoaded(false);
+                        setThenewsocietyOrderLoaded(false);
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'thenewsociety'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌿</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">The New Society</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Twee bestanden nodig: Order Confirmation (SRP) + Order CSV (EAN13, SKU's)
+                      </p>
+                      {selectedVendor === 'thenewsociety' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -4008,6 +6206,223 @@ export default function ProductImportPage() {
                         )}
                       </div>
 
+                      {/* The New Society requires two files */}
+                      {selectedVendor === 'thenewsociety' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-green-900 dark:text-green-300">📊 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={thenewsocietyOrderLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  Order CSV: {thenewsocietyOrderLoaded ? `✅ ${parsedProducts.length} producten geladen` : '❌ Verplicht - Upload eerst!'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className={thenewsocietyOrderConfirmationLoaded ? 'text-green-600 font-semibold' : thenewsocietyOrderLoaded ? 'text-blue-600 font-semibold' : 'text-gray-600'}>
+                                  Order Confirmation CSV: {thenewsocietyOrderConfirmationLoaded ? '✅ Geladen en gecombineerd' : thenewsocietyOrderLoaded ? '⏳ Klaar om te uploaden (voor SRP prijzen)' : '⏳ Wacht op Order CSV'}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">💡 Belangrijk:</p>
+                              <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                                <li><strong>Eerst:</strong> Upload Order CSV (met EAN13, SKU's, Product reference, sizes, quantities - ALLE import data)</li>
+                                <li><strong>Dan:</strong> Upload Order Confirmation CSV (alleen voor SRP/verkoopprijs kolommen)</li>
+                                <li>Het systeem combineert beide bestanden automatisch - Order CSV is de basis, Order Confirmation voegt alleen prijzen toe</li>
+                              </ol>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Order CSV - Required First */}
+                            <div className={`border-2 ${thenewsocietyOrderLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                1️⃣ Order CSV <span className="text-red-500">*</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met EAN13, SKU, Product reference, sizes, quantities - ALLE import data
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: "order-3116895-20260204.csv"
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="thenewsociety-order-upload"
+                              />
+                              <label
+                                htmlFor="thenewsociety-order-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  thenewsocietyOrderLoaded 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {thenewsocietyOrderLoaded ? `✅ Geladen (${parsedProducts.length} producten)` : '📄 Upload Order CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* Order Confirmation CSV - Required Second */}
+                            <div className={`border-2 ${thenewsocietyOrderConfirmationLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : thenewsocietyOrderLoaded ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-300 bg-gray-50 dark:bg-gray-800'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📋</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                2️⃣ Order Confirmation CSV <span className="text-red-500">*</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Alleen voor SRP (verkoopprijs) kolommen
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: "Babette - Jove BV..csv"
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                disabled={!thenewsocietyOrderLoaded}
+                                className="hidden"
+                                id="thenewsociety-confirmation-upload"
+                              />
+                              <label
+                                htmlFor="thenewsociety-confirmation-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium ${
+                                  !thenewsocietyOrderLoaded
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    : thenewsocietyOrderConfirmationLoaded
+                                    ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                                }`}
+                              >
+                                {!thenewsocietyOrderLoaded 
+                                  ? '⏳ Wacht op Order CSV' 
+                                  : thenewsocietyOrderConfirmationLoaded
+                                  ? '✅ Geladen en gecombineerd'
+                                  : '📋 Upload Order Confirmation'}
+                              </label>
+                              {!thenewsocietyOrderLoaded && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Upload eerst Order CSV!
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : selectedVendor === 'wyncken' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-3 bg-gray-100 rounded">
+                            <p className="text-sm font-semibold mb-2">📊 Upload Status:</p>
+                            <p className="text-sm">
+                              <span className={wynckenPdfProducts.length > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                PDF Invoice: {wynckenPdfProducts.length > 0 ? `✅ ${wynckenPdfProducts.length} producten` : '❌ Verplicht'}
+                              </span>
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Descriptions CSV: {wynckenDescriptions.size > 0 ? `✅ ${wynckenDescriptions.size} producten (optioneel)` : '⭕ Optioneel'} | 
+                              Barcodes CSV: {wynckenBarcodes.size > 0 ? `✅ ${wynckenBarcodes.size} barcodes (optioneel)` : '⭕ Optioneel'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-2">
+                              💡 Tip: Upload eerst de PDF invoice. CSV bestanden zijn optioneel en worden alleen gebruikt om extra informatie (beschrijvingen, barcodes, maten) toe te voegen.
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4">
+                            {/* PDF Upload - Required */}
+                            <div className={`border-2 ${wynckenPdfProducts.length > 0 ? 'border-green-500 bg-green-50' : 'border-purple-500'} rounded-lg p-4 text-center`}>
+                              <div className="text-3xl mb-2">📄</div>
+                              <h4 className="font-bold text-sm mb-1">
+                                PDF Invoice <span className="text-red-500">*</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 mb-2">Verplicht</p>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleWynckenPdfUploadHandler}
+                                className="hidden"
+                                id="wyncken-pdf-upload"
+                              />
+                              <label
+                                htmlFor="wyncken-pdf-upload"
+                                className={`inline-block px-3 py-1 text-xs rounded ${
+                                  wynckenPdfProducts.length > 0 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                                } cursor-pointer`}
+                              >
+                                {wynckenPdfProducts.length > 0 ? '✅ PDF Geladen' : 'Upload PDF'}
+                              </label>
+                            </div>
+                            
+                            {/* Descriptions CSV - Optional */}
+                            <div className={`border-2 ${wynckenDescriptions.size > 0 ? 'border-green-500 bg-green-50' : 'border-blue-500'} rounded-lg p-4 text-center`}>
+                              <div className="text-3xl mb-2">📋</div>
+                              <h4 className="font-bold text-sm mb-1">Descriptions CSV</h4>
+                              <p className="text-xs text-gray-600 mb-2">Optioneel</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="wyncken-desc-csv-upload"
+                              />
+                              <label
+                                htmlFor="wyncken-desc-csv-upload"
+                                className={`inline-block px-3 py-1 text-xs rounded ${
+                                  wynckenDescriptions.size > 0 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                } cursor-pointer`}
+                              >
+                                {wynckenDescriptions.size > 0 ? '✅ CSV Geladen' : 'Upload CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* Barcodes CSV - Optional */}
+                            <div className={`border-2 ${wynckenBarcodes.size > 0 ? 'border-green-500 bg-green-50' : 'border-green-500'} rounded-lg p-4 text-center`}>
+                              <div className="text-3xl mb-2">🏷️</div>
+                              <h4 className="font-bold text-sm mb-1">Barcodes CSV</h4>
+                              <p className="text-xs text-gray-600 mb-2">Optioneel</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="wyncken-barcode-csv-upload"
+                              />
+                              <label
+                                htmlFor="wyncken-barcode-csv-upload"
+                                className={`inline-block px-3 py-1 text-xs rounded ${
+                                  wynckenBarcodes.size > 0 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                } cursor-pointer`}
+                              >
+                                {wynckenBarcodes.size > 0 ? '✅ CSV Geladen' : 'Upload CSV'}
+                              </label>
+                            </div>
+                          </div>
+                          
+                          {/* Manual combine button - Only requires PDF */}
+                          {wynckenPdfProducts.length > 0 && (
+                            <div className="mt-4 text-center">
+                              <button
+                                onClick={() => {
+                                  combineWynckenData();
+                                }}
+                                className="px-6 py-3 rounded font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+                              >
+                                ✅ Verwerk Producten & Ga Verder
+                              </button>
+                              {wynckenDescriptions.size === 0 && wynckenBarcodes.size === 0 && (
+                                <p className="text-xs text-orange-600 mt-2">
+                                  ⚠️ Geen CSV bestanden geüpload - alleen PDF data wordt gebruikt
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {/* CSV Upload - NOT for Thinking Mu */}
                         {selectedVendor !== 'thinkingmu' && (
@@ -4017,8 +6432,15 @@ export default function ProductImportPage() {
                           <p className="text-sm text-gray-800 mb-4 font-medium">
                             {selectedVendor === 'armedangels' 
                               ? 'Invoice CSV with your order' 
+                              : selectedVendor === 'weekendhousekids'
+                              ? 'Order CSV (order-*.csv, NIET export-Order-*.csv)'
                               : 'Product data (required)'}
                           </p>
+                          {selectedVendor === 'weekendhousekids' && (
+                            <p className="text-xs text-orange-600 mb-2 font-medium">
+                              ⚠️ Gebruik het order-*.csv bestand, niet het export-Order-*.csv bestand!
+                            </p>
+                          )}
                           <input
                             type="file"
                             accept=".csv"
@@ -4083,8 +6505,8 @@ export default function ProductImportPage() {
                           </div>
                         )}
 
-                        {/* Prijzen CSV - NOT for Armed Angels or Thinking Mu */}
-                        {selectedVendor !== 'armedangels' && selectedVendor !== 'thinkingmu' && (
+                        {/* Prijzen CSV - NOT for Armed Angels, Thinking Mu, or Wyncken */}
+                        {(
                         <div className="border-2 border-orange-400 dark:border-orange-600 rounded-lg p-6 text-center">
                           <div className="text-4xl mb-3">💰</div>
                           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Prijzen CSV</h3>
@@ -4314,19 +6736,20 @@ export default function ProductImportPage() {
                             </div>
                           </div>
                         )}
+
+                        {pdfPrices.size > 0 && (
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3 mb-4">
+                            <p className="text-green-800 dark:text-green-300 font-medium">
+                              ✅ Prijzen CSV geladen: {pdfPrices.size} SKU prijzen beschikbaar
+                            </p>
+                            <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                              Kostprijzen uit prijzen CSV worden gebruikt in plaats van product CSV prijzen waar beschikbaar
+                            </p>
+                          </div>
+                        )}
                       </div>
-
-                      {pdfPrices.size > 0 && (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3 mb-4">
-                          <p className="text-green-800 dark:text-green-300 font-medium">
-                            ✅ Prijzen CSV geladen: {pdfPrices.size} SKU prijzen beschikbaar
-                          </p>
-                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                            Kostprijzen uit prijzen CSV worden gebruikt in plaats van product CSV prijzen waar beschikbaar
-                          </p>
-                        </div>
                       )}
-
+                      
                       {/* Play UP Website Credentials */}
                       {selectedVendor === 'playup' && (
                         <div className="border-2 border-purple-300 dark:border-purple-700 rounded-lg p-6 mb-4">
@@ -4418,7 +6841,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -4514,6 +6937,16 @@ OUTBACK ROO T-SHIRT 2Y | 1.00 | 11.60 | GST Free | 11.60`}
                             → Ecommerce Description: FIT COMMENTS + PRODUCT FEATURES gecombineerd
                           </p>
                         </div>
+                      ) : selectedVendor === 'onemore' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`Order id;Date;Status;Season;Brand name;Brand sales person;Collection;Category;Product name;Product reference;Color name;Description;Composition;Fabric / print;Size family name;Size name;EAN13;SKU;Quantity;Unit price;Net amount;Pre-discount amount;Discount rate;Currency
+3116535;2025-08-05 09:46:54;Confirmed;Pre-SS26;1+ in the family;Chaparal ;26s newborn & baby;Newborn;26s063;EGAS;blossom;hat;60% co 40% pes;GINGHAM SEERSUCKER;T1, T2, T3;T1;8448261015630;26s063blosT1;2;16;32,00;32,00;0;EUR
+3116535;2025-08-05 09:46:54;Confirmed;Pre-SS26;1+ in the family;Chaparal ;26s newborn & baby;Newborn;26s063;EGAS;blossom;hat;60% co 40% pes;GINGHAM SEERSUCKER;T1, T2, T3;T2;8448261015647;26s063blosT2;2;16;32,00;32,00;0;EUR
+
+→ Wordt: "1+ in the family - Hat - Blossom"
+→ Variant: Maat T1 (MAAT Baby's), EAN: 8448261015630, Prijs: €16,00, RRP: €40,00 (2.5x)
+→ Producten gegroepeerd op Product reference + Color name`}
+                        </pre>
                       ) : selectedVendor === 'jenest' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
 {`Order no.;Date;Currency;Drop;Total Quantity;Total price;VAT;Shipping;Handling fee;VAT Amount;Total price after VAT;Comments;Order reference;Product name;Item number;Color;Size;Collection;SKU;EAN Number;Rec retail price;Line quantity;Line unit price;Total line price;Product description;Top categories;Sub categories;HS Tariff Code;Country of origin;Composition;Wash and care
@@ -5774,6 +8207,31 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
                 </div>
 
+                {/* Import Summary */}
+                {importResults.summary && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 className="font-bold text-gray-900 mb-3">📊 Import Samenvatting</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <div className="text-gray-600">Leverancier</div>
+                        <div className="font-bold text-gray-900">{importResults.summary.vendor}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Tijdstip</div>
+                        <div className="font-bold text-gray-900">{new Date(importResults.summary.timestamp).toLocaleString('nl-NL')}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Varianten Aangemaakt</div>
+                        <div className="font-bold text-gray-900">{importResults.summary.totalVariantsCreated}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Varianten Bijgewerkt</div>
+                        <div className="font-bold text-gray-900">{importResults.summary.totalVariantsUpdated}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <h3 className="font-bold text-gray-900 mb-3">Import Details</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -5783,6 +8241,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         <th className="p-2 text-left">Product Naam</th>
                         <th className="p-2 text-left">Product ID</th>
                         <th className="p-2 text-left">Varianten</th>
+                        <th className="p-2 text-left">Afbeeldingen</th>
                         <th className="p-2 text-left">Bericht</th>
                       </tr>
                     </thead>
@@ -5813,7 +8272,17 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                               '-'
                             )}
                           </td>
-                          <td className="p-2">{result.variantsCreated || 0}</td>
+                          <td className="p-2">
+                            {result.success ? (
+                              <>
+                                {result.variantsCreated || 0} aangemaakt
+                                {result.variantsUpdated ? `, ${result.variantsUpdated} bijgewerkt` : ''}
+                              </>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="p-2">{result.imagesUploaded || 0}</td>
                           <td className="p-2 text-xs text-gray-800">{result.message}</td>
                         </tr>
                       ))}
@@ -5842,6 +8311,82 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all"
                     >
                       🖼️ Upload Play UP Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Image Import for 1+ in the family */}
+                {selectedVendor === 'onemore' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>The same CSV you just imported</li>
+                        <li>Local images from your order folder (e.g., <code className="bg-gray-100 px-1 rounded">order-3116535-images-1-66dae6</code>)</li>
+                        <li>The app will automatically match them based on Product name and Color!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/onemore-images-import"
+                      className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all"
+                    >
+                      👶 Upload 1+ in the family Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Image Import for Wyncken */}
+                {selectedVendor === 'wyncken' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-purple-50 to-yellow-50 border-2 border-purple-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-purple-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>The same PRODUCT DESCRIPTIONS.csv you just imported</li>
+                        <li>Local images from SS26 FLAT SHOTS folder (e.g., <code className="bg-gray-100 px-1 rounded">MW20J01-ARTISTS BLUE-2.jpg</code>)</li>
+                        <li>The app will automatically match them based on Style and Colour!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/wyncken-images-import"
+                      className="block w-full bg-gradient-to-r from-purple-600 to-yellow-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-yellow-700 font-bold shadow-lg transition-all"
+                    >
+                      🌻 Upload Wynken Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Image Import for Weekend House Kids */}
+                {selectedVendor === 'weekendhousekids' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>The same CSV you just imported</li>
+                        <li>Stills (product photos) from <code className="bg-gray-100 px-1 rounded">Stills WHK SS26</code> folder (e.g., <code className="bg-gray-100 px-1 rounded">26015_1.jpg</code>)</li>
+                        <li>Looks (model photos) from <code className="bg-gray-100 px-1 rounded">Looks WHK SS26</code> folder</li>
+                        <li>The app will automatically match them based on Product reference!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/weekendhousekids-images-import"
+                      className="block w-full bg-gradient-to-r from-blue-600 to-green-600 text-white text-center px-6 py-3 rounded-lg hover:from-blue-700 hover:to-green-700 font-bold shadow-lg transition-all"
+                    >
+                      🏠 Upload Weekend House Kids Afbeeldingen →
                     </Link>
                   </div>
                 )}
@@ -5908,6 +8453,74 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
                       <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Flöss order in een keer selecteren. Het systeem matcher ze automatisch op Style No.</p>
                       <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> F10625 - Apple Knit Cardigan - Red Apple - Main.jpg</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Import for The New Society */}
+                {selectedVendor === 'thenewsociety' && imageImportResults.length === 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded p-6 mb-6">
+                    <h3 className="font-bold text-green-900 text-gray-900 mb-3">🌿 Afbeeldingen Importeren (Optioneel)</h3>
+                    <p className="text-sm text-green-800 mb-4">
+                      Upload afbeeldingen van je The New Society order folder voor de succesvol geïmporteerde producten.
+                    </p>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Bestandsnamen moeten het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg</li>
+                        <li>Format: {`{reference_lowercase}-{color_lowercase_with_underscores}-{image_number}-{hash}.jpg`}</li>
+                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
+                      </ul>
+                    </div>
+
+                    <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center mb-4">
+                      <div className="text-4xl mb-3">📁</div>
+                      <h4 className="font-bold text-green-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
+                      <p className="text-sm text-green-700 mb-4">Klik om meerdere afbeeldingen uit je The New Society order folder te selecteren</p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const files = Array.from(e.target.files);
+                            console.log(`📁 Selected ${files.length} images`);
+                            
+                            // Group and show summary
+                            const productRefs = new Set(
+                              files.map(f => {
+                                const match = f.name.toLowerCase().match(/^([a-z0-9]+)-/);
+                                return match ? match[1].toUpperCase() : null;
+                              }).filter(Boolean)
+                            );
+                            
+                            if (productRefs.size === 0) {
+                              alert('⚠️ Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg');
+                              return;
+                            }
+
+                            alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${productRefs.size} producten\n\nKlik op "Upload Images" om te beginnen`);
+                            
+                            // Start upload
+                            fetchTheNewSocietyImages(files);
+                          }
+                        }}
+                        className="hidden"
+                        id="thenewsociety-images-upload"
+                      />
+                      <label
+                        htmlFor="thenewsociety-images-upload"
+                        className="bg-green-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-green-700 font-bold inline-block"
+                      >
+                        📁 Selecteer Afbeeldingen
+                      </label>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
+                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je The New Society order in een keer selecteren. Het systeem matcher ze automatisch op Product reference en Color name.</p>
+                      <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> s26ahb1p362-pink_lavander_bow-1-3dc260.jpg</p>
+                      <p className="mt-1"><strong>Voorbeeld:</strong> s26ahb1p362-pink_lavander_bow-1-3dc260.jpg → Reference: S26AHB1P362, Color: Pink Lavander Bow, Image: 1</p>
                     </div>
                   </div>
                 )}
@@ -6021,6 +8634,9 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       setParsedProducts([]);
                       setSelectedProducts(new Set());
                       setImportResults(null);
+                      // Reset The New Society upload states
+                      setThenewsocietyOrderConfirmationLoaded(false);
+                      setThenewsocietyOrderLoaded(false);
                       setImageImportResults([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -6035,6 +8651,50 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     >
                       🎮 Upload Play UP Afbeeldingen
                     </Link>
+                  ) : selectedVendor === 'onemore' ? (
+                    <Link
+                      href="/onemore-images-import"
+                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                    >
+                      👶 Upload 1+ in the family Afbeeldingen
+                    </Link>
+                  ) : selectedVendor === 'wyncken' ? (
+                    <Link
+                      href="/wyncken-images-import"
+                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                    >
+                      🌻 Upload Wynken Afbeeldingen
+                    </Link>
+                  ) : selectedVendor === 'weekendhousekids' ? (
+                    <>
+                      <Link
+                        href="/weekendhousekids-images-import"
+                        className="ml-3 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 inline-block"
+                      >
+                        🏠 Upload Weekend House Kids Afbeeldingen
+                      </Link>
+                      <Link
+                        href="/weekendhousekids-price-update"
+                        className="ml-3 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 inline-block"
+                      >
+                        💰 Weekend House Kids Prijs Update
+                      </Link>
+                    </>
+                  ) : selectedVendor === 'thenewsociety' ? (
+                    <>
+                      <Link
+                        href="/product-images-import"
+                        className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                      >
+                        📸 Upload Afbeeldingen
+                      </Link>
+                      <Link
+                        href="/thenewsociety-price-update"
+                        className="ml-3 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 inline-block"
+                      >
+                        💰 The New Society Prijs Update
+                      </Link>
+                    </>
                   ) : (
                     <Link
                       href="/product-images-import"

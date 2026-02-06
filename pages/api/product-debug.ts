@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -24,23 +25,22 @@ async function callOdoo(uid: number, password: string, model: string, method: st
   return json.result;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { id, uid, password } = req.query;
+  const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'Product ID is required' });
   }
 
-  if (!uid || !password || typeof uid !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Missing uid or password' });
-  }
+  // Get credentials from session
+  const { uid, password } = req.session.user!;
 
   try {
     const productId = parseInt(id);
@@ -49,7 +49,7 @@ export default async function handler(
 
     // Fetch the product template  
     const template = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'read',
@@ -69,7 +69,7 @@ export default async function handler(
     let attributeLines = [];
     if (productTemplate.attribute_line_ids && productTemplate.attribute_line_ids.length > 0) {
       attributeLines = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template.attribute.line',
         'read',
@@ -81,7 +81,7 @@ export default async function handler(
     let variants = [];
     if (productTemplate.product_variant_ids && productTemplate.product_variant_ids.length > 0) {
       variants = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.product',
         'read',
@@ -93,7 +93,7 @@ export default async function handler(
     let category = null;
     if (productTemplate.categ_id && productTemplate.categ_id[0]) {
       const categoryResult = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.category',
         'read',
@@ -109,7 +109,7 @@ export default async function handler(
     if (productTemplate.public_categ_ids && productTemplate.public_categ_ids.length > 0) {
       try {
         publicCategories = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.public.category',
           'read',
@@ -145,3 +145,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

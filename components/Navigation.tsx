@@ -69,7 +69,7 @@ export default function Navigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher'].includes(router.pathname);
+    return ['/product-import', '/product-cleanup', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import'].includes(router.pathname);
   };
   
   const isBeheerActive = () => {
@@ -200,8 +200,20 @@ export default function Navigation() {
                     <Link href="/ao76-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ao76-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Ao76 Image Matcher
                     </Link>
+                    <Link href="/onemore-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/onemore-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      👶 1+ in the family Images
+                    </Link>
+                    <Link href="/wyncken-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/wyncken-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🌻 Wynken Images
+                    </Link>
                     <Link href="/product-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Ao76 Images Upload
+                    </Link>
+                    <Link href="/thenewsociety-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/thenewsociety-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🌿 The New Society Images
+                    </Link>
+                    <Link href="/weekendhousekids-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/weekendhousekids-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🏠 Weekend House Kids Images
                     </Link>
                   </div>
                 </div>
@@ -566,6 +578,28 @@ export default function Navigation() {
                   Ao76 Image Matcher
                 </Link>
                 <Link
+                  href="/onemore-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/onemore-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  👶 1+ in the family Images
+                </Link>
+                <Link
+                  href="/wyncken-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/wyncken-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🌻 Wyncken Images
+                </Link>
+                <Link
                   href="/product-images-import"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -575,6 +609,28 @@ export default function Navigation() {
                   }`}
                 >
                   Ao76 Images Upload
+                </Link>
+                <Link
+                  href="/thenewsociety-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/thenewsociety-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🌿 The New Society Images
+                </Link>
+                <Link
+                  href="/weekendhousekids-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/weekendhousekids-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🏠 Weekend House Kids Images
                 </Link>
               </div>
             )}

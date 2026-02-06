@@ -208,7 +208,11 @@ export function logProductImport(
     userId,
     username,
     ipAddress,
-    details: { productsCount, ...details },
+    details: { 
+      productsCount, 
+      timestamp: new Date().toISOString(),
+      ...details 
+    },
     success,
   });
 }

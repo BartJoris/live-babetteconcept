@@ -90,10 +90,6 @@ export default async function handler(
     // Table format: Description | Quantity | Unit Price | GST | Amount EUR
     // Example: "COLOUR BLOCK OXFORD BURTON OVERALLS 2Y | 1.00 | 27.60 | GST Free | 27.60"
     
-    // Pattern to match product lines: Product name with size, quantity, price, GST, amount
-    // Skip header lines and footer lines
-    const productLinePattern = /^([A-Z][A-Z\s\/\-\(\)]+(?:\d+Y|\d+-\d+Y|\d+-\d+M|\d+M|\dY))\s+(\d+\.\d{2})\s+(\d+\.\d{2})\s+GST\s+Free\s+(\d+\.\d{2})$/i;
-    
     // Also handle lines where product name might be split
     let pendingProductName = '';
     

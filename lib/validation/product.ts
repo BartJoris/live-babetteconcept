@@ -33,6 +33,7 @@ export const productSchema = z.object({
     name: z.string(),
   })).default([]),
   originalName: z.string().optional(),
+  productName: z.string().optional(), // Product name from CSV (e.g., "26s063" for 1+ - used in image filenames)
   isFavorite: z.boolean().default(false),
   isPublished: z.boolean().default(true),
   sizeAttribute: z.string().optional(),

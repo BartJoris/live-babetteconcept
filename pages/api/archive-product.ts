@@ -1,32 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { odooClient } from '@/lib/odooClient';
 
-const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
-
-async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
-  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
-  if (kwargs) executeArgs.push(kwargs);
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: { service: 'object', method: 'execute_kw', args: executeArgs },
-    id: Date.now(),
-  };
-
-  const response = await fetch(ODOO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
-  return json.result;
-}
-
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -34,15 +11,16 @@ export default async function handler(
   }
 
   try {
-    const { templateIds, uid, password } = req.body as {
-      templateIds: number[];
-      uid: string;
-      password: string;
-    };
+    const { uid, password } = req.session.user || {};
 
     if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
+      console.error('❌ No credentials in session');
+      return res.status(401).json({ error: 'Unauthorized - no session credentials' });
     }
+
+    const { templateIds } = req.body as {
+      templateIds: number[];
+    };
 
     if (!templateIds || templateIds.length === 0) {
       return res.status(400).json({ error: 'No products provided' });
@@ -58,14 +36,14 @@ export default async function handler(
 
         // Step 1: Get all variants for this template
         console.log('Step 1: Fetching variants...');
-        const variants = await callOdoo(
-          parseInt(uid),
+        const variants = await odooClient.call<Array<{ id: number; name: string; barcode: string | null }>>({
+          uid,
           password,
-          'product.product',
-          'search_read',
-          [[['product_tmpl_id', '=', templateId]]],
-          { fields: ['id', 'name', 'barcode'] }
-        );
+          model: 'product.product',
+          method: 'search_read',
+          args: [[['product_tmpl_id', '=', templateId]]],
+          kwargs: { fields: ['id', 'name', 'barcode'] },
+        });
 
         console.log(`Found ${variants.length} variants`);
 
@@ -76,7 +54,13 @@ export default async function handler(
           for (const variant of variants) {
             try {
               console.log(`📌 Clearing barcode from variant ${variant.id} (current barcode: ${variant.barcode || 'none'})`);
-              await callOdoo(parseInt(uid), password, 'product.product', 'write', [[variant.id], { barcode: null }]);
+              await odooClient.call({
+                uid,
+                password,
+                model: 'product.product',
+                method: 'write',
+                args: [[variant.id], { barcode: null }],
+              });
               console.log(`✅ Successfully cleared barcode for variant ${variant.id}`);
             } catch (e) {
               console.error(`❌ Failed to clear barcode for variant ${variant.id}:`, e);
@@ -89,17 +73,23 @@ export default async function handler(
         // Step 3: Remove all attributes from the product
         console.log('Step 3: Removing all product attributes...');
         try {
-          const attributeLines = await callOdoo(
-            parseInt(uid),
+          const attributeLines = await odooClient.call<number[]>({
+            uid,
             password,
-            'product.template.attribute.line',
-            'search',
-            [[['product_tmpl_id', '=', templateId]]]
-          );
+            model: 'product.template.attribute.line',
+            method: 'search',
+            args: [[['product_tmpl_id', '=', templateId]]],
+          });
           console.log(`Found ${attributeLines.length} attribute lines to remove`);
           
           if (attributeLines.length > 0) {
-            await callOdoo(parseInt(uid), password, 'product.template.attribute.line', 'unlink', [attributeLines]);
+            await odooClient.call({
+              uid,
+              password,
+              model: 'product.template.attribute.line',
+              method: 'unlink',
+              args: [attributeLines],
+            });
             console.log(`✅ Removed ${attributeLines.length} attribute lines`);
           }
         } catch (e) {
@@ -108,18 +98,30 @@ export default async function handler(
 
         // Step 4: Mark as not for sale and hide from POS
         console.log('Step 4: Marking as not for sale and hiding from POS...');
-        await callOdoo(parseInt(uid), password, 'product.template', 'write', [
-          [templateId], 
-          { 
-            sale_ok: false,           // Not for sale
-            available_in_pos: false,  // Hide from POS/Kassa
-          }
-        ]);
+        await odooClient.call({
+          uid,
+          password,
+          model: 'product.template',
+          method: 'write',
+          args: [
+            [templateId], 
+            { 
+              sale_ok: false,           // Not for sale
+              available_in_pos: false,  // Hide from POS/Kassa
+            }
+          ],
+        });
         console.log(`✅ Marked as not for sale and hidden from POS`);
 
         // Step 5: Archive the product template
         console.log('Step 5: Archiving product template...');
-        await callOdoo(parseInt(uid), password, 'product.template', 'write', [[templateId], { active: false }]);
+        await odooClient.call({
+          uid,
+          password,
+          model: 'product.template',
+          method: 'write',
+          args: [[templateId], { active: false }],
+        });
         console.log(`✅ Product template ${templateId} archived`);
 
         results.push({
@@ -160,3 +162,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

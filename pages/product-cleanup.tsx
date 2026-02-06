@@ -153,8 +153,6 @@ export default function ProductCleanup() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateIds: Array.from(selectedProducts),
-          uid: isLoggedIn, // Use isLoggedIn from useAuth
-          password: 'password', // Placeholder, ideally from useAuth or secure storage
         }),
       });
 

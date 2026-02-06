@@ -84,11 +84,14 @@ async function handler(
 
         // Step 1: Create Product Template
         console.log('Step 1: Creating product template...');
+        // Use highest RRP (verkoopprijs) for template, or fallback to highest price
+        const maxRrp = Math.max(...product.variants.map(v => v.rrp || 0));
+        const maxPrice = Math.max(...product.variants.map(v => v.price || 0));
         const templateData: Record<string, unknown> = {
           name: product.name,
           categ_id: product.category.id,
-          list_price: product.variants[0].rrp || product.variants[0].price || 0,
-          standard_price: product.variants[0].price || product.variants[0].rrp || 0,
+          list_price: maxRrp || maxPrice || 0, // Use highest verkoopprijs (RRP) from all variants
+          standard_price: maxPrice || maxRrp || 0, // Use highest kostprijs from all variants
           type: 'consu', // Verbruiksartikel
           is_storable: true, // Enable "Voorraad bijhouden" checkbox (can track inventory even for consumables)
           weight: 0.2, // Default weight 0.2kg for all products
@@ -103,7 +106,13 @@ async function handler(
 
         if (product.reference) {
           // Store reference in Internal Notes
-          templateData.description = product.reference;
+          // For 1+ products, also include productName (e.g., "26s063") which is used in image filenames
+          let descriptionValue = product.reference;
+          if ((product as { productName?: string }).productName) {
+            // Format: "reference|productName" (e.g., "egas-blossom|26s063")
+            descriptionValue = `${product.reference}|${(product as { productName: string }).productName}`;
+          }
+          templateData.description = descriptionValue;
         }
 
         // Add ecommerce description if available
@@ -169,11 +178,13 @@ async function handler(
           const firstSize = variants[0].size;
           
           // Baby sizes: ends with "maand" or is a month number with M (3M, 6M, etc.)
-          if (firstSize.includes('maand') || /^\d+\s*M$/i.test(firstSize)) {
+          // Also handle Weekend House Kids format: 3/6m, 6/12m, 12/18m, 18/24m
+          if (firstSize.includes('maand') || /^\d+\s*M$/i.test(firstSize) || /\d+\/\d+\s*m$/i.test(firstSize)) {
             return "MAAT Baby's";
           }
           
           // Teen sizes: ends with "jaar" and number >= 10, or Y sizes >= 10 (including 16Y, 18Y)
+          // Also handle Weekend House Kids format: 11/12, 13/14 (these are teen sizes)
           if (firstSize.includes('jaar')) {
             const match = firstSize.match(/^(\d+)\s*jaar/i);
             if (match && parseInt(match[1]) >= 10) {
@@ -186,9 +197,18 @@ async function handler(
               return 'MAAT Tieners';  // Covers 10Y, 12Y, 14Y, 16Y, 18Y
             }
           }
+          // Weekend House Kids teen sizes: 11/12, 13/14
+          if (/^(11\/12|13\/14)$/i.test(firstSize)) {
+            return 'MAAT Tieners';
+          }
           
           // Kids sizes: ends with "jaar" and number < 10, or Y sizes < 10
+          // Also handle Weekend House Kids format: 2, 3/4, 5/6, 7/8, 9/10 (these are kids sizes)
           if (firstSize.includes('jaar') || /^\d+\s*Y$/i.test(firstSize)) {
+            return 'MAAT Kinderen';
+          }
+          // Weekend House Kids kids sizes: 2, 3/4, 5/6, 7/8, 9/10
+          if (/^(2|3\/4|5\/6|7\/8|9\/10)$/i.test(firstSize)) {
             return 'MAAT Kinderen';
           }
           
@@ -339,6 +359,7 @@ async function handler(
           if (odooVariant) {
             const updateData: Record<string, unknown> = {
               standard_price: combinedVariant.price || combinedVariant.rrp || 0,
+              list_price: combinedVariant.rrp || combinedVariant.price || 0, // Verkoopprijs (RRP) from CSV
               weight: 0.2, // Default weight 0.2kg for all variants
             };
 
@@ -421,6 +442,7 @@ async function handler(
 
               const updateData: Record<string, unknown> = {
                 standard_price: csvVariant.price,
+                list_price: csvVariant.rrp || csvVariant.price || 0, // Verkoopprijs (RRP) from CSV
                 weight: 0.2, // Default weight 0.2kg for all variants
               };
 
@@ -459,7 +481,7 @@ async function handler(
         // Step 8: Upload images if any
         let imagesUploaded = 0;
         if (product.images && product.images.length > 0) {
-          console.log(`Step 8: Uploading ${product.images.length} images...`);
+          console.log(`Step 8: Uploading ${product.images.length} images as e-commerce media...`);
           
           for (let i = 0; i < product.images.length; i++) {
             try {
@@ -472,13 +494,120 @@ async function handler(
                 base64Data = imageData.split(',')[1];
               } else if (imageData.startsWith('http')) {
                 // It's a URL - fetch and convert to base64
-                console.log(`  Fetching image from URL: ${imageData.substring(0, 60)}...`);
-                const imageResponse = await fetch(imageData);
-                if (imageResponse.ok) {
-                  const buffer = await imageResponse.arrayBuffer();
-                  base64Data = Buffer.from(buffer).toString('base64');
-                } else {
-                  console.warn(`  ⚠️ Failed to fetch image: ${imageResponse.status}`);
+                // If URL ends with underscore, try to find full-size version
+                let imageUrl = imageData.trim();
+                const originalUrl = imageUrl;
+                let base64DataFound = false;
+                
+                // If URL ends with underscore, try to find full-size version by removing underscore and trying extensions
+                if (imageUrl.endsWith('_')) {
+                  console.log(`  🔍 URL ends with underscore, searching for full-size version...`);
+                  const extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
+                  
+                  // Try removing underscore and adding extension
+                  for (const ext of extensions) {
+                    const testUrl = imageUrl.slice(0, -1) + ext;
+                    try {
+                      console.log(`  Trying: ${testUrl.substring(0, 80)}...`);
+                      const testResponse = await fetch(testUrl);
+                      if (testResponse.ok) {
+                        const buffer = await testResponse.arrayBuffer();
+                        const sizeKB = parseFloat((buffer.byteLength / 1024).toFixed(2));
+                        const sizeMB = (buffer.byteLength / (1024 * 1024)).toFixed(2);
+                        
+                        // Only use if it's a reasonable size (not a thumbnail)
+                        if (sizeKB > 50) {
+                          console.log(`  ✅ Found full-size image: ${sizeKB} KB (${sizeMB} MB)`);
+                          base64Data = Buffer.from(buffer).toString('base64');
+                          base64DataFound = true;
+                          break;
+                        } else {
+                          console.log(`  ⚠️ Found image but seems small (${sizeKB} KB), trying next extension...`);
+                        }
+                      }
+                    } catch (e) {
+                      // Continue trying other extensions
+                    }
+                  }
+                  
+                  // If still not found, try URL without underscore (no extension)
+                  if (!base64DataFound) {
+                    console.log(`  Trying URL without underscore: ${imageUrl.slice(0, -1).substring(0, 80)}...`);
+                    try {
+                      const testResponse = await fetch(imageUrl.slice(0, -1));
+                      if (testResponse.ok) {
+                        const buffer = await testResponse.arrayBuffer();
+                        const sizeKB = parseFloat((buffer.byteLength / 1024).toFixed(2));
+                        if (sizeKB > 50) {
+                          console.log(`  ✅ Found full-size image (no extension): ${sizeKB} KB`);
+                          base64Data = Buffer.from(buffer).toString('base64');
+                          base64DataFound = true;
+                        }
+                      }
+                    } catch (e) {
+                      // Continue
+                    }
+                  }
+                }
+                
+                // If we haven't found a good image yet, try the original URL
+                if (!base64DataFound) {
+                  console.log(`  Fetching image from original URL: ${imageUrl.substring(0, 80)}...`);
+                  const imageResponse = await fetch(imageUrl);
+                  if (imageResponse.ok) {
+                    const buffer = await imageResponse.arrayBuffer();
+                    const sizeKB = parseFloat((buffer.byteLength / 1024).toFixed(2));
+                    const sizeMB = (buffer.byteLength / (1024 * 1024)).toFixed(2);
+                    console.log(`  📦 Image size: ${sizeKB} KB (${sizeMB} MB)`);
+                    
+                    // If image is small, try to find full-size version
+                    if (sizeKB < 100) {
+                      console.warn(`  ⚠️ Image seems small (${sizeKB} KB) - trying to find full-size version...`);
+                      
+                      // If URL ends with underscore, try removing it and adding extensions
+                      if (originalUrl.endsWith('_')) {
+                        const extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
+                        for (const ext of extensions) {
+                          const fullSizeUrl = originalUrl.slice(0, -1) + ext;
+                          try {
+                            console.log(`  🔍 Trying full-size URL: ${fullSizeUrl.substring(0, 80)}...`);
+                            const fullSizeResponse = await fetch(fullSizeUrl);
+                            if (fullSizeResponse.ok) {
+                              const fullSizeBuffer = await fullSizeResponse.arrayBuffer();
+                              const fullSizeKB = parseFloat((fullSizeBuffer.byteLength / 1024).toFixed(2));
+                              const fullSizeMB = (fullSizeBuffer.byteLength / (1024 * 1024)).toFixed(2);
+                              
+                              if (fullSizeKB > sizeKB) {
+                                console.log(`  ✅ Found larger image: ${fullSizeKB} KB (${fullSizeMB} MB) - using this instead!`);
+                                base64Data = Buffer.from(fullSizeBuffer).toString('base64');
+                                base64DataFound = true;
+                                break;
+                              }
+                            }
+                          } catch (e) {
+                            // Continue
+                          }
+                        }
+                      }
+                      
+                      // If still using small image, warn user
+                      if (!base64DataFound) {
+                        console.warn(`  ⚠️ Using small image (${sizeKB} KB) - might be a thumbnail.`);
+                        console.warn(`  💡 Tip: Check if the CSV contains the full-size image URL (should be ~1MB for high quality images)`);
+                        base64Data = Buffer.from(buffer).toString('base64');
+                        base64DataFound = true;
+                      }
+                    } else {
+                      base64Data = Buffer.from(buffer).toString('base64');
+                      base64DataFound = true;
+                    }
+                  } else {
+                    console.warn(`  ⚠️ Failed to fetch image: ${imageResponse.status} - ${imageUrl.substring(0, 80)}...`);
+                  }
+                }
+                
+                if (!base64DataFound) {
+                  console.warn(`  ❌ Could not fetch image from any URL variant`);
                   continue;
                 }
               } else {
@@ -486,31 +615,36 @@ async function handler(
                 continue;
               }
 
-              // First image: set as product template's main image
+              // Create all images as product.image records (e-commerce media)
+              console.log(`  Creating e-commerce media image ${i + 1}/${product.images.length}...`);
+              await callOdoo(uid, password, 'product.image', 'create', [{
+                name: `${product.name} - Image ${i + 1}`,
+                product_tmpl_id: templateId,
+                image_1920: base64Data, // Full size image (1920x1920)
+                sequence: i + 1, // Set sequence for ordering
+              }]);
+              imagesUploaded++;
+              console.log(`  ✅ E-commerce media image ${i + 1}/${product.images.length} uploaded`);
+
+              // First image: also set as product template's main image (for POS/backend)
               if (i === 0) {
-                console.log(`  Setting first image as main product image...`);
+                console.log(`  Also setting first image as main product image...`);
+                // Include website_published to prevent it from being reset
                 await callOdoo(uid, password, 'product.template', 'write', [
                   [templateId],
-                  { image_1920: base64Data }
+                  { 
+                    image_1920: base64Data,
+                    website_published: product.isPublished // Preserve published status
+                  }
                 ]);
-                imagesUploaded++;
-                console.log(`  ✅ Main image set (Image 1/${product.images.length})`);
-              } else {
-                // Additional images: create as product.image records
-                await callOdoo(uid, password, 'product.image', 'create', [{
-                  name: `${product.name} - Image ${i + 1}`,
-                  product_tmpl_id: templateId,
-                  image_1920: base64Data,
-                }]);
-                imagesUploaded++;
-                console.log(`  ✅ Image ${i + 1}/${product.images.length} uploaded`);
+                console.log(`  ✅ Main image also set`);
               }
             } catch (imageError) {
               console.error(`  ❌ Error uploading image ${i + 1}:`, imageError);
             }
           }
           
-          console.log(`✅ Uploaded ${imagesUploaded}/${product.images.length} images`);
+          console.log(`✅ Uploaded ${imagesUploaded}/${product.images.length} images as e-commerce media`);
         }
 
         results.push({
@@ -539,7 +673,26 @@ async function handler(
     const successCount = results.filter(r => r.success).length;
     console.log(`\n🎉 Import complete: ${successCount}/${results.length} successful`);
 
-    // Log import completion
+    // Log import completion with detailed information
+    const successfulProducts = results
+      .filter(r => r.success)
+      .map(r => ({
+        reference: r.reference,
+        name: r.name,
+        templateId: r.templateId,
+        variantsCreated: r.variantsCreated || 0,
+        variantsUpdated: r.variantsUpdated || 0,
+        imagesUploaded: r.imagesUploaded || 0,
+      }));
+    
+    const failedProducts = results
+      .filter(r => !r.success)
+      .map(r => ({
+        reference: r.reference,
+        name: r.name,
+        error: r.message,
+      }));
+
     logProductImport(
       req.session.user!.uid,
       req.session.user!.username,
@@ -550,6 +703,12 @@ async function handler(
         successful: successCount,
         failed: results.length - successCount,
         testMode,
+        vendor: (req.body as { vendor?: string }).vendor || 'unknown',
+        successfulProducts: successfulProducts.slice(0, 50), // Limit to first 50 for log size
+        failedProducts: failedProducts.slice(0, 50),
+        totalVariantsCreated: results.reduce((sum, r) => sum + (r.variantsCreated || 0), 0),
+        totalVariantsUpdated: results.reduce((sum, r) => sum + (r.variantsUpdated || 0), 0),
+        totalImagesUploaded: results.reduce((sum, r) => sum + (r.imagesUploaded || 0), 0),
       }
     );
 
