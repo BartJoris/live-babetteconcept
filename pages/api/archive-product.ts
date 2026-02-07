@@ -96,8 +96,8 @@ async function handler(
           console.log(`⚠️ Could not remove attributes: ${e}`);
         }
 
-        // Step 4: Mark as not for sale and hide from POS
-        console.log('Step 4: Marking as not for sale and hiding from POS...');
+        // Step 4: Mark as not for sale, hide from POS, and unpublish from website
+        console.log('Step 4: Marking as not for sale, hiding from POS, and unpublishing from website...');
         await odooClient.call({
           uid,
           password,
@@ -108,10 +108,11 @@ async function handler(
             { 
               sale_ok: false,           // Not for sale
               available_in_pos: false,  // Hide from POS/Kassa
+              website_published: false, // Unpublish from website
             }
           ],
         });
-        console.log(`✅ Marked as not for sale and hidden from POS`);
+        console.log(`✅ Marked as not for sale, hidden from POS, and unpublished from website`);
 
         // Step 5: Archive the product template
         console.log('Step 5: Archiving product template...');
@@ -128,7 +129,7 @@ async function handler(
           templateId,
           success: true,
           variantsCleared: variants.length,
-          message: `Successfully cleaned up: attributes removed, barcodes cleared, marked as not for sale, hidden from POS, and archived`,
+          message: `Successfully cleaned up: attributes removed, barcodes cleared, marked as not for sale, hidden from POS, unpublished from website, and archived`,
         });
       } catch (productError) {
         console.error(`❌ Error processing template ${templateId}:`, productError);

@@ -25,6 +25,12 @@ async function callOdoo(uid: number, password: string, model: string, method: st
   return json.result;
 }
 
+interface SearchRequest {
+  reference: string;
+  uid: string;
+  password: string;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -34,107 +40,91 @@ export default async function handler(
   }
 
   try {
-    const { reference, uid, password, includeDescription } = req.body;
+    const { reference, uid, password } = req.body as SearchRequest;
 
     if (!reference || !uid || !password) {
-      return res.status(400).json({ error: 'Missing required fields: reference, uid, password' });
+      return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    // Strategy 1: Search template by default_code (exact match)
-    let templateId: number | null = null;
-    let matchedField: string | null = null;
-    let description: string | null = null;
-    
-    // Fields to fetch - include description if requested
-    const fields = includeDescription 
-      ? ['id', 'name', 'default_code', 'description']
-      : ['id', 'name', 'default_code'];
-    
-    try {
-      const result = await callOdoo(
+    // Search for product template by default_code (internal reference)
+    // Try exact match first
+    let templateIds = await callOdoo(
+      parseInt(uid),
+      password,
+      'product.template',
+      'search',
+      [[['default_code', '=', reference.toUpperCase()]]],
+      { limit: 1 }
+    );
+
+    // If not found, try case-insensitive search
+    if (!templateIds || templateIds.length === 0) {
+      templateIds = await callOdoo(
         parseInt(uid),
         password,
         'product.template',
-        'search_read',
-        [[['default_code', '=', reference]]],
-        { fields, limit: 1 }
+        'search',
+        [[['default_code', 'ilike', reference]]],
+        { limit: 1 }
+      );
+    }
+
+    // If still not found, search in product variants
+    if (!templateIds || templateIds.length === 0) {
+      const variantIds = await callOdoo(
+        parseInt(uid),
+        password,
+        'product.product',
+        'search',
+        [[['default_code', 'ilike', reference]]],
+        { limit: 1 }
       );
 
-      if (result && result.length > 0) {
-        templateId = result[0].id;
-        matchedField = 'default_code';
-        description = result[0].description || null;
-      } else {
-        // Strategy 2: Search by description (internal notes) - this is where we store the normalized reference
-        // Format can be: "reference" or "reference|productName" (e.g., "egas-blossom|26s063")
-        const result2 = await callOdoo(
+      if (variantIds && variantIds.length > 0) {
+        // Get template ID from variant
+        const variant = await callOdoo(
           parseInt(uid),
           password,
-          'product.template',
-          'search_read',
-          [[['description', '=', reference]]],
-          { fields, limit: 1 }
+          'product.product',
+          'read',
+          [variantIds, ['product_tmpl_id']]
         );
 
-        if (result2 && result2.length > 0) {
-          templateId = result2[0].id;
-          matchedField = 'description';
-          description = result2[0].description || null;
-        } else {
-          // Strategy 2b: Also try searching if reference is part of description (for "reference|productName" format)
-          const result2b = await callOdoo(
-            parseInt(uid),
-            password,
-            'product.template',
-            'search_read',
-            [[['description', 'ilike', `%${reference}%`]]],
-            { fields, limit: 1 }
-          );
-
-          if (result2b && result2b.length > 0) {
-            // Check if the description contains the reference (could be "reference|productName" format)
-            const desc = result2b[0].description || '';
-            if (desc.includes(reference)) {
-              templateId = result2b[0].id;
-              matchedField = 'description (partial)';
-              description = desc;
-            }
-          }
-        }
-        
-        if (!templateId) {
-          // Strategy 3: Search by name contains reference
-          const result3 = await callOdoo(
-            parseInt(uid),
-            password,
-            'product.template',
-            'search_read',
-            [[['name', 'ilike', `%${reference}%`]]],
-            { fields, limit: 1 }
-          );
-
-          if (result3 && result3.length > 0) {
-            templateId = result3[0].id;
-            matchedField = 'name';
-            description = result3[0].description || null;
-          }
+        if (variant && variant[0]?.product_tmpl_id) {
+          templateIds = [variant[0].product_tmpl_id[0]];
         }
       }
-    } catch (error) {
-      console.error('Error searching for product:', error);
-      return res.status(500).json({ error: String(error) });
+    }
+
+    if (templateIds && templateIds.length > 0) {
+      // Get template details
+      const template = await callOdoo(
+        parseInt(uid),
+        password,
+        'product.template',
+        'read',
+        [templateIds, ['name', 'default_code']]
+      );
+
+      return res.status(200).json({
+        success: true,
+        found: true,
+        templateId: templateIds[0],
+        name: template[0]?.name || reference,
+        reference: template[0]?.default_code || reference,
+      });
     }
 
     return res.status(200).json({
       success: true,
-      templateId,
-      found: templateId !== null,
-      matchedField: matchedField || null,
-      description: description || null,
+      found: false,
+      templateId: null,
+      name: reference,
+      reference,
     });
 
   } catch (error) {
-    console.error('Search product error:', error);
+    console.error('Error searching product:', error);
     const err = error as { message?: string };
     return res.status(500).json({
       success: false,

@@ -11,7 +11,9 @@ interface ParsedProduct {
   productName?: string; // Product name from CSV (e.g., "26s063" for 1+ - used in image filenames)
   material: string;
   color: string;
+  fabricPrint?: string; // Fabric / print info from CSV (for AI description)
   ecommerceDescription?: string; // Description for ecommerce/website
+  csvCategory?: string; // Category from CSV (for auto-matching eCommerce categories)
   variants: ProductVariant[];
   suggestedBrand?: string;
   selectedBrand?: { id: number; name: string };
@@ -34,7 +36,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | null;
 
 interface Brand {
   id: number;
@@ -168,8 +170,8 @@ function determineSizeAttribute(input: ProductVariant[] | string): string {
       return 'MAAT Kinderen';
     }
     
-    // Adult sizes: XS, S, M, L, XL
-    if (/^(XS|S|M|L|XL)$/i.test(size)) {
+    // Adult sizes: XXS, XS, S, M, L, XL, XXL (matching Odoo attribute values)
+    if (/^(XXS|XS|S|M|L|XL|XXL)$/i.test(size)) {
       return 'MAAT Volwassenen';
     }
     
@@ -192,6 +194,7 @@ function mapSizeToOdooFormat(size: string): string {
   if (!size) return size;
   
   const sizeMapping: { [key: string]: string } = {
+    'XXS': 'XXS - 32',
     'XS': 'XS - 34',
     'S': 'S - 36',
     'M': 'M - 38',
@@ -265,6 +268,77 @@ function transformProductForUpload(product: ParsedProduct): ParsedProduct {
   return product;
 }
 
+// CSV Category to Odoo eCommerce category mapping
+// Maps English CSV category names to Dutch search terms for matching Odoo categories
+const CSV_CATEGORY_TO_DUTCH: Record<string, string[]> = {
+  'ACCESSORIES': ['Accessoires', 'Tassen', 'Hoeden'],
+  'SHOES': ['Schoenen'],
+  'TEE SHIRTS': ['T-shirts', 'Tops'],
+  'CARDIGAN & PULLOVER': ['Truien', 'Vesten', 'Cardigans'],
+  'DRESSES': ['Jurken'],
+  'SKIRTS': ['Rokken'],
+  'SHORTS': ['Shorts'],
+  'SWEATSHIRTS': ['Sweaters', 'Truien'],
+  'BLOUSES': ['Blouses', 'Tops', 'Hemden'],
+  'BLOOMERS': ['Broeken', 'Broekjes'],
+  'TROUSERS': ['Broeken'],
+  'JUMPSUITS': ['Jumpsuits', 'Pakjes'],
+};
+
+// Find matching Odoo eCommerce categories based on CSV category and size attribute
+function findMatchingPublicCategories(
+  csvCategory: string | undefined,
+  sizeAttribute: string | undefined,
+  publicCategories: Array<{ id: number; name: string; display_name?: string }>
+): Array<{ id: number; name: string }> {
+  if (!csvCategory) return [];
+  
+  const upperCategory = csvCategory.toUpperCase().trim();
+  const searchTerms = CSV_CATEGORY_TO_DUTCH[upperCategory];
+  
+  if (!searchTerms) {
+    console.log(`⚠️ No mapping found for CSV category: ${csvCategory}`);
+    return [];
+  }
+  
+  // Determine age group filter based on sizeAttribute
+  // - MAAT Baby's -> look for "Baby" categories
+  // - MAAT Kinderen -> look for "Kinderen" categories
+  // - MAAT Tieners -> look for "Kinderen" categories (same as Kinderen)
+  let ageGroupFilter: string | null = null;
+  if (sizeAttribute === "MAAT Baby's") {
+    ageGroupFilter = "baby";
+  } else if (sizeAttribute === "MAAT Kinderen" || sizeAttribute === "MAAT Tieners") {
+    ageGroupFilter = "kinderen";
+  }
+  
+  // Find categories that match any of the search terms AND the age group
+  const matches = publicCategories.filter(cat => {
+    const catName = (cat.display_name || cat.name).toLowerCase();
+    const matchesSearchTerm = searchTerms.some(term => catName.includes(term.toLowerCase()));
+    
+    // If no age group filter, just match search terms
+    if (!ageGroupFilter) {
+      return matchesSearchTerm;
+    }
+    
+    // Match search terms AND age group (exclude Dames/Heren)
+    const matchesAgeGroup = catName.includes(ageGroupFilter) && 
+                            !catName.includes('dames') && 
+                            !catName.includes('heren');
+    
+    return matchesSearchTerm && matchesAgeGroup;
+  });
+  
+  if (matches.length > 0) {
+    console.log(`✅ Found ${matches.length} matching categories for "${csvCategory}" (${sizeAttribute}): ${matches.map(m => m.display_name || m.name).join(', ')}`);
+  } else {
+    console.log(`⚠️ No categories found for "${csvCategory}" (${sizeAttribute})`);
+  }
+  
+  return matches.map(m => ({ id: m.id, name: m.display_name || m.name }));
+}
+
 export default function ProductImportPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -285,6 +359,15 @@ export default function ProductImportPage() {
   }>>([]);
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [generatingDescription, setGeneratingDescription] = useState<Set<string>>(new Set()); // Track which products are generating AI descriptions
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [promptCategory, setPromptCategory] = useState<'kinderen' | 'volwassenen'>('kinderen');
+  const [customPromptKinderen, setCustomPromptKinderen] = useState('');
+  const [customPromptVolwassenen, setCustomPromptVolwassenen] = useState('');
+  const [defaultPrompts, setDefaultPrompts] = useState<{
+    kinderen: { systemPrompt: string; name: string };
+    volwassenen: { systemPrompt: string; name: string };
+  } | null>(null);
   const [goldieAndAceCsvData, setGoldieAndAceCsvData] = useState<Map<string, {
     styleCode: string;
     description: string;
@@ -368,6 +451,11 @@ export default function ProductImportPage() {
   const [imageImportResults, setImageImportResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
   const [thenewsocietyOrderConfirmationLoaded, setThenewsocietyOrderConfirmationLoaded] = useState(false);
   const [thenewsocietyOrderLoaded, setThenewsocietyOrderLoaded] = useState(false);
+  
+  // Emile et Ida state for two-file upload (Order CSV + TARIF CSV for RRP prices)
+  const [emileetidaOrderLoaded, setEmileetidaOrderLoaded] = useState(false);
+  const [emileetidaTarifLoaded, setEmileetidaTarifLoaded] = useState(false);
+  const [emileetidaPriceMap, setEmileetidaPriceMap] = useState<Map<string, number>>(new Map());
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -383,6 +471,22 @@ export default function ProductImportPage() {
   useEffect(() => {
     fetchBrands();
     fetchCategories();
+    
+    // Load AI prompts from API
+    fetch('/api/generate-description')
+      .then(res => res.json())
+      .then(data => {
+        if (data.prompts) {
+          setDefaultPrompts({
+            kinderen: data.prompts.kinderen,
+            volwassenen: data.prompts.volwassenen
+          });
+          // Initialize custom prompts with defaults
+          setCustomPromptKinderen(data.prompts.kinderen.systemPrompt);
+          setCustomPromptVolwassenen(data.prompts.volwassenen.systemPrompt);
+        }
+      })
+      .catch(err => console.error('Failed to load AI prompts:', err));
     
     // Load Play UP credentials from localStorage
     const savedPlayupUser = localStorage.getItem('playup_username');
@@ -431,6 +535,37 @@ export default function ProductImportPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  // Auto-match CSV categories to Odoo eCommerce categories when publicCategories are loaded
+  useEffect(() => {
+    if (publicCategories.length > 0 && parsedProducts.length > 0) {
+      // Check if any products have csvCategory but no publicCategories yet
+      const productsToMatch = parsedProducts.filter(
+        p => p.csvCategory && p.publicCategories.length === 0
+      );
+      
+      if (productsToMatch.length > 0) {
+        console.log(`🔄 Auto-matching ${productsToMatch.length} products with CSV categories...`);
+        
+        setParsedProducts(products =>
+          products.map(product => {
+            if (product.csvCategory && product.publicCategories.length === 0) {
+              const matchedCategories = findMatchingPublicCategories(
+                product.csvCategory, 
+                product.sizeAttribute, 
+                publicCategories
+              );
+              if (matchedCategories.length > 0) {
+                return { ...product, publicCategories: matchedCategories };
+              }
+            }
+            return product;
+          })
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicCategories]);
 
   const getCredentials = async () => {
     // First, check if user has a valid session
@@ -562,6 +697,18 @@ export default function ProductImportPage() {
           return;
         }
         parseWeekendHouseKidsCSV(text);
+      } else if (selectedVendor === 'emileetida') {
+        // Emile et Ida - auto-detect Order CSV vs TARIF CSV
+        const firstLine = text.split('\n')[0].toLowerCase();
+        if (firstLine.includes('rrp eur') && firstLine.includes('gencod')) {
+          // This is the TARIF CSV with RRP prices
+          parseEmileetidaTarifCSV(text);
+        } else if (firstLine.includes('product name') && firstLine.includes('ean13')) {
+          // This is the Order CSV
+          parseEmileetidaCSV(text);
+        } else {
+          alert('⚠️ Onbekend CSV formaat voor Emile et Ida.\n\nUpload eerst de Order CSV (met Product name, EAN13)\nof de TARIF CSV (met Gencod, RRP EUR) voor verkoopprijzen.');
+        }
       } else if (selectedVendor === 'thenewsociety') {
         // Detect if this is order confirmation CSV (with SRP) or order CSV (with EAN13)
         const lines = text.trim().split('\n');
@@ -1815,11 +1962,13 @@ export default function ProductImportPage() {
   const formatSizeForOdoo = (eanSize: string): string => {
     // Check for adult sizes FIRST (exact match only)
     const adultSizes: { [key: string]: string } = {
+      'XXS': 'XXS - 32',
       'XS': 'XS - 34',
       'S': 'S - 36',
       'M': 'M - 38',
       'L': 'L - 40',
       'XL': 'XL - 42',
+      'XXL': 'XXL - 44',
     };
     
     // If it's an exact match for adult size, return formatted
@@ -2441,6 +2590,298 @@ export default function ProductImportPage() {
     
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  // Emile et Ida TARIF CSV parser - builds price lookup map by EAN (Gencod)
+  const parseEmileetidaTarifCSV = (text: string) => {
+    console.log(`🌸 Parsing Emile et Ida TARIF CSV for RRP prices...`);
+    
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      console.error('❌ TARIF CSV is leeg');
+      alert('TARIF CSV bestand is leeg of ongeldig');
+      return;
+    }
+    
+    // Headers: Saison;Famille;Marque;Référence;Couleur;Taille;Gencod;Désignation;WHLS EUR;RRP EUR
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🌸 TARIF Headers: ${JSON.stringify(headers)}`);
+    
+    // Find column indices
+    const gencodIdx = headers.findIndex(h => h.toLowerCase() === 'gencod');
+    const rrpIdx = headers.findIndex(h => h.toLowerCase() === 'rrp eur');
+    
+    if (gencodIdx === -1 || rrpIdx === -1) {
+      console.error('❌ Missing required TARIF headers. Found:', headers);
+      alert('Ongeldig TARIF CSV-formaat. Verwachte headers: Gencod, RRP EUR');
+      return;
+    }
+    
+    const priceMap = new Map<string, number>();
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(';').map(v => v.trim());
+      const gencod = values[gencodIdx] || '';
+      const rrpStr = values[rrpIdx] || '0';
+      
+      if (!gencod) continue;
+      
+      // Parse price with comma as decimal separator (European format)
+      const rrp = parseFloat(rrpStr.replace(',', '.')) || 0;
+      
+      if (rrp > 0) {
+        priceMap.set(gencod, rrp);
+      }
+    }
+    
+    console.log(`🌸 Built price map with ${priceMap.size} EAN->RRP entries`);
+    setEmileetidaPriceMap(priceMap);
+    setEmileetidaTarifLoaded(true);
+    
+    // If order is already loaded, update RRP prices
+    if (emileetidaOrderLoaded && parsedProducts.length > 0) {
+      const updatedProducts = parsedProducts.map(product => ({
+        ...product,
+        variants: product.variants.map(variant => {
+          const rrp = priceMap.get(variant.ean) || variant.rrp;
+          return { ...variant, rrp };
+        })
+      }));
+      setParsedProducts(updatedProducts);
+      console.log(`🌸 Updated ${updatedProducts.length} products with RRP prices from TARIF`);
+    }
+  };
+
+  // Emile et Ida Order CSV parser
+  const parseEmileetidaCSV = (text: string, tarifPriceMap?: Map<string, number>) => {
+    // Emile et Ida format parser
+    // Semicolon-separated format with headers
+    // Headers: Order id;Date;Status;Season;Brand name;Brand sales person;Collection;Category;Product name;Product reference;Color name;Description;Composition;Fabric / print;Size family name;Size name;EAN13;SKU;Quantity;Unit price;Net amount;Pre-discount amount;Discount rate;Currency
+    
+    console.log(`🌸 Parsing Emile et Ida Order CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse header (first line)
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🌸 Headers: ${JSON.stringify(headers.slice(0, 15))}...`);
+    
+    // Find column indices
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const productRefIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
+    const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
+    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
+    const fabricPrintIdx = headers.findIndex(h => h.toLowerCase() === 'fabric / print');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
+    const ean13Idx = headers.findIndex(h => h.toLowerCase() === 'ean13');
+    const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
+    
+    // Validate required headers
+    if (productNameIdx === -1 || ean13Idx === -1 || productRefIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Product name, Product reference, EAN13');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    // Parse prices with comma as decimal separator (European format)
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.')) || 0;
+    };
+
+    // Convert Emile et Ida size format to display format
+    // 02A -> 2 jaar, 03A -> 3 jaar, 03M -> 3 maand, TU -> U
+    // 06-18M -> 6 - 18 maand, 02A-04A -> 2 - 4 jaar
+    const convertSize = (size: string): string => {
+      if (!size) return '';
+      const upperSize = size.toUpperCase().trim();
+      
+      // TU = Taille Unique = One Size
+      if (upperSize === 'TU') return 'U';
+      
+      // Match range patterns like 06-18M (months range)
+      const monthRangeMatch = upperSize.match(/^(\d+)-(\d+)M$/);
+      if (monthRangeMatch) {
+        const from = parseInt(monthRangeMatch[1]);
+        const to = parseInt(monthRangeMatch[2]);
+        return `${from} - ${to} maand`;
+      }
+      
+      // Match range patterns like 02A-04A (years range)
+      const yearRangeMatch = upperSize.match(/^(\d+)A-(\d+)A$/);
+      if (yearRangeMatch) {
+        const from = parseInt(yearRangeMatch[1]);
+        const to = parseInt(yearRangeMatch[2]);
+        return `${from} - ${to} jaar`;
+      }
+      
+      // Match single patterns like 02A, 03A, 10A (years)
+      const yearMatch = upperSize.match(/^(\d+)A$/);
+      if (yearMatch) {
+        const years = parseInt(yearMatch[1]);
+        return `${years} jaar`;
+      }
+      
+      // Match single patterns like 03M, 06M, 12M, 18M (months)
+      const monthMatch = upperSize.match(/^(\d+)M$/);
+      if (monthMatch) {
+        const months = parseInt(monthMatch[1]);
+        return `${months} maand`;
+      }
+      
+      // Return original if no pattern matches
+      return size;
+    };
+
+    // Auto-detect Emile et Ida brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('emile') && b.name.toLowerCase().includes('ida') ||
+      b.name.toLowerCase() === 'emile et ida'
+    );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Emile et Ida brand not found in Odoo. Available brands:', brands.map(b => b.name).slice(0, 20));
+    }
+
+    // Use the passed tarifPriceMap or the state
+    const priceMap = tarifPriceMap || emileetidaPriceMap;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(';').map(v => v.trim());
+      
+      const productName = productNameIdx !== -1 ? values[productNameIdx] || '' : '';
+      const productRef = productRefIdx !== -1 ? values[productRefIdx] || '' : '';
+      const colorName = colorNameIdx !== -1 ? values[colorNameIdx] || '' : '';
+      const composition = compositionIdx !== -1 ? values[compositionIdx] || '' : '';
+      const fabricPrint = fabricPrintIdx !== -1 ? values[fabricPrintIdx] || '' : '';
+      const csvCategory = categoryIdx !== -1 ? values[categoryIdx] || '' : '';
+      const sizeName = sizeNameIdx !== -1 ? values[sizeNameIdx] || '' : '';
+      const ean13 = ean13Idx !== -1 ? values[ean13Idx] || '' : '';
+      const sku = skuIdx !== -1 ? values[skuIdx] || '' : '';
+      const quantity = quantityIdx !== -1 ? parseInt(values[quantityIdx] || '0') || 0 : 0;
+      const unitPrice = unitPriceIdx !== -1 ? parsePrice(values[unitPriceIdx] || '0') : 0;
+      
+      // Skip rows without product name or EAN
+      if (!productName || !ean13) {
+        if (productName || ean13) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data (productName: ${productName}, ean13: ${ean13})`);
+        }
+        continue;
+      }
+      
+      // Look up RRP from TARIF CSV by EAN, or calculate from unit price
+      const rrp = priceMap.get(ean13) || (unitPrice * 2.5); // Default to 2.5x markup if no TARIF price
+      
+      // Create product key based on Product reference + Color name (unique product combo)
+      const productKey = `${productRef}|${colorName}`;
+      
+      // Helper to convert to sentence case (first letter uppercase, rest lowercase)
+      const toSentenceCase = (str: string) => {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+      };
+      
+      // Product Name format: "Emile & Ida - Product name - Color name (product reference)"
+      // Example: "Emile & Ida - Chapeau - Vivi (ad207d)"
+      // Note: Always use "Emile & Ida" regardless of CSV brand name (which may be "Emile Et Ida")
+      const displayBrand = 'Emile & Ida';
+      const formattedName = `${displayBrand} - ${toSentenceCase(productName)} - ${toSentenceCase(colorName)} (${productRef.toLowerCase()})`;
+      
+      // E-commerce reference: "Product name" "Fabric / print"
+      const ecommerceRef = fabricPrint ? `${productName} ${fabricPrint}` : productName;
+      
+      // Convert size for display
+      const displaySize = convertSize(sizeName);
+
+      if (!products[productKey]) {
+        // Create unique reference by combining productRef and color for product selection
+        // This ensures different colors of same product are treated as separate products
+        const uniqueReference = colorName ? `${productRef}_${colorName.toUpperCase().replace(/\s+/g, '')}` : productRef;
+        
+        products[productKey] = {
+          reference: uniqueReference,
+          name: formattedName,
+          originalName: productName,
+          productName: productRef, // Used for image matching (keep original for matching)
+          material: composition,
+          color: colorName,
+          fabricPrint: fabricPrint, // Store fabric/print info for AI description
+          csvCategory: csvCategory, // Store CSV category for auto-matching
+          ecommerceDescription: ecommerceRef,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '', // Will be auto-determined based on size
+        };
+
+        console.log(`✅ Created product: ${formattedName} (Category: ${csvCategory})`);
+      }
+      
+      products[productKey].variants.push({
+        size: displaySize,
+        quantity: quantity,
+        ean: ean13,
+        sku: sku,
+        price: unitPrice,
+        rrp: rrp,
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🌸 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Auto-determine size attribute based on sizes in the product
+    productList.forEach(product => {
+      // Check if any variant has baby sizes (months)
+      const hasBabySizes = product.variants.some(v => v.size.includes('maand'));
+      // Check if any variant has teen sizes (10+ jaar)
+      const hasTeenSizes = product.variants.some(v => {
+        const match = v.size.match(/^(\d+)\s*jaar/);
+        return match && parseInt(match[1]) >= 10;
+      });
+      // Check if any variant has adult sizes (XXS, XS, S, M, L, XL, XXL - matching Odoo attribute values)
+      const hasAdultSizes = product.variants.some(v => 
+        /^(XXS|XS|S|M|L|XL|XXL)$/i.test(v.size.trim())
+      );
+      
+      if (hasBabySizes) {
+        product.sizeAttribute = "MAAT Baby's";
+      } else if (hasTeenSizes) {
+        product.sizeAttribute = 'MAAT Tieners';
+      } else if (hasAdultSizes) {
+        product.sizeAttribute = 'MAAT Volwassenen';
+      } else {
+        product.sizeAttribute = 'MAAT Kinderen';
+      }
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setEmileetidaOrderLoaded(true);
     setCurrentStep(2);
   };
 
@@ -5483,6 +5924,101 @@ export default function ProductImportPage() {
     );
   };
 
+  // Update ecommerce description for a product
+  const updateProductDescription = (productRef: string, newDescription: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        p.reference === productRef ? { ...p, ecommerceDescription: newDescription } : p
+      )
+    );
+  };
+
+  // Generate AI description for a product
+  const generateAIDescription = async (product: ParsedProduct) => {
+    const productKey = product.reference;
+    
+    // Determine which prompt to use based on product's sizeAttribute
+    const isVolwassenen = product.sizeAttribute === 'MAAT Volwassenen';
+    const customPrompt = isVolwassenen ? customPromptVolwassenen : customPromptKinderen;
+    const defaultPrompt = isVolwassenen 
+      ? defaultPrompts?.volwassenen?.systemPrompt 
+      : defaultPrompts?.kinderen?.systemPrompt;
+    
+    // Only send custom prompt if it differs from default
+    const sendCustomPrompt = customPrompt !== defaultPrompt ? customPrompt : undefined;
+    
+    // Mark as generating
+    setGeneratingDescription(prev => new Set(prev).add(productKey));
+    
+    try {
+      const response = await fetch('/api/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product: {
+            name: product.originalName || product.name,
+            brand: product.selectedBrand?.name || product.suggestedBrand,
+            color: product.color,
+            material: product.material,
+            fabricPrint: product.fabricPrint,
+            description: product.ecommerceDescription,
+          },
+          sizeAttribute: product.sizeAttribute,
+          customSystemPrompt: sendCustomPrompt,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.description) {
+        // Update the product with the generated description
+        setParsedProducts(products =>
+          products.map(p =>
+            p.reference === productKey 
+              ? { ...p, ecommerceDescription: data.description } 
+              : p
+          )
+        );
+        console.log(`✅ AI description generated for ${product.name} (${data.promptCategory})`);
+      } else {
+        alert(`Fout bij genereren beschrijving: ${data.error || 'Onbekende fout'}\n${data.message || ''}`);
+      }
+    } catch (error) {
+      console.error('Error generating description:', error);
+      alert('Fout bij genereren beschrijving. Controleer de console voor details.');
+    } finally {
+      // Remove from generating set
+      setGeneratingDescription(prev => {
+        const next = new Set(prev);
+        next.delete(productKey);
+        return next;
+      });
+    }
+  };
+
+  // Generate AI descriptions for all selected products
+  const generateAllDescriptions = async () => {
+    const selectedProductsList = parsedProducts.filter(p => selectedProducts.has(p.reference));
+    
+    if (selectedProductsList.length === 0) {
+      alert('Selecteer eerst producten om beschrijvingen te genereren.');
+      return;
+    }
+
+    if (!confirm(`Wil je AI-beschrijvingen genereren voor ${selectedProductsList.length} producten? Dit kan even duren.`)) {
+      return;
+    }
+
+    // Process products sequentially to avoid rate limiting
+    for (const product of selectedProductsList) {
+      await generateAIDescription(product);
+      // Small delay between requests
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    alert(`✅ Beschrijvingen gegenereerd voor ${selectedProductsList.length} producten!`);
+  };
+
   const toggleProductFavorite = (productRef: string) => {
     setParsedProducts(products =>
       products.map(p =>
@@ -6152,6 +6688,33 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('emileetida');
+                        // Reset Emile et Ida upload states when selecting vendor
+                        setEmileetidaOrderLoaded(false);
+                        setEmileetidaTarifLoaded(false);
+                        setEmileetidaPriceMap(new Map());
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'emileetida'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌸</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Emile et Ida</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Twee bestanden: Order CSV + TARIF CSV (voor RRP prijzen)
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Maten: 02A → 2 jaar, 03M → 3 maand
+                      </p>
+                      {selectedVendor === 'emileetida' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -6306,6 +6869,101 @@ export default function ProductImportPage() {
                                   ⚠️ Upload eerst Order CSV!
                                 </p>
                               )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : selectedVendor === 'emileetida' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-pink-50 dark:bg-pink-900/20 border border-pink-300 dark:border-pink-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-pink-900 dark:text-pink-300">🌸 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={emileetidaOrderLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  Order CSV: {emileetidaOrderLoaded ? `✅ ${parsedProducts.length} producten geladen` : '❌ Verplicht - Upload eerst!'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className={emileetidaTarifLoaded ? 'text-green-600 font-semibold' : emileetidaOrderLoaded ? 'text-blue-600 font-semibold' : 'text-gray-600'}>
+                                  TARIF CSV: {emileetidaTarifLoaded ? `✅ ${emileetidaPriceMap.size} prijzen geladen` : emileetidaOrderLoaded ? '⏳ Optioneel - Voor verkoopprijzen' : '⏳ Optioneel'}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-pink-200 dark:border-pink-800">
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">💡 Hoe het werkt:</p>
+                              <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                                <li><strong>Eerst:</strong> Upload Order CSV (met Product name, EAN13, Product reference, sizes, quantities)</li>
+                                <li><strong>Dan:</strong> Upload TARIF CSV om verkoopprijzen (RRP) toe te voegen via EAN/Gencod lookup</li>
+                                <li>Zonder TARIF: verkoopprijs = 2.5x inkoopprijs (aanpasbaar)</li>
+                              </ol>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Order CSV - Required First */}
+                            <div className={`border-2 ${emileetidaOrderLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                1️⃣ Order CSV <span className="text-red-500">*</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met Product name, Product reference, Color name, EAN13, Unit price
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: "order-3087203-20260206.csv"
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="emileetida-order-upload"
+                              />
+                              <label
+                                htmlFor="emileetida-order-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  emileetidaOrderLoaded 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {emileetidaOrderLoaded ? `✅ Geladen (${parsedProducts.length} producten)` : '📄 Upload Order CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* TARIF CSV - Optional */}
+                            <div className={`border-2 ${emileetidaTarifLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-blue-300 bg-blue-50 dark:bg-blue-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">💰</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                2️⃣ TARIF CSV <span className="text-gray-400">(optioneel)</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met Gencod (EAN), RRP EUR voor verkoopprijzen
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: "TARIF WHLS RRP SS26..."
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="emileetida-tarif-upload"
+                              />
+                              <label
+                                htmlFor="emileetida-tarif-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  emileetidaTarifLoaded
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                {emileetidaTarifLoaded 
+                                  ? `✅ ${emileetidaPriceMap.size} prijzen geladen`
+                                  : '💰 Upload TARIF CSV'}
+                              </label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                📝 RRP prijzen worden gekoppeld via EAN code
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -6841,7 +7499,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -6955,6 +7613,21 @@ SO-1239;2025-08-07 19:49:27;EUR;SS26;333;7148,25;0;0;0;0;7148,25;;;LIVIA TSHIRT;
 → Wordt: "Jenest - Livia tshirt - Lt fuchsia pink"
 → Variant: Maat 2-3Y, EAN: 8721458809046, Prijs: €16,65, RRP: €39,95
 → Ecommerce Description: "Product description" veld wordt gebruikt`}
+                        </pre>
+                      ) : selectedVendor === 'emileetida' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`📄 ORDER CSV:
+Order id;Date;Status;Season;Brand name;...;Product name;Product reference;Color name;...;Size name;EAN13;SKU;Quantity;Unit price
+3087203;2025-06-28;Closed;SS26;Emile Et Ida;...;SAC A DOS IMPRIME;ADSACADOS;TULIPE;...;TU;3664547680803;ADSACADOS|TULIPE|TU;3;34,1
+
+💰 TARIF CSV (optioneel voor RRP):
+Saison;Famille;Marque;Référence;Couleur;Taille;Gencod;Désignation;WHLS EUR;RRP EUR
+SS26-KID;ACCESSORIES;EMILE ET IDA;ADSACADOS;TULIPE;TU;3664547680803;SAC A DOS IMPRIME;34,1;85
+
+→ Wordt: "Emile & Ida - Sac a dos imprime - Tulipe (adsacados)"
+→ Ecommerce: "SAC A DOS IMPRIME" (Product name + Fabric/print)
+→ Variant: Maat U (TU → U), Prijs: €34,10, RRP: €85,00 (via TARIF lookup)
+→ Maten: 02A → 2 jaar, 06-18M → 6 - 18 maand, 02A-04A → 2 - 4 jaar, TU → U`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -7310,6 +7983,20 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   >
                     📦 Voorraad 0
                   </button>
+                  <button
+                    onClick={generateAllDescriptions}
+                    disabled={generatingDescription.size > 0}
+                    className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generatingDescription.size > 0 ? '⏳ Bezig...' : '✨ AI Beschrijvingen'}
+                  </button>
+                  <button
+                    onClick={() => setShowPromptModal(true)}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
+                    title="AI Prompts bekijken en bewerken"
+                  >
+                    📝 Prompts
+                  </button>
                   <div className="ml-auto bg-blue-50 px-4 py-2 rounded">
                     <strong>{selectedCount}</strong> producten geselecteerd ({totalVariants} varianten)
                   </div>
@@ -7491,6 +8178,43 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                 ))}
                               </tbody>
                             </table>
+                          </div>
+
+                          {/* E-commerce Description Section */}
+                          <div className="mt-4 border-t pt-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs text-gray-800 dark:text-gray-300 font-medium">📝 E-commerce Beschrijving</label>
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  product.sizeAttribute === 'MAAT Volwassenen'
+                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                    : 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300'
+                                }`}>
+                                  {product.sizeAttribute === 'MAAT Volwassenen' ? '👩 Volwassenen' : '👶 Kinderen'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => generateAIDescription(product)}
+                                disabled={generatingDescription.has(product.reference)}
+                                className="px-3 py-1 text-xs bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                              >
+                                {generatingDescription.has(product.reference) ? (
+                                  <>⏳ Genereren...</>
+                                ) : (
+                                  <>✨ AI Genereren</>
+                                )}
+                              </button>
+                            </div>
+                            <textarea
+                              value={product.ecommerceDescription || ''}
+                              onChange={(e) => updateProductDescription(product.reference, e.target.value)}
+                              placeholder="Productbeschrijving voor webshop..."
+                              rows={4}
+                              className="w-full border dark:border-gray-600 rounded px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:border-purple-500 focus:outline-none resize-y"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              💡 Klik op &quot;AI Genereren&quot; voor een webshoptekst. Pas de stijl aan via &quot;📝 Prompts&quot; hierboven.
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -7871,6 +8595,26 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                             />
                           </td>
                           <td className="p-3">
+                            {/* Show size attribute (Baby's/Kinderen/Tieners) and CSV category as badges */}
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {product.sizeAttribute && (
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  product.sizeAttribute === "MAAT Baby's" 
+                                    ? 'bg-pink-100 text-pink-800' 
+                                    : product.sizeAttribute === 'MAAT Tieners'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {product.sizeAttribute === "MAAT Baby's" ? '👶 Baby' : 
+                                   product.sizeAttribute === 'MAAT Tieners' ? '🧒 Tieners' : '👧 Kinderen'}
+                                </span>
+                              )}
+                              {product.csvCategory && (
+                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-medium">
+                                  📁 {product.csvCategory}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex flex-wrap gap-1 mb-1">
                               {product.publicCategories.map(cat => (
                                 <span
@@ -8391,6 +9135,31 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
                 )}
 
+                {/* Image Import for Emile et Ida */}
+                {selectedVendor === 'emileetida' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-pink-50 to-yellow-50 border-2 border-pink-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🌸 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-pink-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Images from <code className="bg-gray-100 px-1 rounded">E26 - PHOTOS KID</code> folder</li>
+                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">EMILE IDA E26 AD019 AD009.jpg</code></li>
+                        <li>The app will automatically match them based on AD-references!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/emileetida-images-import"
+                      className="block w-full bg-gradient-to-r from-pink-500 to-yellow-500 text-white text-center px-6 py-3 rounded-lg hover:from-pink-600 hover:to-yellow-600 font-bold shadow-lg transition-all"
+                    >
+                      🌸 Upload Emile et Ida Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
                 {/* Image Import for Flöss */}
                 {selectedVendor === 'floss' && imageImportResults.length === 0 && (
                   <div className="bg-purple-50 border border-purple-200 rounded p-6 mb-6">
@@ -8637,6 +9406,10 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       // Reset The New Society upload states
                       setThenewsocietyOrderConfirmationLoaded(false);
                       setThenewsocietyOrderLoaded(false);
+                      // Reset Emile et Ida upload states
+                      setEmileetidaOrderLoaded(false);
+                      setEmileetidaTarifLoaded(false);
+                      setEmileetidaPriceMap(new Map());
                       setImageImportResults([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -8852,6 +9625,153 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   ✅ Bevestigen & Uitvoeren
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Prompt Editor Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold">📝 AI Prompt Editor</h3>
+              <button
+                onClick={() => setShowPromptModal(false)}
+                className="text-white hover:text-gray-200 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Category Tabs */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setPromptCategory('kinderen')}
+                  className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                    promptCategory === 'kinderen'
+                      ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-b-2 border-pink-500'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  👶 Baby&apos;s, Kinderen &amp; Tieners
+                </button>
+                <button
+                  onClick={() => setPromptCategory('volwassenen')}
+                  className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                    promptCategory === 'volwassenen'
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-b-2 border-purple-500'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  👩 Volwassenen
+                </button>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>ℹ️ Info:</strong> Deze prompt wordt gebruikt als systeem-instructie voor de AI.
+                  De prompt bepaalt de stijl, toon en structuur van de gegenereerde productbeschrijvingen.
+                  <br /><br />
+                  <strong>Gebruikt voor:</strong>{' '}
+                  {promptCategory === 'kinderen' 
+                    ? 'MAAT Baby\'s, MAAT Kinderen, MAAT Tieners'
+                    : 'MAAT Volwassenen'
+                  }
+                </p>
+              </div>
+
+              {/* Prompt Editor */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  System Prompt {promptCategory === 'kinderen' ? '(Kinderen)' : '(Volwassenen)'}:
+                </label>
+                <textarea
+                  value={promptCategory === 'kinderen' ? customPromptKinderen : customPromptVolwassenen}
+                  onChange={(e) => {
+                    if (promptCategory === 'kinderen') {
+                      setCustomPromptKinderen(e.target.value);
+                    } else {
+                      setCustomPromptVolwassenen(e.target.value);
+                    }
+                  }}
+                  rows={15}
+                  className="w-full border dark:border-gray-600 rounded-lg px-4 py-3 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                  placeholder="Voer hier de AI systeem prompt in..."
+                />
+              </div>
+
+              {/* Reset Button */}
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    if (defaultPrompts) {
+                      if (promptCategory === 'kinderen') {
+                        setCustomPromptKinderen(defaultPrompts.kinderen.systemPrompt);
+                      } else {
+                        setCustomPromptVolwassenen(defaultPrompts.volwassenen.systemPrompt);
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                >
+                  🔄 Reset naar standaard
+                </button>
+                
+                {/* Status indicator */}
+                <div className="text-sm">
+                  {promptCategory === 'kinderen' ? (
+                    customPromptKinderen !== defaultPrompts?.kinderen?.systemPrompt ? (
+                      <span className="text-orange-600 dark:text-orange-400">⚠️ Aangepaste prompt</span>
+                    ) : (
+                      <span className="text-green-600 dark:text-green-400">✓ Standaard prompt</span>
+                    )
+                  ) : (
+                    customPromptVolwassenen !== defaultPrompts?.volwassenen?.systemPrompt ? (
+                      <span className="text-orange-600 dark:text-orange-400">⚠️ Aangepaste prompt</span>
+                    ) : (
+                      <span className="text-green-600 dark:text-green-400">✓ Standaard prompt</span>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Example Output Preview */}
+              <div className="mt-6 border-t dark:border-gray-700 pt-4">
+                <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">💡 Voorbeeld output structuur:</h4>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300">
+                  {promptCategory === 'kinderen' ? (
+                    <>
+                      <p className="mb-2">Dit schattige jurkje is perfect voor je kleine meid.</p>
+                      <p className="mb-2">• Zachte katoenmix voor optimaal comfort</p>
+                      <p className="mb-2">• Speelse bloemenprint</p>
+                      <p className="mb-2">• Gemakkelijk aan- en uit te trekken</p>
+                      <p className="text-gray-500 dark:text-gray-400 italic">Materiaal: 100% biologisch katoen</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-2">Deze elegante blouse combineert stijl met duurzaamheid.</p>
+                      <p className="mb-2 font-medium">Pasvorm: Regular fit</p>
+                      <p className="mb-2">• Tijdloos ontwerp</p>
+                      <p className="mb-2">• Veelzijdig te combineren</p>
+                      <p className="mb-2">• Duurzaam geproduceerd</p>
+                      <p className="text-gray-500 dark:text-gray-400 italic">Materiaal: TENCEL™ lyocell</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900 flex justify-end gap-3">
+              <button
+                onClick={() => setShowPromptModal(false)}
+                className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Sluiten
+              </button>
             </div>
           </div>
         </div>

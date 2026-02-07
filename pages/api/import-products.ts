@@ -64,12 +64,15 @@ async function handler(
     const { uid, password } = req.session.user!;
 
     console.log(`🚀 Starting import: ${products.length} products (testMode: ${testMode})`);
+    console.log(`📊 Raw request isPublished values:`, (req.body.products as Array<{isPublished?: boolean}>).map((p) => p.isPublished));
+    console.log(`📊 After validation isPublished values:`, products.map(p => p.isPublished));
 
     const results = [];
 
     for (const product of products) {
       try {
         console.log(`\n📦 Processing: ${product.name} (${product.reference})`);
+        console.log(`   🌐 isPublished: ${product.isPublished}, isFavorite: ${product.isFavorite}`);
 
         // Validation
         if (!product.selectedBrand) {
@@ -212,8 +215,8 @@ async function handler(
             return 'MAAT Kinderen';
           }
           
-          // Adult sizes: XS, S, M, L, XL (default to kids if not sure)
-          if (/^(XS|S|M|L|XL)$/i.test(firstSize)) {
+          // Adult sizes: XXS, XS, S, M, L, XL, XXL (matching Odoo attribute values)
+          if (/^(XXS|XS|S|M|L|XL|XXL)$/i.test(firstSize)) {
             return 'MAAT Volwassenen';
           }
           
