@@ -213,6 +213,61 @@ function mapSizeToOdooFormat(size: string): string {
   return sizeMapping[normalizedSize] || size;
 }
 
+// Convert Flöss size format to Dutch format (matching Odoo attribute values)
+// Odoo valid values: MAAT Baby's: 0,1,3,6,9,12,18,24,36,48 maand
+//                    MAAT Kinderen: 1-9 jaar
+//                    MAAT Tieners: 10,12,14 jaar
+// Flöss uses dual EU-size/age format: "92/2Y", "74/9M", "80/12M"
+// Range formats for accessories/hats: "3-9M", "9-24M", "3-5Y", "6-8Y", "18M-2Y"
+// Sock sizes: "19-21", "22-24" (kept as-is)
+function convertFlossSize(sizeStr: string): string {
+  if (!sizeStr) return sizeStr;
+  const s = sizeStr.trim();
+
+  // EU/age dual format: "56/1M" -> "1 maand", "92/2Y" -> "2 jaar", "140/10Y" -> "10 jaar"
+  const dualMatch = s.match(/^\d+\/(\d+)(M|Y)$/i);
+  if (dualMatch) {
+    const num = dualMatch[1];
+    const unit = dualMatch[2].toUpperCase();
+    return unit === 'M' ? `${num} maand` : `${num} jaar`;
+  }
+
+  // Mixed range: "18M-2Y" -> "2 jaar" (use end of range)
+  const mixedMatch = s.match(/^\d+M-(\d+)Y$/i);
+  if (mixedMatch) {
+    return `${mixedMatch[1]} jaar`;
+  }
+
+  // Year range: "3-5Y" -> "5 jaar", "6-8Y" -> "8 jaar" (always use end of range)
+  const yearRangeMatch = s.match(/^(\d+)-(\d+)Y$/i);
+  if (yearRangeMatch) {
+    return `${yearRangeMatch[2]} jaar`;
+  }
+
+  // Single year: "2Y" -> "2 jaar"
+  if (s.match(/^\d+Y$/i)) {
+    const yMatch = s.match(/^(\d+)Y$/i);
+    return yMatch ? `${yMatch[1]} jaar` : s;
+  }
+
+  // Month range: "3-9M" -> "9 maand", "9-24M" -> "24 maand" (always use end of range)
+  const monthRangeMatch = s.match(/^\d+-(\d+)M$/i);
+  if (monthRangeMatch) {
+    return `${monthRangeMatch[1]} maand`;
+  }
+
+  // Single month: "3M" -> "3 maand"
+  if (s.match(/^\d+M$/i)) {
+    return s.replace(/M$/i, ' maand');
+  }
+
+  // "U" or "ONE SIZE" -> "U"
+  if (s.toUpperCase() === 'ONE SIZE' || s.toUpperCase() === 'OS') return 'U';
+
+  // Sock/shoe sizes: "19-21", "22-24", "25-28", "29-32", "33-35" - keep as-is
+  return s;
+}
+
 // Check if a size represents a unit/universal size (no size variants)
 const isUnitSize = (size: string) => {
   const normalized = size?.trim().toUpperCase();
@@ -283,6 +338,20 @@ const CSV_CATEGORY_TO_DUTCH: Record<string, string[]> = {
   'BLOOMERS': ['Broeken', 'Broekjes'],
   'TROUSERS': ['Broeken'],
   'JUMPSUITS': ['Jumpsuits', 'Pakjes'],
+  // Flöss Type values
+  'DRESS': ['Jurken'],
+  'SKIRT': ['Rokken'],
+  'BLOUSE': ['Blouses', 'Tops', 'Hemden'],
+  'SHIRT': ['Hemden', 'Tops', 'Blouses'],
+  'SWEATER': ['Sweaters', 'Truien'],
+  'JACKET': ['Jassen', 'Vesten'],
+  'PANTS': ['Broeken'],
+  'LEGGINGS': ['Leggings', 'Broeken'],
+  'ONESIE': ['Pakjes', 'Bodysuits'],
+  'SET': ['Sets', 'Pakjes'],
+  'SOCKS': ['Sokken', 'Accessoires'],
+  'BUCKET HAT': ['Hoeden', 'Accessoires'],
+  'SUN HAT': ['Hoeden', 'Accessoires'],
 };
 
 // Find matching Odoo eCommerce categories based on CSV category and size attribute
@@ -456,6 +525,10 @@ export default function ProductImportPage() {
   const [emileetidaOrderLoaded, setEmileetidaOrderLoaded] = useState(false);
   const [emileetidaTarifLoaded, setEmileetidaTarifLoaded] = useState(false);
   const [emileetidaPriceMap, setEmileetidaPriceMap] = useState<Map<string, number>>(new Map());
+
+  // Flöss state for two-file upload (Style Details CSV + Sales Order Confirmation PDF)
+  const [flossCSVLoaded, setFlossCSVLoaded] = useState(false);
+  const [flossPdfLoaded, setFlossPdfLoaded] = useState(false);
 
   // Bobo Choses state for two-file upload (Packing list CSV + Price PDF for prices)
   const [bobochosesPackingLoaded, setBobochosesPackingLoaded] = useState(false);
@@ -2378,19 +2451,35 @@ export default function ProductImportPage() {
     
     console.log(`🌸 Total parsed rows: ${rows.length}`);
     if (rows.length > 0) console.log(`🌸 First row: ${rows[0][0]}`);
-    if (rows.length > 1) console.log(`🌸 Second row (headers): ${rows[1].slice(0, 5).join(';')}`);
+    if (rows.length > 1) console.log(`🌸 Second row: ${rows[1].slice(0, 5).join(';')}`);
     
-    if (rows.length < 3) {
+    if (rows.length < 2) {
       console.error('❌ Not enough rows in CSV');
       alert('CSV bestand is leeg of ongeldig');
       return;
     }
 
-    // Row 0 is "Table 1", Row 1 is headers, Row 2+ is data
-    const headers = rows[1];
+    // Auto-detect header row: Row 0 may be "Table 1" (old format) or directly the headers (new format)
+    let headerRowIdx = 0;
+    if (rows[0].length <= 2 && rows[0][0]?.toLowerCase().includes('table')) {
+      // Old format: Row 0 is "Table 1", Row 1 is headers
+      headerRowIdx = 1;
+      console.log('🌸 Detected old CSV format with "Table 1" prefix row');
+    } else if (rows[0].includes('Style No') && rows[0].includes('Style Name')) {
+      // New format: Row 0 is directly the headers
+      headerRowIdx = 0;
+      console.log('🌸 Detected new CSV format with headers on first row');
+    } else {
+      console.error('❌ Could not detect header row. First row:', rows[0]);
+      alert('Ongeldig CSV-formaat. Kan de header rij niet vinden (verwacht "Style No" en "Style Name").');
+      return;
+    }
+
+    const dataStartIdx = headerRowIdx + 1;
+    const headers = rows[headerRowIdx];
     const products: { [key: string]: ParsedProduct } = {};
 
-    console.log(`🌸 Headers: ${JSON.stringify(headers.slice(0, 15))}`);
+    console.log(`🌸 Headers (row ${headerRowIdx}): ${JSON.stringify(headers.slice(0, 15))}`);
     
     // Validate headers
     if (!headers.includes('Style No') || !headers.includes('Style Name')) {
@@ -2405,7 +2494,7 @@ export default function ProductImportPage() {
       return parseFloat(str.replace(',', '.'));
     };
 
-    for (let i = 2; i < rows.length; i++) {
+    for (let i = dataStartIdx; i < rows.length; i++) {
       const values = rows[i];
       if (!values || values.length === 0) continue;
       
@@ -2417,11 +2506,12 @@ export default function ProductImportPage() {
       const styleNo = row['Style No'] || '';
       const styleName = row['Style Name'] || '';
       const color = row['Color'] || '';
-      const size = row['Size'] || '';
+      const size = convertFlossSize(row['Size'] || '');
       const quantity = parseInt(row['Qty'] || '0');
       const barcode = row['Barcode'] || '';
       const quality = row['Quality'] || '';
       const description = row['Description'] || '';
+      const productType = row['Type'] || '';
       
       // Skip rows that are clearly not product rows
       if (!styleNo || !/^F\d+/.test(styleNo) || !styleName) {
@@ -2459,6 +2549,7 @@ export default function ProductImportPage() {
           originalName: styleName,
           material: quality,
           color: color,
+          csvCategory: productType,
           ecommerceDescription: description,
           variants: [],
           suggestedBrand: suggestedBrand?.name,
@@ -2469,7 +2560,7 @@ export default function ProductImportPage() {
           isPublished: true,
         };
         
-        console.log(`➕ Created product: ${reference} - ${formattedName}`);
+        console.log(`➕ Created product: ${reference} - ${formattedName} (Type: ${productType})`);
       }
       
       products[reference].variants.push({
@@ -2488,7 +2579,131 @@ export default function ProductImportPage() {
     });
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
-    setCurrentStep(2);
+    setFlossCSVLoaded(true);
+    
+    // If PDF was already loaded, verify data consistency
+    if (flossPdfLoaded) {
+      console.log('🌸 CSV loaded after PDF - data available from both sources');
+    }
+    
+    // Don't auto-advance - let user upload PDF too before clicking "Ga verder"
+  };
+
+  // Flöss PDF upload handler - calls API to parse Sales Order Confirmation PDF
+  const handleFlossPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      console.log(`🌸 Uploading Flöss PDF: ${file.name}`);
+      const response = await fetch('/api/parse-floss-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.products) {
+        setFlossPdfLoaded(true);
+
+        if (flossCSVLoaded && parsedProducts.length > 0) {
+          // CSV already loaded - use PDF to verify quantities and show summary
+          let matchCount = 0;
+          let mismatchDetails: string[] = [];
+
+          for (const pdfProduct of data.products) {
+            const csvProduct = parsedProducts.find(p => p.reference === pdfProduct.styleNo);
+            if (csvProduct) {
+              matchCount++;
+              const csvTotalQty = csvProduct.variants.reduce((sum: number, v: { quantity: number }) => sum + v.quantity, 0);
+              if (csvTotalQty !== pdfProduct.totalQty) {
+                mismatchDetails.push(`${pdfProduct.styleNo}: CSV=${csvTotalQty}, PDF=${pdfProduct.totalQty}`);
+              }
+            }
+          }
+
+          const mismatchMsg = mismatchDetails.length > 0
+            ? `\n\n⚠️ Aantal verschil bij ${mismatchDetails.length} product(en):\n${mismatchDetails.slice(0, 5).join('\n')}${mismatchDetails.length > 5 ? `\n...en ${mismatchDetails.length - 5} meer` : ''}`
+            : '\n\n✅ Alle aantallen komen overeen!';
+
+          alert(`✅ PDF geladen: ${data.products.length} producten gevonden.\n\n${matchCount} van ${parsedProducts.length} CSV producten gematcht.${mismatchMsg}`);
+        } else {
+          // No CSV yet - use PDF as primary data source
+          const products: { [key: string]: ParsedProduct } = {};
+
+          for (const pdfProduct of data.products) {
+            const reference = pdfProduct.styleNo;
+            if (!reference || !/^F\d+/.test(reference)) continue;
+
+            const brandName = 'Flöss';
+            const toSentenceCase = (str: string) => {
+              const lower = str.toLowerCase();
+              return lower.charAt(0).toUpperCase() + lower.slice(1);
+            };
+
+            // Group by styleNo - combine all colors
+            for (const colorData of pdfProduct.colors) {
+              const productKey = `${reference}_${colorData.color.replace(/[^a-zA-Z0-9]/g, '')}`;
+              const formattedName = `${brandName} - ${toSentenceCase(pdfProduct.styleName)} - ${toSentenceCase(colorData.color)}`;
+
+              const suggestedBrand = brands.find(b => 
+                b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss')
+              );
+
+              if (!products[productKey]) {
+                products[productKey] = {
+                  reference,
+                  name: formattedName,
+                  originalName: pdfProduct.styleName,
+                  material: pdfProduct.quality,
+                  color: colorData.color,
+                  ecommerceDescription: '',
+                  variants: [],
+                  suggestedBrand: suggestedBrand?.name,
+                  selectedBrand: suggestedBrand,
+                  publicCategories: [],
+                  productTags: [],
+                  isFavorite: false,
+                  isPublished: true,
+                };
+              }
+
+              for (const sizeData of colorData.sizes) {
+                products[productKey].variants.push({
+                  size: convertFlossSize(sizeData.size),
+                  quantity: sizeData.qty,
+                  ean: '',
+                  price: pdfProduct.price,
+                  rrp: pdfProduct.rrp,
+                });
+              }
+            }
+          }
+
+          const productList = Object.values(products);
+          productList.forEach(product => {
+            product.sizeAttribute = determineSizeAttribute(product.variants);
+          });
+          setParsedProducts(productList);
+          setSelectedProducts(new Set(productList.map(p => p.reference)));
+          
+          alert(`✅ ${data.products.length} producten geladen uit PDF!\n\n⚠️ Barcodes (EAN) zijn niet beschikbaar in de PDF. Upload ook de Style Details CSV voor complete data inclusief barcodes.`);
+          // Don't auto-advance - let user upload CSV too before clicking "Ga verder"
+        }
+      } else {
+        console.error('PDF parse error:', data);
+        alert(`❌ Fout bij parsen PDF: ${data.error || 'Onbekende fout'}`);
+      }
+    } catch (error: unknown) {
+      console.error('PDF upload error:', error);
+      alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const parseTinycottonsCSV = (text: string) => {
@@ -6755,7 +6970,7 @@ export default function ProductImportPage() {
                       <div className="text-4xl mb-3">🌸</div>
                       <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Flöss</h3>
                       <p className="text-sm text-gray-800 dark:text-gray-300">
-                        Style Details met Style No, Quality, Barcode, Prijzen
+                        Style Details CSV + Sales Order Confirmation PDF
                       </p>
                       {selectedVendor === 'floss' && (
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
@@ -7455,6 +7670,124 @@ export default function ProductImportPage() {
                               <p className="text-xs text-blue-800 dark:text-blue-300">
                                 💡 <strong>Tip:</strong> Je kunt ook per product prijzen aanpassen in stap 2 (Mapping) en stap 3 (Voorraad). Daar zie je alle producten en kun je individuele prijzen bewerken.
                               </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : selectedVendor === 'floss' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-pink-50 dark:bg-pink-900/20 border border-pink-300 dark:border-pink-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-pink-900 dark:text-pink-300">🌸 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={flossCSVLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  Stap 1 - Style Details CSV: {flossCSVLoaded ? `✅ ${parsedProducts.length} producten geladen` : '⏳ Nog niet geüpload'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className={flossPdfLoaded ? 'text-green-600 font-semibold' : 'text-gray-600'}>
+                                  Stap 2 - Sales Order Confirmation PDF: {flossPdfLoaded ? '✅ Geladen en geverifieerd' : '⏳ Optioneel'}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-pink-200 dark:border-pink-800">
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">💡 Volgorde:</p>
+                              <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                                <li><strong>Eerst:</strong> Upload de <strong>Style Details CSV</strong> (bevat barcodes, beschrijvingen, alle data)</li>
+                                <li><strong>Dan (optioneel):</strong> Upload de <strong>Sales Order Confirmation PDF</strong> om aantallen en prijzen te verifiëren</li>
+                                <li><strong>Klik &quot;Ga verder&quot;</strong> als je klaar bent met uploaden</li>
+                              </ol>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Style Details CSV - Step 1 */}
+                            <div className={`border-2 ${flossCSVLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                Stap 1: Style Details CSV
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met Style No, Style Name, Color, Size, Barcode, Prijzen, Beschrijving
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;7341 - Style Details.csv&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="floss-csv-upload"
+                              />
+                              <label
+                                htmlFor="floss-csv-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  flossCSVLoaded 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {flossCSVLoaded ? `✅ Geladen (${parsedProducts.length} producten)` : '📄 Upload Style Details CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* Sales Order Confirmation PDF - Step 2 */}
+                            <div className={`border-2 ${flossPdfLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-blue-300 bg-blue-50 dark:bg-blue-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📋</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                Stap 2: Order Confirmation PDF <span className="text-gray-400 text-sm font-normal">(optioneel)</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Sales Order Confirmation met productoverzicht, aantallen en prijzen
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;7341 - Sales Order Confirmation.pdf&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleFlossPdfUpload}
+                                className="hidden"
+                                id="floss-pdf-upload"
+                              />
+                              <label
+                                htmlFor="floss-pdf-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  flossPdfLoaded
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                {flossPdfLoaded 
+                                  ? '✅ PDF geladen'
+                                  : '📋 Upload Order Confirmation PDF'}
+                              </label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Verifieert aantallen en prijzen uit de CSV
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ga verder button */}
+                          {(flossCSVLoaded || flossPdfLoaded) && (
+                            <div className="text-center mt-4">
+                              <button
+                                onClick={() => setCurrentStep(2)}
+                                disabled={parsedProducts.length === 0}
+                                className="px-8 py-3 rounded-lg font-bold text-lg transition-colors bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                              >
+                                ✅ Ga verder met {parsedProducts.length} producten
+                              </button>
+                              {!flossPdfLoaded && flossCSVLoaded && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                                  💡 Je kunt ook nog de PDF uploaden voor verificatie, of direct verder gaan.
+                                </p>
+                              )}
+                              {flossPdfLoaded && !flossCSVLoaded && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Zonder CSV ontbreken barcodes (EAN). Upload ook de CSV voor complete data.
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
