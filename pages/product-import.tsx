@@ -36,7 +36,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | null;
 
 interface Brand {
   id: number;
@@ -457,6 +457,14 @@ export default function ProductImportPage() {
   const [emileetidaTarifLoaded, setEmileetidaTarifLoaded] = useState(false);
   const [emileetidaPriceMap, setEmileetidaPriceMap] = useState<Map<string, number>>(new Map());
 
+  // Bobo Choses state for two-file upload (Packing list CSV + Price PDF for prices)
+  const [bobochosesPackingLoaded, setBobochosesPackingLoaded] = useState(false);
+  const [bobochosesPriceLoaded, setBobochosesPriceLoaded] = useState(false);
+  const [bobochosesPriceMap, setBobochosesPriceMap] = useState<Map<string, { wholesale: number; rrp: number }>>(new Map());
+  // Bobo Choses manual price entry
+  const [bobochosesManualWholesale, setBobochosesManualWholesale] = useState<string>('');
+  const [bobochosesManualRrp, setBobochosesManualRrp] = useState<string>('');
+
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
     { id: 2, name: 'Mapping', icon: '🗺️' },
@@ -708,6 +716,16 @@ export default function ProductImportPage() {
           parseEmileetidaCSV(text);
         } else {
           alert('⚠️ Onbekend CSV formaat voor Emile et Ida.\n\nUpload eerst de Order CSV (met Product name, EAN13)\nof de TARIF CSV (met Gencod, RRP EUR) voor verkoopprijzen.');
+        }
+      } else if (selectedVendor === 'bobochoses') {
+        // Bobo Choses - only handle Packing list CSV here (PDF handled by separate handler)
+        const firstLine = text.split('\n')[0].toLowerCase();
+        
+        // Check if it's the Packing list CSV
+        if (firstLine.includes('bobo choses') || text.toUpperCase().includes('BOX;REFERENCE;DESCRIPTION')) {
+          parseBobochosesCSV(text);
+        } else {
+          alert('⚠️ Onbekend CSV bestand voor Bobo Choses.\n\nUpload de Packing list CSV (met BOX, REFERENCE, DESCRIPTION, etc.).\n\nVoor de Price PDF, gebruik de aparte PDF upload knop.');
         }
       } else if (selectedVendor === 'thenewsociety') {
         // Detect if this is order confirmation CSV (with SRP) or order CSV (with EAN13)
@@ -2882,6 +2900,266 @@ export default function ProductImportPage() {
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setEmileetidaOrderLoaded(true);
+    setCurrentStep(2);
+  };
+
+  // Bobo Choses PDF upload handler - calls API to parse PDF
+  const handleBobochosesPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      console.log(`🎪 Uploading Bobo Choses PDF: ${file.name}`);
+      const response = await fetch('/api/parse-bobochoses-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.priceMap) {
+        const priceMap = new Map<string, { wholesale: number; rrp: number }>();
+        
+        // Convert priceMap object to Map
+        for (const [ref, prices] of Object.entries(data.priceMap)) {
+          priceMap.set(ref, prices as { wholesale: number; rrp: number });
+        }
+        
+        console.log(`🎪 Built price map with ${priceMap.size} REF->Price entries`);
+        setBobochosesPriceMap(priceMap);
+        setBobochosesPriceLoaded(true);
+        
+        // If packing list is already loaded, update prices
+        if (bobochosesPackingLoaded && parsedProducts.length > 0) {
+          const updatedProducts = parsedProducts.map(product => {
+            // Try to match by base reference (without color code suffix)
+            const baseRef = product.reference.split('_')[0].toUpperCase();
+            const priceData = priceMap.get(baseRef) || priceMap.get(product.reference.toUpperCase());
+            if (!priceData) return product;
+            
+            return {
+              ...product,
+              variants: product.variants.map(variant => ({
+                ...variant,
+                price: priceData.wholesale || variant.price,
+                rrp: priceData.rrp || variant.rrp,
+              }))
+            };
+          });
+          setParsedProducts(updatedProducts);
+          
+          // Count how many products were matched
+          const matchedCount = updatedProducts.filter(p => {
+            const baseRef = p.reference.split('_')[0].toUpperCase();
+            return priceMap.has(baseRef) || priceMap.has(p.reference.toUpperCase());
+          }).length;
+          
+          alert(`✅ ${data.count} prijzen geladen uit PDF!\n\n${matchedCount} van ${updatedProducts.length} producten gematcht met prijzen.`);
+        } else {
+          alert(`✅ ${data.count} prijzen geladen uit PDF!\n\nUpload nu de Packing List CSV om producten te laden.`);
+        }
+      } else {
+        console.error('PDF parse error:', data);
+        alert(`❌ Fout bij parsen PDF: ${data.error || 'Onbekende fout'}\n\nProbeer de manuele prijs invoer te gebruiken.`);
+        if (data.debugText) {
+          console.log('Debug text:', data.debugText);
+        }
+      }
+    } catch (error: unknown) {
+      console.error('PDF upload error:', error);
+      alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // Bobo Choses Packing List CSV parser
+  const parseBobochosesCSV = (text: string, priceMapParam?: Map<string, { wholesale: number; rrp: number }>) => {
+    console.log(`🎪 Parsing Bobo Choses Packing List CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    // Find the header line (starts with BOX;REFERENCE;...)
+    let headerLineIdx = -1;
+    for (let i = 0; i < Math.min(20, lines.length); i++) {
+      const line = lines[i].toUpperCase();
+      if (line.includes('BOX') && line.includes('REFERENCE') && line.includes('DESCRIPTION')) {
+        headerLineIdx = i;
+        break;
+      }
+    }
+    
+    if (headerLineIdx === -1) {
+      console.error('❌ Could not find header line in Bobo Choses CSV');
+      alert('Ongeldig CSV-formaat. Verwachte headers: BOX;REFERENCE;DESCRIPTION;COLOR;SIZE;EAN;...');
+      return;
+    }
+    
+    // Parse header
+    const headers = lines[headerLineIdx].split(';').map(h => h.trim().toUpperCase());
+    console.log(`🎪 Headers: ${JSON.stringify(headers)}`);
+    
+    // Find column indices
+    const refIdx = headers.findIndex(h => h === 'REFERENCE');
+    const descIdx = headers.findIndex(h => h === 'DESCRIPTION');
+    const colorIdx = headers.findIndex(h => h === 'COLOR');
+    const sizeIdx = headers.findIndex(h => h === 'SIZE');
+    const eanIdx = headers.findIndex(h => h === 'EAN');
+    const qtyIdx = headers.findIndex(h => h === 'QUANTITY');
+    
+    if (refIdx === -1 || descIdx === -1 || sizeIdx === -1 || eanIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: REFERENCE, DESCRIPTION, SIZE, EAN');
+      return;
+    }
+    
+    const products: { [key: string]: ParsedProduct } = {};
+    const priceMap = priceMapParam || bobochosesPriceMap;
+    
+    // Auto-detect Bobo Choses brand
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('bobo') || 
+      b.name.toLowerCase().includes('choses')
+    );
+    
+    // Helper to format product name
+    const toTitleCase = (str: string): string => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
+    
+    // Bobo Choses color code mapping (based on typical patterns)
+    const getColorName = (colorCode: string): string => {
+      // Color codes are numeric in Bobo Choses
+      // Common patterns based on their system
+      const colorMap: { [key: string]: string } = {
+        '199': 'Off White',
+        '311': 'Green',
+        '421': 'Beige',
+        '611': 'Red',
+        '661': 'Pink',
+        '721': 'Orange',
+        '991': 'Multi',
+        '211': 'Yellow',
+      };
+      return colorMap[colorCode] || `Color ${colorCode}`;
+    };
+    
+    for (let i = headerLineIdx + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(';').map(v => v.trim());
+      
+      const reference = values[refIdx] || '';
+      const description = values[descIdx] || '';
+      const colorCode = values[colorIdx] || '';
+      const size = values[sizeIdx] || '';
+      const ean = values[eanIdx] || '';
+      const quantity = parseInt(values[qtyIdx] || '0', 10) || 1;
+      
+      if (!reference || !description) continue;
+      
+      // Create product key based on reference + color
+      const productKey = `${reference}|${colorCode}`;
+      const colorName = getColorName(colorCode);
+      
+      // Format product name: "Bobo Choses - Description - Color"
+      const formattedName = `Bobo Choses - ${toTitleCase(description)} - ${colorName}`;
+      
+      // Look up prices from price map
+      const priceData = priceMap.get(reference.toUpperCase());
+      const wholesalePrice = priceData?.wholesale || 0;
+      const rrpPrice = priceData?.rrp || 0;
+      
+      // Convert size for display (handle HEAD58, ONE SIZE, etc.)
+      let displaySize = size;
+      if (size === 'ONE SIZE') {
+        displaySize = 'U';
+      } else if (size.startsWith('HEAD')) {
+        displaySize = size; // Keep as-is for head sizes
+      }
+      
+      if (!products[productKey]) {
+        // Create unique reference combining ref and color
+        const uniqueReference = colorCode ? `${reference}_${colorCode}` : reference;
+        
+        products[productKey] = {
+          reference: uniqueReference,
+          name: formattedName,
+          originalName: description,
+          productName: reference,
+          material: '',
+          color: colorName,
+          ecommerceDescription: description,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '', // Will be auto-determined
+        };
+        
+        console.log(`✅ Created product: ${formattedName} (Ref: ${reference})`);
+      }
+      
+      products[productKey].variants.push({
+        size: displaySize,
+        quantity: quantity,
+        ean: ean,
+        sku: reference,
+        price: wholesalePrice,
+        rrp: rrpPrice,
+      });
+    }
+    
+    const productList = Object.values(products);
+    console.log(`🎪 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    // Auto-determine size attribute based on sizes
+    productList.forEach(product => {
+      // Check if any variant has adult sizes (XS, S, M, L, XL, XXL)
+      const hasAdultSizes = product.variants.some(v => 
+        /^(XXS|XS|S|M|L|XL|XXL)$/i.test(v.size.trim())
+      );
+      // Check for shoe sizes (37-42 range typically adult)
+      const hasAdultShoeSizes = product.variants.some(v => {
+        const num = parseInt(v.size, 10);
+        return num >= 35 && num <= 45;
+      });
+      // Check for head sizes
+      const hasHeadSizes = product.variants.some(v => 
+        v.size.toUpperCase().includes('HEAD')
+      );
+      // Check for ONE SIZE / U
+      const hasOneSize = product.variants.some(v => 
+        v.size === 'U' || v.size.toUpperCase() === 'ONE SIZE'
+      );
+      
+      if (hasAdultSizes || hasAdultShoeSizes) {
+        product.sizeAttribute = 'MAAT Volwassenen';
+      } else if (hasHeadSizes || hasOneSize) {
+        // For accessories, default to Kinderen unless clearly adult
+        product.sizeAttribute = 'MAAT Kinderen';
+      } else {
+        product.sizeAttribute = 'MAAT Kinderen';
+      }
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setBobochosesPackingLoaded(true);
     setCurrentStep(2);
   };
 
@@ -5896,11 +6174,17 @@ export default function ProductImportPage() {
     setParsedProducts(products =>
       products.map(p => {
         if (p.reference === productRef) {
-          // If changing rrp (Verkoopprijs), apply to ALL variants of this product
+          // If changing rrp (Verkoopprijs) or price (Kostprijs), apply to ALL variants of this product
           if (field === 'rrp') {
             return {
               ...p,
               variants: p.variants.map(v => ({ ...v, rrp: value as number })),
+            };
+          }
+          if (field === 'price') {
+            return {
+              ...p,
+              variants: p.variants.map(v => ({ ...v, price: value as number })),
             };
           }
           // For other fields, only update the specific variant
@@ -6715,6 +6999,35 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('bobochoses');
+                        // Reset Bobo Choses upload states when selecting vendor
+                        setBobochosesPackingLoaded(false);
+                        setBobochosesPriceLoaded(false);
+                        setBobochosesPriceMap(new Map());
+                        setBobochosesManualWholesale('');
+                        setBobochosesManualRrp('');
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'bobochoses'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🎪</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Bobo Choses</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Twee bestanden: Packing list CSV + Price PDF
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Maten: XS, S, M, L, XL (Volwassenen)
+                      </p>
+                      {selectedVendor === 'bobochoses' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -6966,6 +7279,184 @@ export default function ProductImportPage() {
                               </p>
                             </div>
                           </div>
+                        </div>
+                      ) : selectedVendor === 'bobochoses' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-purple-900 dark:text-purple-300">🎪 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={bobochosesPackingLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  Packing List CSV: {bobochosesPackingLoaded ? `✅ ${parsedProducts.length} producten geladen` : '❌ Verplicht - Upload eerst!'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className={bobochosesPriceLoaded ? 'text-green-600 font-semibold' : bobochosesPackingLoaded ? 'text-blue-600 font-semibold' : 'text-gray-600'}>
+                                  Price PDF: {bobochosesPriceLoaded ? `✅ ${bobochosesPriceMap.size} prijzen geladen` : bobochosesPackingLoaded ? '⏳ Optioneel - Voor wholesale/RRP prijzen' : '⏳ Optioneel'}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-purple-200 dark:border-purple-800">
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">💡 Hoe het werkt:</p>
+                              <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                                <li><strong>Eerst:</strong> Upload Packing List CSV (met REFERENCE, DESCRIPTION, COLOR, SIZE, EAN, QUANTITY)</li>
+                                <li><strong>Dan:</strong> Upload Price PDF om wholesale en RRP prijzen toe te voegen via referentie lookup</li>
+                                <li>Zonder Price PDF: prijzen moeten handmatig worden ingevuld</li>
+                              </ol>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4">
+                            {/* Packing List CSV - Required First */}
+                            <div className={`border-2 ${bobochosesPackingLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                1️⃣ Packing List CSV <span className="text-red-500">*</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met BOX, REFERENCE, DESCRIPTION, COLOR, SIZE, EAN, QUANTITY
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;Packing-list_SO25-01066-OUT0009819.csv&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="bobochoses-packing-upload"
+                              />
+                              <label
+                                htmlFor="bobochoses-packing-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  bobochosesPackingLoaded 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {bobochosesPackingLoaded ? `✅ Geladen (${parsedProducts.length} producten)` : '📄 Upload Packing List CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* Price PDF - Optional */}
+                            <div className={`border-2 ${bobochosesPriceLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-blue-300 bg-blue-50 dark:bg-blue-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">💰</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                2️⃣ Price PDF <span className="text-gray-400">(optioneel)</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met REF, Wholesale price, European RRP
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;Bobo Choses Client Portal.pdf&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleBobochosesPdfUpload}
+                                className="hidden"
+                                id="bobochoses-price-upload"
+                              />
+                              <label
+                                htmlFor="bobochoses-price-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  bobochosesPriceLoaded
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                {bobochosesPriceLoaded 
+                                  ? `✅ ${bobochosesPriceMap.size} prijzen geladen`
+                                  : '💰 Upload Price PDF'}
+                              </label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                📝 Prijzen worden gekoppeld via REF code
+                              </p>
+                            </div>
+
+                            {/* Manual Price Entry */}
+                            <div className={`border-2 ${bobochosesPackingLoaded && (bobochosesManualWholesale || bobochosesManualRrp) ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30'} rounded-lg p-6`}>
+                              <div className="text-4xl mb-3 text-center">✏️</div>
+                              <h4 className="font-bold text-lg mb-2 text-center">
+                                3️⃣ Manuele Prijzen
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 text-center">
+                                Vul prijzen in en pas toe op alle producten
+                              </p>
+                              
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Aankoopprijs (€)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={bobochosesManualWholesale}
+                                    onChange={(e) => setBobochosesManualWholesale(e.target.value)}
+                                    placeholder="bijv. 30.00"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Verkoopprijs / RRP (€)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={bobochosesManualRrp}
+                                    onChange={(e) => setBobochosesManualRrp(e.target.value)}
+                                    placeholder="bijv. 75.00"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (!bobochosesPackingLoaded) {
+                                      alert('Upload eerst de Packing List CSV');
+                                      return;
+                                    }
+                                    const wholesale = parseFloat(bobochosesManualWholesale) || 0;
+                                    const rrp = parseFloat(bobochosesManualRrp) || 0;
+                                    if (wholesale === 0 && rrp === 0) {
+                                      alert('Vul minimaal een prijs in');
+                                      return;
+                                    }
+                                    const updatedProducts = parsedProducts.map(product => ({
+                                      ...product,
+                                      variants: product.variants.map(variant => ({
+                                        ...variant,
+                                        price: wholesale || variant.price,
+                                        rrp: rrp || variant.rrp,
+                                      }))
+                                    }));
+                                    setParsedProducts(updatedProducts);
+                                    alert(`✅ Prijzen toegepast op ${updatedProducts.length} producten!\n\nAankoopprijs: €${wholesale.toFixed(2)}\nVerkoopprijs: €${rrp.toFixed(2)}`);
+                                  }}
+                                  disabled={!bobochosesPackingLoaded}
+                                  className={`w-full px-4 py-2 rounded font-medium text-sm ${
+                                    bobochosesPackingLoaded
+                                      ? 'bg-purple-600 text-white hover:bg-purple-700 cursor-pointer'
+                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                                >
+                                  💰 Toepassen op alle producten
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Per-product price editing hint */}
+                          {bobochosesPackingLoaded && (
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                              <p className="text-xs text-blue-800 dark:text-blue-300">
+                                💡 <strong>Tip:</strong> Je kunt ook per product prijzen aanpassen in stap 2 (Mapping) en stap 3 (Voorraad). Daar zie je alle producten en kun je individuele prijzen bewerken.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       ) : selectedVendor === 'wyncken' ? (
                         <div className="space-y-4">
@@ -7499,7 +7990,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -7628,6 +8119,26 @@ SS26-KID;ACCESSORIES;EMILE ET IDA;ADSACADOS;TULIPE;TU;3664547680803;SAC A DOS IM
 → Ecommerce: "SAC A DOS IMPRIME" (Product name + Fabric/print)
 → Variant: Maat U (TU → U), Prijs: €34,10, RRP: €85,00 (via TARIF lookup)
 → Maten: 02A → 2 jaar, 06-18M → 6 - 18 maand, 02A-04A → 2 - 4 jaar, TU → U`}
+                        </pre>
+                      ) : selectedVendor === 'bobochoses' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`📄 PACKING LIST CSV:
+BOBO CHOSES;;Nº Delivery Note;OUT0009819;;...
+...header rows...
+BOX;REFERENCE;DESCRIPTION;COLOR;SIZE;EAN;CUSTOMS CODE;ORIGIN COUNTRY;QUANTITY
+1;B126AK001;Red patent-leather cross sandal;611;39;8445782377735;6405100000;ES;1
+2;B126AD091;Summer trip jacquard cotton jumper;199;XS;8445782373034;6110209900;ES;1
+
+💰 PRICE PDF (optioneel):
+Hidden Monster Relaxed T-Shirt
+REF: B226AD018
+Wholesale price 30 eur
+European RRP 75 eur
+
+→ Wordt: "Bobo Choses - Red Patent-Leather Cross Sandal - Red"
+→ Color code 611 → Red, 199 → Off White, 991 → Multi
+→ Variant: Maat 39 (schoenen), XS/S/M/L/XL (kleding)
+→ Prijzen: Via PDF lookup met REF code`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -8128,7 +8639,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                       />
                                     </td>
                                     <td className="p-2 text-gray-900 dark:text-gray-100">
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex items-center relative group">
                                         <span className="mr-1">€</span>
                                         <input
                                           type="number"
@@ -8136,10 +8647,14 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           min="0"
                                           value={variant.price}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'price', parseFloat(e.target.value) || 0)}
-                                          className={`w-20 border dark:border-gray-600 rounded px-2 py-1 text-right text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 ${
+                                          className={`w-20 border dark:border-gray-600 rounded px-2 py-1 text-right text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border-green-300 dark:border-green-600 ${
                                             variant.sku && pdfPrices.has(variant.sku) ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/30' : ''
                                           }`}
+                                          title="Wijzigen past alle varianten van dit product aan"
                                         />
+                                        <span className="ml-1 text-xs text-green-600 dark:text-green-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Update alle varianten">
+                                          🔄
+                                        </span>
                                         {variant.sku && pdfPrices.has(variant.sku) && (
                                           <span className="text-xs text-orange-600" title="Prijs uit PDF">📋</span>
                                         )}
@@ -8155,9 +8670,9 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                           value={variant.rrp}
                                           onChange={(e) => updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
                                           className="w-20 border dark:border-gray-600 rounded px-2 py-1 text-right text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border-blue-300 dark:border-blue-600"
-                                          title="Changing this will update all variants of this product"
+                                          title="Wijzigen past alle varianten van dit product aan"
                                         />
-                                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Updates all variants">
+                                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" title="Update alle varianten">
                                           🔄
                                         </span>
                                       </div>
@@ -9226,6 +9741,31 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
                 )}
 
+                {/* Image Import for Bobo Choses */}
+                {selectedVendor === 'bobochoses' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🎪 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-yellow-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Images from <code className="bg-gray-100 px-1 rounded">PRODUCT PICTURES WOMAN SS26</code> folder</li>
+                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">B126AD001_1.jpg</code></li>
+                        <li>The app will automatically match them based on product references!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/bobochoses-images-import"
+                      className="block w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-center px-6 py-3 rounded-lg hover:from-yellow-600 hover:to-orange-600 font-bold shadow-lg transition-all"
+                    >
+                      🎪 Upload Bobo Choses Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
                 {/* Image Import for The New Society */}
                 {selectedVendor === 'thenewsociety' && imageImportResults.length === 0 && (
                   <div className="bg-green-50 border border-green-200 rounded p-6 mb-6">
@@ -9410,6 +9950,12 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       setEmileetidaOrderLoaded(false);
                       setEmileetidaTarifLoaded(false);
                       setEmileetidaPriceMap(new Map());
+                      // Reset Bobo Choses upload states
+                      setBobochosesPackingLoaded(false);
+                      setBobochosesPriceLoaded(false);
+                      setBobochosesPriceMap(new Map());
+                      setBobochosesManualWholesale('');
+                      setBobochosesManualRrp('');
                       setImageImportResults([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
