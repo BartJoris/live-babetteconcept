@@ -69,6 +69,8 @@ export const KINDEREN_USER_PROMPT_TEMPLATE = (product: {
     'Tiny Cottons': 'Tiny Cottons is een Spaans merk dat moderne, minimalistische kinderkleding ontwerpt.',
     'Play Up': 'Play Up is een Portugees merk dat duurzame kinderkleding maakt met oog voor comfort.',
     'Flöss': 'Flöss is een Deens merk dat tijdloze kinderkleding ontwerpt met oog voor detail.',
+    'Brunobruno': 'Brunobruno is een merk dat stijlvolle kinderkleding ontwerpt.',
+    'Petit Blush': 'Petit Blush is een duurzaam kindermodemerk dat feminine, speelse stukken ontwerpt met organisch katoen en gerecyclede materialen.',
     'The Sunday Collective': 'The Sunday Collective maakt comfortabele kinderkleding met een relaxte uitstraling.',
     'Goldie and Ace': 'Goldie and Ace is een Australisch merk met speelse, kleurrijke kinderkleding.',
   };

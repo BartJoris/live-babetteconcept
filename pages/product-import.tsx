@@ -36,7 +36,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'brunobruno' | 'petitblush' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | null;
 
 interface Brand {
   id: number;
@@ -213,13 +213,22 @@ function mapSizeToOdooFormat(size: string): string {
   return sizeMapping[normalizedSize] || size;
 }
 
-// Convert Flöss size format to Dutch format (matching Odoo attribute values)
+// Convert size format to Dutch format (matching Odoo attribute values)
 // Odoo valid values: MAAT Baby's: 0,1,3,6,9,12,18,24,36,48 maand
 //                    MAAT Kinderen: 1-9 jaar
 //                    MAAT Tieners: 10,12,14 jaar
 // Flöss uses dual EU-size/age format: "92/2Y", "74/9M", "80/12M"
+// Brunobruno uses plain EU sizes: "98", "104", "110/116", "122/128"
 // Range formats for accessories/hats: "3-9M", "9-24M", "3-5Y", "6-8Y", "18M-2Y"
 // Sock sizes: "19-21", "22-24" (kept as-is)
+const euSizeToAge: Record<number, string> = {
+  50: '0 maand', 56: '1 maand', 62: '3 maand', 68: '6 maand',
+  74: '9 maand', 80: '12 maand', 86: '18 maand',
+  92: '2 jaar', 98: '3 jaar', 104: '4 jaar', 110: '5 jaar',
+  116: '6 jaar', 122: '7 jaar', 128: '8 jaar', 134: '9 jaar',
+  140: '10 jaar', 146: '11 jaar', 152: '12 jaar', 158: '13 jaar', 164: '14 jaar',
+};
+
 function convertFlossSize(sizeStr: string): string {
   if (!sizeStr) return sizeStr;
   const s = sizeStr.trim();
@@ -230,6 +239,20 @@ function convertFlossSize(sizeStr: string): string {
     const num = dualMatch[1];
     const unit = dualMatch[2].toUpperCase();
     return unit === 'M' ? `${num} maand` : `${num} jaar`;
+  }
+
+  // Dual EU size without age suffix: "110/116" -> use larger size -> "6 jaar"
+  const dualEuMatch = s.match(/^(\d{2,3})\/(\d{2,3})$/);
+  if (dualEuMatch) {
+    const upperSize = parseInt(dualEuMatch[2]);
+    if (euSizeToAge[upperSize]) return euSizeToAge[upperSize];
+  }
+
+  // Single EU size: "98" -> "3 jaar", "104" -> "4 jaar"
+  const singleEuMatch = s.match(/^(\d{2,3})$/);
+  if (singleEuMatch) {
+    const euSize = parseInt(singleEuMatch[1]);
+    if (euSizeToAge[euSize]) return euSizeToAge[euSize];
   }
 
   // Mixed range: "18M-2Y" -> "2 jaar" (use end of range)
@@ -530,6 +553,11 @@ export default function ProductImportPage() {
   const [flossCSVLoaded, setFlossCSVLoaded] = useState(false);
   const [flossPdfLoaded, setFlossPdfLoaded] = useState(false);
 
+  // Petit Blush state for two-file upload (Order Sheet CSV + EAN Code List CSV)
+  const [petitBlushOrderLoaded, setPetitBlushOrderLoaded] = useState(false);
+  const [petitBlushEanLoaded, setPetitBlushEanLoaded] = useState(false);
+  const [petitBlushEanMap, setPetitBlushEanMap] = useState<Map<string, string>>(new Map());
+
   // Bobo Choses state for two-file upload (Packing list CSV + Price PDF for prices)
   const [bobochosesPackingLoaded, setBobochosesPackingLoaded] = useState(false);
   const [bobochosesPriceLoaded, setBobochosesPriceLoaded] = useState(false);
@@ -748,8 +776,17 @@ export default function ProductImportPage() {
         parseLeNewBlackCSV(text);
       } else if (selectedVendor === 'playup') {
         parsePlayUpCSV(text);
-      } else if (selectedVendor === 'floss') {
+      } else if (selectedVendor === 'floss' || selectedVendor === 'brunobruno') {
         parseFlossCSV(text);
+      } else if (selectedVendor === 'petitblush') {
+        // Auto-detect: semicolon-separated = Order Sheet, comma-separated with "EAN Code" = EAN list
+        if (text.includes('EAN Code') && text.includes(',')) {
+          parsePetitBlushEanCSV(text);
+        } else if (text.includes(';')) {
+          parsePetitBlushOrderCSV(text);
+        } else {
+          alert('Onherkenbaar CSV-formaat voor Petit Blush. Upload het Order Sheet (;-gescheiden) of EAN Code List (,-gescheiden).');
+        }
       } else if (selectedVendor === 'tinycottons') {
         parseTinycottonsCSV(text);
       } else if (selectedVendor === 'indee') {
@@ -2514,7 +2551,9 @@ export default function ProductImportPage() {
       const productType = row['Type'] || '';
       
       // Skip rows that are clearly not product rows
-      if (!styleNo || !/^F\d+/.test(styleNo) || !styleName) {
+      // Flöss uses F-prefix (F10841), Brunobruno uses numeric (260202-20122)
+      const validStyleNo = selectedVendor === 'brunobruno' ? /^\d{6}-/.test(styleNo) : /^F\d+/.test(styleNo);
+      if (!styleNo || !validStyleNo || !styleName) {
         if (styleNo) {
           console.log(`⚠️ Skipping row ${i}: invalid Style No "${styleNo}"`);
         }
@@ -2524,8 +2563,10 @@ export default function ProductImportPage() {
       const price = parsePrice(row['Wholesale Price EUR'] || '0');
       const rrp = parsePrice(row['Recommended Retail Price EUR'] || '0');
 
-      // Use styleNo as reference
-      const reference = styleNo;
+      // Brunobruno: same styleNo can have multiple colors, so key by styleNo + colorCode
+      // Floss: each styleNo is unique per color
+      const colorCode = color.match(/^(\d+)/)?.[1] || '';
+      const reference = (selectedVendor === 'brunobruno' && colorCode) ? `${styleNo}_${colorCode}` : styleNo;
 
       if (!products[reference]) {
         // Format product name to match Le New Black convention
@@ -2534,14 +2575,15 @@ export default function ProductImportPage() {
           return lower.charAt(0).toUpperCase() + lower.slice(1);
         };
         
-        const brandName = 'Flöss';
+        const brandName = selectedVendor === 'brunobruno' ? 'Brunobruno' : 'Flöss';
         const productNameWithColor = `${toSentenceCase(styleName)} - ${toSentenceCase(color)}`;
         const formattedName = `${brandName} - ${productNameWithColor}`;
         
-        // Auto-detect Flöss brand
-        const suggestedBrand = brands.find(b => 
-          b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss')
-        );
+        const suggestedBrand = selectedVendor === 'brunobruno'
+          ? brands.find(b => b.name.toLowerCase().includes('brunobruno') || b.name.toLowerCase().includes('bruno bruno'))
+          : brands.find(b => b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss'));
+
+        const ecommerceDesc = [description, quality].filter(Boolean).join('\n').trim();
 
         products[reference] = {
           reference,
@@ -2550,7 +2592,7 @@ export default function ProductImportPage() {
           material: quality,
           color: color,
           csvCategory: productType,
-          ecommerceDescription: description,
+          ecommerceDescription: ecommerceDesc,
           variants: [],
           suggestedBrand: suggestedBrand?.name,
           selectedBrand: suggestedBrand,
@@ -2637,9 +2679,10 @@ export default function ProductImportPage() {
 
           for (const pdfProduct of data.products) {
             const reference = pdfProduct.styleNo;
-            if (!reference || !/^F\d+/.test(reference)) continue;
+            const validRef = selectedVendor === 'brunobruno' ? /^\d{6}-/.test(reference) : /^F\d+/.test(reference);
+            if (!reference || !validRef) continue;
 
-            const brandName = 'Flöss';
+            const brandName = selectedVendor === 'brunobruno' ? 'Brunobruno' : 'Flöss';
             const toSentenceCase = (str: string) => {
               const lower = str.toLowerCase();
               return lower.charAt(0).toUpperCase() + lower.slice(1);
@@ -2647,16 +2690,20 @@ export default function ProductImportPage() {
 
             // Group by styleNo - combine all colors
             for (const colorData of pdfProduct.colors) {
-              const productKey = `${reference}_${colorData.color.replace(/[^a-zA-Z0-9]/g, '')}`;
+              const colorCode = colorData.color.match(/^(\d+)/)?.[1] || '';
+              const productKey = (selectedVendor === 'brunobruno' && colorCode)
+                ? `${reference}_${colorCode}`
+                : `${reference}_${colorData.color.replace(/[^a-zA-Z0-9]/g, '')}`;
+              const productRef = (selectedVendor === 'brunobruno' && colorCode) ? `${reference}_${colorCode}` : reference;
               const formattedName = `${brandName} - ${toSentenceCase(pdfProduct.styleName)} - ${toSentenceCase(colorData.color)}`;
 
-              const suggestedBrand = brands.find(b => 
-                b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss')
-              );
+              const suggestedBrand = selectedVendor === 'brunobruno'
+                ? brands.find(b => b.name.toLowerCase().includes('brunobruno') || b.name.toLowerCase().includes('bruno bruno'))
+                : brands.find(b => b.name.toLowerCase().includes('flöss') || b.name.toLowerCase().includes('floss'));
 
               if (!products[productKey]) {
                 products[productKey] = {
-                  reference,
+                  reference: productRef,
                   name: formattedName,
                   originalName: pdfProduct.styleName,
                   material: pdfProduct.quality,
@@ -2703,6 +2750,179 @@ export default function ProductImportPage() {
       alert(`❌ Fout bij uploaden PDF: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Petit Blush Order Sheet CSV parser (semicolon-separated, matrix-style with size columns)
+  const parsePetitBlushOrderCSV = (text: string) => {
+    console.log(`🌷 Parsing Petit Blush Order Sheet CSV...`);
+
+    const lines = text.split(/\r?\n/);
+    const products: { [key: string]: ParsedProduct } = {};
+
+    const suggestedBrand = brands.find(b =>
+      b.name.toLowerCase().includes('petit blush') || b.name.toLowerCase().includes('petitblush')
+    );
+
+    let currentSizeHeaders: string[] = [];
+
+    for (let i = 9; i < lines.length; i++) {
+      const cols = lines[i].split(';').map(c => c.trim());
+      const sku = cols[0] || '';
+      const style = cols[1] || '';
+      const color = cols[2] || '';
+      const material = cols[3] || '';
+
+      // Category header row: empty SKU, category name in col 1, sizes in cols 4+
+      if (!sku && style && /^[A-Z\s]+$/.test(style)) {
+        currentSizeHeaders = cols.slice(4, 13).filter(Boolean);
+        continue;
+      }
+
+      if (!/^SS26-\d+$/.test(sku)) continue;
+
+      const parseEuroPrice = (s: string) => {
+        if (!s) return 0;
+        const cleaned = s.replace(/[€\s\t]/g, '').replace(/\./g, '').replace(',', '.');
+        return parseFloat(cleaned) || 0;
+      };
+
+      const totalItems = parseInt(cols[13] || '0');
+      if (totalItems === 0) continue;
+
+      const wsp = parseEuroPrice(cols[14] || '');
+      const rrp = parseEuroPrice(cols[15] || '');
+
+      const variants: Array<{ size: string; quantity: number; ean: string; price: number; rrp: number }> = [];
+      for (let s = 0; s < currentSizeHeaders.length; s++) {
+        const qty = parseInt(cols[4 + s] || '0');
+        if (qty > 0) {
+          const convertedSize = convertFlossSize(currentSizeHeaders[s]);
+          variants.push({ size: convertedSize, quantity: qty, ean: '', price: wsp, rrp });
+        }
+      }
+
+      if (variants.length === 0) continue;
+
+      const toSentenceCase = (str: string) => {
+        const lower = str.toLowerCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      };
+
+      const formattedName = `Petit Blush - ${toSentenceCase(style.trim())} - ${toSentenceCase(color.trim())}`;
+
+      products[sku] = {
+        reference: sku,
+        name: formattedName,
+        originalName: style.trim(),
+        material: material,
+        color: color.trim(),
+        ecommerceDescription: material,
+        variants,
+        suggestedBrand: suggestedBrand?.name,
+        selectedBrand: suggestedBrand,
+        publicCategories: [],
+        productTags: [],
+        isFavorite: false,
+        isPublished: true,
+      };
+
+      console.log(`➕ ${sku}: ${formattedName} (${variants.length} maten, total ${totalItems})`);
+    }
+
+    const productList = Object.values(products);
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+
+    // If EAN map is already loaded, merge barcodes
+    if (petitBlushEanMap.size > 0) {
+      for (const product of productList) {
+        for (const variant of product.variants) {
+          const eanKey = `${product.reference}-${variant.size}`;
+          const ean = petitBlushEanMap.get(eanKey);
+          if (ean) variant.ean = ean;
+        }
+      }
+      console.log(`🌷 Merged EAN codes from previously loaded EAN list`);
+    }
+
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setPetitBlushOrderLoaded(true);
+
+    alert(`✅ ${productList.length} producten geladen uit Order Sheet!\n\n${petitBlushEanMap.size > 0 ? '✅ EAN codes zijn gekoppeld.' : '💡 Upload nu ook de EAN Code List voor barcodes.'}`);
+  };
+
+  // Petit Blush EAN Code List CSV parser (comma-separated, flat format)
+  const parsePetitBlushEanCSV = (text: string) => {
+    console.log(`🌷 Parsing Petit Blush EAN Code List CSV...`);
+
+    const lines = text.split(/\r?\n/);
+    const eanMap = new Map<string, string>();
+
+    // Find header row (contains "Style" and "EAN Code")
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(20, lines.length); i++) {
+      if (lines[i].includes('Style') && lines[i].includes('EAN Code')) {
+        headerIdx = i;
+        break;
+      }
+    }
+
+    if (headerIdx === -1) {
+      alert('Ongeldig EAN Code List formaat. Kan de header rij niet vinden.');
+      return;
+    }
+
+    const headers = lines[headerIdx].split(',').map(h => h.trim());
+    const skuIdx = headers.findIndex(h => h === 'SKU' || h.startsWith('SKU'));
+    const eanIdx = headers.findIndex(h => h.includes('EAN'));
+    const sizeIdx = headers.findIndex(h => h === 'Size');
+
+    if (skuIdx === -1 || eanIdx === -1) {
+      alert('Ongeldig EAN Code List formaat. SKU of EAN Code kolom niet gevonden.');
+      return;
+    }
+
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      const fullSku = cols[skuIdx] || '';
+      const ean = cols[eanIdx] || '';
+      const rawSize = cols[sizeIdx] || '';
+
+      if (!fullSku || !ean || !/^SS26-/.test(fullSku)) continue;
+
+      // fullSku = "SS26-101-2Y", baseSku = "SS26-101"
+      const baseSku = fullSku.replace(/-[^-]+$/, '');
+      const convertedSize = convertFlossSize(rawSize.replace(/^1YY$/, '1Y'));
+
+      eanMap.set(`${baseSku}-${convertedSize}`, ean);
+    }
+
+    setPetitBlushEanMap(eanMap);
+    setPetitBlushEanLoaded(true);
+    console.log(`🌷 Loaded ${eanMap.size} EAN codes`);
+
+    // If products are already loaded, merge barcodes into them
+    if (petitBlushOrderLoaded && parsedProducts.length > 0) {
+      let matched = 0;
+      const updatedProducts = parsedProducts.map(product => ({
+        ...product,
+        variants: product.variants.map(variant => {
+          const eanKey = `${product.reference}-${variant.size}`;
+          const ean = eanMap.get(eanKey);
+          if (ean) {
+            matched++;
+            return { ...variant, ean };
+          }
+          return variant;
+        }),
+      }));
+      setParsedProducts(updatedProducts);
+      alert(`✅ ${eanMap.size} EAN codes geladen!\n\n${matched} barcodes gekoppeld aan bestaande producten.`);
+    } else {
+      alert(`✅ ${eanMap.size} EAN codes geladen!\n\n💡 Upload nu de Order Sheet CSV om producten te laden.`);
     }
   };
 
@@ -5565,6 +5785,144 @@ export default function ProductImportPage() {
     // DON'T advance step here - user needs to upload invoice CSV next
   };
 
+  // Petit Blush image upload: SS26-XXX.jpg (main) and SS26-XXX Back.jpg (back)
+  const fetchPetitBlushImages = async (imageFiles: File[]) => {
+    if (imageFiles.length === 0) {
+      alert('Geen afbeeldingen geselecteerd');
+      return;
+    }
+
+    if (!importResults || !importResults.results) {
+      alert('Geen import resultaten gevonden');
+      return;
+    }
+
+    const { uid, password } = await getCredentials();
+    if (!uid || !password) {
+      alert('Geen Odoo credentials gevonden');
+      return;
+    }
+
+    setIsLoading(true);
+    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+    try {
+      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
+      const skuToTemplateId: Record<string, number> = {};
+      for (const result of successfulProducts) {
+        if (result.templateId) {
+          skuToTemplateId[result.reference] = result.templateId;
+        }
+      }
+
+      console.log(`🌷 Processing ${imageFiles.length} Petit Blush images...`);
+
+      const imagesToUpload: Array<{ base64: string; filename: string; styleNo: string }> = [];
+
+      for (const file of imageFiles) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          // Extract base SKU: "SS26-104.jpg" → "SS26-104", "SS26-104 Back.jpg" → "SS26-104"
+          const skuMatch = file.name.match(/^(SS26-\d+)/i);
+          if (!skuMatch) {
+            console.log(`⚠️ Could not extract SKU from: ${file.name}`);
+            continue;
+          }
+          const sku = skuMatch[1];
+
+          if (!skuToTemplateId[sku]) {
+            console.log(`⚠️ No template ID found for SKU ${sku}`);
+            continue;
+          }
+
+          // Map to the format the upload API expects:
+          // Non-Back = "Main" (primary image), Back = "Extra 1"
+          const isBack = /back/i.test(file.name);
+          const mappedFilename = isBack
+            ? `${sku} - Petit Blush - Extra 1.jpg`
+            : `${sku} - Petit Blush - Main.jpg`;
+
+          imagesToUpload.push({ base64, filename: mappedFilename, styleNo: sku });
+          console.log(`✅ Loaded: ${file.name} → ${mappedFilename} (SKU: ${sku})`);
+        } catch (error) {
+          console.error(`❌ Error reading file ${file.name}:`, error);
+        }
+      }
+
+      if (imagesToUpload.length === 0) {
+        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met SS26-XXX.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`🌷 Uploading ${imagesToUpload.length} images...`);
+
+      const BATCH_SIZE = 2;
+      const batches = [];
+      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
+        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
+      }
+
+      let totalUploaded = 0;
+
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`🌷 Batch ${batchIndex + 1}/${batches.length} (${batch.length} images)...`);
+
+        const response = await fetch('/api/floss-upload-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: batch,
+            styleNoToTemplateId: skuToTemplateId,
+            odooUid: uid,
+            odooPassword: password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Batch ${batchIndex + 1} failed:`, errorText.substring(0, 200));
+          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
+        }
+
+        const imageResult = await response.json();
+
+        if (!imageResult.success) {
+          for (const result of imageResult.results || []) {
+            results.push({ reference: result.styleNo, success: false, imagesUploaded: 0, error: result.error || 'Unknown error' });
+          }
+        } else {
+          totalUploaded += imageResult.imagesUploaded;
+          if (imageResult.results) {
+            for (const result of imageResult.results) {
+              results.push({ reference: result.styleNo, success: result.success, imagesUploaded: result.success ? 1 : 0, error: result.error });
+            }
+          }
+        }
+      }
+
+      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
+      setImageImportResults(results);
+      setIsLoading(false);
+      setCurrentStep(7);
+
+    } catch (error: unknown) {
+      console.error('❌ Image upload error:', error);
+      alert(`❌ Fout bij uploaden afbeeldingen: ${(error as Error).message}`);
+      setIsLoading(false);
+    }
+  };
+
   const fetchFlossImages = async (imageFolder: File[]) => {
     if (imageFolder.length === 0) {
       alert('Geen afbeeldingen geselecteerd');
@@ -5616,13 +5974,26 @@ export default function ProductImportPage() {
           });
 
           // Extract Style No from filename
-          // Format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"
-          const styleNoMatch = file.name.match(/^([F\d]+)\s*-/);
-          const styleNo = styleNoMatch ? styleNoMatch[1] : '';
+          // Flöss format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"
+          // Brunobruno format: "260202-20122 - Francis Walnut Check Pants - 9009-Walnut Check - Main.jpg"
+          const styleNoRegex = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^([F\d]+)\s*-/;
+          const styleNoMatch = file.name.match(styleNoRegex);
+          let styleNo = styleNoMatch ? styleNoMatch[1] : '';
 
           if (!styleNo) {
             console.log(`⚠️ Could not extract Style No from: ${file.name}`);
             continue;
+          }
+
+          // For Brunobruno, extract color code from filename to build composite reference
+          // "260206-30011 - Norah Sweatshirt - 4000-Provence Blue - Main.jpg" → "260206-30011_4000"
+          if (selectedVendor === 'brunobruno') {
+            const parts = file.name.replace(/\.[^.]+$/, '').split(' - ');
+            const colorPart = parts.length >= 3 ? parts[parts.length - 2] : '';
+            const colorCode = colorPart.match(/^(\d+)/)?.[1] || '';
+            if (colorCode) {
+              styleNo = `${styleNo}_${colorCode}`;
+            }
           }
 
           if (!styleNoToTemplateId[styleNo]) {
@@ -5643,7 +6014,8 @@ export default function ProductImportPage() {
       }
 
       if (imagesToUpload.length === 0) {
-        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. F10625 - ...)');
+        const example = selectedVendor === 'brunobruno' ? '260202-20122 - ...' : 'F10625 - ...';
+        alert(`Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. ${example})`);
         setIsLoading(false);
         return;
       }
@@ -6976,6 +7348,42 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('brunobruno')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'brunobruno'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🐻</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Brunobruno</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Style Details CSV + Sales Order Confirmation PDF
+                      </p>
+                      {selectedVendor === 'brunobruno' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedVendor('petitblush')}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'petitblush'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🌷</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Petit Blush</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Order Sheet CSV + EAN Code List CSV
+                      </p>
+                      {selectedVendor === 'petitblush' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-4 gap-4 mb-4">
@@ -7673,10 +8081,123 @@ export default function ProductImportPage() {
                             </div>
                           )}
                         </div>
-                      ) : selectedVendor === 'floss' ? (
+                      ) : selectedVendor === 'petitblush' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-300 dark:border-rose-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-rose-900 dark:text-rose-300">🌷 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={petitBlushOrderLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  Stap 1 - Order Sheet CSV: {petitBlushOrderLoaded ? `✅ ${parsedProducts.length} producten geladen` : '⏳ Nog niet geüpload'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className={petitBlushEanLoaded ? 'text-green-600 font-semibold' : 'text-gray-600'}>
+                                  Stap 2 - EAN Code List CSV: {petitBlushEanLoaded ? `✅ ${petitBlushEanMap.size} barcodes geladen` : '⏳ Optioneel'}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-rose-200 dark:border-rose-800">
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">💡 Volgorde:</p>
+                              <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                                <li><strong>Eerst:</strong> Upload de <strong>Order Sheet CSV</strong> (bevat aantallen, prijzen, materialen)</li>
+                                <li><strong>Dan:</strong> Upload de <strong>EAN Code List CSV</strong> voor barcodes</li>
+                                <li><strong>Klik &quot;Ga verder&quot;</strong> als je klaar bent met uploaden</li>
+                              </ol>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Order Sheet CSV - Step 1 */}
+                            <div className={`border-2 ${petitBlushOrderLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📄</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                Stap 1: Order Sheet CSV
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met SKU, Style, Color/Print, Material, aantallen per maat, prijzen
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;SS26 Petit Blush Order Sheet.csv&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="petitblush-order-upload"
+                              />
+                              <label
+                                htmlFor="petitblush-order-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  petitBlushOrderLoaded 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {petitBlushOrderLoaded ? `✅ Geladen (${parsedProducts.length} producten)` : '📄 Upload Order Sheet CSV'}
+                              </label>
+                            </div>
+                            
+                            {/* EAN Code List CSV - Step 2 */}
+                            <div className={`border-2 ${petitBlushEanLoaded ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-blue-300 bg-blue-50 dark:bg-blue-900/30'} rounded-lg p-6 text-center`}>
+                              <div className="text-4xl mb-3">📋</div>
+                              <h4 className="font-bold text-lg mb-2">
+                                Stap 2: EAN Code List CSV <span className="text-gray-400 text-sm font-normal">(aanbevolen)</span>
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                Met Style, Color, Size, SKU, EAN Code, prijzen
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 font-medium">
+                                Voorbeeld: &quot;SS26 Petit Blush EAN Code List.csv&quot;
+                              </p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="petitblush-ean-upload"
+                              />
+                              <label
+                                htmlFor="petitblush-ean-upload"
+                                className={`inline-block px-4 py-2 rounded font-medium cursor-pointer ${
+                                  petitBlushEanLoaded
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                {petitBlushEanLoaded 
+                                  ? `✅ ${petitBlushEanMap.size} barcodes geladen`
+                                  : '📋 Upload EAN Code List CSV'}
+                              </label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Voegt barcodes toe aan de producten
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ga verder button */}
+                          {(petitBlushOrderLoaded || petitBlushEanLoaded) && (
+                            <div className="text-center mt-4">
+                              <button
+                                onClick={() => setCurrentStep(2)}
+                                disabled={parsedProducts.length === 0}
+                                className="px-8 py-3 rounded-lg font-bold text-lg transition-colors bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                              >
+                                ✅ Ga verder met {parsedProducts.length} producten
+                              </button>
+                              {!petitBlushEanLoaded && petitBlushOrderLoaded && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                                  💡 Upload ook de EAN Code List voor barcodes, of ga direct verder.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (selectedVendor === 'floss' || selectedVendor === 'brunobruno') ? (
                         <div className="space-y-4">
                           <div className="mb-4 p-4 bg-pink-50 dark:bg-pink-900/20 border border-pink-300 dark:border-pink-700 rounded-lg">
-                            <p className="text-sm font-semibold mb-2 text-pink-900 dark:text-pink-300">🌸 Upload Status:</p>
+                            <p className="text-sm font-semibold mb-2 text-pink-900 dark:text-pink-300">{selectedVendor === 'brunobruno' ? '🐻' : '🌸'} Upload Status:</p>
                             <div className="space-y-2 text-sm">
                               <p>
                                 <span className={flossCSVLoaded ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
@@ -10008,68 +10529,187 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </div>
                 )}
 
-                {/* Image Import for Flöss */}
-                {selectedVendor === 'floss' && imageImportResults.length === 0 && (
+                {/* Image Import for Flöss / Brunobruno */}
+                {(selectedVendor === 'floss' || selectedVendor === 'brunobruno') && imageImportResults.length === 0 && (
                   <div className="bg-purple-50 border border-purple-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-purple-900 text-gray-900 mb-3">🌸 Afbeeldingen Importeren (Optioneel)</h3>
+                    <h3 className="font-bold text-purple-900 text-gray-900 mb-3">{selectedVendor === 'brunobruno' ? '🐻' : '🌸'} Afbeeldingen Importeren (Optioneel)</h3>
                     <p className="text-sm text-purple-800 mb-4">
-                      Upload afbeeldingen van je Flöss order folder voor de succesvol geïmporteerde producten.
+                      Upload afbeeldingen van je {selectedVendor === 'brunobruno' ? 'Brunobruno' : 'Flöss'} order folder voor de succesvol geïmporteerde producten.
                     </p>
                     <div className="bg-white rounded p-4 mb-4">
                       <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
                       <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Bestandsnamen moeten beginnen met Style No (bijv. F10625 - Apple Knit Cardigan - Red Apple - Main.jpg)</li>
-                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
+                        <li>Bestandsnaam formaat: <code className="bg-gray-100 px-1 rounded">{selectedVendor === 'brunobruno' ? '260202-20122 - Francis Walnut Check Pants - 9009-Walnut Check - Main.jpg' : 'F10841 - Robin Dress - Blue-tangerine Stripe - Main.jpg'}</code></li>
+                        <li><strong>Main</strong> = hoofdafbeelding, <strong>Extra 0/1/2/...</strong> = extra afbeeldingen</li>
+                        <li>Meerdere kleuren per product worden automatisch samengevoegd</li>
                         <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
                       </ul>
                     </div>
 
-                    <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center mb-4">
-                      <div className="text-4xl mb-3">📁</div>
-                      <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
-                      <p className="text-sm text-purple-700 mb-4">Klik om meerdere afbeeldingen uit je Flöss order folder te selecteren</p>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            const files = Array.from(e.target.files);
-                            console.log(`📁 Selected ${files.length} images`);
-                            
-                            // Group and show summary
-                            const styleNos = new Set(
-                              files.map(f => {
-                                const match = f.name.match(/^([F\d]+)\s*-/);
-                                return match ? match[1] : null;
-                              }).filter(Boolean)
-                            );
-                            
-                            if (styleNos.size === 0) {
-                              alert('⚠️ Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. F10625 - ...)');
-                              return;
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      {/* Folder upload */}
+                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center">
+                        <div className="text-4xl mb-3">📁</div>
+                        <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Upload Map</h4>
+                        <p className="text-xs text-purple-700 mb-3">Selecteer de hele Order-Images map</p>
+                        <input
+                          type="file"
+                          {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              const styleNoPattern = selectedVendor === 'brunobruno' ? /^\d{6}-\d+\s*-/ : /^F\d+\s*-/;
+                              const styleNoExtract = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^(F\d+)\s*-/;
+                              const files = Array.from(e.target.files).filter(f => 
+                                /\.(jpg|jpeg|png)$/i.test(f.name) && styleNoPattern.test(f.name)
+                              );
+                              if (files.length === 0) {
+                                const exampleFormat = selectedVendor === 'brunobruno' ? '260202-20122 - ... - Main.jpg' : 'F10841 - ... - Main.jpg';
+                                alert(`⚠️ Geen geldige afbeeldingen gevonden in de map.\nVerwacht formaat: ${exampleFormat}`);
+                                return;
+                              }
+                              const styleNos = new Set(files.map(f => f.name.match(styleNoExtract)?.[1]).filter(Boolean));
+                              alert(`✅ ${files.length} afbeeldingen gevonden voor ${styleNos.size} producten\n\nUpload start automatisch...`);
+                              fetchFlossImages(files);
                             }
+                          }}
+                          className="hidden"
+                          id="floss-images-folder-upload"
+                        />
+                        <label
+                          htmlFor="floss-images-folder-upload"
+                          className="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
+                        >
+                          📁 Selecteer Map
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">bijv. Order-7341-Images</p>
+                      </div>
 
-                            alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${styleNos.size} producten\n\nKlik op "Upload Images" om te beginnen`);
-                            
-                            // Start upload
-                            fetchFlossImages(files);
-                          }
-                        }}
-                        className="hidden"
-                        id="floss-images-upload"
-                      />
-                      <label
-                        htmlFor="floss-images-upload"
-                        className="bg-purple-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
-                      >
-                        📁 Selecteer Afbeeldingen
-                      </label>
+                      {/* Individual file upload */}
+                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center">
+                        <div className="text-4xl mb-3">🖼️</div>
+                        <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Upload Bestanden</h4>
+                        <p className="text-xs text-purple-700 mb-3">Of selecteer individuele afbeeldingen</p>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              const files = Array.from(e.target.files);
+                              const styleNoExtract = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^(F\d+)\s*-/;
+                              const styleNos = new Set(files.map(f => f.name.match(styleNoExtract)?.[1]).filter(Boolean));
+                              if (styleNos.size === 0) {
+                                const exampleFormat = selectedVendor === 'brunobruno' ? '260202-20122 - ... - Main.jpg' : 'F10841 - ... - Main.jpg';
+                                alert(`⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: ${exampleFormat}`);
+                                return;
+                              }
+                              alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${styleNos.size} producten\n\nUpload start automatisch...`);
+                              fetchFlossImages(files);
+                            }
+                          }}
+                          className="hidden"
+                          id="floss-images-upload"
+                        />
+                        <label
+                          htmlFor="floss-images-upload"
+                          className="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
+                        >
+                          🖼️ Selecteer Bestanden
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">Ctrl+A om alles te selecteren</p>
+                      </div>
                     </div>
 
                     <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
-                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Flöss order in een keer selecteren. Het systeem matcher ze automatisch op Style No.</p>
-                      <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> F10625 - Apple Knit Cardigan - Red Apple - Main.jpg</p>
+                      <p><strong>💡 Tip:</strong> Het systeem matcher afbeeldingen automatisch op Style No ({selectedVendor === 'brunobruno' ? '260202-20122, 260206-30011, ...' : 'F10841, F10877, ...'}). Afbeeldingen van meerdere kleuren worden samengevoegd onder hetzelfde product. &quot;Main&quot; wordt de hoofdafbeelding.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Import for Petit Blush */}
+                {selectedVendor === 'petitblush' && imageImportResults.length === 0 && (
+                  <div className="bg-rose-50 border border-rose-200 rounded p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3">🌷 Afbeeldingen Importeren (Optioneel)</h3>
+                    <p className="text-sm text-rose-800 mb-4">
+                      Upload afbeeldingen van je Petit Blush order folder voor de succesvol geïmporteerde producten.
+                    </p>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Bestandsnaam formaat: <code className="bg-gray-100 px-1 rounded">SS26-104.jpg</code> of <code className="bg-gray-100 px-1 rounded">SS26-104 Back.jpg</code></li>
+                        <li>Hoofdafbeelding = <strong>zonder &quot;Back&quot;</strong>, achterbeeld = <strong>met &quot;Back&quot;</strong></li>
+                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
+                      </ul>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="border-2 border-dashed border-rose-300 rounded-lg p-6 text-center">
+                        <div className="text-4xl mb-3">📁</div>
+                        <h4 className="font-bold text-gray-900 mb-2">Upload Map</h4>
+                        <p className="text-xs text-rose-700 mb-3">Selecteer de hele afbeeldingen-map</p>
+                        <input
+                          type="file"
+                          {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              const files = Array.from(e.target.files).filter(f =>
+                                /\.(jpg|jpeg|png)$/i.test(f.name) && /^SS26-\d+/i.test(f.name)
+                              );
+                              if (files.length === 0) {
+                                alert('⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: SS26-104.jpg of SS26-104 Back.jpg');
+                                return;
+                              }
+                              const skus = new Set(files.map(f => f.name.match(/^(SS26-\d+)/i)?.[1]).filter(Boolean));
+                              alert(`✅ ${files.length} afbeeldingen gevonden voor ${skus.size} producten\n\nUpload start automatisch...`);
+                              fetchPetitBlushImages(files);
+                            }
+                          }}
+                          className="hidden"
+                          id="petitblush-images-folder-upload"
+                        />
+                        <label
+                          htmlFor="petitblush-images-folder-upload"
+                          className="bg-rose-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-rose-700 font-bold inline-block"
+                        >
+                          📁 Selecteer Map
+                        </label>
+                      </div>
+
+                      <div className="border-2 border-dashed border-rose-300 rounded-lg p-6 text-center">
+                        <div className="text-4xl mb-3">🖼️</div>
+                        <h4 className="font-bold text-gray-900 mb-2">Upload Bestanden</h4>
+                        <p className="text-xs text-rose-700 mb-3">Of selecteer individuele afbeeldingen</p>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              const files = Array.from(e.target.files);
+                              const skus = new Set(files.map(f => f.name.match(/^(SS26-\d+)/i)?.[1]).filter(Boolean));
+                              if (skus.size === 0) {
+                                alert('⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: SS26-104.jpg of SS26-104 Back.jpg');
+                                return;
+                              }
+                              alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${skus.size} producten\n\nUpload start automatisch...`);
+                              fetchPetitBlushImages(files);
+                            }
+                          }}
+                          className="hidden"
+                          id="petitblush-images-upload"
+                        />
+                        <label
+                          htmlFor="petitblush-images-upload"
+                          className="bg-rose-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-rose-700 font-bold inline-block"
+                        >
+                          🖼️ Selecteer Bestanden
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">Ctrl+A om alles te selecteren</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
+                      <p><strong>💡 Tip:</strong> Het systeem matcher afbeeldingen automatisch op SKU (SS26-104, SS26-301, ...). &quot;Back&quot; afbeeldingen worden als extra afbeelding toegevoegd.</p>
                     </div>
                   </div>
                 )}

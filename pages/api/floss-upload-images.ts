@@ -79,15 +79,26 @@ export default async function handler(
 
     const uploadResults: UploadResult[] = [];
     const processedTemplateIds: Set<number> = new Set();
+    // Track next available sequence per template to avoid duplicates across colors
+    const templateSequenceCounter: Record<number, number> = {};
     
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
+    // Sort images: Main images first (so they become the default), then Extra by number
+    const sortedImages = [...images].sort((a, b) => {
+      const aIsMain = a.filename.includes('Main') ? 0 : 1;
+      const bIsMain = b.filename.includes('Main') ? 0 : 1;
+      if (aIsMain !== bIsMain) return aIsMain - bIsMain;
+      const aExtra = a.filename.match(/Extra\s*(\d+)/i);
+      const bExtra = b.filename.match(/Extra\s*(\d+)/i);
+      return (aExtra ? parseInt(aExtra[1]) : 0) - (bExtra ? parseInt(bExtra[1]) : 0);
+    });
+
+    for (let i = 0; i < sortedImages.length; i++) {
+      const img = sortedImages[i];
       const styleNo = img.styleNo;
       const templateId = styleNoToTemplateId[styleNo];
-      const imagesForThisProduct = imagesByStyleNo[styleNo].length;
 
       if (!templateId) {
-        console.log(`⚠️ [${i + 1}/${images.length}] Skipping ${img.filename}: No template ID found for style ${styleNo}`);
+        console.log(`⚠️ [${i + 1}/${sortedImages.length}] Skipping ${img.filename}: No template ID found for style ${styleNo}`);
         uploadResults.push({
           styleNo,
           templateId: 0,
@@ -99,30 +110,16 @@ export default async function handler(
       }
 
       try {
-        console.log(`🌸 [${i + 1}/${images.length}] Uploading ${img.filename} to template ${templateId}...`);
+        console.log(`🌸 [${i + 1}/${sortedImages.length}] Uploading ${img.filename} to template ${templateId}...`);
         
-        // Determine sequence number
-        let sequence: number;
-        let isDefaultImage = false;
-        
-        // If product has only 1 image, it's always the default (sequence 1)
-        if (imagesForThisProduct === 1) {
-          sequence = 1;
-          isDefaultImage = true;
-          console.log(`🌸 Single image for ${styleNo} - setting as default (sequence 1)`);
-        } else {
-          // Multiple images: extract sequence from filename (Main = 1, Extra 0 = 2, Extra 1 = 3, etc.)
-          sequence = i + 1;
-          if (img.filename.includes('Main')) {
-            sequence = 1;
-            isDefaultImage = true;
-          } else {
-            const extraMatch = img.filename.match(/Extra\s*(\d+)/i);
-            if (extraMatch) {
-              sequence = parseInt(extraMatch[1]) + 2;
-            }
-          }
+        // Assign unique incrementing sequence per template
+        if (!templateSequenceCounter[templateId]) {
+          templateSequenceCounter[templateId] = 1;
         }
+        const sequence = templateSequenceCounter[templateId];
+        templateSequenceCounter[templateId]++;
+
+        const isDefaultImage = img.filename.includes('Main') && !processedTemplateIds.has(templateId);
 
         // Extract color from filename
         // Format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"

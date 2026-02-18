@@ -109,8 +109,8 @@ export default async function handler(
       const section = sections[i];
       const lines = section.split('\n').map(l => l.trim()).filter(l => l);
 
-      // Line 0: "F10854 Price: 16,40 EUR"
-      const styleNoMatch = lines[0]?.match(/^(F\d+)\s+Price:\s*([\d,.]+)\s*EUR/i);
+      // Line 0: "F10854 Price: 16,40 EUR" (Flöss) or "260208-50021 Price: 34,00 EUR" (Brunobruno)
+      const styleNoMatch = lines[0]?.match(/^(F\d+|\d{6}-\d+)\s+Price:\s*([\d,.]+)\s*EUR/i);
       if (!styleNoMatch) {
         console.log(`  Section ${i}: No style no match in: ${lines[0]?.substring(0, 60)}`);
         continue;
@@ -140,7 +140,7 @@ export default async function handler(
         const line = lines[j];
         
         // Stop if we hit the next product or page footer
-        if (/^Style no:/i.test(line) || /^Flöss ApS/i.test(line) || /^Page \d+ of \d+/i.test(line)) break;
+        if (/^Style no:/i.test(line) || /^(Flöss|brunobruno\s*nation)\s*ApS/i.test(line) || /^Page \d+ of \d+/i.test(line)) break;
         // Stop at totals/summary lines
         if (/^Total\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line)) break;
         if (/^Brand QTY:/i.test(line)) break;
@@ -164,8 +164,9 @@ export default async function handler(
         if (/^(Minimum qty|Free|Qty total)$/i.test(line)) continue;
 
         // The "total" line or lines starting with numbers after "Free"/"Minimum qty total"
+        // Brunobruno uses a size range prefix like "98-158/164" before quantities
         if (currentColor && sizeHeaders.length > 0) {
-          const qtyLine = line.replace(/^total\s*/i, '');
+          const qtyLine = line.replace(/^total\s*/i, '').replace(/^\d{2,3}-\d{2,3}\/\d{2,3}\s+/, '');
           const numbers = qtyLine.split(/\s+/).map(n => parseInt(n)).filter(n => !isNaN(n));
           
           if (numbers.length >= 3) {
