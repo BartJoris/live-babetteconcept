@@ -30,12 +30,14 @@ type OdooRawProduct = {
   image_128: string | false;
 };
 
-const FIELDS = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price', 'image_128'];
+const FIELDS_FAST = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price'];
+const FIELDS_WITH_IMAGE = [...FIELDS_FAST, 'image_128'];
 
 async function searchReadWithContext(
   uid: number,
   password: string,
   domain: unknown[],
+  fields: string[],
   context?: Record<string, unknown>
 ) {
   return odooClient.call<OdooRawProduct[]>({
@@ -45,7 +47,7 @@ async function searchReadWithContext(
     method: 'search_read',
     args: [domain],
     kwargs: {
-      fields: FIELDS,
+      fields,
       ...(context ? { context } : {}),
     },
   });
@@ -58,6 +60,8 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
 
   const raw = req.query.barcode;
   const barcode = Array.isArray(raw) ? raw[0] : raw;
+  const includeImage = req.query.image === '1';
+  const fields = includeImage ? FIELDS_WITH_IMAGE : FIELDS_FAST;
 
   if (!barcode || typeof barcode !== 'string' || !barcode.trim()) {
     return res.status(400).json({ error: 'barcode query param is required' });
@@ -74,7 +78,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
       user.password,
       'product.product',
       [['barcode', '=', String(barcode)]],
-      FIELDS,
+      fields,
       1
     );
 
@@ -85,6 +89,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         user.uid,
         user.password,
         [['barcode', '=', String(barcode)], ['active', '=', false]],
+        fields,
         { active_test: false }
       );
       prod = archivedProducts && archivedProducts.length > 0 ? archivedProducts[0] : null;

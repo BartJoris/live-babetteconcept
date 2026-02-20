@@ -99,6 +99,17 @@ export default function StockVerkopenPage() {
     };
   }, [rows]);
 
+  const loadImageForBarcode = (barcode: string) => {
+    fetch(`/api/odoo/lookup-product-for-stock?barcode=${encodeURIComponent(barcode)}&image=1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.found && data.image) {
+          setRows(prev => prev.map(r => r.barcode === barcode && !r.image ? { ...r, image: data.image } : r));
+        }
+      })
+      .catch(() => { /* silent */ });
+  };
+
   const handleLookup = async (barcode: string) => {
     const normalized = barcode.trim();
     if (!normalized) {
@@ -123,18 +134,20 @@ export default function StockVerkopenPage() {
       const data = await res.json();
 
       if (data && data.found) {
+        const bc = data.barcode ?? normalized;
         setRows(prev => [{
           productId: data.productId ?? null,
-          barcode: data.barcode ?? normalized,
+          barcode: bc,
           name: data.name ?? '',
           variant: data.variant ?? null,
           qty: 1,
           salePrice: data.salePrice ?? null,
           purchasePrice: data.purchasePrice ?? null,
-          image: data.image ?? null,
+          image: null,
           found: true,
         }, ...prev]);
         setBarcodeInput('');
+        loadImageForBarcode(bc);
       } else {
         setNotFoundBarcode(normalized);
         setNfName('');
