@@ -69,7 +69,7 @@ export default function Navigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import'].includes(router.pathname);
+    return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names'].includes(router.pathname);
   };
   
   const isBeheerActive = () => {
@@ -223,6 +223,12 @@ export default function Navigation() {
                     </Link>
                     <Link href="/minirodini-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/minirodini-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🐼 Mini Rodini Images
+                    </Link>
+                    <Link href="/mipounet-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mipounet-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🇪🇸 Mipounet Images
+                    </Link>
+                    <Link href="/fix-minirodini-names" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/fix-minirodini-names') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🔧 Mini Rodini Fix Names
                     </Link>
                   </div>
                 </div>
@@ -676,6 +682,28 @@ export default function Navigation() {
                   }`}
                 >
                   🐼 Mini Rodini Images
+                </Link>
+                <Link
+                  href="/mipounet-images-import"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/mipounet-images-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🇪🇸 Mipounet Images
+                </Link>
+                <Link
+                  href="/fix-minirodini-names"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/fix-minirodini-names') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🔧 Mini Rodini Fix Names
                 </Link>
               </div>
             )}

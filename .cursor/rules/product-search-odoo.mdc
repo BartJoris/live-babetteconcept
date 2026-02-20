@@ -1,0 +1,44 @@
+---
+description: Odoo product search - referenties staan in Interne Notitie (description veld)
+globs: pages/api/search-*-products.ts
+alwaysApply: false
+---
+
+# Product Zoeken in Odoo - Interne Notitie
+
+## BELANGRIJK: Referenties staan in `description`, NIET in `default_code`
+
+Bij het aanmaken van producten via `import-products.ts` wordt de referentie opgeslagen in het `description` veld (= "Interne Notitie" in Odoo UI):
+
+```typescript
+// import-products.ts regel 110-118
+if (product.reference) {
+  templateData.description = product.reference;
+}
+```
+
+## Zoekstrategie voor nieuwe leveranciers
+
+Bij het maken van een nieuwe `search-{vendor}-products.ts` API:
+
+1. **Primair**: Zoek op `description` veld (Interne Notitie)
+2. **Secundair**: Zoek op `description` met `ilike` (voor `reference|productName` formaat)
+3. **Fallback**: Zoek op productnaam met leveranciersnaam + referentie
+
+```typescript
+// ✅ GOED - zoek op description (Interne Notitie)
+await callOdoo(uid, password, 'product.template', 'search',
+  [[['description', '=', reference]]], { limit: 10 });
+
+// ✅ GOED - ilike voor prefix match
+await callOdoo(uid, password, 'product.template', 'search',
+  [[['description', 'ilike', reference]]], { limit: 50 });
+
+// ❌ FOUT - default_code wordt NIET gebruikt voor referenties
+await callOdoo(uid, password, 'product.template', 'search',
+  [[['default_code', '=', reference]]], { limit: 10 });
+```
+
+## Referentie: Bobo Choses implementatie
+
+Zie `search-bobochoses-products.ts` als voorbeeld — zoekt op `description` met `ilike` en strip HTML tags.

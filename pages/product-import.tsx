@@ -36,7 +36,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'brunobruno' | 'petitblush' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | 'minirodini' | 'favoritepeople' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'brunobruno' | 'petitblush' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | 'minirodini' | 'favoritepeople' | 'mipounet' | null;
 
 interface Brand {
   id: number;
@@ -929,6 +929,14 @@ export default function ProductImportPage() {
         parseMinirodiniCSV(text);
       } else if (selectedVendor === 'favoritepeople') {
         parseFavoritePeopleCSV(text);
+      } else if (selectedVendor === 'mipounet') {
+        // Auto-detect: structured export (has "Order id" header) vs order confirmation
+        const firstLine = text.trim().split('\n')[0];
+        if (firstLine.includes('"Order id"') || firstLine.includes('Product reference')) {
+          parseMipounetCSV(text);
+        } else {
+          parseMipounetOrderConfirmationCSV(text);
+        }
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -3587,6 +3595,318 @@ export default function ProductImportPage() {
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
+  };
+
+  // Mipounet CSV parser (semicolon-delimited, quoted fields)
+  const parseMipounetCSV = (text: string) => {
+    console.log(`🇪🇸 Parsing Mipounet CSV...`);
+
+    const lines = text.trim().split('\n');
+
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    // Parse semicolon-delimited CSV with quoted fields
+    const parseLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ';' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseLine(lines[0]).map(h => h.toUpperCase());
+    console.log(`🇪🇸 Headers: ${JSON.stringify(headers.slice(0, 15))}...`);
+
+    const refIdx = headers.findIndex(h => h === 'PRODUCT REFERENCE');
+    const nameIdx = headers.findIndex(h => h === 'PRODUCT NAME');
+    const colorIdx = headers.findIndex(h => h === 'COLOR NAME');
+    const compositionIdx = headers.findIndex(h => h === 'COMPOSITION');
+    const fabricIdx = headers.findIndex(h => h === 'FABRIC / PRINT');
+    const categoryIdx = headers.findIndex(h => h === 'CATEGORY');
+    const sizeNameIdx = headers.findIndex(h => h === 'SIZE NAME');
+    const qtyIdx = headers.findIndex(h => h === 'QUANTITY');
+    const priceIdx = headers.findIndex(h => h === 'UNIT PRICE');
+    const eanIdx = headers.findIndex(h => h === 'EAN13');
+
+    if (refIdx === -1 || nameIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Product reference, Product name');
+      return;
+    }
+
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(/[€\s]/g, '').replace(',', '.')) || 0;
+    };
+
+    const extractColor = (colorName: string): string => {
+      // "COTTON TWILL (PINK) - SS26" → "PINK"
+      // "SEERSHUKER (BLUE) - SS26" → "BLUE"
+      // "SARGA (ECRU/BLUE) - SS26" → "ECRU/BLUE"
+      const match = colorName.match(/\(([^)]+)\)/);
+      return match ? match[1] : colorName.replace(/\s*-\s*SS\d+.*$/i, '').trim();
+    };
+
+    const convertMipounetSize = (sizeName: string): string => {
+      if (!sizeName || sizeName === '0') return 'U';
+      // "S (2Y-6Y)" → "S", "M (8Y-10Y)" → "M", "L (12Y-16Y)" → "L"
+      const letterMatch = sizeName.match(/^([SML])\s*\(/);
+      if (letterMatch) return letterMatch[1];
+      // Standard Y-sizes: "2Y" → "2 jaar"
+      return convertFlossSize(sizeName);
+    };
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    const suggestedBrand = brands.find(b =>
+      b.name.toLowerCase().includes('mipounet')
+    );
+
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Mipounet brand not found in Odoo.');
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = parseLine(line);
+
+      const ref = values[refIdx] || '';
+      const productName = values[nameIdx] || '';
+      const colorName = colorIdx !== -1 ? values[colorIdx] || '' : '';
+      const composition = compositionIdx !== -1 ? values[compositionIdx] || '' : '';
+      const fabric = fabricIdx !== -1 ? values[fabricIdx] || '' : '';
+      const category = categoryIdx !== -1 ? values[categoryIdx] || '' : '';
+      const sizeRaw = sizeNameIdx !== -1 ? values[sizeNameIdx] || '' : '';
+      const qty = qtyIdx !== -1 ? parseInt(values[qtyIdx] || '0') || 0 : 0;
+      const price = priceIdx !== -1 ? parsePrice(values[priceIdx] || '0') : 0;
+      const ean = eanIdx !== -1 ? values[eanIdx] || '' : '';
+
+      if (!ref || !productName) continue;
+
+      const color = extractColor(colorName);
+      const size = convertMipounetSize(sizeRaw);
+      const productKey = ref;
+
+      if (!products[productKey]) {
+        const titleCaseName = productName.split(' ').map((w: string) =>
+          w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+        ).join(' ');
+
+        products[productKey] = {
+          reference: ref,
+          name: `Mipounet - ${titleCaseName}`,
+          originalName: productName,
+          material: composition,
+          color: color,
+          fabricPrint: fabric,
+          csvCategory: category,
+          ecommerceDescription: `${titleCaseName} - ${color}`,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '',
+        };
+
+        console.log(`✅ Created product: Mipounet - ${titleCaseName} (${ref}, ${color})`);
+      }
+
+      products[productKey].variants.push({
+        size: size,
+        quantity: qty,
+        ean: ean,
+        sku: `MV-${ref}-${sizeRaw}`,
+        price: price,
+        rrp: 0,
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🇪🇸 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+  };
+
+  // Mipounet EAN codes CSV parser (matches EAN codes to existing products)
+  const parseMipounetEanCSV = (text: string) => {
+    console.log(`🇪🇸 Parsing Mipounet EAN codes CSV...`);
+
+    if (parsedProducts.length === 0) {
+      alert('⚠️ Upload eerst de Product Export CSV!\n\nDit bestand bevat EAN codes. Upload eerst het "order-*.csv" bestand met productgegevens.');
+      return;
+    }
+
+    const lines = text.trim().split('\n');
+
+    // Find header row (SKU;TITLE;EAN CODES;SIZE;COLOR)
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      if (lines[i].toUpperCase().includes('SKU') && lines[i].toUpperCase().includes('EAN')) {
+        headerIdx = i;
+        break;
+      }
+    }
+
+    if (headerIdx === -1) {
+      alert('Ongeldig EAN CSV-formaat. Verwachte headers: SKU, EAN CODES, SIZE');
+      return;
+    }
+
+    const headers = lines[headerIdx].split(';').map(h => h.trim().toUpperCase());
+    const skuIdx = headers.findIndex(h => h === 'SKU');
+    const eanIdx = headers.findIndex(h => h.includes('EAN'));
+
+    if (skuIdx === -1 || eanIdx === -1) {
+      alert('Ongeldig EAN CSV-formaat. Verwachte kolommen: SKU, EAN CODES');
+      return;
+    }
+
+    // Build map: reference+size → EAN
+    // SKU format: MV26.{model}.{fabric}.{color}.{sizeCode}
+    const eanMap = new Map<string, string>();
+
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const cols = line.split(';').map(c => c.trim());
+      const sku = cols[skuIdx] || '';
+      const ean = cols[eanIdx] || '';
+
+      if (!sku || !ean) continue;
+
+      // Parse SKU: MV26.1310.SAR004.02.S → model=1310, color=02, sizeCode=S
+      const parts = sku.split('.');
+      if (parts.length < 5 || parts[0] !== 'MV26') continue;
+
+      const model = parts[1];
+      const color = parts[3];
+      const sizeCode = parts.slice(4).join('.'); // handle edge cases
+      const ref = `${model}.${color}`;
+
+      // Convert size the same way as parseMipounetCSV
+      let convertedSize: string;
+      if (/^[SML]$/i.test(sizeCode)) {
+        convertedSize = sizeCode.toUpperCase();
+      } else {
+        convertedSize = convertFlossSize(sizeCode);
+      }
+
+      eanMap.set(`${ref}|${convertedSize}`, ean);
+    }
+
+    console.log(`🇪🇸 Found ${eanMap.size} EAN codes in CSV`);
+
+    if (eanMap.size === 0) {
+      alert('Geen EAN codes gevonden in dit bestand.');
+      return;
+    }
+
+    let matched = 0;
+    setParsedProducts(prev =>
+      prev.map(product => {
+        let productChanged = false;
+        const newVariants = product.variants.map(v => {
+          const key = `${product.reference}|${v.size}`;
+          const ean = eanMap.get(key);
+          if (ean) {
+            matched++;
+            productChanged = true;
+            return { ...v, ean };
+          }
+          return v;
+        });
+        return productChanged ? { ...product, variants: newVariants } : product;
+      })
+    );
+
+    alert(`✅ ${eanMap.size} EAN codes in bestand, ${matched} varianten gematcht met producten.`);
+  };
+
+  // Mipounet Order Confirmation CSV parser (format 1 - extracts SRP/retail prices)
+  const parseMipounetOrderConfirmationCSV = (text: string) => {
+    console.log(`🇪🇸 Parsing Mipounet Order Confirmation CSV for SRP prices...`);
+
+    const lines = text.split('\n');
+    let srpMap = new Map<string, number>();
+
+    for (const line of lines) {
+      const cols = line.split(';');
+      if (cols.length < 17) continue;
+
+      // Data lines: col 2 = reference (e.g. "1310,02"), col 4 = SRP
+      const refRaw = cols[2]?.trim();
+      const srpRaw = cols[4]?.trim();
+
+      if (!refRaw || !srpRaw) continue;
+
+      // Reference format: "1310,02" (comma) → "1310.02" (dot)
+      const refMatch = refRaw.match(/^(\d+),(\d+)$/);
+      if (!refMatch) continue;
+
+      const ref = `${refMatch[1]}.${refMatch[2]}`;
+      const srp = parseFloat(srpRaw.replace(',', '.')) || 0;
+
+      if (srp > 0) {
+        srpMap.set(ref, srp);
+      }
+    }
+
+    console.log(`🇪🇸 Extracted ${srpMap.size} SRP prices from order confirmation`);
+
+    if (srpMap.size === 0) {
+      alert('Geen SRP prijzen gevonden in dit bestand. Controleer of het een Mipounet order confirmation CSV is.');
+      return;
+    }
+
+    if (parsedProducts.length === 0) {
+      alert('⚠️ Upload eerst de product export CSV!\n\nDit bestand bevat alleen SRP (advies)prijzen. Upload eerst het "order-*.csv" bestand met productgegevens.');
+      return;
+    }
+
+    let updated = 0;
+    setParsedProducts(prev =>
+      prev.map(product => {
+        const srp = srpMap.get(product.reference);
+        if (srp && srp > 0) {
+          updated++;
+          return {
+            ...product,
+            variants: product.variants.map(v => ({ ...v, rrp: srp })),
+          };
+        }
+        return product;
+      })
+    );
+
+    alert(`✅ ${srpMap.size} SRP prijzen gevonden, ${updated} producten bijgewerkt met adviesprijs.`);
   };
 
   // Mini Rodini CSV parser
@@ -8085,6 +8405,29 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('mipounet');
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'mipounet'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🇪🇸</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Mipounet</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Export CSV + Order Confirmation CSV (SRP)
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Maten: 2Y → 2 jaar, S/M/L voor petjes
+                      </p>
+                      {selectedVendor === 'mipounet' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -8859,6 +9202,199 @@ export default function ProductImportPage() {
                             </div>
                           )}
                         </div>
+                      ) : selectedVendor === 'mipounet' ? (
+                        <div className="space-y-4">
+                          <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-lg">
+                            <p className="text-sm font-semibold mb-2 text-orange-900 dark:text-orange-300">🇪🇸 Upload Status:</p>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                <span className={parsedProducts.length > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  {parsedProducts.length > 0 ? '✅' : '❌'} Product Export CSV
+                                </span>
+                                {parsedProducts.length > 0 && ` (${parsedProducts.length} producten)`}
+                              </p>
+                              <p>
+                                <span className={parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.rrp > 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}>
+                                  {parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.rrp > 0 ? '✅' : '⏳'} Order Confirmation CSV (SRP)
+                                </span>
+                                {parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.rrp > 0 && ' (adviesprijs geladen)'}
+                              </p>
+                              <p>
+                                <span className={parsedProducts.length > 0 && parsedProducts.some(p => p.variants.some(v => v.ean)) ? 'text-green-600 font-semibold' : 'text-gray-400'}>
+                                  {parsedProducts.length > 0 && parsedProducts.some(p => p.variants.some(v => v.ean)) ? '✅' : '⏳'} EAN Codes CSV
+                                </span>
+                                {parsedProducts.length > 0 && parsedProducts.some(p => p.variants.some(v => v.ean)) && ' (barcodes geladen)'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-4">
+                            {/* 1. Product Export CSV */}
+                            <div className={`border-2 rounded-lg p-6 text-center ${
+                              parsedProducts.length > 0
+                                ? 'border-green-400 dark:border-green-600'
+                                : 'border-blue-400 dark:border-blue-600'
+                            }`}>
+                              <div className="text-4xl mb-3">📋</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">1. Product Export CSV</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Het order-*.csv bestand met productgegevens</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const text = event.target?.result as string;
+                                    parseMipounetCSV(text);
+                                  };
+                                  reader.readAsText(file);
+                                }}
+                                className="hidden"
+                                id="mipounet-export-upload"
+                              />
+                              <label
+                                htmlFor="mipounet-export-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  parsedProducts.length > 0
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                {parsedProducts.length > 0 ? `✓ ${parsedProducts.length} producten` : 'Kies Export CSV'}
+                              </label>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 Bevat: productnaam, referentie, maten, hoeveelheid, inkoopprijs
+                              </p>
+                            </div>
+
+                            {/* 2. Order Confirmation CSV (for SRP) */}
+                            <div className={`border-2 rounded-lg p-6 text-center ${
+                              parsedProducts.length === 0
+                                ? 'border-gray-300 dark:border-gray-600 opacity-50'
+                                : parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.rrp > 0
+                                ? 'border-green-400 dark:border-green-600'
+                                : 'border-orange-400 dark:border-orange-600'
+                            }`}>
+                              <div className="text-4xl mb-3">💰</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">2. Order Confirmation CSV</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Het export-Order-*.csv bestand met SRP prijzen</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const text = event.target?.result as string;
+                                    parseMipounetOrderConfirmationCSV(text);
+                                  };
+                                  reader.readAsText(file);
+                                }}
+                                disabled={parsedProducts.length === 0}
+                                className="hidden"
+                                id="mipounet-confirmation-upload"
+                              />
+                              <label
+                                htmlFor="mipounet-confirmation-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  parsedProducts.length === 0
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    : parsedProducts.length > 0 && parsedProducts[0]?.variants?.[0]?.rrp > 0
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                                }`}
+                              >
+                                {parsedProducts.length === 0
+                                  ? 'Wacht op producten ⏳'
+                                  : parsedProducts[0]?.variants?.[0]?.rrp > 0
+                                  ? '✓ SRP geladen'
+                                  : 'Kies Confirmation CSV'}
+                              </label>
+                              {parsedProducts.length === 0 && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Upload eerst de Export CSV!
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 Bevat SRP (adviesprijs). Optioneel - zonder dit worden alleen inkoopprijzen geimporteerd.
+                              </p>
+                            </div>
+
+                            {/* 3. EAN Codes CSV */}
+                            <div className={`border-2 rounded-lg p-6 text-center ${
+                              parsedProducts.length === 0
+                                ? 'border-gray-300 dark:border-gray-600 opacity-50'
+                                : parsedProducts.some(p => p.variants.some(v => v.ean))
+                                ? 'border-green-400 dark:border-green-600'
+                                : 'border-purple-400 dark:border-purple-600'
+                            }`}>
+                              <div className="text-4xl mb-3">🏷️</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">3. EAN Codes CSV</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">SS26_EAN_CODES_MIPOUNET.csv met barcodes</p>
+                              <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const text = event.target?.result as string;
+                                    parseMipounetEanCSV(text);
+                                  };
+                                  reader.readAsText(file);
+                                }}
+                                disabled={parsedProducts.length === 0}
+                                className="hidden"
+                                id="mipounet-ean-upload"
+                              />
+                              <label
+                                htmlFor="mipounet-ean-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  parsedProducts.length === 0
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    : parsedProducts.some(p => p.variants.some(v => v.ean))
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                                }`}
+                              >
+                                {parsedProducts.length === 0
+                                  ? 'Wacht op producten ⏳'
+                                  : parsedProducts.some(p => p.variants.some(v => v.ean))
+                                  ? '✓ EAN geladen'
+                                  : 'Kies EAN CSV'}
+                              </label>
+                              {parsedProducts.length === 0 && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Upload eerst de Export CSV!
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 Match via SKU: MV26.model.stof.kleur.maat → barcode per variant
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ga verder button */}
+                          {parsedProducts.length > 0 && (
+                            <div className="text-center mt-6">
+                              <button
+                                onClick={() => setCurrentStep(2)}
+                                className="px-8 py-3 rounded-lg font-bold text-lg transition-colors bg-green-600 text-white hover:bg-green-700"
+                              >
+                                ✅ Ga verder met {parsedProducts.length} producten
+                              </button>
+                              {!(parsedProducts[0]?.variants?.[0]?.rrp > 0) && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  💡 Je kunt ook eerst de Order Confirmation CSV uploaden voor SRP prijzen, of direct doorgaan.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {/* CSV Upload - NOT for Thinking Mu */}
@@ -9388,7 +9924,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : selectedVendor === 'minirodini' ? 'Mini Rodini' : selectedVendor === 'favoritepeople' ? 'Favorite People' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : selectedVendor === 'minirodini' ? 'Mini Rodini' : selectedVendor === 'favoritepeople' ? 'Favorite People' : selectedVendor === 'mipounet' ? 'Mipounet' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -9560,6 +10096,15 @@ SS26POSITANOBAGTUFP;1; 23,20 € ;58,00 €;05600850524432
 → SKU parsing: SS26 + NAPOLIGIRLSHORTS + 24M + FP
 → Maten: 24M → 24 maand, 3Y → 3 jaar, TU → U (geen maat)
 → Originele SKU opgeslagen in interne notitie`}
+                        </pre>
+                      ) : selectedVendor === 'mipounet' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`"Order id";"Date";"Status";"Season";"Brand name";...;"Category";"Product name";"Product reference";"Color name";"Composition";"Fabric / print";"Size name";"Quantity";"Unit price";...
+"3088059";"2025-06-29";"Invoicing";"SS26";"MIPOUNET";...;"T-Shirt";"LES EFANTS T-SHIRT";"1131.04";"ORGANIC COTTON JERSEY (BLUE) - SS26";"95% COTTON / 5% ELASTANE";"ORGANIC COTTON JERSEY";"2Y";"1";"16";...
+
+→ Wordt: "Mipounet - Les Efants T-Shirt" (ref: 1131.04, kleur: BLUE)
+→ Maten: 2Y → 2 jaar, 10Y → 10 jaar, S (2Y-6Y) → S, 0 → U
+→ Afbeeldingen: MV26.1131.JER002.04_FRONT.jpg → auto-match op 1131.04`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
