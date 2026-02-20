@@ -36,7 +36,7 @@ interface ProductVariant {
   rrp: number;
 }
 
-type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'brunobruno' | 'petitblush' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | null;
+type VendorType = 'ao76' | 'lenewblack' | 'playup' | 'floss' | 'brunobruno' | 'petitblush' | 'armedangels' | 'tinycottons' | 'thinkingmu' | 'indee' | 'sundaycollective' | 'goldieandace' | 'jenest' | 'wyncken' | 'onemore' | 'weekendhousekids' | 'thenewsociety' | 'emileetida' | 'bobochoses' | 'minirodini' | 'favoritepeople' | null;
 
 interface Brand {
   id: number;
@@ -472,6 +472,11 @@ export default function ProductImportPage() {
     fitComments: string;
     productFeatures: string;
   }>>(new Map());
+  const [goldieAndAceImagePool, setGoldieAndAceImagePool] = useState<Array<{
+    dataUrl: string;
+    filename: string;
+    assignedProduct: string;
+  }>>([]);
   const [wynckenPdfProducts, setWynckenPdfProducts] = useState<Array<{
     style: string;
     fabric: string;
@@ -920,6 +925,10 @@ export default function ProductImportPage() {
             alert('⚠️ Onbekend CSV-formaat!\n\nVerwacht:\n- Order Confirmation CSV met SRP en REFERENCIA kolommen\n- Order CSV met Product reference en EAN13 kolommen');
           }
         }
+      } else if (selectedVendor === 'minirodini') {
+        parseMinirodiniCSV(text);
+      } else if (selectedVendor === 'favoritepeople') {
+        parseFavoritePeopleCSV(text);
       } else if (selectedVendor === 'armedangels') {
         // Detect if this is invoice CSV or catalog CSV
         const lines = text.trim().split('\n');
@@ -1395,20 +1404,26 @@ export default function ProductImportPage() {
       return;
     }
 
-    // Parse header
-    const headers = lines[0].split(';').map(h => h.trim());
-    const styleCodeIdx = headers.findIndex(h => h.toLowerCase() === 'style code');
-    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
-    const colourNameIdx = headers.findIndex(h => h.toLowerCase() === 'colour name');
-    const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
-    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
-    const barcodesIdx = headers.findIndex(h => h.toLowerCase() === 'barcodes');
-    const retailEurIdx = headers.findIndex(h => h.toLowerCase() === 'retail eur');
-    const wsEurIdx = headers.findIndex(h => h.toLowerCase() === 'w/s eur');
-    const fitCommentsIdx = headers.findIndex(h => h.toLowerCase() === 'fit comments');
-    const productFeaturesIdx = headers.findIndex(h => h.toLowerCase() === 'product features');
+    // Parse header - supports re-mapping when a second header section appears (e.g. SWIM)
+    const parseHeaderIndices = (headerLine: string) => {
+      const hdrs = headerLine.split(';').map(h => h.trim());
+      return {
+        styleCodeIdx: hdrs.findIndex(h => h.toLowerCase() === 'style code'),
+        descriptionIdx: hdrs.findIndex(h => h.toLowerCase() === 'description'),
+        colourNameIdx: hdrs.findIndex(h => h.toLowerCase() === 'colour name'),
+        compositionIdx: hdrs.findIndex(h => h.toLowerCase() === 'composition'),
+        sizeIdx: hdrs.findIndex(h => h.toLowerCase() === 'size'),
+        barcodesIdx: hdrs.findIndex(h => h.toLowerCase() === 'barcodes'),
+        retailEurIdx: hdrs.findIndex(h => h.toLowerCase() === 'retail eur'),
+        wsEurIdx: hdrs.findIndex(h => h.toLowerCase() === 'w/s eur'),
+        fitCommentsIdx: hdrs.findIndex(h => h.toLowerCase() === 'fit comments'),
+        productFeaturesIdx: hdrs.findIndex(h => h.toLowerCase() === 'product features'),
+      };
+    };
 
-    if (styleCodeIdx === -1 || descriptionIdx === -1 || sizeIdx === -1) {
+    let colIdx = parseHeaderIndices(lines[0]);
+
+    if (colIdx.styleCodeIdx === -1 || colIdx.descriptionIdx === -1 || colIdx.sizeIdx === -1) {
       alert('CSV mist verplichte kolommen: Style Code, Description, of Size');
       return;
     }
@@ -1435,51 +1450,53 @@ export default function ProductImportPage() {
         continue;
       }
       
+      // Detect second header row (e.g. SWIM section with different column layout)
+      const lineLower = line.toLowerCase();
+      if (lineLower.includes('style code') && lineLower.includes('description') && lineLower.includes('size')) {
+        console.log(`🌻 Detected new header section at line ${i + 1}: "${line.substring(0, 80)}..."`);
+        colIdx = parseHeaderIndices(line);
+        i++;
+        continue;
+      }
+      
       // Split by semicolon to check PRODUCT FEATURES column
       const parts = line.split(';');
       
       // Check if PRODUCT FEATURES (last column) starts with quote but doesn't end with quote on same line
-      const productFeaturesValue = parts[productFeaturesIdx] || '';
+      const productFeaturesValue = parts[colIdx.productFeaturesIdx] || '';
       const isMultiLineFeatures = productFeaturesValue.startsWith('"') && !productFeaturesValue.endsWith('"');
       
       if (isMultiLineFeatures) {
         // Multi-line PRODUCT FEATURES - collect until we find closing quote
-        // First line contains all fields before PRODUCT FEATURES, and PRODUCT FEATURES starts with quote
         const productFeaturesLines: string[] = [];
         let j = i;
         let foundClosingQuote = false;
         
-        // Extract all fields from first line (before PRODUCT FEATURES)
-        const styleCode = parts[styleCodeIdx]?.trim() || '';
-        const description = parts[descriptionIdx]?.trim() || '';
-        const colourName = parts[colourNameIdx]?.trim() || '';
-        const composition = parts[compositionIdx]?.trim() || '';
-        const size = parts[sizeIdx]?.trim() || '';
-        const barcode = parts[barcodesIdx]?.trim() || '';
-        const retailStr = parts[retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
-        const wholesaleStr = parts[wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
-        const fitComments = parts[fitCommentsIdx]?.trim() || '';
+        const styleCode = parts[colIdx.styleCodeIdx]?.trim() || '';
+        const description = parts[colIdx.descriptionIdx]?.trim() || '';
+        const colourName = parts[colIdx.colourNameIdx]?.trim() || '';
+        const composition = parts[colIdx.compositionIdx]?.trim() || '';
+        const size = parts[colIdx.sizeIdx]?.trim() || '';
+        const barcode = parts[colIdx.barcodesIdx]?.trim() || '';
+        const retailStr = parts[colIdx.retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+        const wholesaleStr = parts[colIdx.wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+        const fitComments = parts[colIdx.fitCommentsIdx]?.trim() || '';
         
-        // Get PRODUCT FEATURES start (remove the opening quote)
-        const firstFeaturesLine = parts[productFeaturesIdx]?.replace(/^"/, '') || '';
+        const firstFeaturesLine = parts[colIdx.productFeaturesIdx]?.replace(/^"/, '') || '';
         productFeaturesLines.push(firstFeaturesLine);
         
-        // Continue reading lines until we find the closing quote
         j = i + 1;
         while (j < lines.length && !foundClosingQuote) {
           const nextLine = lines[j].trim();
           productFeaturesLines.push(nextLine);
           
-          // Check if this line ends with a quote (closing the PRODUCT FEATURES field)
           if (nextLine.endsWith('"')) {
-            // Remove the closing quote from the last line
             productFeaturesLines[productFeaturesLines.length - 1] = nextLine.slice(0, -1);
             foundClosingQuote = true;
           }
           j++;
         }
         
-        // Combine PRODUCT FEATURES lines
         const productFeatures = productFeaturesLines.join('\n').trim();
         
         const retailPrice = parseFloat(retailStr) || 0;
@@ -1503,17 +1520,17 @@ export default function ProductImportPage() {
         i = j;
       } else {
         // Single-line product (PRODUCT FEATURES on same line or empty)
-        if (parts.length > productFeaturesIdx) {
-          const styleCode = parts[styleCodeIdx]?.trim() || '';
-          const description = parts[descriptionIdx]?.trim() || '';
-          const colourName = parts[colourNameIdx]?.trim() || '';
-          const composition = parts[compositionIdx]?.trim() || '';
-          const size = parts[sizeIdx]?.trim() || '';
-          const barcode = parts[barcodesIdx]?.trim() || '';
-          const retailStr = parts[retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
-          const wholesaleStr = parts[wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
-          const fitComments = parts[fitCommentsIdx]?.trim() || '';
-          const productFeatures = parts[productFeaturesIdx]?.replace(/^"/, '').replace(/"$/, '').trim() || '';
+        if (parts.length > colIdx.productFeaturesIdx) {
+          const styleCode = parts[colIdx.styleCodeIdx]?.trim() || '';
+          const description = parts[colIdx.descriptionIdx]?.trim() || '';
+          const colourName = parts[colIdx.colourNameIdx]?.trim() || '';
+          const composition = parts[colIdx.compositionIdx]?.trim() || '';
+          const size = parts[colIdx.sizeIdx]?.trim() || '';
+          const barcode = parts[colIdx.barcodesIdx]?.trim() || '';
+          const retailStr = parts[colIdx.retailEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+          const wholesaleStr = parts[colIdx.wsEurIdx]?.replace(/[€\s]/g, '').replace(',', '.') || '0';
+          const fitComments = parts[colIdx.fitCommentsIdx]?.trim() || '';
+          const productFeatures = parts[colIdx.productFeaturesIdx]?.replace(/^"/, '').replace(/"$/, '').trim() || '';
           
           const retailPrice = parseFloat(retailStr) || 0;
           const wholesalePrice = parseFloat(wholesaleStr) || 0;
@@ -1606,6 +1623,73 @@ export default function ProductImportPage() {
     reader.readAsText(file);
   };
 
+  // Goldie and Ace image folder upload
+  const handleGoldieAndAceImageFolderUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter(f => 
+      f.type.startsWith('image/') || f.name.match(/\.(jpg|jpeg|png|webp)$/i)
+    );
+
+    if (imageFiles.length === 0) {
+      alert('Geen afbeeldingen gevonden in de selectie');
+      return;
+    }
+
+    const pool: Array<{dataUrl: string; filename: string; assignedProduct: string}> = [];
+
+    for (const file of imageFiles) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      pool.push({ dataUrl, filename: file.name, assignedProduct: '' });
+    }
+
+    setGoldieAndAceImagePool(prev => [...prev, ...pool]);
+    alert(`✅ ${imageFiles.length} afbeeldingen geladen. Wijs ze toe aan producten in de galerij hieronder.`);
+  };
+
+  const assignGoldieAndAceImage = (imageIndex: number, productReference: string) => {
+    setGoldieAndAceImagePool(prev =>
+      prev.map((img, idx) => idx === imageIndex ? { ...img, assignedProduct: productReference } : img)
+    );
+  };
+
+  const applyGoldieAndAceImageAssignments = () => {
+    const assignments = goldieAndAceImagePool.filter(img => img.assignedProduct);
+    if (assignments.length === 0) {
+      alert('Wijs eerst afbeeldingen toe aan producten');
+      return;
+    }
+
+    const productImageMap = new Map<string, string[]>();
+    for (const img of assignments) {
+      const existing = productImageMap.get(img.assignedProduct) || [];
+      existing.push(img.dataUrl);
+      productImageMap.set(img.assignedProduct, existing);
+    }
+
+    setParsedProducts(products =>
+      products.map(p => {
+        const newImages = productImageMap.get(p.reference);
+        if (newImages) {
+          return { ...p, images: [...(p.images || []), ...newImages] };
+        }
+        return p;
+      })
+    );
+
+    setGoldieAndAceImagePool(prev => prev.filter(img => !img.assignedProduct));
+    alert(`✅ ${assignments.length} afbeeldingen toegewezen aan ${productImageMap.size} producten`);
+  };
+
+  const removeGoldieAndAcePoolImage = (imageIndex: number) => {
+    setGoldieAndAceImagePool(prev => prev.filter((_, idx) => idx !== imageIndex));
+  };
+
   // Parse Goldie and Ace products (match PDF invoice with CSV data)
   const parseGoldieAndAceProducts = (invoiceProducts: Array<{
     description: string;
@@ -1635,8 +1719,9 @@ export default function ProductImportPage() {
       // Format: "COLOUR BLOCK OXFORD BURTON OVERALLS 2Y" or "RIB APPLE TANK 3Y"
       const invoiceDesc = invoiceItem.description.trim();
       
-      // Try to extract size (last part: 2Y, 3Y, 1-2Y, 0-3M, etc.)
-      const sizeMatch = invoiceDesc.match(/(\d+Y|\d+-\d+Y|\d+-\d+M|\d+M|\dY)$/i);
+      // Try to extract size (last part: 1-2Y, 0-3M, 2Y, etc.)
+      // Range patterns must come first to avoid \d+Y matching "3Y" in "1-3Y"
+      const sizeMatch = invoiceDesc.match(/(\d+-\d+Y|\d+-\d+M|\d+Y|\d+M)$/i);
       if (!sizeMatch) continue;
       
       const size = sizeMatch[1];
@@ -1657,42 +1742,39 @@ export default function ProductImportPage() {
         productFeatures: string;
       } | null = null;
       
-      // Try exact match first
+      const invoiceNameNormalized = productName.toUpperCase();
+      const invoiceSizeNormalized = size.toUpperCase();
+      
+      // First pass: match description + colour + size (for invoices that include colour in name)
       for (const [, csvItem] of goldieAndAceCsvData.entries()) {
-        // Normalize sizes for comparison (2Y vs 2Y, 1-2Y vs 1-2Y)
         const csvSizeNormalized = csvItem.size.toUpperCase();
-        const invoiceSizeNormalized = size.toUpperCase();
+        if (csvSizeNormalized !== invoiceSizeNormalized) continue;
         
-        // Check if description matches (case insensitive, allow partial match)
         const csvDescNormalized = csvItem.description.trim().toUpperCase();
-        const invoiceNameNormalized = productName.toUpperCase();
+        const csvColourNormalized = csvItem.colourName.trim().toUpperCase();
+        const fullCsvName = (csvDescNormalized + ' ' + csvColourNormalized).trim();
         
-        if (csvSizeNormalized === invoiceSizeNormalized && 
-            (csvDescNormalized === invoiceNameNormalized || 
-             csvDescNormalized.includes(invoiceNameNormalized) ||
-             invoiceNameNormalized.includes(csvDescNormalized))) {
+        if (invoiceNameNormalized === fullCsvName ||
+            invoiceNameNormalized.includes(fullCsvName) ||
+            fullCsvName.includes(invoiceNameNormalized)) {
           matchedCsvData = csvItem;
           break;
         }
       }
       
-      // If no exact match, try to find by description only (might have different color name)
+      // Second pass: match description only + size (for invoices without colour in name)
       if (!matchedCsvData) {
-        for (const csvItem of goldieAndAceCsvData.values()) {
+        for (const [, csvItem] of goldieAndAceCsvData.entries()) {
+          const csvSizeNormalized = csvItem.size.toUpperCase();
+          if (csvSizeNormalized !== invoiceSizeNormalized) continue;
+          
           const csvDescNormalized = csvItem.description.trim().toUpperCase();
-          const invoiceNameNormalized = productName.toUpperCase();
           
           if (csvDescNormalized === invoiceNameNormalized || 
               csvDescNormalized.includes(invoiceNameNormalized) ||
               invoiceNameNormalized.includes(csvDescNormalized)) {
-            // Check if size matches
-            const csvSizeNormalized = csvItem.size.toUpperCase();
-            const invoiceSizeNormalized = size.toUpperCase();
-            
-            if (csvSizeNormalized === invoiceSizeNormalized) {
-              matchedCsvData = csvItem;
-              break;
-            }
+            matchedCsvData = csvItem;
+            break;
           }
         }
       }
@@ -3335,6 +3417,312 @@ export default function ProductImportPage() {
     setParsedProducts(productList);
     setSelectedProducts(new Set(productList.map(p => p.reference)));
     setEmileetidaOrderLoaded(true);
+    setCurrentStep(2);
+  };
+
+  // Favorite People CSV parser
+  const parseFavoritePeopleCSV = (text: string) => {
+    console.log(`🍝 Parsing Favorite People CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    const headers = lines[0].split(';').map(h => h.trim().toUpperCase());
+    console.log(`🍝 Headers: ${JSON.stringify(headers)}`);
+    
+    const skuIdx = headers.findIndex(h => h === 'SKU');
+    const qtyIdx = headers.findIndex(h => h === 'QTY');
+    const whlPriceIdx = headers.findIndex(h => h.includes('WHL') || h.includes('WHOLESALE'));
+    const retailPriceIdx = headers.findIndex(h => h.includes('RETAIL'));
+    const eanIdx = headers.findIndex(h => h.includes('EAN'));
+    
+    if (skuIdx === -1 || eanIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: SKU, EAN CODE');
+      return;
+    }
+
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(/[€\s\t]/g, '').replace(',', '.')) || 0;
+    };
+
+    // Known clothing/modifier words for splitting product names (match from right)
+    const KNOWN_SUFFIXES = ['OVERALLS', 'SHORTS', 'SKIRT', 'SWEATSHIRT', 'TSHIRT', 'BAG', 'GIRL', 'BOY', 'BABY', 'LILLA'];
+
+    const splitProductName = (raw: string): string[] => {
+      const words: string[] = [];
+      let remaining = raw.toUpperCase();
+      
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const suffix of KNOWN_SUFFIXES) {
+          if (remaining.endsWith(suffix) && remaining.length > suffix.length) {
+            words.unshift(suffix.charAt(0) + suffix.slice(1).toLowerCase());
+            remaining = remaining.slice(0, -suffix.length);
+            changed = true;
+            break;
+          }
+        }
+      }
+      
+      if (remaining) {
+        words.unshift(remaining.charAt(0) + remaining.slice(1).toLowerCase());
+      }
+      
+      return words;
+    };
+
+    const parseSKU = (sku: string): { productNameRaw: string; productNameDisplay: string; size: string } | null => {
+      if (!sku) return null;
+      
+      // Strip season prefix (SS26, AW26, etc.)
+      let body = sku.replace(/^[A-Z]{2}\d{2}/i, '');
+      // Strip FP suffix
+      body = body.replace(/FP$/i, '');
+      
+      if (!body) return null;
+      
+      // Extract size from end: digits+M, digits+Y, or TU
+      const sizeMatch = body.match(/(\d+[MY]|TU)$/i);
+      if (!sizeMatch) return null;
+      
+      const sizeRaw = sizeMatch[1].toUpperCase();
+      const productNameRaw = body.slice(0, -sizeRaw.length);
+      
+      if (!productNameRaw) return null;
+      
+      const words = splitProductName(productNameRaw);
+      const productNameDisplay = words.join(' ');
+      
+      return { productNameRaw: productNameRaw.toUpperCase(), productNameDisplay, size: sizeRaw };
+    };
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('favorite people') ||
+      b.name.toLowerCase() === 'favorite people'
+    );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Favorite People brand not found in Odoo.');
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(';').map(v => v.trim());
+      
+      const sku = values[skuIdx] || '';
+      const qty = qtyIdx !== -1 ? parseInt(values[qtyIdx] || '0') || 0 : 0;
+      const whlPrice = whlPriceIdx !== -1 ? parsePrice(values[whlPriceIdx] || '0') : 0;
+      const retailPrice = retailPriceIdx !== -1 ? parsePrice(values[retailPriceIdx] || '0') : 0;
+      const ean = values[eanIdx] || '';
+      
+      // Skip totaal/summary rows (no SKU or no EAN)
+      if (!sku || !ean) continue;
+      
+      const parsed = parseSKU(sku);
+      if (!parsed) {
+        console.log(`⚠️ Could not parse SKU: ${sku}`);
+        continue;
+      }
+      
+      const { productNameRaw, productNameDisplay, size: sizeRaw } = parsed;
+      const size = sizeRaw === 'TU' ? 'U' : convertFlossSize(sizeRaw);
+      
+      const productKey = productNameRaw;
+      const formattedName = `Favorite People - ${productNameDisplay}`;
+      
+      if (!products[productKey]) {
+        products[productKey] = {
+          reference: productNameRaw,
+          name: formattedName,
+          originalName: productNameDisplay,
+          productName: sku,
+          material: '',
+          color: '',
+          csvCategory: '',
+          ecommerceDescription: productNameDisplay,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '',
+        };
+
+        console.log(`✅ Created product: ${formattedName}`);
+      }
+      
+      products[productKey].variants.push({
+        size: size,
+        quantity: qty,
+        ean: ean,
+        sku: sku,
+        price: whlPrice,
+        rrp: retailPrice,
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🍝 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
+    setCurrentStep(2);
+  };
+
+  // Mini Rodini CSV parser
+  const parseMinirodiniCSV = (text: string) => {
+    console.log(`🐼 Parsing Mini Rodini CSV...`);
+    
+    const lines = text.trim().split('\n');
+    
+    if (lines.length < 2) {
+      console.error('❌ Not enough rows in CSV');
+      alert('CSV bestand is leeg of ongeldig');
+      return;
+    }
+
+    const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`🐼 Headers: ${JSON.stringify(headers.slice(0, 15))}...`);
+    
+    const artNoIdx = headers.findIndex(h => h.toLowerCase() === 'art. no.');
+    const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
+    const variantNameIdx = headers.findIndex(h => h.toLowerCase() === 'variant name');
+    const variantNoIdx = headers.findIndex(h => h.toLowerCase() === 'variant no.');
+    const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size');
+    const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean');
+    const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
+    const wholesalePriceIdx = headers.findIndex(h => h.toLowerCase() === 'wholesale price - eur');
+    const rrpIdx = headers.findIndex(h => h.toLowerCase() === 'rrp - eur');
+    const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+    const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+    const shortDescIdx = headers.findIndex(h => h.toLowerCase() === 'short description');
+    if (artNoIdx === -1 || eanIdx === -1 || productNameIdx === -1) {
+      console.error('❌ Missing required headers. Found:', headers);
+      alert('Ongeldig CSV-formaat. Verwachte headers: Art. no., Product Name, EAN');
+      return;
+    }
+
+    const products: { [key: string]: ParsedProduct } = {};
+
+    const parsePrice = (str: string) => {
+      if (!str) return 0;
+      return parseFloat(str.replace(',', '.')) || 0;
+    };
+
+    const suggestedBrand = brands.find(b => 
+      b.name.toLowerCase().includes('mini rodini') ||
+      b.name.toLowerCase() === 'mini rodini'
+    );
+    
+    if (suggestedBrand) {
+      console.log(`✅ Found brand: ${suggestedBrand.name} (ID: ${suggestedBrand.id})`);
+    } else {
+      console.log('⚠️ Mini Rodini brand not found in Odoo. Available brands:', brands.map(b => b.name).slice(0, 20));
+    }
+
+    const toSentenceCase = (str: string) => {
+      if (!str) return '';
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(';').map(v => v.trim());
+      
+      const artNo = artNoIdx !== -1 ? values[artNoIdx] || '' : '';
+      const productName = productNameIdx !== -1 ? values[productNameIdx] || '' : '';
+      const variantName = variantNameIdx !== -1 ? values[variantNameIdx] || '' : '';
+      const variantNo = variantNoIdx !== -1 ? values[variantNoIdx] || '' : '';
+      const rawSize = sizeIdx !== -1 ? values[sizeIdx] || '' : '';
+      const size = convertFlossSize(rawSize);
+      const ean = eanIdx !== -1 ? values[eanIdx] || '' : '';
+      const quantity = quantityIdx !== -1 ? parseInt(values[quantityIdx] || '0') || 0 : 0;
+      const wholesalePrice = wholesalePriceIdx !== -1 ? parsePrice(values[wholesalePriceIdx] || '0') : 0;
+      const rrp = rrpIdx !== -1 ? parsePrice(values[rrpIdx] || '0') : 0;
+      const csvCategory = categoryIdx !== -1 ? values[categoryIdx] || '' : '';
+      const composition = descriptionIdx !== -1 ? values[descriptionIdx] || '' : '';
+      const shortDescription = shortDescIdx !== -1 ? values[shortDescIdx] || '' : '';
+      
+      if (!artNo || !ean) {
+        if (artNo || ean) {
+          console.log(`⚠️ Skipping row ${i}: incomplete data (artNo: ${artNo}, ean: ${ean})`);
+        }
+        continue;
+      }
+      
+      // Group by Art. no. + Variant Name (color)
+      const productKey = `${artNo}|${variantName}`;
+      
+      // Product name: "Mini Rodini - Product Name - Variant Name (artNo)"
+      const formattedName = `Mini Rodini - ${toSentenceCase(productName)} - ${toSentenceCase(variantName)} (${artNo})`;
+      
+      // Unique reference: artNo_variantNo (matches image filenames)
+      const uniqueReference = variantNo ? `${artNo}_${variantNo}` : artNo;
+
+      if (!products[productKey]) {
+        products[productKey] = {
+          reference: uniqueReference,
+          name: formattedName,
+          originalName: productName,
+          productName: artNo,
+          material: composition,
+          color: variantName,
+          csvCategory: csvCategory,
+          ecommerceDescription: shortDescription || productName,
+          variants: [],
+          suggestedBrand: suggestedBrand?.name,
+          selectedBrand: suggestedBrand,
+          publicCategories: [],
+          productTags: [],
+          isFavorite: false,
+          isPublished: true,
+          sizeAttribute: '',
+        };
+
+        console.log(`✅ Created product: ${formattedName} (Category: ${csvCategory})`);
+      }
+      
+      products[productKey].variants.push({
+        size: size,
+        quantity: quantity,
+        ean: ean,
+        sku: `${artNo}-${variantNo}-${rawSize}`,
+        price: wholesalePrice,
+        rrp: rrp,
+      });
+    }
+
+    const productList = Object.values(products);
+    console.log(`🐼 Parsed ${productList.length} unique products with ${productList.reduce((sum, p) => sum + p.variants.length, 0)} variants`);
+    
+    productList.forEach(product => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    
+    setParsedProducts(productList);
+    setSelectedProducts(new Set(productList.map(p => p.reference)));
     setCurrentStep(2);
   };
 
@@ -7651,6 +8039,52 @@ export default function ProductImportPage() {
                         <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
                       )}
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('minirodini');
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'minirodini'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🐼</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Mini Rodini</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Product Information CSV (puntkomma-gescheiden)
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Maten: 92/98 → 3 jaar, 140/146 → 11 jaar
+                      </p>
+                      {selectedVendor === 'minirodini' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedVendor('favoritepeople');
+                      }}
+                      className={`border-2 rounded-lg p-6 text-center transition-all ${
+                        selectedVendor === 'favoritepeople'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-4xl mb-3">🍝</div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Favorite People</h3>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">
+                        Beknopt CSV met SKU, prijs en EAN
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Maten: 24M → 24 maand, 3Y → 3 jaar
+                      </p>
+                      {selectedVendor === 'favoritepeople' && (
+                        <div className="mt-3 text-green-600 font-bold">✓ Geselecteerd</div>
+                      )}
+                    </button>
                   </div>
 
                 </div>
@@ -8737,6 +9171,116 @@ export default function ProductImportPage() {
                                 💡 De PDF wordt gematcht met de CSV data om volledige product informatie te krijgen
                               </p>
                             </div>
+
+                            {/* Image Upload */}
+                            <div className={`border-2 rounded-lg p-6 text-center ${
+                              parsedProducts.length > 0 
+                                ? 'border-yellow-400 dark:border-yellow-600' 
+                                : 'border-gray-300 dark:border-gray-600 opacity-50'
+                            }`}>
+                              <div className="text-4xl mb-3">🖼️</div>
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">3. Afbeeldingen</h3>
+                              <p className="text-sm text-gray-800 dark:text-gray-300 mb-4 font-medium">Upload afbeeldingen en wijs ze toe aan producten</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleGoldieAndAceImageFolderUpload(e.target.files)}
+                                disabled={parsedProducts.length === 0}
+                                className="hidden"
+                                id="goldieandace-image-upload"
+                              />
+                              <label
+                                htmlFor="goldieandace-image-upload"
+                                className={`px-4 py-2 rounded cursor-pointer inline-block ${
+                                  parsedProducts.length === 0
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    : goldieAndAceImagePool.length > 0
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                                }`}
+                              >
+                                {goldieAndAceImagePool.length > 0 ? `📸 ${goldieAndAceImagePool.length} afbeeldingen (+ meer toevoegen)` : parsedProducts.length === 0 ? 'Wacht op producten ⏳' : 'Kies Afbeeldingen'}
+                              </label>
+                              {parsedProducts.length === 0 && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                  ⚠️ Import eerst producten via CSV + PDF!
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                                💡 Selecteer alle afbeeldingen uit je Goldie and Ace map. Je kunt ze daarna toewijzen aan producten.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Goldie and Ace Image Assignment Gallery */}
+                        {selectedVendor === 'goldieandace' && goldieAndAceImagePool.length > 0 && (
+                          <div className="border-2 border-yellow-300 dark:border-yellow-700 rounded-lg p-4 mt-4">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                                🖼️ Afbeeldingen toewijzen ({goldieAndAceImagePool.filter(i => !i.assignedProduct).length} niet toegewezen, {goldieAndAceImagePool.filter(i => i.assignedProduct).length} toegewezen)
+                              </h3>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={applyGoldieAndAceImageAssignments}
+                                  disabled={goldieAndAceImagePool.filter(i => i.assignedProduct).length === 0}
+                                  className={`px-4 py-2 rounded text-sm font-bold ${
+                                    goldieAndAceImagePool.filter(i => i.assignedProduct).length > 0
+                                      ? 'bg-green-600 text-white hover:bg-green-700'
+                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                                >
+                                  ✅ Toewijzen ({goldieAndAceImagePool.filter(i => i.assignedProduct).length})
+                                </button>
+                                <button
+                                  onClick={() => setGoldieAndAceImagePool([])}
+                                  className="px-3 py-2 rounded text-sm bg-red-100 text-red-700 hover:bg-red-200"
+                                >
+                                  🗑️ Wis alles
+                                </button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                              {goldieAndAceImagePool.map((img, idx) => (
+                                <div key={idx} className={`relative border-2 rounded-lg overflow-hidden ${
+                                  img.assignedProduct ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600'
+                                }`}>
+                                  <div className="aspect-square relative">
+                                    <img
+                                      src={img.dataUrl}
+                                      alt={img.filename}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      onClick={() => removeGoldieAndAcePoolImage(idx)}
+                                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                  <div className="p-1.5">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mb-1">{img.filename}</p>
+                                    <select
+                                      value={img.assignedProduct}
+                                      onChange={(e) => assignGoldieAndAceImage(idx, e.target.value)}
+                                      className={`w-full text-xs p-1 rounded border ${
+                                        img.assignedProduct 
+                                          ? 'border-green-500 bg-green-50 dark:bg-green-900/30 font-medium' 
+                                          : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
+                                      }`}
+                                    >
+                                      <option value="">-- Kies product --</option>
+                                      {parsedProducts.map(p => (
+                                        <option key={p.reference} value={p.reference}>
+                                          {p.originalName || p.name} {p.color ? `(${p.color})` : ''}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
@@ -8844,7 +9388,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : selectedVendor === 'minirodini' ? 'Mini Rodini' : selectedVendor === 'favoritepeople' ? 'Favorite People' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -8993,6 +9537,29 @@ European RRP 75 eur
 → Color code 611 → Red, 199 → Off White, 991 → Multi
 → Variant: Maat 39 (schoenen), XS/S/M/L/XL (kleding)
 → Prijzen: Via PDF lookup met REF code`}
+                        </pre>
+                      ) : selectedVendor === 'minirodini' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`ID;Art. no.;Brand;Product Name;Display Name;Variant Name;Comment;Prepack;Variant no.;Size Chart;Size;Size no.;EAN;Quantity;Unit Price;Original Unit Price;Total;Weight;Category;...;Wholesale price - EUR;RRP - EUR
+7641362;11000335;MINI RODINI;Panther sp sweatshirt;Panther sp sweatshirt - Chapter 1;Green;;;75;DOUBLE SIZE CLOTHES;92/98;92/98;7332754714678;1;22;22;22;0.195 kg;SWEATSHIRTS/CARDIGANS;...;22;55
+
+→ Wordt: "Mini Rodini - Panther sp sweatshirt - Green (11000335)"
+→ Variant: Maat 3 jaar (92/98 → 3 jaar, MAAT Kinderen), EAN: 7332754714678, Prijs: €22,00, RRP: €55,00
+→ Maten: 92/98 → 3 jaar, 104/110 → 5 jaar, 128/134 → 9 jaar, 140/146 → 11 jaar
+→ Producten gegroepeerd op Art. no. + Variant Name`}
+                        </pre>
+                      ) : selectedVendor === 'favoritepeople' ? (
+                        <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
+{`SKU;QTY;WHL PRICE;RETAIL PRICE;EAN CODE
+SS26NAPOLIGIRLSHORTS24MFP;1; 26,00 € ;65,00 €;05600850526269
+SS26NAPOLIGIRLSHORTS3YFP;1; 26,00 € ;65,00 €;05600850523510
+SS26PUGLIABABYTSHIRT24MFP;1; 14,00 € ;40,00 €;05600850526320
+SS26POSITANOBAGTUFP;1; 23,20 € ;58,00 €;05600850524432
+
+→ Wordt: "Favorite People - Napoli Girl Shorts"
+→ SKU parsing: SS26 + NAPOLIGIRLSHORTS + 24M + FP
+→ Maten: 24M → 24 maand, 3Y → 3 jaar, TU → U (geen maat)
+→ Originele SKU opgeslagen in interne notitie`}
                         </pre>
                       ) : (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -10525,6 +11092,31 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       className="block w-full bg-gradient-to-r from-pink-500 to-yellow-500 text-white text-center px-6 py-3 rounded-lg hover:from-pink-600 hover:to-yellow-600 font-bold shadow-lg transition-all"
                     >
                       🌸 Upload Emile et Ida Afbeeldingen →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Image Import for Mini Rodini */}
+                {selectedVendor === 'minirodini' && imageImportResults.length === 0 && (
+                  <div className="bg-gradient-to-r from-green-50 to-teal-50 border-2 border-green-300 rounded-lg p-6 mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🐼 Next Step: Upload Images</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Import successful! Now upload product images using the dedicated image upload page.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-green-200">
+                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
+                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
+                        <li>Product images from Mini Rodini folder</li>
+                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">18397_01bd66254b-11000335-75-1-original.jpg</code></li>
+                        <li>The app matches images by Art. no. + Variant no. from the filename!</li>
+                      </ul>
+                    </div>
+                    
+                    <Link
+                      href="/minirodini-images-import"
+                      className="block w-full bg-gradient-to-r from-green-500 to-teal-500 text-white text-center px-6 py-3 rounded-lg hover:from-green-600 hover:to-teal-600 font-bold shadow-lg transition-all"
+                    >
+                      🐼 Upload Mini Rodini Afbeeldingen →
                     </Link>
                   </div>
                 )}

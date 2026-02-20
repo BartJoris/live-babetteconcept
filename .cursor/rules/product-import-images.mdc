@@ -1,0 +1,80 @@
+---
+description: Every new vendor in product-import must include an image upload + assignment step
+globs: pages/product-import.tsx
+alwaysApply: false
+---
+
+# Product Import - Afbeeldingen Upload & Toewijzing
+
+## VERPLICHT: Elke nieuwe leverancier moet een afbeeldingen-stap hebben
+
+Bij het toevoegen van een nieuwe leverancier aan product-import.tsx moet altijd een afbeeldingen upload + toewijzings-functionaliteit worden toegevoegd als stap na de product import.
+
+### Benodigde onderdelen
+
+1. **State** voor de image pool:
+```typescript
+const [vendorImagePool, setVendorImagePool] = useState<Array<{
+  dataUrl: string;
+  filename: string;
+  assignedProduct: string;
+}>>([]);
+```
+
+2. **Handlers** (zie Goldie and Ace als referentie):
+   - `handleVendorImageFolderUpload(files)` - laadt afbeeldingen in de pool
+   - `assignVendorImage(imageIndex, productReference)` - wijst afbeelding toe aan product
+   - `applyVendorImageAssignments()` - verplaatst toegewezen afbeeldingen naar producten
+   - `removeVendorPoolImage(imageIndex)` - verwijdert afbeelding uit pool
+
+3. **UI Stap** in de vendor upload sectie:
+   - Upload knop voor afbeeldingen (disabled tot producten zijn geïmporteerd)
+   - Galerij grid met thumbnails van alle geüploade afbeeldingen
+   - Per afbeelding een dropdown om product te kiezen
+   - "Toewijzen" knop om geselecteerde toe te passen
+   - "Wis alles" knop om pool leeg te maken
+
+### Referentie-implementatie
+
+Gebruik de Goldie and Ace implementatie als template:
+- State: `goldieAndAceImagePool`
+- Handlers: `handleGoldieAndAceImageFolderUpload`, `assignGoldieAndAceImage`, `applyGoldieAndAceImageAssignments`, `removeGoldieAndAcePoolImage`
+- UI: zoek naar `goldieandace-image-upload` in de JSX
+
+### Flow
+
+```
+1. Product data importeren (CSV/PDF/website - verschilt per vendor)
+2. Producten verschijnen in de lijst
+3. Afbeeldingen uploaden (multi-select uit map)
+4. Afbeeldingen toewijzen aan producten via dropdown
+5. "Toewijzen" knop → afbeeldingen verplaatsen naar product.images[]
+6. Exporteren naar Odoo
+```
+
+### Galerij UI pattern
+
+```tsx
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+  {imagePool.map((img, idx) => (
+    <div key={idx} className={`relative border-2 rounded-lg overflow-hidden ${
+      img.assignedProduct ? 'border-green-500' : 'border-gray-300'
+    }`}>
+      <div className="aspect-square relative">
+        <img src={img.dataUrl} className="w-full h-full object-cover" />
+      </div>
+      <select
+        value={img.assignedProduct}
+        onChange={(e) => assignImage(idx, e.target.value)}
+      >
+        <option value="">-- Kies product --</option>
+        {parsedProducts.map(p => (
+          <option key={p.reference} value={p.reference}>
+            {p.originalName || p.name} {p.color ? `(${p.color})` : ''}
+          </option>
+        ))}
+      </select>
+    </div>
+  ))}
+</div>
+```

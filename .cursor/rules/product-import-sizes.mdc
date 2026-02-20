@@ -1,0 +1,64 @@
+---
+description: Size conversion rules for product import - EU sizes must always be converted to Odoo age format
+globs: pages/product-import.tsx
+alwaysApply: false
+---
+
+# Product Import - Maat/Size Conversie Regels
+
+## KRITIEK: EU maten MOETEN altijd omgezet worden naar leeftijdsformaat
+
+Odoo gebruikt leeftijd-gebaseerde maten, NIET EU-maten. Elke nieuwe leverancier die EU-maten gebruikt (zoals 92, 98, 104, 92/98, 110/116) MOET deze omzetten via `convertFlossSize()`.
+
+### Odoo maat-attributen en geldige waarden
+
+| Attribuut | Geldige waarden |
+|-----------|----------------|
+| MAAT Baby's | 0, 1, 3, 6, 9, 12, 18, 24, 36, 48 maand |
+| MAAT Kinderen | 1-9 jaar |
+| MAAT Tieners | 10, 11, 12, 13, 14 jaar |
+| MAAT Volwassenen | XXS - 32, XS - 34, S - 36, M - 38, L - 40, XL - 42, XXL - 44 |
+
+### EU-maat naar leeftijd conversie (euSizeToAge)
+
+```
+50 → 0 maand, 56 → 1 maand, 62 → 3 maand, 68 → 6 maand
+74 → 9 maand, 80 → 12 maand, 86 → 18 maand
+92 → 2 jaar, 98 → 3 jaar, 104 → 4 jaar, 110 → 5 jaar
+116 → 6 jaar, 122 → 7 jaar, 128 → 8 jaar, 134 → 9 jaar
+140 → 10 jaar, 146 → 11 jaar, 152 → 12 jaar, 158 → 13 jaar, 164 → 14 jaar
+```
+
+### Dubbele EU-maten (bijv. "92/98", "110/116")
+
+Gebruik altijd de HOGERE maat voor de conversie:
+- "92/98" → 98 → "3 jaar"
+- "104/110" → 110 → "5 jaar"
+- "140/146" → 146 → "11 jaar"
+
+### Verplicht bij nieuwe leverancier
+
+Bij het toevoegen van een nieuwe leverancier aan product-import.tsx:
+
+1. **Converteer maten**: Gebruik `convertFlossSize(rawSize)` voor EU-maten
+2. **Bepaal maat-attribuut**: Gebruik `determineSizeAttribute(product.variants)` na conversie
+3. **Bewaar ruwe maat in SKU**: SKU kan de originele maat bevatten (bijv. `${artNo}-${variantNo}-${rawSize}`)
+4. **Sla geconverteerde maat op in variant.size**: Dit is wat naar Odoo gaat
+
+```typescript
+// ❌ FOUT - ruwe EU maat opslaan
+const size = values[sizeIdx] || '';
+products[key].variants.push({ size: size, ... });
+
+// ✅ GOED - converteer naar leeftijdsformaat
+const rawSize = values[sizeIdx] || '';
+const size = convertFlossSize(rawSize);
+products[key].variants.push({ size: size, sku: `${ref}-${rawSize}`, ... });
+```
+
+### Andere conversies
+
+- Emile et Ida: `02A` → `2 jaar`, `03M` → `3 maand`, `TU` → `U` (eigen `convertSize`)
+- Y-formaat: `2Y` → `2 jaar`, `10Y` → `10 jaar`
+- M-formaat: `3M` → `3 maand`, `18M` → `18 maand`
+- Volwassen: `XS` → `XS - 34`, `M` → `M - 38` (via `mapSizeToOdooFormat`)

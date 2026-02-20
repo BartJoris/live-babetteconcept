@@ -86,76 +86,93 @@ export default async function handler(
       console.log(`  ${idx}: "${line.substring(0, 150)}"`);
     });
 
-    // Goldie and Ace invoice structure:
-    // Table format: Description | Quantity | Unit Price | GST | Amount EUR
-    // Example: "COLOUR BLOCK OXFORD BURTON OVERALLS 2Y | 1.00 | 27.60 | GST Free | 27.60"
+    // Goldie and Ace invoice format:
+    // Single line: "PRODUCT NAME SIZE qty price GST Free amount"
+    // Multi-line: product name + colour/size may span 2-3 lines before the numbers line
     
-    // Also handle lines where product name might be split
     let pendingProductName = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
-      // Skip header/footer lines
-      if (line.match(/^(Description|Quantity|Unit Price|GST|Amount EUR|TAX INVOICE|Goldie|Jove|Invoice Date|Invoice Number|Reference|Order|ABN|Registered|Due Date|BANK|VISA|VAT reverse|Minus|Freight|Subtotal|TOTAL EUR)$/i) ||
+      // Skip header/footer/non-product lines
+      if (line.match(/^(Description|Quantity|Unit Price|GST|Amount EUR|TAX INVOICE)$/i) ||
+          line.match(/^Description\s+Quantity/i) ||
+          line.match(/^(Goldie|Jove|Invoice|Reference|Order|ABN|Registered|Due Date|BANK|VISA|VAT|Minus|Freight|Subtotal|TOTAL)/i) ||
           line.match(/^\|/) ||
           line.match(/^---/) ||
+          line.match(/^--\s*\d+\s+of\s+\d+\s*--/) ||
           line.match(/^View and pay/) ||
-          line.match(/^Port Melbourne/) ||
-          line.match(/^Brussels/) ||
-          line.match(/^Woodhaven/) ||
-          line.match(/^Pylyserlaan/) ||
+          line.match(/^Port Melbourne/i) ||
+          line.match(/^Brussels/i) ||
+          line.match(/^Woodhaven/i) ||
+          line.match(/^Pylyserlaan/i) ||
           line.match(/^KOKSIJDE/) ||
           line.match(/^BELGIUM/) ||
+          line.match(/^VICTORIA/) ||
           line.match(/^\d{4}$/) ||
           line.match(/^hello@/) ||
-          line.match(/^www\./)) {
+          line.match(/^www\./) ||
+          line.match(/^Account/i) ||
+          line.match(/^BSB:/i) ||
+          line.match(/^BIC/i) ||
+          line.match(/^IBAN/i) ||
+          line.match(/^Routing/i) ||
+          line.match(/^Bank name/i) ||
+          line.match(/^Swift/i) ||
+          line.match(/^Rue\s/i) ||
+          line.match(/^Community Federal/i) ||
+          line.match(/^\d{1,2}\s+\w{3,}\s+\d{4}$/) ||
+          line.match(/^SS\d+/)) {
+        pendingProductName = '';
         continue;
       }
       
-      // Try to match full product line
+      // Try to match full product line (description + numbers on same line)
       const match = line.match(/^(.+?)\s+(\d+\.\d{2})\s+(\d+\.\d{2})\s+GST\s+Free\s+(\d+\.\d{2})$/i);
       if (match) {
-        const [, description, qtyStr, unitPriceStr, amountStr] = match;
+        let [, description, qtyStr, unitPriceStr, amountStr] = match;
         
-        // Check if description contains a size (ends with Y, M, or age range)
+        if (pendingProductName) {
+          description = pendingProductName + ' ' + description;
+          pendingProductName = '';
+        }
+        
         if (description.match(/\d+Y|\d+-\d+Y|\d+-\d+M|\d+M|\dY$/i)) {
-          const quantity = parseFloat(qtyStr);
-          const unitPrice = parseFloat(unitPriceStr);
-          const amount = parseFloat(amountStr);
-          
           products.push({
             description: description.trim(),
-            quantity,
-            unitPrice,
-            amount,
+            quantity: parseFloat(qtyStr),
+            unitPrice: parseFloat(unitPriceStr),
+            amount: parseFloat(amountStr),
           });
-          console.log(`✅ Found product: "${description.trim()}" x${quantity} @ €${unitPrice}`);
-          pendingProductName = '';
+          console.log(`✅ Found product: "${description.trim()}" x${parseFloat(qtyStr)} @ €${parseFloat(unitPriceStr)}`);
         } else {
-          // Might be a product name without size, save for next line
           pendingProductName = description.trim();
         }
         continue;
       }
       
-      // Handle product names that might be on separate lines
-      if (pendingProductName && line.match(/^\d+\.\d{2}\s+\d+\.\d{2}\s+GST\s+Free\s+\d+\.\d{2}$/)) {
-        const parts = line.match(/^(\d+\.\d{2})\s+(\d+\.\d{2})\s+GST\s+Free\s+(\d+\.\d{2})$/);
-        if (parts) {
-          const quantity = parseFloat(parts[1]);
-          const unitPrice = parseFloat(parts[2]);
-          const amount = parseFloat(parts[3]);
-          
+      // Check if this is a numbers-only line (for multi-line split products)
+      const numbersMatch = line.match(/^(\d+\.\d{2})\s+(\d+\.\d{2})\s+GST\s+Free\s+(\d+\.\d{2})$/);
+      if (numbersMatch && pendingProductName) {
+        if (pendingProductName.match(/\d+Y|\d+-\d+Y|\d+-\d+M|\d+M|\dY$/i)) {
           products.push({
-            description: pendingProductName,
-            quantity,
-            unitPrice,
-            amount,
+            description: pendingProductName.trim(),
+            quantity: parseFloat(numbersMatch[1]),
+            unitPrice: parseFloat(numbersMatch[2]),
+            amount: parseFloat(numbersMatch[3]),
           });
-          console.log(`✅ Found product (split): "${pendingProductName}" x${quantity} @ €${unitPrice}`);
-          pendingProductName = '';
+          console.log(`✅ Found product (multi-line): "${pendingProductName.trim()}" x${parseFloat(numbersMatch[1])} @ €${parseFloat(numbersMatch[2])}`);
         }
+        pendingProductName = '';
+        continue;
+      }
+      
+      // Accumulate text lines as potential product name/continuation
+      if (pendingProductName) {
+        pendingProductName = pendingProductName + ' ' + line;
+      } else {
+        pendingProductName = line;
       }
     }
 
