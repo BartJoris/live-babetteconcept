@@ -52,7 +52,21 @@ export default function StockVerkopenPage() {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (isNotFoundOpen || isQuotationOpen || isLookingUp) return;
+
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isNotFoundOpen, isQuotationOpen, isLookingUp]);
 
   useEffect(() => {
     try {
