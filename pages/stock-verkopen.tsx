@@ -24,7 +24,6 @@ const STOCK_PERCENTAGE = 0.20;
 
 export default function StockVerkopenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
-  const [barcodeInput, setBarcodeInput] = useState('');
   const [rows, setRows] = useState<StockRow[]>([]);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -48,7 +47,6 @@ export default function StockVerkopenPage() {
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge');
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const barcodeValueRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const partnerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,6 +69,10 @@ export default function StockVerkopenPage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
     } catch { /* ignore */ }
   }, [rows]);
+
+  const clearBarcodeInput = () => {
+    if (inputRef.current) inputRef.current.value = '';
+  };
 
   const setAlert = (msg: string) => {
     setAlertMessage(msg);
@@ -112,8 +114,7 @@ export default function StockVerkopenPage() {
       next[existingIndex] = { ...next[existingIndex], qty: (next[existingIndex].qty || 0) + 1 };
       const [updated] = next.splice(existingIndex, 1);
       setRows([updated, ...next]);
-      setBarcodeInput('');
-      barcodeValueRef.current = '';
+      clearBarcodeInput();
       return;
     }
 
@@ -135,8 +136,7 @@ export default function StockVerkopenPage() {
           purchasePrice: data.purchasePrice ?? null,
           found: true,
         }, ...prev]);
-        setBarcodeInput('');
-        barcodeValueRef.current = '';
+        clearBarcodeInput();
       } else {
         setNotFoundBarcode(normalized);
         setNfName('');
@@ -176,8 +176,7 @@ export default function StockVerkopenPage() {
     }, ...prev]);
     setIsNotFoundOpen(false);
     setNotFoundBarcode(null);
-    setBarcodeInput('');
-    barcodeValueRef.current = '';
+    clearBarcodeInput();
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -418,22 +417,17 @@ export default function StockVerkopenPage() {
           <input
             ref={inputRef}
             placeholder="Scan of typ barcode en druk Enter"
-            value={barcodeInput}
-            onChange={e => {
-              setBarcodeInput(e.target.value);
-              barcodeValueRef.current = e.target.value;
-            }}
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                void handleLookup(barcodeValueRef.current);
+                void handleLookup(e.currentTarget.value);
               }
             }}
             disabled={isLookingUp}
             style={{ flex: 1, padding: 8, border: '1px solid #ccc', borderRadius: 4 }}
           />
           <button
-            onClick={() => void handleLookup(barcodeInput)}
+            onClick={() => void handleLookup(inputRef.current?.value ?? '')}
             disabled={isLookingUp}
             style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid #ccc', background: '#f3f4f6' }}
           >
