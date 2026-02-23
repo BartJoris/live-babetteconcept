@@ -11,7 +11,6 @@ type StockRow = {
   qty: number;
   salePrice: number | null;
   purchasePrice: number | null;
-  image: string | null;
   found: boolean;
 };
 
@@ -49,6 +48,7 @@ export default function StockVerkopenPage() {
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge');
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const barcodeValueRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const partnerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,17 +99,6 @@ export default function StockVerkopenPage() {
     };
   }, [rows]);
 
-  const loadImageForBarcode = (barcode: string) => {
-    fetch(`/api/odoo/lookup-product-for-stock?barcode=${encodeURIComponent(barcode)}&image=1`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.found && data.image) {
-          setRows(prev => prev.map(r => r.barcode === barcode && !r.image ? { ...r, image: data.image } : r));
-        }
-      })
-      .catch(() => { /* silent */ });
-  };
-
   const handleLookup = async (barcode: string) => {
     const normalized = barcode.trim();
     if (!normalized) {
@@ -124,6 +113,7 @@ export default function StockVerkopenPage() {
       const [updated] = next.splice(existingIndex, 1);
       setRows([updated, ...next]);
       setBarcodeInput('');
+      barcodeValueRef.current = '';
       return;
     }
 
@@ -143,11 +133,10 @@ export default function StockVerkopenPage() {
           qty: 1,
           salePrice: data.salePrice ?? null,
           purchasePrice: data.purchasePrice ?? null,
-          image: null,
           found: true,
         }, ...prev]);
         setBarcodeInput('');
-        loadImageForBarcode(bc);
+        barcodeValueRef.current = '';
       } else {
         setNotFoundBarcode(normalized);
         setNfName('');
@@ -183,12 +172,12 @@ export default function StockVerkopenPage() {
       qty: 1,
       salePrice: Number.isFinite(saleParsed) ? saleParsed : null,
       purchasePrice: Number.isFinite(purchaseParsed) ? purchaseParsed : null,
-      image: null,
       found: false,
     }, ...prev]);
     setIsNotFoundOpen(false);
     setNotFoundBarcode(null);
     setBarcodeInput('');
+    barcodeValueRef.current = '';
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -295,7 +284,6 @@ export default function StockVerkopenPage() {
         qty: Number(r.qty ?? r.Aantal ?? 1) || 1,
         salePrice: r.salePrice != null ? Number(r.salePrice) : (r['Verkoopprijs (€)'] != null ? Number(r['Verkoopprijs (€)']) : null),
         purchasePrice: r.purchasePrice != null ? Number(r.purchasePrice) : (r['Aankoopprijs (€)'] != null ? Number(r['Aankoopprijs (€)']) : null),
-        image: typeof r.image === 'string' ? r.image : null,
         found: typeof r.found === 'boolean' ? r.found : true,
       };
     }).filter(r => r.barcode);
@@ -431,11 +419,14 @@ export default function StockVerkopenPage() {
             ref={inputRef}
             placeholder="Scan of typ barcode en druk Enter"
             value={barcodeInput}
-            onChange={e => setBarcodeInput(e.target.value)}
+            onChange={e => {
+              setBarcodeInput(e.target.value);
+              barcodeValueRef.current = e.target.value;
+            }}
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                void handleLookup(barcodeInput);
+                void handleLookup(barcodeValueRef.current);
               }
             }}
             disabled={isLookingUp}
@@ -504,7 +495,6 @@ export default function StockVerkopenPage() {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
-                <th style={{ ...thStyle, width: 60 }}>Beeld</th>
                 <th style={thStyle}>Product Naam</th>
                 <th style={thStyle}>Variant / Maat</th>
                 <th style={{ ...thStyle, textAlign: 'right' }}>Aankoopprijs</th>
@@ -520,19 +510,6 @@ export default function StockVerkopenPage() {
                 const sp = stockPrice(r.salePrice);
                 return (
                   <tr key={`${r.barcode}-${i}`} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {r.image ? (
-                        <img
-                          src={`data:image/png;base64,${r.image}`}
-                          alt={r.name}
-                          style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 4 }}
-                        />
-                      ) : (
-                        <div style={{ width: 48, height: 48, background: '#f3f4f6', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 10 }}>
-                          Geen
-                        </div>
-                      )}
-                    </td>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500 }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.barcode}</div>
@@ -573,7 +550,7 @@ export default function StockVerkopenPage() {
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
                     Nog geen producten. Scan een barcode om te beginnen.
                   </td>
                 </tr>
@@ -582,7 +559,6 @@ export default function StockVerkopenPage() {
             {rows.length > 0 && (
               <tfoot style={{ background: '#f9fafb', fontWeight: 700 }}>
                 <tr style={{ borderTop: '2px solid #d1d5db' }}>
-                  <td style={tdStyle} />
                   <td style={tdStyle}>Totaal</td>
                   <td style={tdStyle} />
                   <td style={{ ...tdStyle, textAlign: 'right' }}>€{totals.totalPurchaseValue.toFixed(2)}</td>

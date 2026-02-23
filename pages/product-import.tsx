@@ -2653,10 +2653,11 @@ export default function ProductImportPage() {
       const price = parsePrice(row['Wholesale Price EUR'] || '0');
       const rrp = parsePrice(row['Recommended Retail Price EUR'] || '0');
 
-      // Brunobruno: same styleNo can have multiple colors, so key by styleNo + colorCode
-      // Floss: each styleNo is unique per color
+      // Same styleNo can have multiple colors for both Floss and Brunobruno
+      // Each color becomes a separate product, so key by styleNo + color
       const colorCode = color.match(/^(\d+)/)?.[1] || '';
-      const reference = (selectedVendor === 'brunobruno' && colorCode) ? `${styleNo}_${colorCode}` : styleNo;
+      const colorKey = selectedVendor === 'brunobruno' ? colorCode : color.trim().toLowerCase().replace(/\s+/g, '-');
+      const reference = colorKey ? `${styleNo}_${colorKey}` : styleNo;
 
       if (!products[reference]) {
         // Format product name to match Le New Black convention
