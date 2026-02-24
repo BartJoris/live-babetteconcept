@@ -79,6 +79,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[stock-quotation] ERROR:', message);
     return res.status(500).json({ error: message });
   }
 });
