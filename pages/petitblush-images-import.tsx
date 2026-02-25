@@ -193,7 +193,7 @@ export default function PetitBlushImagesImport() {
         }
       }
 
-      const BATCH_SIZE = 2;
+      const BATCH_SIZE = 10;
       let totalUploaded = 0;
 
       for (let i = 0; i < allImages.length; i += BATCH_SIZE) {

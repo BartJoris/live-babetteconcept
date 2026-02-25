@@ -576,8 +576,7 @@ export default function WynckenImagesImport() {
 
       console.log(`🌻 Preparing to upload ${imagesToUpload.length} images...`);
 
-      // Upload images in batches to avoid exceeding request size limits
-      const BATCH_SIZE = 2; // Process 2 images per request
+      const BATCH_SIZE = 10;
       const batches = [];
       
       for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {

@@ -68,12 +68,11 @@ export default async function handler(
       const productsUrl = `${vendorUrl}/products.json?limit=250`;
       console.log(`📡 [FETCH] Requesting: ${productsUrl}`);
       
-      // Add timeout to prevent hanging - reduced to 5 seconds
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log(`⏰ [TIMEOUT] Aborting request after 5 seconds...`);
+        console.log(`⏰ [TIMEOUT] Aborting request after 30 seconds...`);
         controller.abort();
-      }, 5000); // 5 second timeout
+      }, 30000);
       
       try {
         const productsResponse = await fetch(productsUrl, { signal: controller.signal });
@@ -216,12 +215,11 @@ export default async function handler(
       try {
         console.log(`📥 [DOWNLOAD ${i + 1}/${productImages.length}] Fetching: ${imageUrl}`);
         
-        // Add timeout to prevent hanging on large images - reduced timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-          console.log(`⏰ [TIMEOUT] Aborting image download after 8 seconds...`);
+          console.log(`⏰ [TIMEOUT] Aborting image download after 30 seconds...`);
           controller.abort();
-        }, 8000); // 8 second timeout per image
+        }, 30000);
         
         const imageResponse = await fetch(imageUrl, { signal: controller.signal });
         clearTimeout(timeoutId);

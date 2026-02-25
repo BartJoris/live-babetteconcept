@@ -42,7 +42,7 @@ async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Apply rate limiting (10 imports per hour)
+  // Apply rate limiting
   const allowed = await rateLimitImport(req, res);
   if (!allowed) {
     return; // Rate limiter already sent response

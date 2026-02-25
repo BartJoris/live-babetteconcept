@@ -286,8 +286,7 @@ export default function WeekendHouseKidsImagesImport() {
 
       console.log(`📤 Uploading ${allImages.length} images (${allImages.filter(i => !i.isLook).length} stills, ${allImages.filter(i => i.isLook).length} looks)...`);
 
-      // Upload in batches to avoid payload size limits (like Wynken)
-      const BATCH_SIZE = 2; // Process 2 images per request to avoid limits
+      const BATCH_SIZE = 10;
       const batches: typeof allImages[] = [];
       
       for (let i = 0; i < allImages.length; i += BATCH_SIZE) {

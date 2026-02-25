@@ -1289,54 +1289,43 @@ export default function ProductImportPage() {
         ? [apiPreviewData.product]
         : parsedProducts.filter(p => selectedProducts.has(p.reference));
 
-      // Client-side batch processing to avoid Vercel timeout
-      const results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; variantsUpdated?: number; message?: string }> = [];
-      
-      setImportProgress({ current: 0, total: productsToImport.length });
+      setImportProgress({ current: 0, total: productsToImport.length, currentProduct: `${productsToImport.length} producten worden geïmporteerd...` });
 
-      for (let i = 0; i < productsToImport.length; i++) {
-        const product = productsToImport[i];
-        setImportProgress({ 
-          current: i + 1, 
-          total: productsToImport.length,
-          currentProduct: product.name
+      let results: Array<{ success: boolean; reference: string; name?: string; templateId?: number; variantsCreated?: number; variantsUpdated?: number; message?: string }> = [];
+
+      try {
+        const response = await fetch('/api/import-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            products: productsToImport.map(p => transformProductForUpload(p)),
+            testMode,
+            vendor: selectedVendor || 'unknown',
+            uid,
+            password,
+          }),
         });
 
-        try {
-          // Import one product at a time to stay under Vercel's 10s timeout
-          const response = await fetch('/api/import-products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              products: [transformProductForUpload(product)], // Apply Dutch size names before upload
-              testMode,
-              vendor: selectedVendor || 'unknown', // Include vendor for audit logging
-              uid,
-              password,
-            }),
-          });
+        const result = await response.json();
 
-          const result = await response.json();
-          
-          if (result.success && result.results && result.results.length > 0) {
-            results.push(result.results[0]);
-          } else {
-            results.push({
-              success: false,
-              reference: product.reference,
-              name: product.name,
-              message: result.error || 'Unknown error',
-            });
-          }
-        } catch (error) {
-          console.error(`Error importing ${product.reference}:`, error);
-          results.push({
+        if (result.success && result.results) {
+          results = result.results;
+        } else {
+          results = productsToImport.map(p => ({
             success: false,
-            reference: product.reference,
-            name: product.name,
-            message: String(error),
-          });
+            reference: p.reference,
+            name: p.name,
+            message: result.error || 'Unknown error',
+          }));
         }
+      } catch (error) {
+        console.error('Error importing products:', error);
+        results = productsToImport.map(p => ({
+          success: false,
+          reference: p.reference,
+          name: p.name,
+          message: String(error),
+        }));
       }
 
       setImportProgress(null);
@@ -3654,27 +3643,25 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
       {importProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">🚀 Importeren...</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Importeren...</h3>
             <div className="mb-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span>Product {importProgress.current} van {importProgress.total}</span>
-                <span>{Math.round((importProgress.current / importProgress.total) * 100)}%</span>
+              <div className="text-sm mb-2">
+                <span>{importProgress.total} producten worden verwerkt op de server</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                 <div 
-                  className="bg-blue-600 h-4 transition-all duration-300"
-                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                  className="bg-blue-600 h-4 animate-pulse"
+                  style={{ width: '100%' }}
                 />
               </div>
             </div>
             {importProgress.currentProduct && (
               <div className="text-sm text-gray-800 mb-4">
-                <div className="font-medium mb-1">Huidige product:</div>
                 <div className="bg-gray-50 p-2 rounded">{importProgress.currentProduct}</div>
               </div>
             )}
             <div className="text-xs text-gray-500">
-              ⏱️ Dit kan enkele minuten duren. Sluit dit venster niet.
+              Dit kan enkele minuten duren. Sluit dit venster niet.
             </div>
           </div>
         </div>
