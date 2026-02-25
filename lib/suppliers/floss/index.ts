@@ -238,6 +238,24 @@ const flossPlugin: SupplierPlugin = {
   },
 
   processPdfResults: processFlossPdfResults,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen van je Flöss/Brunobruno order folder. Bestandsnamen moeten beginnen met het Style No.',
+    exampleFilenames: ['F10841 - Robin Dress - Blue-tangerine Stripe - Main.jpg', 'F10841 - Robin Dress - Blue-tangerine Stripe - Extra 0.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^(F\d+|\d{6}-\d+)\s*-/);
+      return match ? match[1] : null;
+    },
+    mapFilename: (filename: string, reference: string) => {
+      const isMain = /Main\./i.test(filename);
+      const extraMatch = filename.match(/Extra\s*(\d+)/i);
+      if (isMain) return `${reference} - Main.jpg`;
+      if (extraMatch) return `${reference} - Extra ${extraMatch[1]}.jpg`;
+      return filename;
+    },
+  },
 };
 
 export default flossPlugin;

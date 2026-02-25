@@ -413,6 +413,18 @@ export default function ProductImportPage() {
   const [apiPreviewData, setApiPreviewData] = useState<{ product: ParsedProduct; testMode: boolean } | null>(null);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; currentProduct?: string } | null>(null);
   const [imageImportResults, setImageImportResults] = useState<Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }>>([]);
+  
+  // Generic image manager state
+  const [imagePool, setImagePool] = useState<Array<{
+    id: string;
+    dataUrl: string;
+    filename: string;
+    file: File;
+    assignedReference: string;
+    order: number;
+  }>>([]);
+  const imageIdCounter = useRef(0);
+
   // Generic supplier file state for the plugin system
   const [supplierFiles, setSupplierFiles] = useState<Record<string, string>>({});
   const [supplierFileStatus, setSupplierFileStatus] = useState<Record<string, boolean>>({});
@@ -849,819 +861,6 @@ export default function ProductImportPage() {
     } catch (error) {
       console.error('Error loading matched products:', error);
       alert('Error loading matched products. Please try again.');
-    }
-  };
-
-  // Petit Blush image upload: SS26-XXX.jpg (main) and SS26-XXX Back.jpg (back)
-  const fetchPetitBlushImages = async (imageFiles: File[]) => {
-    if (imageFiles.length === 0) {
-      alert('Geen afbeeldingen geselecteerd');
-      return;
-    }
-
-    if (!importResults || !importResults.results) {
-      alert('Geen import resultaten gevonden');
-      return;
-    }
-
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) {
-      alert('Geen Odoo credentials gevonden');
-      return;
-    }
-
-    setIsLoading(true);
-    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
-
-    try {
-      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
-      const skuToTemplateId: Record<string, number> = {};
-      for (const result of successfulProducts) {
-        if (result.templateId) {
-          skuToTemplateId[result.reference] = result.templateId;
-        }
-      }
-
-      console.log(`🌷 Processing ${imageFiles.length} Petit Blush images...`);
-
-      const imagesToUpload: Array<{ base64: string; filename: string; styleNo: string }> = [];
-
-      for (const file of imageFiles) {
-        try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              resolve(result.split(',')[1]);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          // Extract base SKU: "SS26-104.jpg" → "SS26-104", "SS26-104 Back.jpg" → "SS26-104"
-          const skuMatch = file.name.match(/^(SS26-\d+)/i);
-          if (!skuMatch) {
-            console.log(`⚠️ Could not extract SKU from: ${file.name}`);
-            continue;
-          }
-          const sku = skuMatch[1];
-
-          if (!skuToTemplateId[sku]) {
-            console.log(`⚠️ No template ID found for SKU ${sku}`);
-            continue;
-          }
-
-          // Map to the format the upload API expects:
-          // Non-Back = "Main" (primary image), Back = "Extra 1"
-          const isBack = /back/i.test(file.name);
-          const mappedFilename = isBack
-            ? `${sku} - Petit Blush - Extra 1.jpg`
-            : `${sku} - Petit Blush - Main.jpg`;
-
-          imagesToUpload.push({ base64, filename: mappedFilename, styleNo: sku });
-          console.log(`✅ Loaded: ${file.name} → ${mappedFilename} (SKU: ${sku})`);
-        } catch (error) {
-          console.error(`❌ Error reading file ${file.name}:`, error);
-        }
-      }
-
-      if (imagesToUpload.length === 0) {
-        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met SS26-XXX.');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log(`🌷 Uploading ${imagesToUpload.length} images...`);
-
-      const BATCH_SIZE = 2;
-      const batches = [];
-      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
-        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
-      }
-
-      let totalUploaded = 0;
-
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        console.log(`🌷 Batch ${batchIndex + 1}/${batches.length} (${batch.length} images)...`);
-
-        const response = await fetch('/api/floss-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            styleNoToTemplateId: skuToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, errorText.substring(0, 200));
-          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
-        }
-
-        const imageResult = await response.json();
-
-        if (!imageResult.success) {
-          for (const result of imageResult.results || []) {
-            results.push({ reference: result.styleNo, success: false, imagesUploaded: 0, error: result.error || 'Unknown error' });
-          }
-        } else {
-          totalUploaded += imageResult.imagesUploaded;
-          if (imageResult.results) {
-            for (const result of imageResult.results) {
-              results.push({ reference: result.styleNo, success: result.success, imagesUploaded: result.success ? 1 : 0, error: result.error });
-            }
-          }
-        }
-      }
-
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
-      setImageImportResults(results);
-      setIsLoading(false);
-      setCurrentStep(7);
-
-    } catch (error: unknown) {
-      console.error('❌ Image upload error:', error);
-      alert(`❌ Fout bij uploaden afbeeldingen: ${(error as Error).message}`);
-      setIsLoading(false);
-    }
-  };
-
-  const fetchFlossImages = async (imageFolder: File[]) => {
-    if (imageFolder.length === 0) {
-      alert('Geen afbeeldingen geselecteerd');
-      return;
-    }
-
-    if (!importResults || !importResults.results) {
-      alert('Geen import resultaten gevonden');
-      return;
-    }
-
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) {
-      alert('Geen Odoo credentials gevonden');
-      return;
-    }
-
-    setIsLoading(true);
-    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
-
-    try {
-      // Get successful products with Template IDs
-      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
-
-      // Create mapping from Style No to Template ID
-      const styleNoToTemplateId: Record<string, number> = {};
-      for (const result of successfulProducts) {
-        if (result.templateId) {
-          styleNoToTemplateId[result.reference] = result.templateId;
-        }
-      }
-
-      console.log(`🌸 Processing ${imageFolder.length} images...`);
-
-      // Read and convert images
-      const imagesToUpload: Array<{ base64: string; filename: string; styleNo: string }> = [];
-      
-      for (const file of imageFolder) {
-        try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(',')[1];
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          // Extract Style No from filename
-          // Flöss format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"
-          // Brunobruno format: "260202-20122 - Francis Walnut Check Pants - 9009-Walnut Check - Main.jpg"
-          const styleNoRegex = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^([F\d]+)\s*-/;
-          const styleNoMatch = file.name.match(styleNoRegex);
-          let styleNo = styleNoMatch ? styleNoMatch[1] : '';
-
-          if (!styleNo) {
-            console.log(`⚠️ Could not extract Style No from: ${file.name}`);
-            continue;
-          }
-
-          // For Brunobruno, extract color code from filename to build composite reference
-          // "260206-30011 - Norah Sweatshirt - 4000-Provence Blue - Main.jpg" → "260206-30011_4000"
-          if (selectedVendor === 'brunobruno') {
-            const parts = file.name.replace(/\.[^.]+$/, '').split(' - ');
-            const colorPart = parts.length >= 3 ? parts[parts.length - 2] : '';
-            const colorCode = colorPart.match(/^(\d+)/)?.[1] || '';
-            if (colorCode) {
-              styleNo = `${styleNo}_${colorCode}`;
-            }
-          }
-
-          if (!styleNoToTemplateId[styleNo]) {
-            console.log(`⚠️ No template ID found for style ${styleNo}`);
-            continue;
-          }
-
-          imagesToUpload.push({
-            base64,
-            filename: file.name,
-            styleNo,
-          });
-
-          console.log(`✅ Loaded image: ${file.name} (Style No: ${styleNo})`);
-        } catch (error) {
-          console.error(`❌ Error reading file ${file.name}:`, error);
-        }
-      }
-
-      if (imagesToUpload.length === 0) {
-        const example = selectedVendor === 'brunobruno' ? '260202-20122 - ...' : 'F10625 - ...';
-        alert(`Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen beginnen met Style No (bijv. ${example})`);
-        setIsLoading(false);
-        return;
-      }
-
-      console.log(`🌸 Uploading ${imagesToUpload.length} images...`);
-
-      // Upload images in batches to avoid exceeding request size limits
-      // Each image is typically 1-3MB in base64, so we process 2 per batch to stay well under limits
-      const BATCH_SIZE = 2; // Process 2 images per request
-      const batches = [];
-      
-      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
-        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
-      }
-      
-      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
-      
-      // Log total size estimate
-      let totalSize = 0;
-      for (const img of imagesToUpload) {
-        totalSize += img.base64.length;
-      }
-      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-      
-      let totalUploaded = 0;
-      
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        let batchSize = 0;
-        for (const img of batch) {
-          batchSize += img.base64.length;
-        }
-        console.log(`🌸 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
-        
-        // Upload batch
-        const response = await fetch('/api/floss-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            styleNoToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
-          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
-        }
-
-        const imageResult = await response.json();
-        
-        if (!imageResult.success) {
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
-          for (const result of imageResult.results || []) {
-            results.push({
-              reference: result.styleNo,
-              success: false,
-              imagesUploaded: 0,
-              error: result.error || 'Unknown error',
-            });
-          }
-        } else {
-          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded}/${imageResult.totalImages} uploaded`);
-          totalUploaded += imageResult.imagesUploaded;
-          
-          if (imageResult.results) {
-            for (const result of imageResult.results) {
-              results.push({
-                reference: result.styleNo,
-                success: result.success,
-                imagesUploaded: result.success ? 1 : 0,
-                error: result.error,
-              });
-            }
-          }
-        }
-      }
-      
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
-      setImageImportResults(results);
-      setIsLoading(false);
-      setCurrentStep(7);
-
-    } catch (error) {
-      console.error('❌ Error uploading images:', error);
-      alert(`❌ Error: ${String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchTheNewSocietyImages = async (imageFolder: File[]) => {
-    if (imageFolder.length === 0) {
-      alert('Geen afbeeldingen geselecteerd');
-      return;
-    }
-
-    if (!importResults || !importResults.results) {
-      alert('Geen import resultaten gevonden');
-      return;
-    }
-
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) {
-      alert('Geen Odoo credentials gevonden');
-      return;
-    }
-
-    setIsLoading(true);
-    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
-
-    try {
-      // Get successful products with Template IDs
-      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
-
-      // Create mapping from product key (reference-color) to Template ID
-      // We need to match based on the original parsed products to get reference and color
-      const productKeyToTemplateId: Record<string, number> = {};
-      
-      for (const result of successfulProducts) {
-        if (result.templateId) {
-          // Find the original product to get reference and color
-          const originalProduct = parsedProducts.find(p => p.reference === result.reference);
-          if (originalProduct) {
-            // Create product key: "S26AHB1P362-Pink Lavander Bow"
-            const productKey = `${originalProduct.reference}-${originalProduct.color}`;
-            productKeyToTemplateId[productKey] = result.templateId;
-          }
-        }
-      }
-
-      console.log(`🌿 Processing ${imageFolder.length} images...`);
-
-      // Read and convert images
-      const imagesToUpload: Array<{ base64: string; filename: string; productReference: string; colorName: string }> = [];
-      
-      for (const file of imageFolder) {
-        try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(',')[1];
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          // Extract product reference and color from filename
-          // Format: "s26ahb1p362-pink_lavander_bow-1-3dc260.jpg"
-          // Pattern: {reference_lowercase}-{color_lowercase_with_underscores}-{number}-{hash}.jpg
-          const filenameWithoutExt = file.name.replace(/\.[^.]+$/, '').toLowerCase();
-          
-          // Match pattern: {reference}-{color}-{number}-{hash}
-          const match = filenameWithoutExt.match(/^([a-z0-9]+)-(.+?)-(\d+)-[a-f0-9]+$/);
-          
-          if (!match) {
-            console.log(`⚠️ Could not parse filename: ${file.name}`);
-            continue;
-          }
-
-          const referenceLower = match[1]; // e.g., "s26ahb1p362"
-          const colorLower = match[2]; // e.g., "pink_lavander_bow"
-          
-          // Convert reference to uppercase: "S26AHB1P362"
-          const productReference = referenceLower.toUpperCase();
-          
-          // Convert color to title case: "Pink Lavander Bow"
-          const colorName = colorLower
-            .split('_')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-
-          // Create product key to match with template IDs
-          const productKey = `${productReference}-${colorName}`;
-
-          if (!productKeyToTemplateId[productKey]) {
-            console.log(`⚠️ No template ID found for product ${productKey}`);
-            continue;
-          }
-
-          imagesToUpload.push({
-            base64,
-            filename: file.name,
-            productReference,
-            colorName,
-          });
-
-          console.log(`✅ Loaded image: ${file.name} (Reference: ${productReference}, Color: ${colorName})`);
-        } catch (error) {
-          console.error(`❌ Error reading file ${file.name}:`, error);
-        }
-      }
-
-      if (imagesToUpload.length === 0) {
-        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log(`🌿 Uploading ${imagesToUpload.length} images...`);
-
-      // Upload images in batches to avoid exceeding request size limits
-      const BATCH_SIZE = 2; // Process 2 images per request
-      const batches = [];
-      
-      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
-        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
-      }
-      
-      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
-      
-      let totalSize = 0;
-      for (const img of imagesToUpload) {
-        totalSize += img.base64.length;
-      }
-      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-      
-      let totalUploaded = 0;
-      
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        let batchSize = 0;
-        for (const img of batch) {
-          batchSize += img.base64.length;
-        }
-        console.log(`🌿 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
-        
-        // Upload batch
-        const response = await fetch('/api/thenewsociety-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            productKeyToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
-          // Add failed results for this batch
-          for (const img of batch) {
-            const existingResult = results.find(r => r.reference === img.productReference);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = `Batch ${batchIndex + 1} upload failed with status ${response.status}`;
-            } else {
-              results.push({
-                reference: img.productReference,
-                success: false,
-                imagesUploaded: 0,
-                error: `Batch ${batchIndex + 1} upload failed`,
-              });
-            }
-          }
-          continue;
-        }
-
-        const imageResult = await response.json();
-        
-        if (!imageResult.success) {
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
-          for (const img of batch) {
-            const existingResult = results.find(r => r.reference === img.productReference);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = imageResult.error || 'Unknown error';
-            } else {
-              results.push({
-                reference: img.productReference,
-                success: false,
-                imagesUploaded: 0,
-                error: imageResult.error || 'Unknown error',
-              });
-            }
-          }
-        } else {
-          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded || imageResult.results?.filter((r: any) => r.success).length || 0}/${batch.length} uploaded`);
-          totalUploaded += imageResult.imagesUploaded || imageResult.results?.filter((r: any) => r.success).length || 0;
-          
-          if (imageResult.results) {
-            // Group results by product reference
-            const resultsByProduct: Record<string, number> = {};
-            for (const result of imageResult.results) {
-              if (result.success) {
-                if (!resultsByProduct[result.productReference]) {
-                  resultsByProduct[result.productReference] = 0;
-                }
-                resultsByProduct[result.productReference]++;
-              }
-            }
-            
-            // Add to results
-            for (const [productReference, count] of Object.entries(resultsByProduct)) {
-              const existingResult = results.find(r => r.reference === productReference);
-              if (existingResult) {
-                existingResult.imagesUploaded += count;
-              } else {
-                results.push({
-                  reference: productReference,
-                  success: true,
-                  imagesUploaded: count,
-                });
-              }
-            }
-            
-            // Add failed results
-            for (const result of imageResult.results) {
-              if (!result.success) {
-                const existingResult = results.find(r => r.reference === result.productReference);
-                if (existingResult) {
-                  existingResult.success = false;
-                  existingResult.error = result.error || 'Unknown error';
-                } else {
-                  results.push({
-                    reference: result.productReference,
-                    success: false,
-                    imagesUploaded: 0,
-                    error: result.error || 'Unknown error',
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
-      
-      setImageImportResults(results);
-      setIsLoading(false);
-      setCurrentStep(7);
-      
-      const successCount = results.filter(r => r.success).length;
-      alert(`✅ Upload voltooid!\n${totalUploaded}/${imagesToUpload.length} images geüpload\n${successCount}/${results.length} producten succesvol`);
-
-    } catch (error) {
-      console.error('❌ Error uploading images:', error);
-      alert(`❌ Error: ${String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchJenestImages = async (imageFolder: File[]) => {
-    if (imageFolder.length === 0) {
-      alert('Geen afbeeldingen geselecteerd');
-      return;
-    }
-
-    if (!importResults || !importResults.results) {
-      alert('Geen import resultaten gevonden');
-      return;
-    }
-
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) {
-      alert('Geen Odoo credentials gevonden');
-      return;
-    }
-
-    setIsLoading(true);
-    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
-
-    try {
-      // Get successful products with Template IDs
-      const successfulProducts = importResults.results.filter(r => r.success && r.templateId);
-
-      // Create mapping from product key (itemNumber-color) to Template ID
-      // We need to match based on the original parsed products to get itemNumber and color
-      const productKeyToTemplateId: Record<string, number> = {};
-      const referenceToProductKey: Record<string, string> = {};
-      
-      // Build mapping from parsed products
-      for (const product of parsedProducts) {
-        // Product key format: itemNumber-color (same as in parseJenestCSV)
-        const productKey = `${product.reference}-${product.color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        referenceToProductKey[product.reference] = productKey;
-      }
-
-      // Map import results to product keys
-      for (const result of successfulProducts) {
-        if (result.templateId && result.reference) {
-          const productKey = referenceToProductKey[result.reference];
-          if (productKey) {
-            productKeyToTemplateId[productKey] = result.templateId;
-          }
-        }
-      }
-
-      console.log(`👕 Processing ${imageFolder.length} images...`);
-
-      // Read and convert images
-      const imagesToUpload: Array<{ base64: string; filename: string; productKey: string }> = [];
-      
-      for (const file of imageFolder) {
-        try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(',')[1];
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          // Extract product name and color from filename
-          // Format: "LIVIA TSHIRT LT FUCHSIA PINK.jpg" or "BALLOON DENIM PANTS MEDIUM WASH primary.jpg"
-          // Remove extension, "primary", and trailing numbers for matching
-          let filenameWithoutExt = file.name.replace(/\.[^.]+$/, '').trim();
-          // Remove "primary" and trailing numbers (e.g., " 2", " 3", " 10")
-          filenameWithoutExt = filenameWithoutExt.replace(/\s+primary$/i, '').replace(/\s+\d+$/, '').trim();
-          
-          // Normalize: uppercase and normalize spaces
-          const normalizedFilename = filenameWithoutExt.toUpperCase().replace(/\s+/g, ' ').trim();
-          
-          // Try to match with parsed products
-          let matchedProductKey: string | null = null;
-          let bestMatch: { product: ParsedProduct; score: number } | null = null;
-          
-          for (const product of parsedProducts) {
-            // Normalize product name and color for matching
-            const normalizedProductName = (product.originalName || product.name).toUpperCase().trim().replace(/\s+/g, ' ');
-            const normalizedColor = product.color.toUpperCase().trim().replace(/\s+/g, ' ');
-            
-            // Build expected pattern: "PRODUCT NAME COLOR"
-            const expectedPattern = `${normalizedProductName} ${normalizedColor}`;
-            
-            // Calculate match score
-            let score = 0;
-            
-            // Exact match gets highest score
-            if (normalizedFilename === expectedPattern) {
-              score = 100;
-            } else if (normalizedFilename.startsWith(expectedPattern)) {
-              score = 90; // Starts with expected pattern
-            } else {
-              // Check if all words from product name and color are present
-              const productNameWords = normalizedProductName.split(/\s+/).filter(w => w.length > 0);
-              const colorWords = normalizedColor.split(/\s+/).filter(w => w.length > 0);
-              const allWords = [...productNameWords, ...colorWords];
-              
-              const matchingWords = allWords.filter(word => normalizedFilename.includes(word));
-              score = (matchingWords.length / allWords.length) * 80; // Max 80 for partial match
-            }
-            
-            if (score > 0 && (!bestMatch || score > bestMatch.score)) {
-              bestMatch = { product, score };
-            }
-          }
-          
-          // Use best match if score is high enough (at least 70%)
-          if (bestMatch && bestMatch.score >= 70) {
-            matchedProductKey = `${bestMatch.product.reference}-${bestMatch.product.color}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
-            console.log(`✅ Matched "${file.name}" to product "${bestMatch.product.originalName} - ${bestMatch.product.color}" (score: ${bestMatch.score.toFixed(1)})`);
-          }
-
-          if (!matchedProductKey) {
-            console.log(`⚠️ Could not match image: ${file.name}`);
-            continue;
-          }
-
-          if (!productKeyToTemplateId[matchedProductKey]) {
-            console.log(`⚠️ No template ID found for product key ${matchedProductKey}`);
-            continue;
-          }
-
-          imagesToUpload.push({
-            base64,
-            filename: file.name,
-            productKey: matchedProductKey,
-          });
-
-          console.log(`✅ Loaded image: ${file.name} (Product key: ${matchedProductKey})`);
-        } catch (error) {
-          console.error(`❌ Error reading file ${file.name}:`, error);
-        }
-      }
-
-      if (imagesToUpload.length === 0) {
-        alert('Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen overeenkomen met Product name + Color uit de CSV.');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log(`👕 Uploading ${imagesToUpload.length} images...`);
-
-      // Upload images in batches to avoid exceeding request size limits
-      const BATCH_SIZE = 2; // Process 2 images per request
-      const batches = [];
-      
-      for (let i = 0; i < imagesToUpload.length; i += BATCH_SIZE) {
-        batches.push(imagesToUpload.slice(i, i + BATCH_SIZE));
-      }
-      
-      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
-      
-      let totalSize = 0;
-      for (const img of imagesToUpload) {
-        totalSize += img.base64.length;
-      }
-      console.log(`📊 Total image data size: ~${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-      
-      let totalUploaded = 0;
-      
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        let batchSize = 0;
-        for (const img of batch) {
-          batchSize += img.base64.length;
-        }
-        console.log(`👕 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images (~${(batchSize / 1024 / 1024).toFixed(2)}MB)...`);
-        
-        // Upload batch
-        const response = await fetch('/api/jenest-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            productKeyToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
-          throw new Error(`Batch ${batchIndex + 1} upload failed with status ${response.status}`);
-        }
-
-        const imageResult = await response.json();
-        
-        if (!imageResult.success) {
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, imageResult.error);
-          for (const result of imageResult.results || []) {
-            results.push({
-              reference: result.productKey,
-              success: false,
-              imagesUploaded: 0,
-              error: result.error || 'Unknown error',
-            });
-          }
-        } else {
-          console.log(`✅ Batch ${batchIndex + 1} complete: ${imageResult.imagesUploaded}/${imageResult.totalImages} uploaded`);
-          totalUploaded += imageResult.imagesUploaded;
-          
-          if (imageResult.results) {
-            for (const result of imageResult.results) {
-              results.push({
-                reference: result.productKey,
-                success: result.success,
-                imagesUploaded: result.success ? 1 : 0,
-                error: result.error,
-              });
-            }
-          }
-        }
-      }
-      
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${imagesToUpload.length} images`);
-      setImageImportResults(results);
-      setIsLoading(false);
-      setCurrentStep(7);
-
-    } catch (error) {
-      console.error('❌ Error uploading images:', error);
-      alert(`❌ Error: ${String(error)}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -2222,6 +1421,12 @@ export default function ProductImportPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm whitespace-nowrap"
               >
                 Smart Upload
+              </Link>
+              <Link
+                href="/image-upload"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 text-sm whitespace-nowrap"
+              >
+                Afbeeldingen
               </Link>
               <Link
                 href="/supplier-onboarding"
@@ -4011,496 +3216,370 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </table>
                 </div>
 
-                {/* Image Import for Play UP */}
-                {selectedVendor === 'playup' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>The same CSV you just imported</li>
-                        <li>Local images from <code className="bg-gray-100 px-1 rounded">~/Downloads/Play_Up_Matched_Images/</code></li>
-                        <li>The app will automatically match them!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/playup-images-import"
-                      className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all"
-                    >
-                      🖼️ Upload Play UP Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
+                {/* Generic Image Upload Section */}
+                {imageImportResults.length === 0 && (() => {
+                  const plugin = selectedVendor ? getSupplier(selectedVendor) : null;
+                  const imgConfig = plugin?.imageUpload;
+                  if (!imgConfig?.enabled) return null;
 
-                {/* Image Import for 1+ in the family */}
-                {selectedVendor === 'onemore' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>The same CSV you just imported</li>
-                        <li>Local images from your order folder (e.g., <code className="bg-gray-100 px-1 rounded">order-3116535-images-1-66dae6</code>)</li>
-                        <li>The app will automatically match them based on Product name and Color!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/onemore-images-import"
-                      className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all"
-                    >
-                      👶 Upload 1+ in the family Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for Wyncken */}
-                {selectedVendor === 'wyncken' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-purple-50 to-yellow-50 border-2 border-purple-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-purple-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>The same PRODUCT DESCRIPTIONS.csv you just imported</li>
-                        <li>Local images from SS26 FLAT SHOTS folder (e.g., <code className="bg-gray-100 px-1 rounded">MW20J01-ARTISTS BLUE-2.jpg</code>)</li>
-                        <li>The app will automatically match them based on Style and Colour!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/wyncken-images-import"
-                      className="block w-full bg-gradient-to-r from-purple-600 to-yellow-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-yellow-700 font-bold shadow-lg transition-all"
-                    >
-                      🌻 Upload Wynken Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for Weekend House Kids */}
-                {selectedVendor === 'weekendhousekids' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">📸 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>The same CSV you just imported</li>
-                        <li>Stills (product photos) from <code className="bg-gray-100 px-1 rounded">Stills WHK SS26</code> folder (e.g., <code className="bg-gray-100 px-1 rounded">26015_1.jpg</code>)</li>
-                        <li>Looks (model photos) from <code className="bg-gray-100 px-1 rounded">Looks WHK SS26</code> folder</li>
-                        <li>The app will automatically match them based on Product reference!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/weekendhousekids-images-import"
-                      className="block w-full bg-gradient-to-r from-blue-600 to-green-600 text-white text-center px-6 py-3 rounded-lg hover:from-blue-700 hover:to-green-700 font-bold shadow-lg transition-all"
-                    >
-                      🏠 Upload Weekend House Kids Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for Emile et Ida */}
-                {selectedVendor === 'emileetida' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-pink-50 to-yellow-50 border-2 border-pink-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🌸 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-pink-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Images from <code className="bg-gray-100 px-1 rounded">E26 - PHOTOS KID</code> folder</li>
-                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">EMILE IDA E26 AD019 AD009.jpg</code></li>
-                        <li>The app will automatically match them based on AD-references!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/emileetida-images-import"
-                      className="block w-full bg-gradient-to-r from-pink-500 to-yellow-500 text-white text-center px-6 py-3 rounded-lg hover:from-pink-600 hover:to-yellow-600 font-bold shadow-lg transition-all"
-                    >
-                      🌸 Upload Emile et Ida Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for Mini Rodini */}
-                {selectedVendor === 'minirodini' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-green-50 to-teal-50 border-2 border-green-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🐼 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-green-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Product images from Mini Rodini folder</li>
-                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">18397_01bd66254b-11000335-75-1-original.jpg</code></li>
-                        <li>The app matches images by Art. no. + Variant no. from the filename!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/minirodini-images-import"
-                      className="block w-full bg-gradient-to-r from-green-500 to-teal-500 text-white text-center px-6 py-3 rounded-lg hover:from-green-600 hover:to-teal-600 font-bold shadow-lg transition-all"
-                    >
-                      🐼 Upload Mini Rodini Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for Flöss / Brunobruno */}
-                {(selectedVendor === 'floss' || selectedVendor === 'brunobruno') && imageImportResults.length === 0 && (
-                  <div className="bg-purple-50 border border-purple-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-purple-900 text-gray-900 mb-3">{selectedVendor === 'brunobruno' ? '🐻' : '🌸'} Afbeeldingen Importeren (Optioneel)</h3>
-                    <p className="text-sm text-purple-800 mb-4">
-                      Upload afbeeldingen van je {selectedVendor === 'brunobruno' ? 'Brunobruno' : 'Flöss'} order folder voor de succesvol geïmporteerde producten.
-                    </p>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Bestandsnaam formaat: <code className="bg-gray-100 px-1 rounded">{selectedVendor === 'brunobruno' ? '260202-20122 - Francis Walnut Check Pants - 9009-Walnut Check - Main.jpg' : 'F10841 - Robin Dress - Blue-tangerine Stripe - Main.jpg'}</code></li>
-                        <li><strong>Main</strong> = hoofdafbeelding, <strong>Extra 0/1/2/...</strong> = extra afbeeldingen</li>
-                        <li>Meerdere kleuren per product worden automatisch samengevoegd</li>
-                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
-                      </ul>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      {/* Folder upload */}
-                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center">
-                        <div className="text-4xl mb-3">📁</div>
-                        <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Upload Map</h4>
-                        <p className="text-xs text-purple-700 mb-3">Selecteer de hele Order-Images map</p>
-                        <input
-                          type="file"
-                          {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              const styleNoPattern = selectedVendor === 'brunobruno' ? /^\d{6}-\d+\s*-/ : /^F\d+\s*-/;
-                              const styleNoExtract = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^(F\d+)\s*-/;
-                              const files = Array.from(e.target.files).filter(f => 
-                                /\.(jpg|jpeg|png)$/i.test(f.name) && styleNoPattern.test(f.name)
-                              );
-                              if (files.length === 0) {
-                                const exampleFormat = selectedVendor === 'brunobruno' ? '260202-20122 - ... - Main.jpg' : 'F10841 - ... - Main.jpg';
-                                alert(`⚠️ Geen geldige afbeeldingen gevonden in de map.\nVerwacht formaat: ${exampleFormat}`);
-                                return;
-                              }
-                              const styleNos = new Set(files.map(f => f.name.match(styleNoExtract)?.[1]).filter(Boolean));
-                              alert(`✅ ${files.length} afbeeldingen gevonden voor ${styleNos.size} producten\n\nUpload start automatisch...`);
-                              fetchFlossImages(files);
-                            }
-                          }}
-                          className="hidden"
-                          id="floss-images-folder-upload"
-                        />
-                        <label
-                          htmlFor="floss-images-folder-upload"
-                          className="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
-                        >
-                          📁 Selecteer Map
-                        </label>
-                        <p className="text-xs text-gray-500 mt-2">bijv. Order-7341-Images</p>
+                  // Suppliers with dedicated pages get a link
+                  if (imgConfig.dedicatedPageUrl) {
+                    return (
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-2 border-blue-300 dark:border-blue-600 rounded-lg p-6 mb-6">
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">📸 Afbeeldingen Uploaden</h3>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{imgConfig.instructions}</p>
+                        {imgConfig.exampleFilenames.length > 0 && (
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 mb-4 border border-blue-200 dark:border-blue-700">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Voorbeeld bestandsnamen:</p>
+                            {imgConfig.exampleFilenames.map((fn, i) => (
+                              <code key={i} className="text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded block mt-1">{fn}</code>
+                            ))}
+                          </div>
+                        )}
+                        <Link href={imgConfig.dedicatedPageUrl}
+                          className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 font-bold shadow-lg transition-all">
+                          {imgConfig.dedicatedPageLabel || 'Upload Afbeeldingen'} →
+                        </Link>
                       </div>
+                    );
+                  }
 
-                      {/* Individual file upload */}
-                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center">
-                        <div className="text-4xl mb-3">🖼️</div>
-                        <h4 className="font-bold text-purple-900 text-gray-900 mb-2">Upload Bestanden</h4>
-                        <p className="text-xs text-purple-700 mb-3">Of selecteer individuele afbeeldingen</p>
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              const files = Array.from(e.target.files);
-                              const styleNoExtract = selectedVendor === 'brunobruno' ? /^(\d{6}-\d+)\s*-/ : /^(F\d+)\s*-/;
-                              const styleNos = new Set(files.map(f => f.name.match(styleNoExtract)?.[1]).filter(Boolean));
-                              if (styleNos.size === 0) {
-                                const exampleFormat = selectedVendor === 'brunobruno' ? '260202-20122 - ... - Main.jpg' : 'F10841 - ... - Main.jpg';
-                                alert(`⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: ${exampleFormat}`);
-                                return;
-                              }
-                              alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${styleNos.size} producten\n\nUpload start automatisch...`);
-                              fetchFlossImages(files);
-                            }
-                          }}
-                          className="hidden"
-                          id="floss-images-upload"
-                        />
-                        <label
-                          htmlFor="floss-images-upload"
-                          className="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700 font-bold inline-block"
-                        >
-                          🖼️ Selecteer Bestanden
-                        </label>
-                        <p className="text-xs text-gray-500 mt-2">Ctrl+A om alles te selecteren</p>
-                      </div>
-                    </div>
+                  // Inline image upload with preview and management
+                  const successfulRefs = importResults?.results?.filter(r => r.success && r.templateId) || [];
+                  const refToTemplateId: Record<string, number> = {};
+                  for (const r of successfulRefs) {
+                    if (r.templateId) refToTemplateId[r.reference] = r.templateId;
+                  }
 
-                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
-                      <p><strong>💡 Tip:</strong> Het systeem matcher afbeeldingen automatisch op Style No ({selectedVendor === 'brunobruno' ? '260202-20122, 260206-30011, ...' : 'F10841, F10877, ...'}). Afbeeldingen van meerdere kleuren worden samengevoegd onder hetzelfde product. &quot;Main&quot; wordt de hoofdafbeelding.</p>
-                    </div>
-                  </div>
-                )}
+                  // Group images by assigned product reference
+                  const imagesByRef = new Map<string, typeof imagePool>();
+                  const unassigned: typeof imagePool = [];
+                  for (const img of imagePool) {
+                    if (img.assignedReference) {
+                      const existing = imagesByRef.get(img.assignedReference) || [];
+                      existing.push(img);
+                      imagesByRef.set(img.assignedReference, existing);
+                    } else {
+                      unassigned.push(img);
+                    }
+                  }
 
-                {/* Image Import for Petit Blush */}
-                {selectedVendor === 'petitblush' && imageImportResults.length === 0 && (
-                  <div className="bg-rose-50 border border-rose-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3">🌷 Afbeeldingen Importeren (Optioneel)</h3>
-                    <p className="text-sm text-rose-800 mb-4">
-                      Upload afbeeldingen van je Petit Blush order folder voor de succesvol geïmporteerde producten.
-                    </p>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Bestandsnaam formaat: <code className="bg-gray-100 px-1 rounded">SS26-104.jpg</code> of <code className="bg-gray-100 px-1 rounded">SS26-104 Back.jpg</code></li>
-                        <li>Hoofdafbeelding = <strong>zonder &quot;Back&quot;</strong>, achterbeeld = <strong>met &quot;Back&quot;</strong></li>
-                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
-                      </ul>
-                    </div>
+                  // Sort images within each group by order
+                  for (const [, imgs] of imagesByRef) {
+                    imgs.sort((a, b) => a.order - b.order);
+                  }
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="border-2 border-dashed border-rose-300 rounded-lg p-6 text-center">
-                        <div className="text-4xl mb-3">📁</div>
-                        <h4 className="font-bold text-gray-900 mb-2">Upload Map</h4>
-                        <p className="text-xs text-rose-700 mb-3">Selecteer de hele afbeeldingen-map</p>
-                        <input
-                          type="file"
-                          {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              const files = Array.from(e.target.files).filter(f =>
-                                /\.(jpg|jpeg|png)$/i.test(f.name) && /^SS26-\d+/i.test(f.name)
-                              );
-                              if (files.length === 0) {
-                                alert('⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: SS26-104.jpg of SS26-104 Back.jpg');
-                                return;
-                              }
-                              const skus = new Set(files.map(f => f.name.match(/^(SS26-\d+)/i)?.[1]).filter(Boolean));
-                              alert(`✅ ${files.length} afbeeldingen gevonden voor ${skus.size} producten\n\nUpload start automatisch...`);
-                              fetchPetitBlushImages(files);
-                            }
-                          }}
-                          className="hidden"
-                          id="petitblush-images-folder-upload"
-                        />
-                        <label
-                          htmlFor="petitblush-images-folder-upload"
-                          className="bg-rose-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-rose-700 font-bold inline-block"
-                        >
-                          📁 Selecteer Map
-                        </label>
-                      </div>
+                  const handleImageAdd = async (files: FileList | File[]) => {
+                    const newImages: typeof imagePool = [];
+                    for (const file of Array.from(files)) {
+                      if (!/\.(jpg|jpeg|png|webp)$/i.test(file.name)) continue;
+                      const dataUrl = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.readAsDataURL(file);
+                      });
 
-                      <div className="border-2 border-dashed border-rose-300 rounded-lg p-6 text-center">
-                        <div className="text-4xl mb-3">🖼️</div>
-                        <h4 className="font-bold text-gray-900 mb-2">Upload Bestanden</h4>
-                        <p className="text-xs text-rose-700 mb-3">Of selecteer individuele afbeeldingen</p>
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              const files = Array.from(e.target.files);
-                              const skus = new Set(files.map(f => f.name.match(/^(SS26-\d+)/i)?.[1]).filter(Boolean));
-                              if (skus.size === 0) {
-                                alert('⚠️ Geen geldige afbeeldingen gevonden.\nVerwacht formaat: SS26-104.jpg of SS26-104 Back.jpg');
-                                return;
-                              }
-                              alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${skus.size} producten\n\nUpload start automatisch...`);
-                              fetchPetitBlushImages(files);
-                            }
-                          }}
-                          className="hidden"
-                          id="petitblush-images-upload"
-                        />
-                        <label
-                          htmlFor="petitblush-images-upload"
-                          className="bg-rose-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-rose-700 font-bold inline-block"
-                        >
-                          🖼️ Selecteer Bestanden
-                        </label>
-                        <p className="text-xs text-gray-500 mt-2">Ctrl+A om alles te selecteren</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
-                      <p><strong>💡 Tip:</strong> Het systeem matcher afbeeldingen automatisch op SKU (SS26-104, SS26-301, ...). &quot;Back&quot; afbeeldingen worden als extra afbeelding toegevoegd.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Image Import for Bobo Choses */}
-                {selectedVendor === 'bobochoses' && imageImportResults.length === 0 && (
-                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">🎪 Next Step: Upload Images</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Import successful! Now upload product images using the dedicated image upload page.
-                    </p>
-                    <div className="bg-white rounded-lg p-4 mb-4 border border-yellow-200">
-                      <p className="text-sm font-medium mb-2">📋 What you&apos;ll need:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Images from <code className="bg-gray-100 px-1 rounded">PRODUCT PICTURES WOMAN SS26</code> folder</li>
-                        <li>Filenames like <code className="bg-gray-100 px-1 rounded">B126AD001_1.jpg</code></li>
-                        <li>The app will automatically match them based on product references!</li>
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      href="/bobochoses-images-import"
-                      className="block w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-center px-6 py-3 rounded-lg hover:from-yellow-600 hover:to-orange-600 font-bold shadow-lg transition-all"
-                    >
-                      🎪 Upload Bobo Choses Afbeeldingen →
-                    </Link>
-                  </div>
-                )}
-
-                {/* Image Import for The New Society */}
-                {selectedVendor === 'thenewsociety' && imageImportResults.length === 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-green-900 text-gray-900 mb-3">🌿 Afbeeldingen Importeren (Optioneel)</h3>
-                    <p className="text-sm text-green-800 mb-4">
-                      Upload afbeeldingen van je The New Society order folder voor de succesvol geïmporteerde producten.
-                    </p>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Bestandsnamen moeten het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg</li>
-                        <li>Format: {`{reference_lowercase}-{color_lowercase_with_underscores}-{image_number}-{hash}.jpg`}</li>
-                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
-                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
-                      </ul>
-                    </div>
-
-                    <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center mb-4">
-                      <div className="text-4xl mb-3">📁</div>
-                      <h4 className="font-bold text-green-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
-                      <p className="text-sm text-green-700 mb-4">Klik om meerdere afbeeldingen uit je The New Society order folder te selecteren</p>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            const files = Array.from(e.target.files);
-                            console.log(`📁 Selected ${files.length} images`);
-                            
-                            // Group and show summary
-                            const productRefs = new Set(
-                              files.map(f => {
-                                const match = f.name.toLowerCase().match(/^([a-z0-9]+)-/);
-                                return match ? match[1].toUpperCase() : null;
-                              }).filter(Boolean)
+                      let assignedReference = '';
+                      if (imgConfig.extractReference) {
+                        const ref = imgConfig.extractReference(file.name);
+                        if (ref) {
+                          // Try exact match first, then case-insensitive partial
+                          const exactMatch = successfulRefs.find(r => r.reference === ref);
+                          if (exactMatch) {
+                            assignedReference = exactMatch.reference;
+                          } else {
+                            const partialMatch = successfulRefs.find(r =>
+                              r.reference.toLowerCase().includes(ref.toLowerCase()) ||
+                              ref.toLowerCase().includes(r.reference.toLowerCase())
                             );
-                            
-                            if (productRefs.size === 0) {
-                              alert('⚠️ Geen geldige afbeeldingen gevonden. Zorg ervoor dat bestandsnamen het formaat hebben: s26ahb1p362-pink_lavander_bow-1-3dc260.jpg');
-                              return;
-                            }
-
-                            alert(`✅ ${files.length} afbeeldingen geselecteerd voor ${productRefs.size} producten\n\nKlik op "Upload Images" om te beginnen`);
-                            
-                            // Start upload
-                            fetchTheNewSocietyImages(files);
+                            if (partialMatch) assignedReference = partialMatch.reference;
                           }
-                        }}
-                        className="hidden"
-                        id="thenewsociety-images-upload"
-                      />
-                      <label
-                        htmlFor="thenewsociety-images-upload"
-                        className="bg-green-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-green-700 font-bold inline-block"
-                      >
-                        📁 Selecteer Afbeeldingen
-                      </label>
-                    </div>
+                        }
+                      }
 
-                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
-                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je The New Society order in een keer selecteren. Het systeem matcher ze automatisch op Product reference en Color name.</p>
-                      <p className="mt-2"><strong>ℹ️ Bestandsnaam formaat:</strong> s26ahb1p362-pink_lavander_bow-1-3dc260.jpg</p>
-                      <p className="mt-1"><strong>Voorbeeld:</strong> s26ahb1p362-pink_lavander_bow-1-3dc260.jpg → Reference: S26AHB1P362, Color: Pink Lavander Bow, Image: 1</p>
-                    </div>
-                  </div>
-                )}
+                      newImages.push({
+                        id: `img-${++imageIdCounter.current}`,
+                        dataUrl,
+                        filename: file.name,
+                        file,
+                        assignedReference,
+                        order: imagesByRef.get(assignedReference)?.length || 0,
+                      });
+                    }
+                    setImagePool(prev => [...prev, ...newImages]);
+                  };
 
-                {/* Image Import for Jenest */}
-                {selectedVendor === 'jenest' && imageImportResults.length === 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
-                    <h3 className="font-bold text-blue-900 text-gray-900 mb-3">👕 Afbeeldingen Importeren (Optioneel)</h3>
-                    <p className="text-sm text-blue-800 mb-4">
-                      Upload afbeeldingen van je Jenest order folder voor de succesvol geïmporteerde producten.
-                    </p>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm font-medium mb-2">📝 Vereisten:</p>
-                      <ul className="text-sm text-gray-700 list-disc ml-5 space-y-1">
-                        <li>Bestandsnamen moeten Product name + Color bevatten (bijv. LIVIA TSHIRT LT FUCHSIA PINK.jpg)</li>
-                        <li>Producten met Template IDs (automatisch van bovenstaande import)</li>
-                        <li>Ondersteunde formaten: JPG, JPEG, PNG</li>
-                        <li>Primary image: eindigt op "primary.jpg" of heeft geen nummer</li>
-                        <li>Extra images: eindigt op " 2.jpg", " 3.jpg", etc.</li>
-                      </ul>
-                    </div>
+                  const removeImage = (id: string) => {
+                    setImagePool(prev => prev.filter(img => img.id !== id));
+                  };
 
-                    <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center mb-4">
-                      <div className="text-4xl mb-3">📁</div>
-                      <h4 className="font-bold text-blue-900 text-gray-900 mb-2">Selecteer Afbeeldingen</h4>
-                      <p className="text-sm text-blue-700 mb-4">Klik om meerdere afbeeldingen uit je Jenest order folder te selecteren</p>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            const files = Array.from(e.target.files);
-                            console.log(`📁 Selected ${files.length} images`);
-                            
-                            // Show summary
-                            alert(`✅ ${files.length} afbeeldingen geselecteerd\n\nHet systeem zal automatisch proberen te matchen met geïmporteerde producten op basis van Product name + Color.`);
-                            
-                            // Start upload
-                            fetchJenestImages(files);
-                          }
-                        }}
-                        className="hidden"
-                        id="jenest-images-upload"
-                      />
-                      <label
-                        htmlFor="jenest-images-upload"
-                        className="bg-blue-600 text-white px-6 py-3 rounded cursor-pointer hover:bg-blue-700 font-bold inline-block"
-                      >
-                        📁 Selecteer Afbeeldingen
-                      </label>
-                    </div>
+                  const assignImage = (imageId: string, reference: string) => {
+                    setImagePool(prev => prev.map(img =>
+                      img.id === imageId ? { ...img, assignedReference: reference, order: 999 } : img
+                    ));
+                  };
 
-                    <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-800">
-                      <p><strong>💡 Tip:</strong> Je kunt alle afbeeldingen van je Jenest order in een keer selecteren. Het systeem matcher ze automatisch op Product name + Color.</p>
-                      <p className="mt-2"><strong>ℹ️ Bestandsnaam voorbeelden:</strong></p>
-                      <ul className="list-disc ml-5 mt-1 space-y-1">
-                        <li>LIVIA TSHIRT LT FUCHSIA PINK.jpg (primary)</li>
-                        <li>LIVIA TSHIRT LT FUCHSIA PINK 2.jpg (extra)</li>
-                        <li>BALLOON DENIM PANTS MEDIUM WASH primary.jpg (primary)</li>
-                        <li>BALLOON DENIM PANTS MEDIUM WASH 2.jpg (extra)</li>
-                      </ul>
+                  const moveImage = (imageId: string, direction: 'up' | 'down') => {
+                    setImagePool(prev => {
+                      const img = prev.find(i => i.id === imageId);
+                      if (!img || !img.assignedReference) return prev;
+                      const group = prev
+                        .filter(i => i.assignedReference === img.assignedReference)
+                        .sort((a, b) => a.order - b.order);
+                      const idx = group.findIndex(i => i.id === imageId);
+                      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+                      if (swapIdx < 0 || swapIdx >= group.length) return prev;
+
+                      const swapId = group[swapIdx].id;
+                      const imgOrder = img.order;
+                      const swapOrder = group[swapIdx].order;
+                      return prev.map(i => {
+                        if (i.id === imageId) return { ...i, order: swapOrder };
+                        if (i.id === swapId) return { ...i, order: imgOrder };
+                        return i;
+                      });
+                    });
+                  };
+
+                  const uploadAllImages = async () => {
+                    const assigned = imagePool.filter(img => img.assignedReference && refToTemplateId[img.assignedReference]);
+                    if (assigned.length === 0) {
+                      alert('Geen afbeeldingen toegewezen aan geïmporteerde producten.');
+                      return;
+                    }
+
+                    setIsLoading(true);
+                    const results: Array<{ reference: string; success: boolean; imagesUploaded: number; error?: string }> = [];
+
+                    try {
+                      const { uid, password } = await getCredentials();
+                      if (!uid || !password) { alert('Geen Odoo credentials.'); setIsLoading(false); return; }
+
+                      // Group by reference
+                      const byRef = new Map<string, typeof imagePool>();
+                      for (const img of assigned) {
+                        const existing = byRef.get(img.assignedReference) || [];
+                        existing.push(img);
+                        byRef.set(img.assignedReference, existing);
+                      }
+
+                      for (const [reference, images] of byRef) {
+                        const sorted = [...images].sort((a, b) => a.order - b.order);
+                        const imagesToUpload = [];
+
+                        for (const img of sorted) {
+                          const base64 = img.dataUrl.split(',')[1];
+                          const mappedName = imgConfig.mapFilename
+                            ? imgConfig.mapFilename(img.filename, reference)
+                            : img.filename;
+                          imagesToUpload.push({ base64, filename: mappedName, styleNo: reference });
+                        }
+
+                        try {
+                          const response = await fetch('/api/floss-upload-images', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              images: imagesToUpload,
+                              styleNoToTemplateId: refToTemplateId,
+                              odooUid: uid,
+                              odooPassword: password,
+                            }),
+                          });
+                          const result = await response.json();
+                          results.push({
+                            reference,
+                            success: result.success !== false,
+                            imagesUploaded: result.imagesUploaded || sorted.length,
+                          });
+                        } catch (err) {
+                          results.push({ reference, success: false, imagesUploaded: 0, error: String(err) });
+                        }
+                      }
+
+                      setImageImportResults(results);
+                    } catch (err) {
+                      alert(`Fout: ${err}`);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  };
+
+                  return (
+                    <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-6 mb-6">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">📸 Afbeeldingen Uploaden</h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{imgConfig.instructions}</p>
+                      {imgConfig.exampleFilenames.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                          Voorbeelden: {imgConfig.exampleFilenames.map((fn, i) => (
+                            <code key={i} className="bg-gray-100 dark:bg-gray-700 px-1 rounded mx-1">{fn}</code>
+                          ))}
+                        </p>
+                      )}
+
+                      {/* Upload buttons */}
+                      <div className="flex gap-3 mb-4">
+                        <div>
+                          <input type="file" multiple accept="image/*"
+                            onChange={(e) => e.target.files && handleImageAdd(e.target.files)}
+                            className="hidden" id="generic-images-upload" />
+                          <label htmlFor="generic-images-upload"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 font-medium inline-block">
+                            🖼️ Selecteer Bestanden
+                          </label>
+                        </div>
+                        <div>
+                          <input type="file"
+                            {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
+                            onChange={(e) => e.target.files && handleImageAdd(e.target.files)}
+                            className="hidden" id="generic-images-folder" />
+                          <label htmlFor="generic-images-folder"
+                            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 font-medium inline-block">
+                            📁 Selecteer Map
+                          </label>
+                        </div>
+                        {imagePool.length > 0 && (
+                          <button onClick={() => setImagePool([])}
+                            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium ml-auto">
+                            Wis alles
+                          </button>
+                        )}
+                      </div>
+
+                      {imagePool.length > 0 && (
+                        <>
+                          {/* Summary */}
+                          <div className="flex gap-4 text-sm mb-4">
+                            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
+                              {imagePool.length} afbeeldingen
+                            </span>
+                            <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">
+                              {imagePool.filter(i => i.assignedReference).length} toegewezen
+                            </span>
+                            {unassigned.length > 0 && (
+                              <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full">
+                                {unassigned.length} niet toegewezen
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Assigned images grouped by product */}
+                          {Array.from(imagesByRef.entries()).map(([ref, imgs]) => {
+                            const product = importResults?.results?.find(r => r.reference === ref);
+                            const sorted = [...imgs].sort((a, b) => a.order - b.order);
+                            return (
+                              <div key={ref} className="mb-4 border dark:border-gray-600 rounded-lg overflow-hidden">
+                                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 flex items-center justify-between">
+                                  <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                    {product?.name || ref}
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({sorted.length} afbeeldingen)</span>
+                                  </span>
+                                </div>
+                                <div className="p-3 flex gap-2 flex-wrap">
+                                  {sorted.map((img, idx) => (
+                                    <div key={img.id} className="relative group w-28 flex-shrink-0">
+                                      <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                                      </div>
+                                      {idx === 0 && (
+                                        <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
+                                          HOOFD
+                                        </span>
+                                      )}
+                                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
+                                      {/* Controls overlay */}
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
+                                        <button onClick={() => moveImage(img.id, 'up')} disabled={idx === 0}
+                                          className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-sm disabled:opacity-30 hover:bg-gray-100" title="Naar links">&larr;</button>
+                                        <button onClick={() => moveImage(img.id, 'down')} disabled={idx === sorted.length - 1}
+                                          className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-sm disabled:opacity-30 hover:bg-gray-100" title="Naar rechts">&rarr;</button>
+                                        <button onClick={() => removeImage(img.id)}
+                                          className="w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600" title="Verwijderen">&times;</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {/* Add more button */}
+                                  <label className="w-28 aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors flex-shrink-0">
+                                    <input type="file" multiple accept="image/*" className="hidden"
+                                      onChange={async (e) => {
+                                        if (!e.target.files) return;
+                                        const newImgs: typeof imagePool = [];
+                                        for (const file of Array.from(e.target.files)) {
+                                          const dataUrl = await new Promise<string>((resolve) => {
+                                            const reader = new FileReader();
+                                            reader.onload = () => resolve(reader.result as string);
+                                            reader.readAsDataURL(file);
+                                          });
+                                          newImgs.push({
+                                            id: `img-${++imageIdCounter.current}`,
+                                            dataUrl, filename: file.name, file,
+                                            assignedReference: ref,
+                                            order: sorted.length + newImgs.length,
+                                          });
+                                        }
+                                        setImagePool(prev => [...prev, ...newImgs]);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                    <span className="text-2xl text-gray-400">+</span>
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Unassigned images */}
+                          {unassigned.length > 0 && (
+                            <div className="mb-4 border border-orange-300 dark:border-orange-600 rounded-lg overflow-hidden">
+                              <div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-2">
+                                <span className="font-medium text-sm text-orange-800 dark:text-orange-200">
+                                  Niet toegewezen ({unassigned.length})
+                                </span>
+                              </div>
+                              <div className="p-3 flex gap-2 flex-wrap">
+                                {unassigned.map(img => (
+                                  <div key={img.id} className="relative group w-28 flex-shrink-0">
+                                    <div className="aspect-square rounded-lg overflow-hidden border-2 border-orange-200 dark:border-orange-600 bg-gray-100 dark:bg-gray-700">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
+                                    <div className="mt-1">
+                                      <select
+                                        value=""
+                                        onChange={(e) => e.target.value && assignImage(img.id, e.target.value)}
+                                        className="w-full text-[10px] border dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                      >
+                                        <option value="">Toewijzen aan...</option>
+                                        {successfulRefs.map(r => (
+                                          <option key={r.reference} value={r.reference}>{r.name || r.reference}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <button onClick={() => removeImage(img.id)}
+                                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Upload button */}
+                          <button onClick={uploadAllImages} disabled={isLoading || imagePool.filter(i => i.assignedReference).length === 0}
+                            className={`w-full py-3 rounded-lg font-bold text-lg ${
+                              isLoading || imagePool.filter(i => i.assignedReference).length === 0
+                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}>
+                            {isLoading ? 'Uploaden...' : `Upload ${imagePool.filter(i => i.assignedReference).length} afbeeldingen naar Odoo`}
+                          </button>
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
 
                 {/* Image Import Results */}
                 {imageImportResults.length > 0 && (
@@ -4558,65 +3637,12 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     🔄 Nieuwe Import
                   </button>
                   
-                  {selectedVendor === 'playup' ? (
-                    <Link
-                      href="/playup-images-import"
-                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                    >
-                      🎮 Upload Play UP Afbeeldingen
-                    </Link>
-                  ) : selectedVendor === 'onemore' ? (
-                    <Link
-                      href="/onemore-images-import"
-                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                    >
-                      👶 Upload 1+ in the family Afbeeldingen
-                    </Link>
-                  ) : selectedVendor === 'wyncken' ? (
-                    <Link
-                      href="/wyncken-images-import"
-                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                    >
-                      🌻 Upload Wynken Afbeeldingen
-                    </Link>
-                  ) : selectedVendor === 'weekendhousekids' ? (
-                    <>
-                      <Link
-                        href="/weekendhousekids-images-import"
-                        className="ml-3 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 inline-block"
-                      >
-                        🏠 Upload Weekend House Kids Afbeeldingen
-                      </Link>
-                      <Link
-                        href="/weekendhousekids-price-update"
-                        className="ml-3 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 inline-block"
-                      >
-                        💰 Weekend House Kids Prijs Update
-                      </Link>
-                    </>
-                  ) : selectedVendor === 'thenewsociety' ? (
-                    <>
-                      <Link
-                        href="/product-images-import"
-                        className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                      >
-                        📸 Upload Afbeeldingen
-                      </Link>
-                      <Link
-                        href="/thenewsociety-price-update"
-                        className="ml-3 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 inline-block"
-                      >
-                        💰 The New Society Prijs Update
-                      </Link>
-                    </>
-                  ) : (
-                    <Link
-                      href="/product-images-import"
-                      className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
-                    >
-                      📸 Upload Afbeeldingen
-                    </Link>
-                  )}
+                  <Link
+                    href={`/image-upload${selectedVendor ? `?vendor=${selectedVendor}` : ''}`}
+                    className="ml-3 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 inline-block"
+                  >
+                    📸 Afbeeldingen Uploaden
+                  </Link>
                 </div>
               </div>
             )}

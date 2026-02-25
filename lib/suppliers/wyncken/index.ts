@@ -417,6 +417,19 @@ const wynckenPlugin: SupplierPlugin = {
   pdfParseEndpoint: '/api/parse-wyncken-pdf',
   processPdfResults,
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen van SS26 FLAT SHOTS folder.',
+    exampleFilenames: ['MW20J01-ARTISTS BLUE-2.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^([A-Z0-9]+)-/);
+      return match ? match[1] : null;
+    },
+    dedicatedPageUrl: '/wyncken-images-import',
+    dedicatedPageLabel: 'Upload Wyncken Afbeeldingen',
+  },
 };
 
 export default wynckenPlugin;

@@ -149,6 +149,14 @@ const jenestPlugin: SupplierPlugin = {
     { id: 'main_csv', label: 'Jenest CSV', accept: '.csv', required: true, type: 'csv' },
   ],
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen. Bestandsnamen moeten Product name + Color bevatten.',
+    exampleFilenames: ['LIVIA TSHIRT LT FUCHSIA PINK.jpg', 'LIVIA TSHIRT LT FUCHSIA PINK 2.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: () => null,
+  },
 };
 
 export default jenestPlugin;

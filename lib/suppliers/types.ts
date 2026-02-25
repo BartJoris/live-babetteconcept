@@ -80,6 +80,25 @@ export interface ImageMatchingConfig {
   extractReference?: (filename: string) => string | null;
 }
 
+export interface ImageUploadConfig {
+  /** Whether this supplier supports inline image upload after import */
+  enabled: boolean;
+  /** Instructions for the user (filename format, etc.) */
+  instructions: string;
+  /** Example filenames to show the user */
+  exampleFilenames: string[];
+  /** Regex to validate image filenames (only matching files are accepted) */
+  filenameFilter: RegExp;
+  /** Extract product reference from image filename (used to match to template IDs) */
+  extractReference: (filename: string) => string | null;
+  /** Map filename to a display name with Main/Extra info for the upload API */
+  mapFilename?: (filename: string, reference: string) => string;
+  /** Link to a dedicated image import page (if exists) */
+  dedicatedPageUrl?: string;
+  /** Label for the dedicated page link */
+  dedicatedPageLabel?: string;
+}
+
 // ─── Parse Context (runtime data available during parsing) ──────────────────
 
 export interface ParseContext {
@@ -162,6 +181,9 @@ export interface SupplierPlugin {
 
   /** Image matching configuration */
   imageMatching?: ImageMatchingConfig;
+
+  /** Image upload configuration for post-import image upload */
+  imageUpload?: ImageUploadConfig;
 
   /**
    * Optional: custom size attribute override.

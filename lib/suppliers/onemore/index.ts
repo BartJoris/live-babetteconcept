@@ -120,6 +120,16 @@ const onemorePlugin: SupplierPlugin = {
     { id: 'main_csv', label: '1+ in the family CSV', accept: '.csv', required: true, type: 'csv' },
   ],
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
+    exampleFilenames: [],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: () => null,
+    dedicatedPageUrl: '/onemore-images-import',
+    dedicatedPageLabel: 'Upload 1+ in the family Afbeeldingen',
+  },
 };
 
 export default onemorePlugin;

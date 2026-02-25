@@ -132,6 +132,19 @@ const weekendHouseKidsPlugin: SupplierPlugin = {
     { id: 'main_csv', label: 'Weekend House Kids CSV', accept: '.csv', required: true, type: 'csv' },
   ],
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
+    exampleFilenames: [],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^(\d+)[-_]/);
+      return match ? match[1] : null;
+    },
+    dedicatedPageUrl: '/weekendhousekids-images-import',
+    dedicatedPageLabel: 'Upload Weekend House Kids Afbeeldingen',
+  },
 };
 
 export default weekendHouseKidsPlugin;

@@ -168,6 +168,19 @@ const emileetidaPlugin: SupplierPlugin = {
 
     return parseEmileetidaOrder(orderText, priceMap, context);
   },
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
+    exampleFilenames: ['EMILE IDA E26 AD019 AD009.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/AD\d+/i);
+      return match ? match[0].toLowerCase() : null;
+    },
+    dedicatedPageUrl: '/emileetida-images-import',
+    dedicatedPageLabel: 'Upload Emile et Ida Afbeeldingen',
+  },
 };
 
 export default emileetidaPlugin;

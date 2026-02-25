@@ -218,6 +218,19 @@ const playup: SupplierPlugin = {
 
     return productList;
   },
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
+    exampleFilenames: [],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^(\w+)[-_]/);
+      return match ? match[1] : null;
+    },
+    dedicatedPageUrl: '/playup-images-import',
+    dedicatedPageLabel: 'Upload Play UP Afbeeldingen',
+  },
 };
 
 export default playup;

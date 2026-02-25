@@ -169,6 +169,21 @@ const petitblushPlugin: SupplierPlugin = {
   ],
 
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen. Bestandsnaam formaat: SS26-104.jpg (hoofdafbeelding) of SS26-104 Back.jpg (achterkant).',
+    exampleFilenames: ['SS26-104.jpg', 'SS26-104 Back.jpg'],
+    filenameFilter: /^SS26-\d+.*\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^(SS26-\d+)/i);
+      return match ? match[1] : null;
+    },
+    mapFilename: (filename: string, reference: string) => {
+      const isBack = /back/i.test(filename);
+      return isBack ? `${reference} - Extra 1.jpg` : `${reference} - Main.jpg`;
+    },
+  },
 };
 
 export default petitblushPlugin;

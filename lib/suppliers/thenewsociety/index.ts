@@ -335,6 +335,17 @@ const thenewsocietyPlugin: SupplierPlugin = {
     },
   ],
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen. Bestandsnamen bevatten referentie en kleur gescheiden door koppeltekens.',
+    exampleFilenames: ['s26ahb1p362-pink_lavander_bow-1-3dc260.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.toLowerCase().match(/^([a-z0-9]+)-/);
+      return match ? match[1].toUpperCase() : null;
+    },
+  },
 };
 
 export default thenewsocietyPlugin;

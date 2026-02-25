@@ -100,6 +100,19 @@ const minirodiniPlugin: SupplierPlugin = {
       return match ? `${match[1]}_${match[2]}` : null;
     },
   },
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
+    exampleFilenames: ['18397_01bd66254b-11000335-75-1-original.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^\d+_/);
+      return match ? match[0].replace('_', '') : null;
+    },
+    dedicatedPageUrl: '/minirodini-images-import',
+    dedicatedPageLabel: 'Upload Mini Rodini Afbeeldingen',
+  },
 };
 
 export default minirodiniPlugin;

@@ -187,6 +187,19 @@ const bobochosesPlugin: SupplierPlugin = {
   pdfParseEndpoint: '/api/parse-bobochoses-pdf',
   processPdfResults,
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload afbeeldingen via de dedicated pagina.',
+    exampleFilenames: ['B126AD001_1.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png)$/i,
+    extractReference: (filename: string) => {
+      const match = filename.match(/^(B\d+[A-Z]+\d+)/i);
+      return match ? match[1] : null;
+    },
+    dedicatedPageUrl: '/bobochoses-images-import',
+    dedicatedPageLabel: 'Upload Bobo Choses Afbeeldingen',
+  },
 };
 
 export default bobochosesPlugin;
