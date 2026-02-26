@@ -26,18 +26,25 @@ import favoritepeople from './favoritepeople';
 import mipounet from './mipounet';
 import armedangels from './armedangels';
 import thinkingmu from './thinkingmu';
+import americanvintage from './americanvintage';
+import bayiri from './bayiri';
+import fub from './fub';
+import sistersdepartment from './sistersdepartment';
 
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
 const allPlugins = [
   onemore,          // 1+ in the family
+  americanvintage,  // American Vintage
   ao76,             // Ao76
   armedangels,      // Armed Angels
+  bayiri,           // Bayiri
   bobochoses,       // Bobo Choses
   brunobruno,       // Brunobruno (shared parser with Flöss)
   emileetida,       // Emile et Ida
   favoritepeople,   // Favorite People
   floss,            // Flöss
+  fub,              // FUB
   goldieandace,     // Goldie + Ace
   indee,            // Indee
   jenest,           // Jenest
@@ -46,6 +53,7 @@ const allPlugins = [
   mipounet,         // Mipounet
   petitblush,       // Petit Blush
   playup,           // Play UP
+  sistersdepartment,// Sisters Department
   sundaycollective, // The Sunday Collective
   thenewsociety,    // The New Society
   thinkingmu,       // Thinking Mu

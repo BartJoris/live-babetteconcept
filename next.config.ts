@@ -4,6 +4,8 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   
+  serverExternalPackages: ['pdf-parse', 'pdfjs-dist'],
+  
   // Performance optimizations
   compress: true,
   

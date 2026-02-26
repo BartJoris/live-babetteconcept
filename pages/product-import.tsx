@@ -429,6 +429,10 @@ export default function ProductImportPage() {
   const [supplierFiles, setSupplierFiles] = useState<Record<string, string>>({});
   const [supplierFileStatus, setSupplierFileStatus] = useState<Record<string, boolean>>({});
 
+  // Existing product barcode tracking (products already in Odoo)
+  const [existingBarcodes, setExistingBarcodes] = useState<Map<string, { name: string; qty: number }>>(new Map());
+  const [checkingExisting, setCheckingExisting] = useState(false);
+
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
     { id: 2, name: 'Mapping', icon: '🗺️' },
@@ -680,6 +684,52 @@ export default function ProductImportPage() {
     }
   };
 
+  const checkExistingBarcodes = async (products: ParsedProduct[]) => {
+    const allBarcodes = products.flatMap(p => p.variants.map(v => v.ean)).filter(Boolean);
+    if (allBarcodes.length === 0) return new Map<string, { name: string; qty: number }>();
+
+    setCheckingExisting(true);
+    try {
+      const response = await fetch('/api/odoo/check-existing-barcodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcodes: allBarcodes }),
+      });
+
+      if (!response.ok) return new Map<string, { name: string; qty: number }>();
+
+      const data = await response.json();
+      if (data.error) return new Map<string, { name: string; qty: number }>();
+
+      const map = new Map<string, { name: string; qty: number }>();
+      for (const item of data.found || []) {
+        map.set(item.barcode, { name: item.name, qty: item.qtyAvailable });
+      }
+      setExistingBarcodes(map);
+
+      if (map.size > 0) {
+        const existingRefs = new Set<string>();
+        for (const product of products) {
+          const hasExisting = product.variants.some(v => map.has(v.ean));
+          if (hasExisting) existingRefs.add(product.reference);
+        }
+        setSelectedProducts(prev => {
+          const next = new Set(prev);
+          existingRefs.forEach(ref => next.delete(ref));
+          return next;
+        });
+        console.log(`Bestaande producten in Odoo: ${existingRefs.size} (automatisch gedeselecteerd)`);
+      }
+
+      return map;
+    } catch (error) {
+      console.error('Error checking existing barcodes:', error);
+      return new Map<string, { name: string; qty: number }>();
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, fileInputId?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -727,11 +777,13 @@ export default function ProductImportPage() {
           setParsedProducts(products);
           setSelectedProducts(new Set(products.map(p => p.reference)));
           setCurrentStep(2);
+          checkExistingBarcodes(products);
         } else if (targetFileInputId !== 'main_csv') {
           const reparse = plugin.parse(updatedFiles as SupplierFiles, context);
           if (reparse.length > 0) {
             setParsedProducts(reparse);
             setSelectedProducts(new Set(reparse.map(p => p.reference)));
+            checkExistingBarcodes(reparse);
           }
         }
       } catch (err) {
@@ -768,6 +820,7 @@ export default function ProductImportPage() {
         if (result.products.length > 0) {
           setParsedProducts(result.products);
           setSelectedProducts(new Set(result.products.map(p => p.reference)));
+          checkExistingBarcodes(result.products);
         }
 
         setSupplierFileStatus(prev => ({ ...prev, [fileInputId]: true }));
@@ -1107,6 +1160,14 @@ export default function ProductImportPage() {
     setParsedProducts(products =>
       products.map(p =>
         p.reference === productRef ? { ...p, sizeAttribute: newAttribute } : p
+      )
+    );
+  };
+
+  const setAllSizeAttribute = (value: string) => {
+    setParsedProducts(products =>
+      products.map(p =>
+        selectedProducts.has(p.reference) ? { ...p, sizeAttribute: value } : p
       )
     );
   };
@@ -2104,7 +2165,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   Kies welke producten je wilt importeren en stel de voorraad in per variant (standaard: 0).
                 </p>
 
-                <div className="flex gap-3 mb-6">
+                <div className="flex flex-wrap gap-3 mb-6">
                   <button
                     onClick={() => setSelectedProducts(new Set(parsedProducts.map(p => p.reference)))}
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -2143,7 +2204,6 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   </button>
                   <button
                     onClick={() => {
-                      // Set all variant quantities to 0
                       setParsedProducts(products =>
                         products.map(product => ({
                           ...product,
@@ -2169,19 +2229,49 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   >
                     📝 Prompts
                   </button>
+                  <select
+                    onChange={(e) => { if (e.target.value) { setAllSizeAttribute(e.target.value); e.target.value = ''; } }}
+                    defaultValue=""
+                    className="px-4 py-2 bg-purple-100 text-purple-800 rounded border border-purple-300 font-medium text-sm cursor-pointer focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="" disabled>📏 Maat...</option>
+                    <option value="MAAT Baby's">MAAT Baby&apos;s</option>
+                    <option value="MAAT Kinderen">MAAT Kinderen</option>
+                    <option value="MAAT Tieners">MAAT Tieners</option>
+                    <option value="MAAT Volwassenen">MAAT Volwassenen</option>
+                  </select>
                   <div className="ml-auto bg-blue-50 px-4 py-2 rounded">
                     <strong>{selectedCount}</strong> producten geselecteerd ({totalVariants} varianten)
                   </div>
                 </div>
 
+                {checkingExisting && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                    Bestaande producten in Odoo controleren...
+                  </div>
+                )}
+                {existingBarcodes.size > 0 && !checkingExisting && (
+                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+                    <strong>{parsedProducts.filter(p => p.variants.some(v => existingBarcodes.has(v.ean))).length}</strong> product(en) bestaan al in Odoo en zijn automatisch gedeselecteerd. Pas de voorraad handmatig aan.
+                  </div>
+                )}
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                  {parsedProducts.map(product => (
+                  {parsedProducts.map(product => {
+                    const productExistsInOdoo = product.variants.some(v => existingBarcodes.has(v.ean));
+                    return (
                     <div
                       key={`${product.reference}_${product.color}`}
                       className={`border rounded-lg p-4 ${
-                        selectedProducts.has(product.reference) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                        productExistsInOdoo
+                          ? 'border-orange-400 bg-orange-50'
+                          : selectedProducts.has(product.reference) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                       }`}
                     >
+                      {productExistsInOdoo && (
+                        <div className="mb-2 px-3 py-1.5 bg-orange-100 border border-orange-300 rounded text-xs text-orange-800 font-medium">
+                          Bestaat al in Odoo — niet importeren, voorraad handmatig aanpassen
+                        </div>
+                      )}
                       {/* Product Header */}
                       <div className="flex items-start gap-4">
                         <input
@@ -2390,7 +2480,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 p-4 mt-6">
@@ -3308,6 +3399,47 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     ));
                   };
 
+                  let dragImageId: string | null = null;
+                  let dragOverImageId: string | null = null;
+
+                  const handleImageDragStart = (e: React.DragEvent, imageId: string) => {
+                    dragImageId = imageId;
+                    e.dataTransfer.effectAllowed = 'move';
+                    (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                  };
+
+                  const handleImageDragEnd = (e: React.DragEvent) => {
+                    (e.currentTarget as HTMLElement).style.opacity = '1';
+                    dragImageId = null;
+                    dragOverImageId = null;
+                  };
+
+                  const handleImageDragOver = (e: React.DragEvent) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  };
+
+                  const handleImageDrop = (e: React.DragEvent, targetId: string) => {
+                    e.preventDefault();
+                    if (!dragImageId || dragImageId === targetId) return;
+
+                    setImagePool(prev => {
+                      const dragImg = prev.find(i => i.id === dragImageId);
+                      const dropImg = prev.find(i => i.id === targetId);
+                      if (!dragImg || !dropImg) return prev;
+                      if (dragImg.assignedReference !== dropImg.assignedReference) return prev;
+
+                      const dragOrder = dragImg.order;
+                      const dropOrder = dropImg.order;
+                      return prev.map(i => {
+                        if (i.id === dragImageId) return { ...i, order: dropOrder };
+                        if (i.id === targetId) return { ...i, order: dragOrder };
+                        return i;
+                      });
+                    });
+                    dragImageId = null;
+                  };
+
                   const moveImage = (imageId: string, direction: 'up' | 'down') => {
                     setImagePool(prev => {
                       const img = prev.find(i => i.id === imageId);
@@ -3466,10 +3598,18 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                                 </div>
                                 <div className="p-3 flex gap-2 flex-wrap">
                                   {sorted.map((img, idx) => (
-                                    <div key={img.id} className="relative group w-28 flex-shrink-0">
+                                    <div
+                                      key={img.id}
+                                      draggable
+                                      onDragStart={(e) => handleImageDragStart(e, img.id)}
+                                      onDragEnd={handleImageDragEnd}
+                                      onDragOver={handleImageDragOver}
+                                      onDrop={(e) => handleImageDrop(e, img.id)}
+                                      className="relative group w-28 flex-shrink-0 cursor-grab active:cursor-grabbing"
+                                    >
                                       <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                                        <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover pointer-events-none" />
                                       </div>
                                       {idx === 0 && (
                                         <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">

@@ -29,6 +29,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# pdf-parse/pdfjs-dist worker files aren't traced by Next.js standalone output
+COPY --from=deps /app/node_modules/pdfjs-dist ./node_modules/pdfjs-dist
+COPY --from=deps /app/node_modules/pdf-parse ./node_modules/pdf-parse
+
 USER nextjs
 
 EXPOSE 3000
