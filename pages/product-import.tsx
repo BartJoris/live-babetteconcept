@@ -3400,7 +3400,6 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   };
 
                   let dragImageId: string | null = null;
-                  let dragOverImageId: string | null = null;
 
                   const handleImageDragStart = (e: React.DragEvent, imageId: string) => {
                     dragImageId = imageId;
@@ -3411,7 +3410,6 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   const handleImageDragEnd = (e: React.DragEvent) => {
                     (e.currentTarget as HTMLElement).style.opacity = '1';
                     dragImageId = null;
-                    dragOverImageId = null;
                   };
 
                   const handleImageDragOver = (e: React.DragEvent) => {
