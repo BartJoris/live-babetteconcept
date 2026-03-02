@@ -3539,10 +3539,10 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                       )}
 
                       {/* Upload buttons */}
-                      <div className="flex gap-3 mb-4">
+                      <div className="flex gap-3 mb-4 flex-wrap">
                         <div>
                           <input type="file" multiple accept="image/*"
-                            onChange={(e) => e.target.files && handleImageAdd(e.target.files)}
+                            onChange={(e) => { if (e.target.files) handleImageAdd(e.target.files); e.target.value = ''; }}
                             className="hidden" id="generic-images-upload" />
                           <label htmlFor="generic-images-upload"
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 font-medium inline-block">
@@ -3552,11 +3552,11 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                         <div>
                           <input type="file"
                             {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-                            onChange={(e) => e.target.files && handleImageAdd(e.target.files)}
+                            onChange={(e) => { if (e.target.files) handleImageAdd(e.target.files); e.target.value = ''; }}
                             className="hidden" id="generic-images-folder" />
                           <label htmlFor="generic-images-folder"
-                            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 font-medium inline-block">
-                            📁 Selecteer Map
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 font-medium inline-block">
+                            📁 {imagePool.length > 0 ? 'Voeg map toe' : 'Selecteer Map'}
                           </label>
                         </div>
                         {imagePool.length > 0 && (

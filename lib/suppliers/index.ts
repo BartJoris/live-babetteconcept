@@ -28,6 +28,7 @@ import armedangels from './armedangels';
 import thinkingmu from './thinkingmu';
 import americanvintage from './americanvintage';
 import bayiri from './bayiri';
+import claudeandco from './claudeandco';
 import fub from './fub';
 import sistersdepartment from './sistersdepartment';
 
@@ -41,6 +42,7 @@ const allPlugins = [
   bayiri,           // Bayiri
   bobochoses,       // Bobo Choses
   brunobruno,       // Brunobruno (shared parser with Flöss)
+  claudeandco,      // Claude & Co
   emileetida,       // Emile et Ida
   favoritepeople,   // Favorite People
   floss,            // Flöss
