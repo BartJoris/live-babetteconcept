@@ -150,23 +150,28 @@ export default function SmartUploadPage() {
     if (pdfFiles.length > 0 && plugin?.pdfParseEndpoint && plugin.processPdfResults) {
       setStatusMessage('PDF verwerken...');
       try {
-        for (const pf of pdfFiles) {
+        const isTangerine = supplierId === 'tangerine';
+        if (isTangerine && pdfFiles.length >= 1) {
           const formData = new FormData();
-          formData.append('pdf', pf.file);
-
-          const res = await fetch(plugin.pdfParseEndpoint, {
-            method: 'POST',
-            body: formData,
-          });
+          formData.append('packing', pdfFiles[0].file);
+          if (pdfFiles[1]) formData.append('price', pdfFiles[1].file);
+          const res = await fetch(plugin.pdfParseEndpoint, { method: 'POST', body: formData });
           const pdfData = await res.json();
-
           if (pdfData.success) {
-            const csvProducts = Object.keys(fileMap).length > 0
-              ? plugin.parse(fileMap, createParseContext([], supplierId))
-              : [];
+            const csvProducts = Object.keys(fileMap).length > 0 ? plugin.parse(fileMap, createParseContext([], supplierId)) : [];
             const result = plugin.processPdfResults(pdfData, csvProducts, createParseContext([], supplierId));
-            if (result.products.length > 0) {
-              sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
+            if (result.products.length > 0) sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
+          }
+        } else {
+          for (const pf of pdfFiles) {
+            const formData = new FormData();
+            formData.append('pdf', pf.file);
+            const res = await fetch(plugin.pdfParseEndpoint, { method: 'POST', body: formData });
+            const pdfData = await res.json();
+            if (pdfData.success) {
+              const csvProducts = Object.keys(fileMap).length > 0 ? plugin.parse(fileMap, createParseContext([], supplierId)) : [];
+              const result = plugin.processPdfResults(pdfData, csvProducts, createParseContext([], supplierId));
+              if (result.products.length > 0) sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
             }
           }
         }

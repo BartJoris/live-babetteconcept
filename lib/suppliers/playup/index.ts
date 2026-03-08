@@ -347,6 +347,13 @@ const playup: SupplierPlugin = {
     if (eanProductsCache && eanProductsCache.length > 0) {
       const products = buildProductsFromEAN(eanProductsCache, pdfItems, context);
       const totalQty = pdfItems.reduce((sum, p) => sum + p.totalQty, 0);
+      // Als koppeling 0 producten geeft maar we hadden wel EAN-producten, behoud die zodat de gebruiker kan verdergaan
+      if (products.length === 0 && existingProducts.length > 0) {
+        return {
+          products: existingProducts,
+          message: `Factuur bevat ${pdfItems.length} regels maar geen match met EAN CSV. Alle ${existingProducts.length} producten uit EAN CSV worden getoond. Je kunt gewoon verdergaan.`,
+        };
+      }
       return {
         products,
         message: `${products.length} bestelde producten uit factuur (${totalQty} stuks). Niet-bestelde producten verwijderd.`,

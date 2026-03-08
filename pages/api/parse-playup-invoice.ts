@@ -75,17 +75,28 @@ function extractInvoiceItems(pdfText: string): PlayUpInvoiceItem[] {
         description = description.replace(/\s*\d{4}\s*\d{2}\s*\d{2}.*$/, '').trim();
       }
 
-      // Extract numbers from the rest of the line for qty and price
-      const numbersInLine: number[] = [];
-      const numRe = /\b(\d+(?:\.\d+)?)\b/g;
-      let nm;
-      // Only look at the part after description
-      const numSearchArea = afterColour.substring(descMatch ? (descMatch.index || 0) + descMatch[0].length : 0);
-      while ((nm = numRe.exec(numSearchArea)) !== null) {
-        const val = parseFloat(nm[1]);
-        // Skip HS code numbers (4+2+2 digit patterns)
-        if (val > 0 && !(/^\d{4}$/.test(nm[1]) && numSearchArea.substring(nm.index + nm[1].length).match(/^\s+\d{2}\s+\d{2}/))) {
-          numbersInLine.push(val);
+      // Extract numbers: first from rest of current line, then from next 2 lines
+      // (Play UP layout often has article+colour+description on one line, qty/price on next)
+      const collectNumbers = (text: string): number[] => {
+        const numbersInLine: number[] = [];
+        const numRe = /\b(\d+(?:\.\d+)?)\b/g;
+        let nm;
+        while ((nm = numRe.exec(text)) !== null) {
+          const val = parseFloat(nm[1]);
+          // Skip HS code numbers (4+2+2 digit patterns like 6110 20 91)
+          if (val > 0 && !(/^\d{4}$/.test(nm[1]) && text.substring(nm.index + nm[1].length).match(/^\s+\d{2}\s+\d{2}/))) {
+            numbersInLine.push(val);
+          }
+        }
+        return numbersInLine;
+      };
+
+      const numSearchAreaCurrent = afterColour.substring(descMatch ? (descMatch.index || 0) + descMatch[0].length : 0);
+      let numbersInLine = collectNumbers(numSearchAreaCurrent);
+      if (numbersInLine.length < 2) {
+        for (let ni = 1; ni <= 2 && i + ni < lines.length; ni++) {
+          numbersInLine = [...numbersInLine, ...collectNumbers(lines[i + ni])];
+          if (numbersInLine.length >= 2) break;
         }
       }
 
@@ -95,14 +106,11 @@ function extractInvoiceItems(pdfText: string): PlayUpInvoiceItem[] {
       let unitPrice = 0;
 
       if (numbersInLine.length >= 2) {
-        // Last number is usually the total value, second to last is price
-        // Third from end is total qty
         const last = numbersInLine[numbersInLine.length - 1];
         const secondLast = numbersInLine[numbersInLine.length - 2];
 
         if (numbersInLine.length >= 3) {
           const thirdLast = numbersInLine[numbersInLine.length - 3];
-          // Validate: thirdLast * secondLast ≈ last
           if (Math.abs(thirdLast * secondLast - last) < 1) {
             totalQty = thirdLast;
             unitPrice = secondLast;
@@ -116,18 +124,15 @@ function extractInvoiceItems(pdfText: string): PlayUpInvoiceItem[] {
         }
       }
 
-      // Build size list from the 1s in the line
       const sizes: Array<{ size: string; qty: number }> = [];
-      // Look for size header on current or nearby lines to determine size columns
-      // For now, just record the total
-
       if (totalQty <= 0 && numbersInLine.length > 0) {
-        // Count the 1s as individual size quantities
         totalQty = numbersInLine.filter(n => n === 1).length;
         if (totalQty === 0) totalQty = numbersInLine[0] || 0;
       }
 
-      if (article && colourCode && (totalQty > 0 || unitPrice > 0)) {
+      // Always add item when we have article+colour (even without qty/price from PDF),
+      // so EAN CSV merge keeps these products; use totalQty=1 as fallback
+      if (article && colourCode) {
         items.push({
           article,
           colourCode,
@@ -136,7 +141,7 @@ function extractInvoiceItems(pdfText: string): PlayUpInvoiceItem[] {
           totalQty: totalQty || 1,
           unitPrice,
         });
-        console.log(`   ✅ ${article} ${colourCode} "${description}" qty=${totalQty} price=${unitPrice}`);
+        console.log(`   ✅ ${article} ${colourCode} "${description}" qty=${totalQty || 1} price=${unitPrice}`);
       }
     }
   }

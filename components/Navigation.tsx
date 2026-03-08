@@ -69,7 +69,7 @@ export default function Navigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names'].includes(router.pathname);
+    return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names', '/afbeeldingen'].includes(router.pathname);
   };
   
   const isBeheerActive = () => {
@@ -229,6 +229,10 @@ export default function Navigation() {
                     </Link>
                     <Link href="/fix-minirodini-names" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/fix-minirodini-names') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🔧 Mini Rodini Fix Names
+                    </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <Link href="/afbeeldingen" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/afbeeldingen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Afbeeldingen
                     </Link>
                   </div>
                 </div>
@@ -704,6 +708,18 @@ export default function Navigation() {
                   }`}
                 >
                   🔧 Mini Rodini Fix Names
+                </Link>
+                <div className="border-t border-gray-200 my-1"></div>
+                <Link
+                  href="/afbeeldingen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/afbeeldingen') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Afbeeldingen
                 </Link>
               </div>
             )}

@@ -427,6 +427,56 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Babe & Tess ── (PDF only: order)
+  {
+    supplierId: 'babeandtess',
+    supplierName: 'Babe & Tess',
+    csvRules: [],
+    pdfRules: [{
+      fileInputId: 'pdf_invoice',
+      fileInputLabel: 'Order PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (l.includes('babe') && l.includes('tess')) return 0.9;
+        if (l.includes('ordine') && (l.endsWith('.pdf') || l.includes('z_ordine'))) return 0.75;
+        if (/z_ordine-\d+\.pdf/i.test(fn)) return 0.85;
+        return 0;
+      },
+      reason: 'Babe & Tess order PDF (z_ordine-xxx.pdf)',
+    }],
+  },
+
+  // ── Tangerine ── (PDF only: packing + optional price)
+  {
+    supplierId: 'tangerine',
+    supplierName: 'Tangerine',
+    csvRules: [],
+    pdfRules: [
+      {
+        fileInputId: 'packing_pdf',
+        fileInputLabel: 'Packing list PDF',
+        detect: (fn) => {
+          const l = fn.toLowerCase();
+          if (l.includes('tangerine') && (l.includes('packing') || l.includes('packing list'))) return 0.9;
+          if (l.includes('tangerine') && l.includes('ss26')) return 0.75;
+          return 0;
+        },
+        reason: 'Packing list Tangerine',
+      },
+      {
+        fileInputId: 'price_pdf',
+        fileInputLabel: 'Prijzen PDF',
+        detect: (fn) => {
+          const l = fn.toLowerCase();
+          if (l.includes('imt') && (l.includes('babette') || l.includes('tangerine'))) return 0.85;
+          if (l.includes('tangerine') && l.includes('price')) return 0.7;
+          return 0;
+        },
+        reason: 'Prijzen PDF Tangerine',
+      },
+    ],
+  },
+
   // ── Ao76 ──
   {
     supplierId: 'ao76',

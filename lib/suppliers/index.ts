@@ -29,8 +29,11 @@ import thinkingmu from './thinkingmu';
 import americanvintage from './americanvintage';
 import bayiri from './bayiri';
 import claudeandco from './claudeandco';
+import cozmo from './cozmo';
 import fub from './fub';
 import sistersdepartment from './sistersdepartment';
+import tangerine from './tangerine';
+import babeandtess from './babeandtess';
 
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
@@ -43,6 +46,7 @@ const allPlugins = [
   bobochoses,       // Bobo Choses
   brunobruno,       // Brunobruno (shared parser with Flöss)
   claudeandco,      // Claude & Co
+  cozmo,            // Cozmo
   emileetida,       // Emile et Ida
   favoritepeople,   // Favorite People
   floss,            // Flöss
@@ -55,8 +59,10 @@ const allPlugins = [
   mipounet,         // Mipounet
   petitblush,       // Petit Blush
   playup,           // Play UP
+  babeandtess,      // Babe & Tess
   sistersdepartment,// Sisters Department
   sundaycollective, // The Sunday Collective
+  tangerine,        // Tangerine
   thenewsociety,    // The New Society
   thinkingmu,       // Thinking Mu
   tinycottons,      // Tiny Big sister

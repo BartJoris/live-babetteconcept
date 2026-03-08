@@ -386,6 +386,9 @@ export default function ProductImportPage() {
   const [categorySearch, setCategorySearch] = useState('');
   const [publicCategorySearch, setPublicCategorySearch] = useState('');
   const [productTagSearch, setProductTagSearch] = useState('');
+
+  /** Error when loading brands/categories (e.g. not logged in, API failure). Shown on step 4. */
+  const [categoriesDataError, setCategoriesDataError] = useState<string | null>(null);
   
   const [importResults, setImportResults] = useState<{ 
     success: boolean; 
@@ -427,7 +430,14 @@ export default function ProductImportPage() {
 
   // Generic supplier file state for the plugin system
   const [supplierFiles, setSupplierFiles] = useState<Record<string, string>>({});
+  const supplierFilesRef = useRef<Record<string, string>>({});
   const [supplierFileStatus, setSupplierFileStatus] = useState<Record<string, boolean>>({});
+  const [tangerinePastedText, setTangerinePastedText] = useState('');
+
+  // Ref is updated synchronously in the file upload handler so parse() always gets all files (e.g. Cozmo order + price CSV)
+  useEffect(() => {
+    supplierFilesRef.current = supplierFiles;
+  }, [supplierFiles]);
 
   // Existing product barcode tracking (products already in Odoo)
   const [existingBarcodes, setExistingBarcodes] = useState<Map<string, { name: string; qty: number }>>(new Map());
@@ -628,9 +638,10 @@ export default function ProductImportPage() {
 
   const fetchBrands = async () => {
     try {
+      setCategoriesDataError(null);
       const { uid, password } = await getCredentials();
       if (!uid || !password) {
-        console.error('No Odoo credentials found');
+        setCategoriesDataError('Je bent niet ingelogd op Odoo. Log in op de startpagina om merken en categorieën te laden.');
         return;
       }
 
@@ -645,19 +656,21 @@ export default function ProductImportPage() {
         setBrands(data.brands);
         console.log(`✅ Fetched ${data.brands.length} brands`);
       } else {
-        console.error('Failed to fetch brands:', data.error);
+        setCategoriesDataError(data.error || 'Merken laden mislukt.');
       }
     } catch (error) {
       console.error('Error fetching brands:', error);
+      setCategoriesDataError('Fout bij laden van merken. Controleer je verbinding.');
     }
   };
 
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
+      setCategoriesDataError(null);
       const { uid, password } = await getCredentials();
       if (!uid || !password) {
-        console.error('No Odoo credentials found');
+        setCategoriesDataError('Je bent niet ingelogd op Odoo. Log in op de startpagina om merken en categorieën te laden.');
         setIsLoading(false);
         return;
       }
@@ -676,9 +689,12 @@ export default function ProductImportPage() {
         console.log(`✅ Loaded ${data.internalCategories?.length || 0} internal categories`);
         console.log(`✅ Loaded ${data.publicCategories?.length || 0} public categories`);
         console.log(`✅ Loaded ${data.productTags?.length || 0} product tags`);
+      } else {
+        setCategoriesDataError(data.error || 'Categorieën laden mislukt.');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      setCategoriesDataError('Fout bij laden van categorieën. Controleer je verbinding.');
     } finally {
       setIsLoading(false);
     }
@@ -767,7 +783,8 @@ export default function ProductImportPage() {
         }
       }
 
-      const updatedFiles = { ...supplierFiles, [targetFileInputId]: text };
+      const updatedFiles = { ...supplierFilesRef.current, [targetFileInputId]: text };
+      supplierFilesRef.current = updatedFiles;
       setSupplierFiles(updatedFiles);
       setSupplierFileStatus(prev => ({ ...prev, [targetFileInputId]: true }));
 
@@ -776,8 +793,11 @@ export default function ProductImportPage() {
         if (products.length > 0) {
           setParsedProducts(products);
           setSelectedProducts(new Set(products.map(p => p.reference)));
-          setCurrentStep(2);
           checkExistingBarcodes(products);
+          // Alleen automatisch naar stap 2 als er maar één bestand nodig is; anders kan de gebruiker eerst optionele bestanden (bv. prijzen-CSV) uploaden en daarna op "Ga verder" klikken
+          if (plugin.fileInputs.length <= 1) {
+            setCurrentStep(2);
+          }
         } else if (targetFileInputId !== 'main_csv') {
           const reparse = plugin.parse(updatedFiles as SupplierFiles, context);
           if (reparse.length > 0) {
@@ -804,7 +824,12 @@ export default function ProductImportPage() {
     setIsLoading(true);
     try {
       const formData = new FormData();
-      formData.append('pdf', file);
+      if (selectedVendor === 'tangerine') {
+        if (fileInputId === 'price_pdf') formData.append('price', file);
+        else formData.append('packing', file);
+      } else {
+        formData.append('pdf', file);
+      }
 
       const response = await fetch(plugin.pdfParseEndpoint, {
         method: 'POST',
@@ -813,7 +838,20 @@ export default function ProductImportPage() {
 
       const data = await response.json();
 
-      if (data.success && plugin.processPdfResults) {
+      if (data.success && data.prices && selectedVendor === 'tangerine') {
+        setParsedProducts(prev => prev.map(p => {
+          const rrp = data.prices[p.reference] ?? data.prices[p.reference.replace(/\s+/g, ' ')];
+          if (rrp == null) return p;
+          return {
+            ...p,
+            variants: p.variants.map(v => ({ ...v, rrp })),
+          };
+        }));
+        setSupplierFileStatus(prev => ({ ...prev, [fileInputId]: true }));
+        if (Object.keys(data.prices).length > 0) {
+          alert(`Prijzen bijgewerkt voor ${Object.keys(data.prices).length} referenties.`);
+        }
+      } else if (data.success && plugin.processPdfResults) {
         const context = createParseContext(brands, selectedVendor);
         const result = plugin.processPdfResults(data, parsedProducts, context);
 
@@ -1661,6 +1699,54 @@ export default function ProductImportPage() {
                               ))}
                             </div>
 
+                            {/* Tangerine: plak tekst uit screenshot/OCR */}
+                            {selectedVendor === 'tangerine' && (
+                              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                                <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                  Of: plak tekst uit screenshot
+                                </h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                  Maak een duidelijke screenshot van de packing list, gebruik een OCR-tool (bijv. online) om de tekst te extraheren, en plak die hier. Of typ de tabel over. Kolommen gescheiden door tab of meerdere spaties.
+                                </p>
+                                <textarea
+                                  value={tangerinePastedText}
+                                  onChange={(e) => setTangerinePastedText(e.target.value)}
+                                  placeholder="Plak hier de tabel (eerste regel = kolomnamen, daarna datarijen met TG-xxx, SIZE, EAN, UNITS…)"
+                                  rows={6}
+                                  className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 text-sm font-mono"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!tangerinePastedText.trim()) return;
+                                    const plugin = getSupplier('tangerine');
+                                    if (!plugin) return;
+                                    const context = createParseContext(brands, 'tangerine');
+                                    const products = plugin.parse({ packing_pasted: tangerinePastedText.trim() }, context);
+                                    if (products.length > 0) {
+                                      setParsedProducts(products);
+                                      setSelectedProducts(new Set(products.map(p => p.reference)));
+                                      checkExistingBarcodes(products);
+                                      setSupplierFileStatus(prev => ({ ...prev, packing_csv: true }));
+                                    } else {
+                                      alert('Geen producten herkend in de geplakte tekst. Zorg dat de eerste regel kolomnamen bevat (REFERENCE, PRODUCT NAME, …) en dat er regels met TG-xxx staan.');
+                                    }
+                                  }}
+                                  disabled={!tangerinePastedText.trim()}
+                                  className="mt-2 px-4 py-2 bg-amber-600 text-white rounded font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Importeer uit geplakte tekst
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Play Up: hint als nog geen producten (EAN CSV moet eerst zorgen voor producten) */}
+                            {selectedVendor === 'playup' && parsedProducts.length === 0 && (
+                              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                                <strong>Geen producten?</strong> Upload eerst het <strong>EAN CSV</strong>-bestand (Reference, Description, Size, Colour Code, EAN Code…). Zodra dat geladen is, verschijnt hieronder de knop &quot;Ga verder&quot;. De factuur PDF is optioneel (alleen voor hoeveelheden per maat).
+                              </div>
+                            )}
+
                             {/* Go to next step button */}
                             {parsedProducts.length > 0 && (
                               <div className="flex justify-end mt-4">
@@ -1680,7 +1766,7 @@ export default function ProductImportPage() {
                     {/* Format Preview */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
                       <h4 className="font-bold text-yellow-900 text-gray-900 mb-2">
-                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : selectedVendor === 'minirodini' ? 'Mini Rodini' : selectedVendor === 'favoritepeople' ? 'Favorite People' : selectedVendor === 'mipounet' ? 'Mipounet' : 'Flöss'}:
+                        ⚠️ Verwacht {selectedVendor === 'thinkingmu' || selectedVendor === 'sundaycollective' || selectedVendor === 'goldieandace' || selectedVendor === 'tangerine' ? 'PDF' : 'CSV'} Formaat voor {selectedVendor === 'ao76' ? 'Ao76' : selectedVendor === 'lenewblack' ? 'Le New Black' : selectedVendor === 'playup' ? 'Play UP' : selectedVendor === 'tinycottons' ? 'Tiny Big sister' : selectedVendor === 'armedangels' ? 'Armed Angels' : selectedVendor === 'thinkingmu' ? 'Thinking Mu' : selectedVendor === 'sundaycollective' ? 'The Sunday Collective' : selectedVendor === 'indee' ? 'Indee' : selectedVendor === 'goldieandace' ? 'Goldie and Ace' : selectedVendor === 'jenest' ? 'Jenest' : selectedVendor === 'onemore' ? '1+ in the family' : selectedVendor === 'wyncken' ? 'Wyncken' : selectedVendor === 'emileetida' ? 'Emile et Ida' : selectedVendor === 'bobochoses' ? 'Bobo Choses' : selectedVendor === 'minirodini' ? 'Mini Rodini' : selectedVendor === 'favoritepeople' ? 'Favorite People' : selectedVendor === 'mipounet' ? 'Mipounet' : selectedVendor === 'tangerine' ? 'Tangerine' : 'Flöss'}:
                       </h4>
                       {selectedVendor === 'ao76' ? (
                         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
@@ -1752,6 +1838,17 @@ Size: 4Y-5Y                       | S26W2161-GR-4 | 1   | €64,00 | €28,00 | 
 → Variant: Maat 2Y-3Y (MAAT Kinderen), SKU: S26W2161-GR-2, Prijs: €28,00
 ⚠️ Barcodes niet beschikbaar - handmatig aanvullen!`}
                         </pre>
+                      ) : selectedVendor === 'tangerine' ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-700">
+                            <strong>1. Packing list</strong>: PDF, CSV, <strong>of plak tekst uit een screenshot</strong> (na OCR of overnemen).<br/>
+                            <strong>2. Prijzen PDF</strong> (optioneel): 2026055 IMT (100% Babette) SS26 Tangerine.pdf
+                          </p>
+                          <p className="text-xs text-gray-700">
+                            → Bij screenshots: maak een duidelijke screenshot, haal tekst eruit met een OCR-tool, plak in het tekstveld en klik op &quot;Importeer uit geplakte tekst&quot;.<br/>
+                            → Afbeeldingen: selecteer de hoofdmap (bijv. Flats Lays Photos - SS26); submappen (TG-622, TG-623) worden per product gekoppeld.
+                          </p>
+                        </div>
                       ) : selectedVendor === 'goldieandace' ? (
                         <div className="space-y-4">
                           <div>
@@ -2538,8 +2635,15 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   {isLoading && (
                     <div className="mt-2 text-sm text-blue-600">⏳ Bezig met laden...</div>
                   )}
-                  {!isLoading && (brands.length === 0 || internalCategories.length === 0) && (
-                    <div className="mt-2 text-sm text-yellow-700">
+                  {categoriesDataError && (
+                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                      ⚠️ {categoriesDataError}
+                      <br />
+                      <Link href="/" className="underline font-medium mt-1 inline-block">Ga naar startpagina om in te loggen</Link>
+                    </div>
+                  )}
+                  {!isLoading && !categoriesDataError && (brands.length === 0 || internalCategories.length === 0) && (
+                    <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
                       ⚠️ Data nog niet geladen. Klik op &quot;🔄 Vernieuw Data&quot; om te laden.
                     </div>
                   )}
@@ -3361,7 +3465,8 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
 
                       let assignedReference = '';
                       if (imgConfig.extractReference) {
-                        const ref = imgConfig.extractReference(file.name);
+                        const relativePath = 'webkitRelativePath' in file ? (file as File & { webkitRelativePath?: string }).webkitRelativePath : undefined;
+                        const ref = imgConfig.extractReference(file.name, relativePath);
                         if (ref) {
                           // Try exact match first, then case-insensitive partial
                           const exactMatch = successfulRefs.find(r => r.reference === ref);

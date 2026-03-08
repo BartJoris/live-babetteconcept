@@ -89,8 +89,8 @@ export interface ImageUploadConfig {
   exampleFilenames: string[];
   /** Regex to validate image filenames (only matching files are accepted) */
   filenameFilter: RegExp;
-  /** Extract product reference from image filename (used to match to template IDs) */
-  extractReference: (filename: string) => string | null;
+  /** Extract product reference from image filename (and optional relative path when selecting a folder). When relativePath is set, the parent folder name can be used as reference (e.g. TG-622). */
+  extractReference: (filename: string, relativePath?: string) => string | null;
   /** Map filename to a display name with Main/Extra info for the upload API */
   mapFilename?: (filename: string, reference: string) => string;
   /** Link to a dedicated image import page (if exists) */
