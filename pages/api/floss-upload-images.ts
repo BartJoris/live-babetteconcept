@@ -119,7 +119,7 @@ export default async function handler(
         const sequence = templateSequenceCounter[templateId];
         templateSequenceCounter[templateId]++;
 
-        const isDefaultImage = img.filename.includes('Main') && !processedTemplateIds.has(templateId);
+        const isDefaultImage = (img.filename.includes('Main') || sequence === 1) && !processedTemplateIds.has(templateId);
 
         // Extract color from filename
         // Format: "F10625 - Apple Knit Cardigan - Red Apple - Main.jpg"

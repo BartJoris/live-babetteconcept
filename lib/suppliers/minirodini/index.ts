@@ -5,6 +5,7 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   const text = files['main_csv'] as string;
   const { headers, rows } = parseCSV(text, { delimiter: ';' });
 
+  const idIdx = headers.findIndex(h => h.toLowerCase() === 'id');
   const artNoIdx = headers.findIndex(h => h.toLowerCase() === 'art. no.');
   const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
   const variantNameIdx = headers.findIndex(h => h.toLowerCase() === 'variant name');
@@ -13,20 +14,23 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean');
   const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
   const wholesalePriceIdx = headers.findIndex(h => h.toLowerCase() === 'wholesale price - eur');
+  const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
   const rrpIdx = headers.findIndex(h => h.toLowerCase() === 'rrp - eur');
   const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
   const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
   const shortDescIdx = headers.findIndex(h => h.toLowerCase() === 'short description');
 
-  if (artNoIdx === -1 || eanIdx === -1 || productNameIdx === -1) {
+  if (eanIdx === -1 || productNameIdx === -1) {
     return [];
   }
 
+  const isSimplifiedFormat = artNoIdx === -1;
   const brand = context.findBrand('mini rodini');
   const products: Record<string, ParsedProduct> = {};
 
   for (const values of rows) {
-    const artNo = values[artNoIdx] || '';
+    const id = idIdx !== -1 ? values[idIdx] || '' : '';
+    const artNo = artNoIdx !== -1 ? values[artNoIdx] || '' : '';
     const productName = values[productNameIdx] || '';
     const variantName = variantNameIdx !== -1 ? values[variantNameIdx] || '' : '';
     const variantNo = variantNoIdx !== -1 ? values[variantNoIdx] || '' : '';
@@ -34,24 +38,39 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
     const size = convertSize(rawSize);
     const ean = values[eanIdx] || '';
     const quantity = quantityIdx !== -1 ? parseInt(values[quantityIdx] || '0') || 0 : 0;
-    const wholesalePrice = wholesalePriceIdx !== -1 ? parseEuroPrice(values[wholesalePriceIdx] || '') : 0;
+    const priceIdx = wholesalePriceIdx !== -1 ? wholesalePriceIdx : unitPriceIdx;
+    const wholesalePrice = priceIdx !== -1 ? parseEuroPrice(values[priceIdx] || '') : 0;
     const rrp = rrpIdx !== -1 ? parseEuroPrice(values[rrpIdx] || '') : 0;
     const csvCategory = categoryIdx !== -1 ? values[categoryIdx] || '' : '';
     const composition = descriptionIdx !== -1 ? values[descriptionIdx] || '' : '';
     const shortDescription = shortDescIdx !== -1 ? values[shortDescIdx] || '' : '';
 
-    if (!artNo || !ean) continue;
+    if (!ean) continue;
+    if (!isSimplifiedFormat && !artNo) continue;
 
-    const productKey = `${artNo}|${variantName}`;
-    const formattedName = `Mini Rodini - ${toSentenceCase(productName)} - ${toSentenceCase(variantName)} (${artNo})`;
-    const uniqueReference = variantNo ? `${artNo}_${variantNo}` : artNo;
+    let productKey: string;
+    let formattedName: string;
+    let uniqueReference: string;
+    let sku: string;
+
+    if (isSimplifiedFormat) {
+      productKey = productName;
+      formattedName = `Mini Rodini - ${toSentenceCase(productName)}`;
+      uniqueReference = id || ean;
+      sku = `${id}-${rawSize}`;
+    } else {
+      productKey = `${artNo}|${variantName}`;
+      formattedName = `Mini Rodini - ${toSentenceCase(productName)} - ${toSentenceCase(variantName)} (${artNo})`;
+      uniqueReference = variantNo ? `${artNo}_${variantNo}` : artNo;
+      sku = `${artNo}-${variantNo}-${rawSize}`;
+    }
 
     if (!products[productKey]) {
       products[productKey] = {
         reference: uniqueReference,
         name: formattedName,
         originalName: productName,
-        productName: artNo,
+        productName: isSimplifiedFormat ? productName : artNo,
         material: composition,
         color: variantName,
         csvCategory,
@@ -71,7 +90,7 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
       size,
       quantity,
       ean,
-      sku: `${artNo}-${variantNo}-${rawSize}`,
+      sku,
       price: wholesalePrice,
       rrp,
     });

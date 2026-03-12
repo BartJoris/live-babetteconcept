@@ -34,6 +34,7 @@ import fub from './fub';
 import sistersdepartment from './sistersdepartment';
 import tangerine from './tangerine';
 import babeandtess from './babeandtess';
+import jellymallow from './jellymallow';
 
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
@@ -53,6 +54,7 @@ const allPlugins = [
   fub,              // FUB
   goldieandace,     // Goldie + Ace
   indee,            // Indee
+  jellymallow,      // Jelly Mallow
   jenest,           // Jenest
   lenewblack,       // Le New Black
   minirodini,       // Mini Rodini

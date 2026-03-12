@@ -45,6 +45,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         kwargs: {
           fields: ['id', 'barcode', 'display_name', 'qty_available'],
           limit: batch.length,
+          context: { active_test: false },
         },
       });
 

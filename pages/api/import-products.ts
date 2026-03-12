@@ -456,15 +456,26 @@ async function handler(
               }
 
               console.log(`Updating variant ${odooVariant.id}:`, JSON.stringify(updateData));
-              await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
-              console.log(`✅ Updated variant`);
+              try {
+                await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
+                console.log(`✅ Updated variant`);
+              } catch (writeError) {
+                const msg = (writeError as Error).message || '';
+                if (msg.includes('barcode') && msg.includes('already exists') && updateData.barcode) {
+                  console.log(`⚠️ Barcode ${updateData.barcode} conflict (archived product?) - retrying without barcode`);
+                  delete updateData.barcode;
+                  await callOdoo(uid, password, 'product.product', 'write', [[odooVariant.id], updateData]);
+                  console.log(`✅ Updated variant (without barcode)`);
+                } else {
+                  throw writeError;
+                }
+              }
 
-              // Update stock if quantity > 0
               if (csvVariant.quantity > 0) {
                 try {
                   await callOdoo(uid, password, 'stock.quant', 'create', [{
                     product_id: odooVariant.id,
-                    location_id: 8, // Stock location - adjust if needed
+                    location_id: 8,
                     quantity: csvVariant.quantity,
                   }]);
                 } catch (stockError) {

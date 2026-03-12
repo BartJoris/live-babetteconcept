@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getSupplier, getAllSuppliers, createParseContext } from '@/lib/suppliers';
 import type { SupplierFiles } from '@/lib/suppliers/types';
+import { generateUniqueEAN13Batch } from '@/lib/import/shared/ean-utils';
 
 // Types
 interface ParsedProduct {
@@ -442,6 +443,7 @@ export default function ProductImportPage() {
   // Existing product barcode tracking (products already in Odoo)
   const [existingBarcodes, setExistingBarcodes] = useState<Map<string, { name: string; qty: number }>>(new Map());
   const [checkingExisting, setCheckingExisting] = useState(false);
+  const [generatingBarcodes, setGeneratingBarcodes] = useState(false);
 
   const steps = [
     { id: 1, name: 'Upload', icon: '📤' },
@@ -746,6 +748,84 @@ export default function ProductImportPage() {
     }
   };
 
+  const generateBarcodes = async () => {
+    const emptyEanVariants: { productRef: string; variantIdx: number }[] = [];
+    const existingEans = new Set<string>();
+
+    for (const product of parsedProducts) {
+      for (let idx = 0; idx < product.variants.length; idx++) {
+        const ean = product.variants[idx].ean;
+        if (!ean) {
+          emptyEanVariants.push({ productRef: product.reference, variantIdx: idx });
+        } else {
+          existingEans.add(ean);
+        }
+      }
+    }
+
+    if (emptyEanVariants.length === 0) {
+      alert('Alle varianten hebben al een EAN barcode.');
+      return;
+    }
+
+    setGeneratingBarcodes(true);
+    try {
+      const candidates = generateUniqueEAN13Batch(emptyEanVariants.length, existingEans);
+
+      const response = await fetch('/api/odoo/check-existing-barcodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcodes: candidates }),
+      });
+
+      let odooExisting = new Set<string>();
+      if (response.ok) {
+        const data = await response.json();
+        if (data.found?.length) {
+          odooExisting = new Set(data.found.map((f: { barcode: string }) => f.barcode));
+        }
+      }
+
+      const allExcluded = new Set([...existingEans, ...odooExisting]);
+      const cleanCandidates = candidates.filter(c => !odooExisting.has(c));
+
+      let finalCodes = cleanCandidates;
+      if (cleanCandidates.length < emptyEanVariants.length) {
+        const extra = generateUniqueEAN13Batch(
+          emptyEanVariants.length - cleanCandidates.length,
+          allExcluded
+        );
+        finalCodes = [...cleanCandidates, ...extra];
+      }
+
+      setParsedProducts(products =>
+        products.map(p => ({
+          ...p,
+          variants: p.variants.map((v, idx) => {
+            if (v.ean) return v;
+            const entry = emptyEanVariants.find(
+              e => e.productRef === p.reference && e.variantIdx === idx
+            );
+            if (!entry) return v;
+            const assignIdx = emptyEanVariants.indexOf(entry);
+            return { ...v, ean: finalCodes[assignIdx] || '' };
+          }),
+        }))
+      );
+
+      const odooCollisions = odooExisting.size;
+      alert(
+        `${finalCodes.length} EAN-13 barcodes gegenereerd` +
+        (odooCollisions > 0 ? ` (${odooCollisions} al in Odoo, opnieuw gegenereerd).` : '.')
+      );
+    } catch (error) {
+      console.error('Error generating barcodes:', error);
+      alert('Fout bij genereren van barcodes: ' + (error as Error).message);
+    } finally {
+      setGeneratingBarcodes(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, fileInputId?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -825,7 +905,7 @@ export default function ProductImportPage() {
     try {
       const formData = new FormData();
       if (selectedVendor === 'tangerine') {
-        if (fileInputId === 'price_pdf') formData.append('price', file);
+        if (fileInputId === 'order_pdf') formData.append('order', file);
         else formData.append('packing', file);
       } else {
         formData.append('pdf', file);
@@ -838,18 +918,40 @@ export default function ProductImportPage() {
 
       const data = await response.json();
 
-      if (data.success && data.prices && selectedVendor === 'tangerine') {
+      if (data.success && data.costPrices && selectedVendor === 'tangerine') {
+        const costPrices = data.costPrices as Record<string, Record<string, number>>;
+        const rrpPrices = (data.rrpPrices || {}) as Record<string, Record<string, number>>;
+        const compositions = (data.compositions || {}) as Record<string, string>;
+        let matchedCount = 0;
         setParsedProducts(prev => prev.map(p => {
-          const rrp = data.prices[p.reference] ?? data.prices[p.reference.replace(/\s+/g, ' ')];
-          if (rrp == null) return p;
+          const refKey = p.reference.replace(/\s+/g, ' ');
+          const refCost = costPrices[p.reference] ?? costPrices[refKey];
+          const refRrp = rrpPrices[p.reference] ?? rrpPrices[refKey];
+          const composition = compositions[p.reference] ?? compositions[refKey];
+          if (!refCost && !refRrp && !composition) return p;
+          matchedCount++;
+          const sizeKey = (size: string) => {
+            const m = size.match(/^(\d+)\s*jaar$/);
+            return m ? m[1] : size;
+          };
           return {
             ...p,
-            variants: p.variants.map(v => ({ ...v, rrp })),
+            ecommerceDescription: composition || p.ecommerceDescription,
+            variants: p.variants.map(v => {
+              const sk = sizeKey(v.size);
+              const cost = refCost ? (refCost[sk] ?? refCost[v.size] ?? refCost[''] ?? Object.values(refCost)[0] ?? 0) : 0;
+              const rrp = refRrp ? (refRrp[sk] ?? refRrp[v.size] ?? refRrp[''] ?? Object.values(refRrp)[0] ?? 0) : 0;
+              return {
+                ...v,
+                price: cost > 0 ? cost : v.price,
+                rrp: rrp > 0 ? rrp : v.rrp,
+              };
+            }),
           };
         }));
         setSupplierFileStatus(prev => ({ ...prev, [fileInputId]: true }));
-        if (Object.keys(data.prices).length > 0) {
-          alert(`Prijzen bijgewerkt voor ${Object.keys(data.prices).length} referenties.`);
+        if (matchedCount > 0) {
+          alert(`Prijzen en beschrijvingen bijgewerkt voor ${matchedCount} producten.`);
         }
       } else if (data.success && plugin.processPdfResults) {
         const context = createParseContext(brands, selectedVendor);
@@ -2311,6 +2413,14 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                   >
                     📦 Voorraad 0
+                  </button>
+                  <button
+                    onClick={generateBarcodes}
+                    disabled={generatingBarcodes}
+                    className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Genereer EAN-13 barcodes voor varianten zonder barcode (gecontroleerd tegen Odoo)"
+                  >
+                    {generatingBarcodes ? '⏳ Bezig...' : '🏷️ Genereer barcodes'}
                   </button>
                   <button
                     onClick={generateAllDescriptions}

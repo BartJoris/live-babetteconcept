@@ -16,3 +16,9 @@ export {
   toSentenceCase,
   formatProductName,
 } from './name-utils';
+
+export {
+  generateEAN13,
+  generateUniqueEAN13Batch,
+  isValidEAN13,
+} from './ean-utils';

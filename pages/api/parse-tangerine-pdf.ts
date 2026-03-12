@@ -255,24 +255,201 @@ function parsePackingPdf(pdfText: string): TangerinePdfProduct[] {
 }
 
 /**
- * Parse price PDF. Expects lines with TG-xxx (or similar) and a euro price (RRP).
+ * Parse Tangerine invoice/IMT PDF.
+ * Extracted text is tab-delimited with columns:
+ *   DESCRIPTION | HS CODES | UNITS | SIZE | COST EURO | TOTAL EURO
+ * DESCRIPTION contains "TG - NNN - PRODUCT NAME - COLOR - ..."
+ * SIZE can be single ("4") or grouped ("6&8&10").
+ * Returns per-unit COST indexed by normalized reference and individual size.
  */
-function parsePricePdf(pdfText: string): Map<string, number> {
-  const priceMap = new Map<string, number>();
+function parseInvoicePdf(pdfText: string): Record<string, Record<string, number>> {
+  const priceMap: Record<string, Record<string, number>> = {};
   const lines = pdfText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const refPattern = /(TG-?\d+(?:\s+[A-Z]+)?)/gi;
-  const pricePattern = /€?\s*(\d+[,.]\d{2})/g;
 
   for (const line of lines) {
-    const refMatch = line.match(refPattern);
-    const prices = [...line.matchAll(pricePattern)];
-    if (refMatch && prices.length > 0) {
-      const ref = refMatch[0].replace(/^TG(\d+)/i, 'TG-$1').replace(/\s+/g, ' ');
-      const price = parseEuroPrice(prices[prices.length - 1][1]);
-      if (price > 0) priceMap.set(ref, price);
+    const refMatch = line.match(/\bTG\s*-\s*(\d+)\b/i);
+    if (!refMatch) continue;
+
+    const ref = `TG-${refMatch[1]}`;
+    const parts = line.split('\t').map(p => p.trim());
+    if (parts.length < 4) continue;
+
+    const priceIndices: { index: number; value: number }[] = [];
+    for (let i = 1; i < parts.length; i++) {
+      const m = parts[i].match(/(\d+[,.]\d{2})\s*€/);
+      if (m) priceIndices.push({ index: i, value: parseEuroPrice(m[1]) });
+    }
+    if (priceIndices.length === 0) continue;
+
+    const cost = priceIndices[0].value;
+    if (cost <= 0) continue;
+
+    const sizeIdx = priceIndices[0].index - 1;
+    const sizeStr = sizeIdx >= 1 ? parts[sizeIdx] : '';
+    const sizes = sizeStr
+      ? sizeStr.split(/[&,]/).map(s => s.trim()).filter(Boolean)
+      : [''];
+
+    if (!priceMap[ref]) priceMap[ref] = {};
+    for (const size of sizes) {
+      priceMap[ref][size] = cost;
     }
   }
+
   return priceMap;
+}
+
+interface SizeGroup {
+  min: number;
+  max: number;
+  wsp: number;
+  rrp: number;
+}
+
+interface ProformaProduct {
+  reference: string;
+  composition: string;
+  sizeGroups: SizeGroup[];
+}
+
+function parseSizeGroupRange(group: string): { min: number; max: number } {
+  const m = group.match(/^(\d+)(?:\s*-\s*(\d+))?\s*Y?/i);
+  if (!m) return { min: 0, max: 0 };
+  const min = parseInt(m[1]);
+  const max = m[2] ? parseInt(m[2]) : min;
+  return { min, max };
+}
+
+/**
+ * Parse ORDER PROFORMA PDF. Structure per product block:
+ *   TG-xxx [TAB] PRODUCT NAME [TAB] PRIMARY FABRIC: ...
+ *   4 Y [TAB] 6-10 Y [TAB] 12-16 Y           (size groups)
+ *   WSP [TAB] price1 [TAB] price2 [TAB] ...
+ *   RRP [TAB] price1 [TAB] price2 [TAB] ...
+ *
+ * Returns costPrices, rrpPrices (per individual size), and compositions per reference.
+ */
+function parseOrderProformaPdf(pdfText: string): {
+  costPrices: Record<string, Record<string, number>>;
+  rrpPrices: Record<string, Record<string, number>>;
+  compositions: Record<string, string>;
+} {
+  const costPrices: Record<string, Record<string, number>> = {};
+  const rrpPrices: Record<string, Record<string, number>> = {};
+  const compositions: Record<string, string> = {};
+
+  const lines = pdfText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const products: ProformaProduct[] = [];
+  let current: ProformaProduct | null = null;
+  let sizeGroupRanges: { min: number; max: number }[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (/^STYLE\s/.test(line) || /^TOTAL\s+UNITS/i.test(line) || /^TOTAL\s+EXC/i.test(line)) continue;
+
+    const refMatch = line.match(/^(TG-?\d+)\s*\t/i);
+    if (refMatch) {
+      if (current) products.push(current);
+      const ref = refMatch[1].replace(/^TG(\d+)/i, 'TG-$1');
+      const rest = line.slice(refMatch[0].length);
+      const parts = rest.split('\t').map(p => p.trim()).filter(Boolean);
+
+      let composition = '';
+      for (const p of parts) {
+        if (/PRIMARY\s+FABRIC/i.test(p) || /SECONDARY\s+FABRIC/i.test(p)) {
+          composition = composition ? `${composition} ${p}` : p;
+        }
+      }
+
+      // Composition can continue on next lines (SECONDARY/TERTIARY/QUATERNARY)
+      while (i + 1 < lines.length && /^(SECONDARY|TERTIARY|QUATERNARY)\s+FABRIC/i.test(lines[i + 1])) {
+        i++;
+        composition = composition ? `${composition} ${lines[i].trim()}` : lines[i].trim();
+      }
+
+      current = { reference: ref, composition, sizeGroups: [] };
+      sizeGroupRanges = [];
+      continue;
+    }
+
+    if (!current) continue;
+
+    // Size group line: "4 Y [TAB] 6-10 Y [TAB] 12-16 Y"
+    // Distinguish from the individual sizes line (which has only single sizes like "4 Y\t6 Y\t8 Y\t...")
+    const tabParts = line.split('\t').map(p => p.trim()).filter(Boolean);
+    const looksLikeSizeGroups = tabParts.length >= 2
+      && tabParts.every(p => /^\d+(?:\s*-\s*\d+)?\s*Y/i.test(p) || /^\*/.test(p))
+      && tabParts.some(p => /\d+\s*-\s*\d+/i.test(p));
+    if (looksLikeSizeGroups) {
+      sizeGroupRanges = tabParts
+        .filter(p => /^\d/.test(p))
+        .map(p => parseSizeGroupRange(p));
+      continue;
+    }
+
+    // WSP line
+    if (/^WSP\b/i.test(line)) {
+      const wspParts = line.split('\t').map(p => p.trim());
+      const prices: number[] = [];
+      for (let j = 1; j < wspParts.length; j++) {
+        if (/€/.test(wspParts[j])) {
+          prices.push(parseEuroPrice(wspParts[j]));
+        } else {
+          break;
+        }
+      }
+      for (let j = 0; j < Math.min(prices.length, sizeGroupRanges.length); j++) {
+        if (!current.sizeGroups[j]) {
+          current.sizeGroups[j] = { ...sizeGroupRanges[j], wsp: 0, rrp: 0 };
+        }
+        current.sizeGroups[j].wsp = prices[j];
+      }
+      continue;
+    }
+
+    // RRP line
+    if (/^RRP\b/i.test(line)) {
+      const rrpParts = line.split('\t').map(p => p.trim());
+      const prices: number[] = [];
+      for (let j = 1; j < rrpParts.length; j++) {
+        if (/€/.test(rrpParts[j])) {
+          prices.push(parseEuroPrice(rrpParts[j]));
+        } else {
+          break;
+        }
+      }
+      for (let j = 0; j < Math.min(prices.length, sizeGroupRanges.length); j++) {
+        if (!current.sizeGroups[j]) {
+          current.sizeGroups[j] = { ...sizeGroupRanges[j], wsp: 0, rrp: 0 };
+        }
+        current.sizeGroups[j].rrp = prices[j];
+      }
+      continue;
+    }
+  }
+  if (current) products.push(current);
+
+  // Build price maps: expand size groups to individual ages
+  for (const p of products) {
+    costPrices[p.reference] = {};
+    rrpPrices[p.reference] = {};
+    if (p.composition) compositions[p.reference] = p.composition;
+
+    for (const group of p.sizeGroups) {
+      for (let age = group.min; age <= group.max; age++) {
+        const key = String(age);
+        if (group.wsp > 0) costPrices[p.reference][key] = group.wsp;
+        if (group.rrp > 0) rrpPrices[p.reference][key] = group.rrp;
+      }
+    }
+  }
+
+  return { costPrices, rrpPrices, compositions };
+}
+
+function isOrderProformaFormat(text: string): boolean {
+  return /^WSP\b/im.test(text) && /^RRP\b/im.test(text) && /TG-?\d+/i.test(text);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -285,16 +462,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [, files] = await form.parse(req);
 
     const packingFile = files.packing?.[0] || files.packing_pdf?.[0] || files.pdf?.[0];
-    const priceFile = files.price?.[0] || files.price_pdf?.[0];
+    const priceFile = files.price?.[0] || files.price_pdf?.[0] || files.order?.[0] || files.order_pdf?.[0];
 
-    // Only price PDF uploaded (e.g. second file on product-import): return price map to merge client-side
+    // Only price/order PDF uploaded: return price map to merge client-side
     if (!packingFile && priceFile) {
       try {
         const priceText = await extractTextFromPdf(priceFile.filepath);
-        const priceMap = parsePricePdf(priceText);
-        const prices: Record<string, number> = Object.fromEntries(priceMap);
         try { fs.unlinkSync(priceFile.filepath); } catch (_) {}
-        return res.status(200).json({ success: true, prices, productCount: 0 });
+
+        if (isOrderProformaFormat(priceText)) {
+          const result = parseOrderProformaPdf(priceText);
+          return res.status(200).json({ success: true, ...result, productCount: 0 });
+        }
+
+        const costMap = parseInvoicePdf(priceText);
+        return res.status(200).json({ success: true, costPrices: costMap, productCount: 0 });
       } catch (err) {
         try { fs.unlinkSync(priceFile.filepath); } catch (_) {}
         throw err;
@@ -361,14 +543,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           debugLines: packingText.split('\n').slice(0, 80),
         });
       }
-      let priceMap = new Map<string, number>();
-
       if (priceFile) {
         const priceText = await extractTextFromPdf(priceFile.filepath);
-        priceMap = parsePricePdf(priceText);
+        const costMap = parseInvoicePdf(priceText);
         for (const p of products) {
-          const rrp = priceMap.get(p.reference) ?? priceMap.get(p.reference.replace(/\s+/g, '')) ?? 0;
-          p.rrp = rrp;
+          const refPrices = costMap[p.reference] ?? costMap[p.reference.replace(/\s+/g, '')];
+          if (!refPrices) continue;
+          const cost = refPrices[p.size] ?? refPrices[''] ?? Object.values(refPrices)[0] ?? 0;
+          if (cost > 0) p.price = cost;
         }
       }
 

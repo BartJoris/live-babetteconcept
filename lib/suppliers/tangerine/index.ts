@@ -5,9 +5,30 @@
  * - Images: root folder with subfolders per product (e.g. TG-622/TG_622_FRONT.jpg).
  */
 
-import { determineSizeAttribute, convertSize } from '@/lib/import/shared';
+import { determineSizeAttribute, convertSize, toSentenceCase } from '@/lib/import/shared';
 import { parseEuroPrice } from '@/lib/import/shared/price-utils';
+import { parseCSV } from '@/lib/import/shared/csv-utils';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext, EnrichmentResult } from '@/lib/suppliers/types';
+
+/** Tangerine uses age-based sizes (4, 6, 8, 10, 12, 14, 16 = years). */
+function convertTangerineSize(raw: string): string {
+  const s = raw.trim();
+  const ageMatch = s.match(/^(\d{1,2})\s*Y?$/i);
+  if (ageMatch) {
+    const age = parseInt(ageMatch[1]);
+    if (age >= 1 && age <= 16) return `${age} jaar`;
+  }
+  return convertSize(s);
+}
+
+function formatTangerineName(name: string, color: string): string {
+  const namePart = name ? toSentenceCase(name.trim()) : '';
+  const colorPart = color ? toSentenceCase(color.trim()) : '';
+  let result = 'Tangerine';
+  if (namePart) result += ` - ${namePart}`;
+  if (colorPart) result += ` - ${colorPart}`;
+  return result;
+}
 
 export interface TangerinePdfProduct {
   reference: string;
@@ -57,13 +78,13 @@ function extractReferenceFromPath(relativePath: string): string | null {
  * Expected columns (as in BABETTE PACKING LIST - TANGERINE SS26):
  * REFERENCE, IMAGE, PRODUCT NAME, COMPOSITION, COLOR NAME, TYPE, HS CODE, SIZE, EAN Code, UNITS, UNITS PER BOX, TOTAL UNITS.
  * Delimiter ; or ,. One row per size; same REFERENCE + PRODUCT NAME repeat per size row.
+ * Uses shared parseCSV for proper handling of quoted fields (e.g. "83% VISCOSE, 17% POLYAMIDE").
  */
 function parsePackingCsv(text: string): ParsedProduct[] {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const firstLine = lines[0];
-  const delim = firstLine.includes(';') ? ';' : ',';
-  const headers = firstLine.split(delim).map(h => h.trim().toLowerCase());
+  const { headers: rawHeaders, rows } = parseCSV(text);
+  if (rawHeaders.length === 0 || rows.length === 0) return [];
+
+  const headers = rawHeaders.map(h => h.toLowerCase());
   const col = (name: string) => headers.findIndex(h => h.includes(name));
   const iRef = col('reference');
   const iName = headers.findIndex(h => h.includes('product') && h.includes('name'));
@@ -85,12 +106,9 @@ function parsePackingCsv(text: string): ParsedProduct[] {
   let lastColor = '';
   let lastMaterial = '';
 
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
+  for (const cells of rows) {
     let refRaw = (cells[iRef] || '').trim();
-    // Skip "TOTAL OF REFERENCE ..." summary lines
     if (/^TOTAL\s+OF\s+REFERENCE/i.test(refRaw)) continue;
-    // Carry over from previous row when ref is empty (same product, next size)
     if (refRaw) {
       const refMatch = refRaw.match(/^(TG-?\d+)(?:\s*\(([^)]+)\))?/i);
       if (refMatch) {
@@ -106,7 +124,7 @@ function parsePackingCsv(text: string): ParsedProduct[] {
     const color = refRaw && iColor >= 0 ? (cells[iColor] || '') : lastColor;
     const material = (refRaw && iComposition >= 0 ? (cells[iComposition] || '') : lastMaterial) || '';
     const sizeRaw = iSize >= 0 ? (cells[iSize] || '') : '';
-    const size = sizeRaw ? convertSize(sizeRaw) : sizeRaw;
+    const size = sizeRaw ? convertTangerineSize(sizeRaw) : sizeRaw;
     const qty = iTotalUnits >= 0 ? parseInt(cells[iTotalUnits] || '0', 10) : iUnits >= 0 ? parseInt(cells[iUnits] || '1', 10) : 1;
     const price = iPrice >= 0 ? parseEuroPrice(cells[iPrice] || '0') : 0;
     const rrp = iRrp >= 0 ? parseEuroPrice(cells[iRrp] || '0') : 0;
@@ -118,10 +136,11 @@ function parsePackingCsv(text: string): ParsedProduct[] {
     if (!products.has(productKey)) {
       products.set(productKey, {
         reference: ref,
-        name: `Tangerine - ${name || ref} - ${color}`.trim(),
+        name: formatTangerineName(name || ref, color),
         originalName: name,
         color,
         material,
+        ecommerceDescription: material || undefined,
         variants: [],
         suggestedBrand: brand.name,
         selectedBrand: brand,
@@ -222,7 +241,7 @@ function parsePackingPastedText(pasted: string): ParsedProduct[] {
     const color = refRaw && iColor >= 0 ? cells[iColor] : lastColor;
     const material = (refRaw && iComposition >= 0 ? cells[iComposition] : lastMaterial) || '';
     const sizeRaw = iSize >= 0 ? (cells[iSize] || '') : '';
-    const size = sizeRaw ? convertSize(sizeRaw) : sizeRaw;
+    const size = sizeRaw ? convertTangerineSize(sizeRaw) : sizeRaw;
     const qty = iTotalUnits >= 0 ? parseInt(cells[iTotalUnits] || '0', 10) : iUnits >= 0 ? parseInt(cells[iUnits] || '1', 10) : 1;
     let ean = iEan >= 0 ? (cells[iEan] || '') : '';
     if (ean) ean = ean.replace(/\s/g, '').replace(/\./g, '').trim();
@@ -231,10 +250,11 @@ function parsePackingPastedText(pasted: string): ParsedProduct[] {
     if (!products.has(productKey)) {
       products.set(productKey, {
         reference: ref,
-        name: `Tangerine - ${name || ref} - ${color}`.trim(),
+        name: formatTangerineName(name || ref, color),
         originalName: name,
         color,
         material,
+        ecommerceDescription: material || undefined,
         variants: [],
         suggestedBrand: brand.name,
         selectedBrand: brand,
@@ -276,12 +296,11 @@ function processTangerinePdfResults(
   for (const item of pdfProducts) {
     const ref = item.reference.trim();
     const productKey = `${ref}-${(item.color || '').trim()}`.toLowerCase().replace(/\s+/g, '-');
-    const productName = `Tangerine - ${item.name || ref} - ${item.color || ''}`.trim();
 
     if (!products.has(productKey)) {
       products.set(productKey, {
         reference: ref,
-        name: productName,
+        name: formatTangerineName(item.name || ref, item.color || ''),
         originalName: item.name,
         color: item.color || '',
         material: '',
@@ -296,7 +315,7 @@ function processTangerinePdfResults(
     }
 
     const product = products.get(productKey)!;
-    const size = item.size ? convertSize(item.size) : item.size;
+    const size = item.size ? convertTangerineSize(item.size) : item.size;
     product.variants.push({
       size: size || '',
       ean: item.ean || '',
@@ -326,10 +345,10 @@ const tangerine: SupplierPlugin = {
   fileInputs: [
     { id: 'packing_pdf', label: 'Packing list PDF (BABETTE PACKING LIST - TANGERINE SS26)', accept: '.pdf', required: false, type: 'pdf' },
     { id: 'packing_csv', label: 'Packing list CSV (als PDF niet leesbaar is)', accept: '.csv,.txt', required: false, type: 'csv' },
-    { id: 'price_pdf', label: 'Prijzen PDF (IMT 100% Babette SS26 Tangerine)', accept: '.pdf', required: false, type: 'pdf' },
+    { id: 'order_pdf', label: 'Order Proforma PDF (BABETTE ORDER PROFORMA - TANGERINE SS26)', accept: '.pdf', required: false, type: 'pdf' },
   ],
 
-  serverSideFileInputs: ['packing_pdf', 'price_pdf'],
+  serverSideFileInputs: ['packing_pdf', 'order_pdf'],
   pdfParseEndpoint: '/api/parse-tangerine-pdf',
 
   parse(files: SupplierFiles, _context: ParseContext): ParsedProduct[] {
