@@ -83,7 +83,7 @@ export default function AfbeeldingenPage() {
 
   const getState = useCallback((id: number): ProductState =>
     productStates[id] || {
-      expanded: false,
+      expanded: true,
       staged: [],
       uploading: false,
       uploaded: false,

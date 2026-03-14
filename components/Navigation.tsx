@@ -73,7 +73,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/product-check'].includes(router.pathname);
   };
 
   return (
@@ -280,6 +280,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/ecommerce-beheer" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ecommerce-beheer') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🛍️ E-commerce Beheer
+                    </Link>
+                    <Link href="/product-check" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-check') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🔍 Product Controleren
                     </Link>
                     <Link href="/ecommerce-depubliceren" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ecommerce-depubliceren') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🚫 E-commerce Depubliceren
@@ -834,6 +837,17 @@ export default function Navigation() {
                   }`}
                 >
                   🛍️ E-commerce Beheer
+                </Link>
+                <Link
+                  href="/product-check"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/product-check')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🔍 Product Controleren
                 </Link>
                 <Link
                   href="/ecommerce-depubliceren"
