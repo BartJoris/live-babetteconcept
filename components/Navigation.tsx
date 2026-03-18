@@ -7,14 +7,17 @@ export default function Navigation() {
   const [isInzichtenOpen, setIsInzichtenOpen] = useState(false);
   const [isImporterenOpen, setIsImporterenOpen] = useState(false);
   const [isBeheerOpen, setIsBeheerOpen] = useState(false);
+  const [isBoekhoudingOpen, setIsBoekhoudingOpen] = useState(false);
   const [mobileInzichtenOpen, setMobileInzichtenOpen] = useState(false);
   const [mobileImporterenOpen, setMobileImporterenOpen] = useState(false);
   const [mobileBeheerOpen, setMobileBeheerOpen] = useState(false);
+  const [mobileBoekhoudingOpen, setMobileBoekhoudingOpen] = useState(false);
   const router = useRouter();
   
   const inzichtenRef = useRef<HTMLDivElement>(null);
   const importerenRef = useRef<HTMLDivElement>(null);
   const beheerRef = useRef<HTMLDivElement>(null);
+  const boekhoudingRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -27,6 +30,9 @@ export default function Navigation() {
       }
       if (beheerRef.current && !beheerRef.current.contains(event.target as Node)) {
         setIsBeheerOpen(false);
+      }
+      if (boekhoudingRef.current && !boekhoudingRef.current.contains(event.target as Node)) {
+        setIsBoekhoudingOpen(false);
       }
     };
 
@@ -43,6 +49,7 @@ export default function Navigation() {
     setMobileInzichtenOpen(false);
     setMobileImporterenOpen(false);
     setMobileBeheerOpen(false);
+    setMobileBoekhoudingOpen(false);
   };
 
   const handleLogout = async () => {
@@ -70,6 +77,10 @@ export default function Navigation() {
   
   const isImporterenActive = () => {
     return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names', '/afbeeldingen'].includes(router.pathname);
+  };
+  
+  const isBoekhoudingActive = () => {
+    return ['/mollie-export', '/paypal-export', '/worldline-export'].includes(router.pathname);
   };
   
   const isBeheerActive = () => {
@@ -289,6 +300,43 @@ export default function Navigation() {
                     </Link>
                     <Link href="/stock-verkopen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stock-verkopen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       💰 Stock verkopen
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link 
+              href="/camera-monitor" 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/camera-monitor') 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              Camera Monitor
+            </Link>
+
+            {/* Boekhouding Dropdown */}
+            <div className="relative" ref={boekhoudingRef}>
+              <button
+                onClick={() => setIsBoekhoudingOpen(!isBoekhoudingOpen)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                  isBoekhoudingActive() 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                Boekhouding
+                <svg className={`ml-1 h-4 w-4 transform transition-transform ${isBoekhoudingOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isBoekhoudingOpen && (
+                <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link href="/mollie-export" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-export') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Mollie Export
                     </Link>
                   </div>
                 </div>
@@ -870,6 +918,55 @@ export default function Navigation() {
                   }`}
                 >
                   💰 Stock verkopen
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <Link
+            href="/camera-monitor"
+            onClick={closeMenu}
+            className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+              isActive('/camera-monitor')
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            }`}
+          >
+            Camera Monitor
+          </Link>
+
+          {/* Boekhouding Section */}
+          <div className="pt-2">
+            <button
+              onClick={() => setMobileBoekhoudingOpen(!mobileBoekhoudingOpen)}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isBoekhoudingActive()
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <span>Boekhouding</span>
+              <svg 
+                className={`h-5 w-5 transform transition-transform ${mobileBoekhoudingOpen ? 'rotate-180' : ''}`}
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {mobileBoekhoudingOpen && (
+              <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/mollie-export"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/mollie-export')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Mollie Export
                 </Link>
               </div>
             )}
