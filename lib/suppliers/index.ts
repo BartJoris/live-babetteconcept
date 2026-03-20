@@ -35,6 +35,7 @@ import sistersdepartment from './sistersdepartment';
 import tangerine from './tangerine';
 import babeandtess from './babeandtess';
 import jellymallow from './jellymallow';
+import senger from './senger';
 
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
@@ -62,6 +63,7 @@ const allPlugins = [
   petitblush,       // Petit Blush
   playup,           // Play UP
   babeandtess,      // Babe & Tess
+  senger,           // Senger-Naturwelt
   sistersdepartment,// Sisters Department
   sundaycollective, // The Sunday Collective
   tangerine,        // Tangerine

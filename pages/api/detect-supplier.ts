@@ -477,6 +477,22 @@ const SUPPLIER_RULES: SupplierRule[] = [
     ],
   },
 
+  // ── Senger-Naturwelt (Faire order export) ──
+  {
+    supplierId: 'senger',
+    supplierName: 'Senger-Naturwelt',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Faire Bestelling CSV',
+      detect: (headers, text) => {
+        if (h(headers, 'Merknaam', 'Productnaam', 'GTIN', 'Wholesaleprijs') && text.toLowerCase().includes('senger')) return 0.95;
+        if (h(headers, 'Besteldatum', 'Bestelnummer', 'Merknaam', 'GTIN') && text.toLowerCase().includes('senger')) return 0.9;
+        return 0;
+      },
+      reason: 'Faire bestelling CSV met "Senger" als merknaam',
+    }],
+  },
+
   // ── Ao76 ──
   {
     supplierId: 'ao76',
