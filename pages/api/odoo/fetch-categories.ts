@@ -49,7 +49,7 @@ async function handler(
       'product.category',
       'search_read',
       [[]],
-      { fields: ['id', 'name', 'complete_name', 'display_name'] }
+      { fields: ['id', 'name', 'complete_name', 'display_name'], limit: false }
     ) as Array<{ id: number; name: string; complete_name?: string; display_name?: string }>;
 
     console.log(`✅ Found ${categories.length} categories`);

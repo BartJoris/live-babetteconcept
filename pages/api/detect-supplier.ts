@@ -477,10 +477,28 @@ const SUPPLIER_RULES: SupplierRule[] = [
     ],
   },
 
+  // ── Dr Bloom ── (PDF only: proforma invoice)
+  {
+    supplierId: 'drbloom',
+    supplierName: 'Dr Bloom',
+    csvRules: [],
+    pdfRules: [{
+      fileInputId: 'pdf_invoice',
+      fileInputLabel: 'Proforma PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (l.includes('bloom') || l.includes('dr bloom')) return 0.9;
+        if (/pro\d{6}/i.test(fn)) return 0.7;
+        return 0;
+      },
+      reason: 'Bestandsnaam verwijst naar Dr Bloom',
+    }],
+  },
+
   // ── Senger-Naturwelt (Faire order export) ──
   {
     supplierId: 'senger',
-    supplierName: 'Senger-Naturwelt',
+    supplierName: 'Senger Naturwelt',
     csvRules: [{
       fileInputId: 'main_csv',
       fileInputLabel: 'Faire Bestelling CSV',

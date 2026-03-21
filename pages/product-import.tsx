@@ -367,6 +367,7 @@ export default function ProductImportPage() {
   const [generatingDescription, setGeneratingDescription] = useState<Set<string>>(new Set()); // Track which products are generating AI descriptions
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptCategory, setPromptCategory] = useState<'kinderen' | 'volwassenen'>('kinderen');
+  const [aiTargetAudience, setAiTargetAudience] = useState<'auto' | 'kinderen' | 'volwassenen'>('auto');
   const [customPromptKinderen, setCustomPromptKinderen] = useState('');
   const [customPromptVolwassenen, setCustomPromptVolwassenen] = useState('');
   const [defaultPrompts, setDefaultPrompts] = useState<{
@@ -1186,8 +1187,9 @@ export default function ProductImportPage() {
   const generateAIDescription = async (product: ParsedProduct) => {
     const productKey = product.reference;
     
-    // Determine which prompt to use based on product's sizeAttribute
-    const isVolwassenen = product.sizeAttribute === 'MAAT Volwassenen';
+    const isVolwassenen = aiTargetAudience === 'auto'
+      ? product.sizeAttribute === 'MAAT Volwassenen'
+      : aiTargetAudience === 'volwassenen';
     const customPrompt = isVolwassenen ? customPromptVolwassenen : customPromptKinderen;
     const defaultPrompt = isVolwassenen 
       ? defaultPrompts?.volwassenen?.systemPrompt 
@@ -2422,6 +2424,16 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   >
                     {generatingBarcodes ? '⏳ Bezig...' : '🏷️ Genereer barcodes'}
                   </button>
+                  <select
+                    value={aiTargetAudience}
+                    onChange={(e) => setAiTargetAudience(e.target.value as 'auto' | 'kinderen' | 'volwassenen')}
+                    className="px-3 py-2 bg-pink-50 text-pink-800 rounded border border-pink-300 font-medium text-sm cursor-pointer focus:outline-none focus:border-pink-500"
+                    title="Doelgroep voor AI beschrijvingen"
+                  >
+                    <option value="auto">🎯 Auto</option>
+                    <option value="kinderen">👶 Baby / Kinderen</option>
+                    <option value="volwassenen">👤 Volwassenen</option>
+                  </select>
                   <button
                     onClick={generateAllDescriptions}
                     disabled={generatingDescription.size > 0}
@@ -2808,7 +2820,7 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                   {/* Batch Category */}
                   <div className="border rounded p-4">
                     <h3 className="font-bold text-gray-900 mb-3">
-                      📂 Interne Categorie (Batch) ({internalCategories.filter(c => c.display_name?.includes('Kleding')).length} beschikbaar)
+                      📂 Interne Categorie (Batch) ({internalCategories.length} beschikbaar)
                     </h3>
                     
                     {/* Search Input */}
@@ -2829,7 +2841,6 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                     >
                       <option value="">Selecteer interne categorie...</option>
                       {internalCategories
-                        .filter(c => c.display_name?.includes('Kleding'))
                         .filter(cat =>
                           categorySearch === '' ||
                           cat.display_name?.toLowerCase().includes(categorySearch.toLowerCase()) ||
@@ -3053,7 +3064,6 @@ F10637;Heart Cardigan;Flöss Aps;Cardigan;;100% Cotton;Poppy Red/Soft White;68/6
                           <td className="p-3">
                             <SearchableSelect
                               options={internalCategories
-                                .filter(c => c.display_name?.includes('Kleding'))
                                 .map(cat => ({ 
                                   id: cat.id, 
                                   label: cat.display_name?.split(' / ').slice(-2).join(' / ') || cat.name 

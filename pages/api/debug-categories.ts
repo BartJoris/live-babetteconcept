@@ -45,7 +45,7 @@ export default async function handler(
       'product.category',
       'search_read',
       [[]],
-      { fields: ['id', 'name', 'display_name', 'parent_id'] }
+      { fields: ['id', 'name', 'display_name', 'parent_id'], limit: false }
     );
     console.log(`✅ Found ${internalCategories.length} internal categories`);
 
@@ -61,7 +61,7 @@ export default async function handler(
         'product.public.category',
         'search_read',
         [[]], // Empty domain = fetch all
-        { fields: ['id', 'name', 'display_name', 'parent_id'] }
+        { fields: ['id', 'name', 'display_name', 'parent_id'], limit: false }
       );
       console.log(`✅ Fetched ${publicCategories.length} public categories (all)`);
     } catch (error) {
@@ -81,7 +81,7 @@ export default async function handler(
       'pos.category',
       'search_read',
       [[]],
-      { fields: ['id', 'name', 'parent_id'] }
+      { fields: ['id', 'name', 'parent_id'], limit: false }
     );
     console.log(`✅ Found ${posCategories.length} POS categories`);
 
@@ -102,7 +102,7 @@ export default async function handler(
             modelName,
             'search_read',
             [[]], // Empty domain = fetch all
-            { fields: ['id', 'name'] }
+            { fields: ['id', 'name'], limit: false }
           );
           console.log(`✅ Fetched ${productTags.length} product tags from model: ${modelName}`);
           break; // Success, exit loop

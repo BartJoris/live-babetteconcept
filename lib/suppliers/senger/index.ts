@@ -7,13 +7,14 @@ import { createCSVSupplier } from '@/lib/suppliers/create-csv-supplier';
  */
 export default createCSVSupplier({
   id: 'senger',
-  displayName: 'Senger-Naturwelt',
-  brandName: 'Senger-Naturwelt',
+  displayName: 'Senger Naturwelt',
+  brandName: 'Senger Naturwelt',
   csv: {
     delimiter: ';',
     columns: {
       reference: 'SKU',
       name: 'Productnaam',
+      size: { column: 'Optienaam', transform: () => 'U' },
       ean: 'GTIN',
       sku: 'SKU',
       quantity: 'Hoeveelheid',

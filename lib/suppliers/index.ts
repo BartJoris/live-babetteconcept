@@ -34,6 +34,7 @@ import fub from './fub';
 import sistersdepartment from './sistersdepartment';
 import tangerine from './tangerine';
 import babeandtess from './babeandtess';
+import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
 
@@ -49,6 +50,7 @@ const allPlugins = [
   brunobruno,       // Brunobruno (shared parser with Flöss)
   claudeandco,      // Claude & Co
   cozmo,            // Cozmo
+  drbloom,          // Dr Bloom
   emileetida,       // Emile et Ida
   favoritepeople,   // Favorite People
   floss,            // Flöss
