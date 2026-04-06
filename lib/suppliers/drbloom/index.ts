@@ -12,8 +12,8 @@ import type { DrBloomItem } from '@/pages/api/parse-drbloom-pdf';
 const RRP_MULTIPLIER = 2.7;
 
 const SIZE_SUFFIXES: Record<string, string> = {
-  SM: 'S',
-  ML: 'M',
+  SM: 'S / M',
+  ML: 'M / L',
   U: 'U',
 };
 

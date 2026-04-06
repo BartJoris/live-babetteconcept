@@ -97,3 +97,6 @@ ios-app/**/*.xcworkspace/
 ios-app/**/xcuserdata/
 ios-app/**/DerivedData/
 ios-app/**/build/
+
+.cursor/
+scripts/test-xprotect.ps1
