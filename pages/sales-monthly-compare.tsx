@@ -81,82 +81,44 @@ export default function DailyComparePage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchFromOdoo = useCallback(async <T,>(params: {
-    model: string;
-    method: string;
-    args: unknown[];
-  }): Promise<T> => {
-    const res = await fetch('/api/odoo-call', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const json = await res.json();
-    return json.result as T;
-  }, []);
-
   const fetchCompareData = useCallback(async () => {
     if (!isLoggedIn || !selectedPeriods.length) return;
     setLoading(true);
-    let marginFound = false;
-    const data: Record<string, { omzet: number[]; marge?: number[]; days: number }> = {};
-    for (const { year, month } of selectedPeriods) {
-      const days = getDaysInMonth(year, month);
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const endDate = `${year}-${String(month).padStart(2, '0')}-${String(days).padStart(2, '0')}`;
-      const lines = await fetchFromOdoo<{
-        id: number;
-        margin?: number;
-        order_id: [number, string];
-        price_subtotal_incl?: number;
-      }[]>({
-        model: 'pos.order.line',
-        method: 'search_read',
-        args: [
-          [],
-          ['id', 'margin', 'order_id', 'price_subtotal_incl'],
-        ],
+    try {
+      const res = await fetch('/api/sales-monthly-compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periods: selectedPeriods }),
       });
-      const orderIds = Array.from(new Set(lines.map(line => line.order_id?.[0]).filter(Boolean)));
-      if (orderIds.length === 0) {
-        data[`${year}-${month}`] = { omzet: Array(days).fill(0), marge: Array(days).fill(0), days };
-        continue;
+      const json = await res.json();
+      if (!res.ok) {
+        console.error('sales-monthly-compare:', json);
+        setCompareData({});
+        setMarginAvailable(false);
+        return;
       }
-      const orders = await fetchFromOdoo<{
-        id: number;
-        date_order: string;
-      }[]>({
-        model: 'pos.order',
-        method: 'search_read',
-        args: [
-          [['id', 'in', orderIds], ['date_order', '>=', startDate], ['date_order', '<=', endDate + ' 23:59:59']],
-          ['id', 'date_order'],
-        ],
-      });
-      const orderIdToDate: Record<number, string> = {};
-      orders.forEach(order => {
-        orderIdToDate[order.id] = order.date_order;
-      });
-      const omzet = Array(days).fill(0);
-      const marge = Array(days).fill(0);
-      lines.forEach((line) => {
-        const orderId = line.order_id?.[0];
-        const dateStr = orderIdToDate[orderId];
-        if (!dateStr) return;
-        const day = parseInt(dateStr.slice(8, 10), 10) - 1;
-        if (day < 0 || day >= days) return;
-        omzet[day] += line.price_subtotal_incl || 0;
-        if (typeof line.margin === 'number') {
-          marginFound = true;
-          marge[day] += line.margin;
+      const raw = json.compareData as Record<string, { omzet: number[]; marge?: number[]; days: number }>;
+      const data: Record<string, { omzet: number[]; marge?: number[]; days: number }> = {};
+      for (const { year, month } of selectedPeriods) {
+        const key = `${year}-${month}`;
+        const row = raw[key];
+        const days = getDaysInMonth(year, month);
+        if (!row) {
+          data[key] = {
+            omzet: Array(days).fill(0),
+            days,
+            ...(json.marginAvailable ? { marge: Array(days).fill(0) } : {}),
+          };
+          continue;
         }
-      });
-      data[`${year}-${month}`] = { omzet, marge: marginFound ? marge : undefined, days };
+        data[key] = row;
+      }
+      setCompareData(data);
+      setMarginAvailable(Boolean(json.marginAvailable));
+    } finally {
+      setLoading(false);
     }
-    setCompareData(data);
-    setMarginAvailable(marginFound);
-    setLoading(false);
-  }, [isLoggedIn, selectedPeriods, fetchFromOdoo]);
+  }, [isLoggedIn, selectedPeriods]);
 
   useEffect(() => {
     if (isLoggedIn && selectedPeriods.length) {

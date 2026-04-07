@@ -60,83 +60,33 @@ export default function SalesComparePage() {
     setSelectedYears([now.getFullYear()]);
   }, []);
 
-  const fetchFromOdoo = useCallback(async <T,>(params: {
-    model: string;
-    method: string;
-    args: unknown[];
-  }): Promise<T> => {
-    const res = await fetch('/api/odoo-call', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const json = await res.json();
-    return json.result as T;
-  }, []);
-
   const fetchCompareData = useCallback(async () => {
     if (!isLoggedIn || !selectedYears.length) return;
     setLoading(true);
-    let marginFound = false;
-    const data: CompareData = {};
-    for (const year of selectedYears) {
-      // Haal alle regels van het jaar op
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-12-31`;
-      const lines = await fetchFromOdoo<{
-        id: number;
-        margin?: number;
-        order_id: [number, string];
-        price_subtotal_incl?: number;
-      }[]>({
-        model: 'pos.order.line',
-        method: 'search_read',
-        args: [
-          [],
-          ['id', 'margin', 'order_id', 'price_subtotal_incl'],
-        ],
+    try {
+      const res = await fetch('/api/sales-yearly-compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ years: selectedYears }),
       });
-      // Verzamel order_ids
-      const orderIds = Array.from(new Set(lines.map(line => line.order_id?.[0]).filter(Boolean)));
-      if (orderIds.length === 0) continue;
-      // Haal orders op voor datum
-      const orders = await fetchFromOdoo<{
-        id: number;
-        date_order: string;
-      }[]>({
-        model: 'pos.order',
-        method: 'search_read',
-        args: [
-          [['id', 'in', orderIds], ['date_order', '>=', startDate], ['date_order', '<=', endDate + ' 23:59:59']],
-          ['id', 'date_order'],
-        ],
-      });
-      const orderIdToDate: Record<number, string> = {};
-      orders.forEach(order => {
-        orderIdToDate[order.id] = order.date_order;
-      });
-      // Groepeer per maand
-      const monthly: YearlyData = {};
-      lines.forEach((line) => {
-        const orderId = line.order_id?.[0];
-        const dateStr = orderIdToDate[orderId];
-        if (!dateStr) return;
-        const month = dateStr.slice(5, 7); // 'YYYY-MM-DD' -> MM
-        if (!monthly[month]) {
-          monthly[month] = { omzet: 0, marge: 0 };
-        }
-        monthly[month].omzet += line.price_subtotal_incl || 0;
-        if (typeof line.margin === 'number') {
-          marginFound = true;
-          monthly[month].marge = (monthly[month].marge || 0) + line.margin;
-        }
-      });
-      data[year] = monthly;
+      const json = await res.json();
+      if (!res.ok) {
+        console.error('sales-yearly-compare:', json);
+        setCompareData({});
+        setMarginAvailable(false);
+        return;
+      }
+      const raw = json.compareData as Record<string, YearlyData>;
+      const data: CompareData = {};
+      for (const year of selectedYears) {
+        data[year] = raw[String(year)] ?? raw[year] ?? {};
+      }
+      setCompareData(data);
+      setMarginAvailable(Boolean(json.marginAvailable));
+    } finally {
+      setLoading(false);
     }
-    setCompareData(data);
-    setMarginAvailable(marginFound);
-    setLoading(false);
-  }, [isLoggedIn, selectedYears, fetchFromOdoo]);
+  }, [isLoggedIn, selectedYears]);
 
   useEffect(() => {
     if (isLoggedIn && selectedYears.length) {

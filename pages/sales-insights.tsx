@@ -40,245 +40,32 @@ export default function SalesInsightsPage() {
     setSelectedMonth(currentMonth);
   }, []);
 
-  const fetchFromOdoo = useCallback(async <T,>(params: {
-    model: string;
-    method: string;
-    args: unknown[];
-  }): Promise<T> => {
-    const res = await fetch('/api/odoo-call', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const json = await res.json();
-    return json.result as T;
-  }, []);
-
   const fetchMonthlySales = useCallback(async () => {
     if (!isLoggedIn || !selectedMonth) return;
     setLoading(true);
     try {
-      // Parse the selected month
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
-
-      // 1. Fetch all pos.order.line for the month (filter by order_id later)
-      const lines = await fetchFromOdoo<{
-        id: number;
-        margin?: number;
-        order_id: [number, string];
-        price_subtotal_incl?: number;
-      }[]>({
-        model: 'pos.order.line',
-        method: 'search_read',
-        args: [
-          [],
-          ['id', 'margin', 'order_id', 'price_subtotal_incl'],
-        ],
+      const res = await fetch('/api/sales-insights-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: selectedMonth }),
       });
-
-      if (!lines.length || typeof lines[0].price_subtotal_incl !== 'number') {
-        setInsights({
-          total_revenue: 0,
-          total_orders: 0,
-          average_daily_revenue: 0,
-          average_order_value: 0,
-          daily_sales: [],
-          total_morning_revenue: 0,
-          total_afternoon_revenue: 0,
-          total_morning_orders: 0,
-          total_afternoon_orders: 0,
-        });
-        setLoading(false);
-        alert('Let op: het veld price_subtotal_incl (inclusief btw) is niet beschikbaar op pos.order.line. Vraag je Odoo-beheerder om dit veld te activeren.');
+      const json = await res.json();
+      if (!res.ok) {
+        console.error('sales-insights-data:', json);
+        setInsights(null);
         return;
       }
-
-      // 2. Collect all unique order_ids
-      const orderIds = Array.from(new Set(lines.map(line => line.order_id?.[0]).filter(Boolean)));
-      if (orderIds.length === 0) {
-        setInsights({
-          total_revenue: 0,
-          total_orders: 0,
-          average_daily_revenue: 0,
-          average_order_value: 0,
-          daily_sales: [],
-          total_morning_revenue: 0,
-          total_afternoon_revenue: 0,
-          total_morning_orders: 0,
-          total_afternoon_orders: 0,
-        });
-        setLoading(false);
-        return;
+      if (json.fieldError) {
+        alert(`Let op: ${json.fieldError}`);
       }
-      
-      // 3. Fetch all pos.order for those IDs, get date_order with time
-      const orders = await fetchFromOdoo<{
-        id: number;
-        date_order: string;
-      }[]>({
-        model: 'pos.order',
-        method: 'search_read',
-        args: [
-          [['id', 'in', orderIds], ['date_order', '>=', startDate], ['date_order', '<=', endDate + ' 23:59:59']],
-          ['id', 'date_order'],
-        ],
-      });
-      
-      const orderIdToDateTime: Record<number, string> = {};
-      orders.forEach(order => {
-        orderIdToDateTime[order.id] = order.date_order;
-      });
-
-      // Helper function to determine if a time is in the morning (9:00-13:00) or afternoon (13:00-19:00)
-      const getTimeSlot = (dateTimeStr: string): 'morning' | 'afternoon' | 'other' => {
-        const timeStr = dateTimeStr.includes(' ') ? dateTimeStr.split(' ')[1] : '12:00:00';
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        const totalMinutes = hours * 60 + minutes;
-        
-        const morningStart = 9 * 60; // 9:00
-        const morningEnd = 13 * 60; // 13:00
-        const afternoonEnd = 19 * 60; // 19:00
-        
-        if (totalMinutes >= morningStart && totalMinutes < morningEnd) {
-          return 'morning';
-        } else if (totalMinutes >= morningEnd && totalMinutes < afternoonEnd) {
-          return 'afternoon';
-        }
-        return 'other';
-      };
-
-      // Debug: Track time distribution
-      const debugTimeSlots = { morning: 0, afternoon: 0, other: 0 };
-
-      // 4. Group by day and time slot using order's date_order
-      const dailyData: Record<string, {
-        total: number;
-        orderIds: Set<number>;
-        margin?: number;
-        morning: { total: number; orderIds: Set<number>; margin?: number };
-        afternoon: { total: number; orderIds: Set<number>; margin?: number };
-      }> = {};
-      
-      let marginAvailable = false;
-      
-      lines.forEach((line) => {
-        const orderId = line.order_id?.[0];
-        const dateTimeStr = orderIdToDateTime[orderId];
-        if (!dateTimeStr) return;
-        
-        let datePart = '';
-        if (dateTimeStr.includes('T')) {
-          datePart = dateTimeStr.split('T')[0];
-        } else if (dateTimeStr.includes(' ')) {
-          datePart = dateTimeStr.split(' ')[0];
-        } else {
-          datePart = dateTimeStr;
-        }
-        
-        if (!dailyData[datePart]) {
-          dailyData[datePart] = {
-            total: 0,
-            orderIds: new Set(),
-            margin: 0,
-            morning: { total: 0, orderIds: new Set(), margin: 0 },
-            afternoon: { total: 0, orderIds: new Set(), margin: 0 },
-          };
-        }
-        
-        const amount = line.price_subtotal_incl || 0;
-        const margin = line.margin || 0;
-        
-        // Add to daily totals
-        dailyData[datePart].total += amount;
-        dailyData[datePart].orderIds.add(orderId);
-        
-        if (typeof line.margin === 'number') {
-          marginAvailable = true;
-          dailyData[datePart].margin = (dailyData[datePart].margin || 0) + margin;
-        }
-        
-        // Determine time slot and add to appropriate slot
-        const timeSlot = getTimeSlot(dateTimeStr);
-        debugTimeSlots[timeSlot]++;
-        
-        if (timeSlot === 'morning') {
-          dailyData[datePart].morning.total += amount;
-          dailyData[datePart].morning.orderIds.add(orderId);
-          if (typeof line.margin === 'number') {
-            dailyData[datePart].morning.margin = (dailyData[datePart].morning.margin || 0) + margin;
-          }
-        } else if (timeSlot === 'afternoon') {
-          dailyData[datePart].afternoon.total += amount;
-          dailyData[datePart].afternoon.orderIds.add(orderId);
-          if (typeof line.margin === 'number') {
-            dailyData[datePart].afternoon.margin = (dailyData[datePart].afternoon.margin || 0) + margin;
-          }
-        } else {
-          // Add 'other' time sales to morning (fallback for early/late sales)
-          dailyData[datePart].morning.total += amount;
-          dailyData[datePart].morning.orderIds.add(orderId);
-          if (typeof line.margin === 'number') {
-            dailyData[datePart].morning.margin = (dailyData[datePart].morning.margin || 0) + margin;
-          }
-        }
-      });
-
-      // Convert to array and sort by date
-      const dailySales: DailySales[] = Object.entries(dailyData)
-        .map(([date, data]) => ({
-          date,
-          total_amount: data.total,
-          order_count: data.orderIds.size,
-          morning_amount: data.morning.total,
-          afternoon_amount: data.afternoon.total,
-          morning_orders: data.morning.orderIds.size,
-          afternoon_orders: data.afternoon.orderIds.size,
-          ...(marginAvailable && typeof data.margin === 'number' ? { margin: data.margin } : {}),
-          ...(marginAvailable && typeof data.morning.margin === 'number' ? { morning_margin: data.morning.margin } : {}),
-          ...(marginAvailable && typeof data.afternoon.margin === 'number' ? { afternoon_margin: data.afternoon.margin } : {}),
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date));
-
-      // Calculate insights
-      const totalRevenue = dailySales.reduce((sum, day) => sum + day.total_amount, 0);
-      const totalOrders = dailySales.reduce((sum, day) => sum + day.order_count, 0);
-      const totalMorningRevenue = dailySales.reduce((sum, day) => sum + day.morning_amount, 0);
-      const totalAfternoonRevenue = dailySales.reduce((sum, day) => sum + day.afternoon_amount, 0);
-      const totalMorningOrders = dailySales.reduce((sum, day) => sum + day.morning_orders, 0);
-      const totalAfternoonOrders = dailySales.reduce((sum, day) => sum + day.afternoon_orders, 0);
-      const averageDailyRevenue = dailySales.length > 0 ? totalRevenue / dailySales.length : 0;
-      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-      // Debug logging
-      console.log('🕐 Time distribution:', debugTimeSlots);
-      console.log('💰 Revenue check:', {
-        total: totalRevenue,
-        morning: totalMorningRevenue,
-        afternoon: totalAfternoonRevenue,
-        sum: totalMorningRevenue + totalAfternoonRevenue,
-        difference: totalRevenue - (totalMorningRevenue + totalAfternoonRevenue)
-      });
-
-      setInsights({
-        total_revenue: totalRevenue,
-        total_orders: totalOrders,
-        average_daily_revenue: averageDailyRevenue,
-        average_order_value: averageOrderValue,
-        daily_sales: dailySales,
-        total_morning_revenue: totalMorningRevenue,
-        total_afternoon_revenue: totalAfternoonRevenue,
-        total_morning_orders: totalMorningOrders,
-        total_afternoon_orders: totalAfternoonOrders,
-      });
-      setMarginAvailable(marginAvailable);
+      setInsights(json.insights as MonthlyInsights);
+      setMarginAvailable(Boolean(json.marginAvailable));
     } catch (err) {
       console.error('Fout bij ophalen maandelijkse verkoopdata:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, selectedMonth, fetchFromOdoo]);
+  }, [isLoggedIn, selectedMonth]);
 
   useEffect(() => {
     if (isLoggedIn && selectedMonth) {

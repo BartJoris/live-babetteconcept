@@ -1,6 +1,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { odooClient } from '@/lib/odooClient';
+import { fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
 
 type PosOrderLine = {
   id: number;
@@ -60,40 +61,31 @@ export default withAuth(async function handler(
 
     const { uid, password } = req.session.user!;
 
-    // Format dates for Odoo (YYYY-MM-DD HH:MM:SS)
-    const startDateTime = `${startDate} 00:00:00`;
-    const endDateTime = `${endDate} 23:59:59`;
+    const LINE_FIELDS = [
+      'id',
+      'product_id',
+      'qty',
+      'price_unit',
+      'price_subtotal_incl',
+      'price_subtotal',
+      'discount',
+      'order_id',
+    ] as const;
 
-    // 1. Haal alle POS orders op voor de date range
-    const orders = await odooClient.searchRead<PosOrder>(
+    const { orders, lines: orderLines } = await fetchPosOrdersAndLinesForDateRange<PosOrderLine, PosOrder>(
       uid,
       password,
-      'pos.order',
-      [['date_order', '>=', startDateTime], ['date_order', '<=', endDateTime]],
-      ['id', 'date_order', 'name'],
-      10000,
-      0
+      startDate,
+      endDate,
+      {
+        orderFields: ['id', 'date_order', 'name'],
+        lineFields: [...LINE_FIELDS],
+      },
     );
 
-    if (orders.length === 0) {
-      return res.status(200).json({ rows: [] });
-    }
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
 
-    const orderIds = orders.map(o => o.id);
-    const orderMap = new Map(orders.map(o => [o.id, o]));
-
-    // 2. Haal alle order lines op voor deze orders
-    const orderLines = await odooClient.searchRead<PosOrderLine>(
-      uid,
-      password,
-      'pos.order.line',
-      [['order_id', 'in', orderIds]],
-      ['id', 'product_id', 'qty', 'price_unit', 'price_subtotal_incl', 'price_subtotal', 'discount', 'order_id'],
-      10000,
-      0
-    );
-
-    if (orderLines.length === 0) {
+    if (orders.length === 0 || orderLines.length === 0) {
       return res.status(200).json({ rows: [] });
     }
 
