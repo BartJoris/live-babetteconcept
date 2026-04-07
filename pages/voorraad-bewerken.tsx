@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
-import * as XLSX from 'xlsx';
+import { downloadRowsAsXlsx } from '@/lib/excelIo';
 
 type InventoryRow = {
   productId?: number | null;
@@ -1031,13 +1031,13 @@ export default function VoorraadBewerkenPage() {
     return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (filtered.length === 0) {
       setAlert('Geen data om te exporteren.');
       return;
     }
     try {
-      const exportRows = filtered.map(r => {
+      const exportRows = filtered.map((r) => {
         const odooQty = computeOdooQty(r);
         const diff = computeDiff(r);
         const merkInfo = computeMerk(r);
@@ -1053,16 +1053,17 @@ export default function VoorraadBewerkenPage() {
           Categorie: computeCategory(r),
           Label: r.labels && r.labels.length > 0 ? r.labels.join(', ') : '',
           'POS Verkocht': r.matchedWithPosSales ? 'Ja' : 'Nee',
-          'Verkoopprijs': r.localSalePrice ?? '',
-          'Aankoopprijs': r.localPurchasePrice ?? '',
+          Verkoopprijs: r.localSalePrice ?? '',
+          Aankoopprijs: r.localPurchasePrice ?? '',
           'Product ID': r.active?.id ?? r.archived?.id ?? '',
           'Template ID': r.active?.productTmplId ?? r.archived?.productTmplId ?? '',
         };
       });
-      const ws = XLSX.utils.json_to_sheet(exportRows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Voorraad Bewerken');
-      XLSX.writeFile(wb, `voorraad-bewerken-${formatTs(new Date())}.xlsx`);
+      await downloadRowsAsXlsx(
+        exportRows,
+        'Voorraad Bewerken',
+        `voorraad-bewerken-${formatTs(new Date())}.xlsx`,
+      );
       setAlert('Excel export succesvol.');
     } catch {
       setAlert('Export mislukt.');

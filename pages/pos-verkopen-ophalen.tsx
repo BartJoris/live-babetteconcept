@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
-import * as XLSX from 'xlsx';
+import { downloadRowsAsXlsx } from '@/lib/excelIo';
 
 type ScannedRow = {
   productId?: number | null;
@@ -350,24 +350,21 @@ export default function PosVerkopenOphalenPage() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
-      const exportRows = rows.map(r => ({
+      const exportRows = rows.map((r) => ({
         Barcode: r.barcode,
         Naam: r.name,
         Variant: r.variant ?? '',
         Aantal: r.qty,
-        'Verkoopprijs': r.salePrice ?? '',
-        'Aankoopprijs': r.purchasePrice ?? '',
-        'Gevonden': r.found ? 'true' : 'false',
-        'Voorraad': r.qtyAvailable ?? '',
-        'Opmerking': r.note ?? '',
-        'ProductId': r.productId ?? '',
+        Verkoopprijs: r.salePrice ?? '',
+        Aankoopprijs: r.purchasePrice ?? '',
+        Gevonden: r.found ? 'true' : 'false',
+        Voorraad: r.qtyAvailable ?? '',
+        Opmerking: r.note ?? '',
+        ProductId: r.productId ?? '',
       }));
-      const ws = XLSX.utils.json_to_sheet(exportRows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'POS Verkopen');
-      XLSX.writeFile(wb, `pos-verkopen-${formatTs(new Date())}.xlsx`);
+      await downloadRowsAsXlsx(exportRows, 'POS Verkopen', `pos-verkopen-${formatTs(new Date())}.xlsx`);
     } catch {
       setAlert('Export mislukt.');
     }

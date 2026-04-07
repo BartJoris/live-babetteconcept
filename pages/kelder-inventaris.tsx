@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
-import * as XLSX from 'xlsx';
+import { downloadRowsAsXlsx } from '@/lib/excelIo';
 
 type ScannedRow = {
   productId?: number | null;
@@ -365,24 +365,21 @@ export default function KelderInventarisPage() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
-      const exportRows = rows.map(r => ({
+      const exportRows = rows.map((r) => ({
         Barcode: r.barcode,
         Naam: r.name,
         Variant: r.variant ?? '',
         Aantal: r.qty,
-        'Verkoopprijs': r.salePrice ?? '',
-        'Aankoopprijs': r.purchasePrice ?? '',
-        'Gevonden': r.found ? 'true' : 'false',
+        Verkoopprijs: r.salePrice ?? '',
+        Aankoopprijs: r.purchasePrice ?? '',
+        Gevonden: r.found ? 'true' : 'false',
         'Voorraad (Odoo)': r.qtyAvailable ?? '',
-        'Opmerking': r.note ?? '',
-        'ProductId': r.productId ?? '',
+        Opmerking: r.note ?? '',
+        ProductId: r.productId ?? '',
       }));
-      const ws = XLSX.utils.json_to_sheet(exportRows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Inventaris');
-      XLSX.writeFile(wb, `kelder-inventaris-${formatTs(new Date())}.xlsx`);
+      await downloadRowsAsXlsx(exportRows, 'Inventaris', `kelder-inventaris-${formatTs(new Date())}.xlsx`);
     } catch {
       setAlert('Export mislukt.');
     }

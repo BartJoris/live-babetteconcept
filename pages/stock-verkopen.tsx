@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useAuth } from '../lib/hooks/useAuth';
-import * as XLSX from 'xlsx';
+import { downloadRowsAsXlsx, readXlsxFirstSheetAsJsonRecords } from '@/lib/excelIo';
 
 type StockRow = {
   productId: number | null;
@@ -243,9 +243,9 @@ export default function StockVerkopenPage() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
-      const exportRows = rows.map(r => ({
+      const exportRows = rows.map((r) => ({
         Barcode: r.barcode,
         'Product Naam': r.name,
         'Variant / Maat': r.variant ?? '',
@@ -253,13 +253,11 @@ export default function StockVerkopenPage() {
         'Aankoopprijs (€)': r.purchasePrice ?? '',
         'Verkoopprijs (€)': r.salePrice ?? '',
         'Stock Prijs (€)': stockPrice(r.salePrice) ?? '',
-        'Totaal Stock (€)': stockPrice(r.salePrice) != null ? +(stockPrice(r.salePrice)! * r.qty).toFixed(2) : '',
+        'Totaal Stock (€)':
+          stockPrice(r.salePrice) != null ? +(stockPrice(r.salePrice)! * r.qty).toFixed(2) : '',
         ProductId: r.productId ?? '',
       }));
-      const ws = XLSX.utils.json_to_sheet(exportRows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Stock Verkopen');
-      XLSX.writeFile(wb, `stock-verkopen-${formatTs(new Date())}.xlsx`);
+      await downloadRowsAsXlsx(exportRows, 'Stock Verkopen', `stock-verkopen-${formatTs(new Date())}.xlsx`);
       setAlert('Excel geëxporteerd.');
     } catch {
       setAlert('Export mislukt.');
@@ -318,17 +316,20 @@ export default function StockVerkopenPage() {
         const imported = parseJsonImport(parsed);
         mergeRows(imported);
         setAlert(`${imported.length} producten geïmporteerd uit JSON.`);
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      } else if (file.name.endsWith('.xlsx')) {
         const buffer = await file.arrayBuffer();
-        const wb = XLSX.read(buffer, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        if (!ws) { setAlert('Geen data gevonden in Excel.'); return; }
-        const jsonData = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
+        const jsonData = await readXlsxFirstSheetAsJsonRecords(buffer);
+        if (jsonData.length === 0) {
+          setAlert('Geen data gevonden in Excel.');
+          return;
+        }
         const imported = parseJsonImport(jsonData);
         mergeRows(imported);
         setAlert(`${imported.length} producten geïmporteerd uit Excel.`);
+      } else if (file.name.endsWith('.xls')) {
+        setAlert('Alleen .xlsx wordt ondersteund. Sla het bestand op als .xlsx in Excel.');
       } else {
-        setAlert('Onbekend bestandsformaat. Gebruik .json of .xlsx.');
+        setAlert('Onbekend bestandsformaat. Gebruik .json of .xlsx (niet .xls).');
       }
     } catch {
       setAlert('Importeren mislukt. Controleer het bestand.');
@@ -466,7 +467,7 @@ export default function StockVerkopenPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,.xlsx,.xls"
+              accept=".json,.xlsx"
               style={{ display: 'none' }}
               onChange={handleImportFile}
             />
