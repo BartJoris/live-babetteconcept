@@ -1,8 +1,7 @@
 import type { NextApiResponse } from 'next';
-import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { withAuth, type NextApiRequestWithSession } from '@/lib/middleware/withAuth';
-import { POS_SALES_CACHE_VERSION, fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
+import { fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
 import { aggregateMonthlyDaily, type MonthlyComparePeriodRow } from '@/lib/salesPosAggregates';
 
 const periodSchema = z.object({
@@ -13,8 +12,6 @@ const periodSchema = z.object({
 const bodySchema = z.object({
   periods: z.array(periodSchema).min(1),
 });
-
-const REVALIDATE_SECONDS = 180;
 
 export default withAuth(async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -39,19 +36,13 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         const endDate = `${year}-${String(month).padStart(2, '0')}-${String(days).padStart(2, '0')}`;
         const cacheKey = `${year}-${month}`;
 
-        const row = await unstable_cache(
-          async () => {
-            const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
-              uid,
-              password,
-              startDate,
-              endDate,
-            );
-            return aggregateMonthlyDaily(orders, lines, year, month);
-          },
-          ['sales-monthly-compare', POS_SALES_CACHE_VERSION, String(uid), cacheKey],
-          { revalidate: REVALIDATE_SECONDS },
-        )();
+        const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
+          uid,
+          password,
+          startDate,
+          endDate,
+        );
+        const row = aggregateMonthlyDaily(orders, lines, year, month);
 
         return { cacheKey, row };
       }),

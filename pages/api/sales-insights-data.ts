@@ -1,15 +1,12 @@
 import type { NextApiResponse } from 'next';
-import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { withAuth, type NextApiRequestWithSession } from '@/lib/middleware/withAuth';
-import { POS_SALES_CACHE_VERSION, fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
+import { fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
 import { buildMonthlyInsights, type MonthlyInsights } from '@/lib/salesPosAggregates';
 
 const bodySchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
 });
-
-const REVALIDATE_SECONDS = 180;
 
 export default withAuth(async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -31,19 +28,13 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
   res.setHeader('Cache-Control', 'private, no-store');
 
   try {
-    const payload = await unstable_cache(
-      async () => {
-        const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
-          uid,
-          password,
-          startDate,
-          endDate,
-        );
-        return buildMonthlyInsights(orders, lines);
-      },
-      ['sales-insights-data', POS_SALES_CACHE_VERSION, String(uid), month],
-      { revalidate: REVALIDATE_SECONDS },
-    )();
+    const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
+      uid,
+      password,
+      startDate,
+      endDate,
+    );
+    const payload = buildMonthlyInsights(orders, lines);
 
     if ('error' in payload) {
       const empty: MonthlyInsights = {

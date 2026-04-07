@@ -1,8 +1,5 @@
 import { odooClient } from '@/lib/odooClient';
 
-/** Bump when aggregation or Odoo field set changes (invalidates Next.js data cache). */
-export const POS_SALES_CACHE_VERSION = 'v1';
-
 const ORDER_PAGE_SIZE = 5000;
 const ORDER_ID_IN_CHUNK = 2000;
 const LINE_PAGE_SIZE = 5000;

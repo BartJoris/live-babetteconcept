@@ -1,15 +1,12 @@
 import type { NextApiResponse } from 'next';
-import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { withAuth, type NextApiRequestWithSession } from '@/lib/middleware/withAuth';
-import { POS_SALES_CACHE_VERSION, fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
+import { fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
 import { aggregateYearlyCompare, type YearlyCompareMonthRow } from '@/lib/salesPosAggregates';
 
 const bodySchema = z.object({
   years: z.array(z.number().int()).min(1),
 });
-
-const REVALIDATE_SECONDS = 180;
 
 export default withAuth(async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,21 +24,17 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
   res.setHeader('Cache-Control', 'private, no-store');
 
   try {
+    // Note: do not use unstable_cache here — Pages API routes on Vercel lack the App Router
+    // static generation store, so next/cache throws at runtime in production.
     const results = await Promise.all(
       years.map(async (year) => {
-        const { monthly, marginAvailable: ma } = await unstable_cache(
-          async () => {
-            const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
-              uid,
-              password,
-              `${year}-01-01`,
-              `${year}-12-31`,
-            );
-            return aggregateYearlyCompare(orders, lines);
-          },
-          ['sales-yearly-compare', POS_SALES_CACHE_VERSION, String(uid), String(year)],
-          { revalidate: REVALIDATE_SECONDS },
-        )();
+        const { orders, lines } = await fetchPosOrdersAndLinesForDateRange(
+          uid,
+          password,
+          `${year}-01-01`,
+          `${year}-12-31`,
+        );
+        const { monthly, marginAvailable: ma } = aggregateYearlyCompare(orders, lines);
         return { year, monthly, marginAvailable: ma };
       }),
     );
