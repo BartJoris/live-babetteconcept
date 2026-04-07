@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -14,7 +14,7 @@
     "chart.js": "^4.5.0",
     "formidable": "^3.5.4",
     "iron-session": "^8.0.4",
-    "next": "16.0.10",
+    "next": "^16.2.2",
     "node-fetch": "^3.3.2",
     "pdf-parse": "^2.3.0",
     "rate-limiter-flexible": "^8.1.0",
@@ -26,7 +26,6 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/formidable": "^3.4.6",
     "@types/node": "^20",
@@ -34,7 +33,7 @@
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.10.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "^16.2.2",
     "gh-pages": "^6.3.0",
     "patch-package": "^8.0.1",
     "tailwindcss": "^4",
