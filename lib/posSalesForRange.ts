@@ -7,6 +7,8 @@ const LINE_PAGE_SIZE = 5000;
 export type PosOrderRow = {
   id: number;
   date_order: string;
+  /** Ordertotaal zoals op de bon / in Odoo (werkelijk geïncasseerd). */
+  amount_total: number;
 };
 
 export type PosOrderLineRow = {
@@ -25,7 +27,7 @@ function toEndDateTime(dateYmd: string): string {
   return `${dateYmd} 23:59:59`;
 }
 
-const DEFAULT_ORDER_FIELDS = ['id', 'date_order'] as const;
+const DEFAULT_ORDER_FIELDS = ['id', 'date_order', 'amount_total'] as const;
 
 export async function fetchPosOrdersInDateRange<T extends Record<string, unknown> = PosOrderRow>(
   uid: number,

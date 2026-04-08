@@ -66,6 +66,15 @@ export function aggregateYearlyCompare(
   const monthly: Record<string, { omzet: number; marge: number }> = {};
   let marginAvailable = false;
 
+  for (const order of orders) {
+    const dateStr = order.date_order;
+    const month = dateStr.slice(5, 7);
+    if (!monthly[month]) {
+      monthly[month] = { omzet: 0, marge: 0 };
+    }
+    monthly[month].omzet += order.amount_total ?? 0;
+  }
+
   for (const line of lines) {
     const orderId = line.order_id?.[0];
     const dateStr = orderIdToDate[orderId];
@@ -75,7 +84,6 @@ export function aggregateYearlyCompare(
     if (!monthly[month]) {
       monthly[month] = { omzet: 0, marge: 0 };
     }
-    monthly[month].omzet += line.price_subtotal_incl ?? 0;
     if (typeof line.margin === 'number') {
       marginAvailable = true;
       monthly[month].marge += line.margin;
@@ -106,6 +114,16 @@ export function aggregateMonthlyDaily(
   const marge = Array<number>(days).fill(0);
   let marginFound = false;
 
+  for (const order of orders) {
+    const dateStr = order.date_order;
+    const y = parseInt(dateStr.slice(0, 4), 10);
+    const m = parseInt(dateStr.slice(5, 7), 10);
+    if (y !== year || m !== month) continue;
+    const day = parseInt(dateStr.slice(8, 10), 10) - 1;
+    if (day < 0 || day >= days) continue;
+    omzet[day] += order.amount_total ?? 0;
+  }
+
   for (const line of lines) {
     const orderId = line.order_id?.[0];
     const dateStr = orderIdToDate[orderId];
@@ -114,7 +132,6 @@ export function aggregateMonthlyDaily(
     const day = parseInt(dateStr.slice(8, 10), 10) - 1;
     if (day < 0 || day >= days) continue;
 
-    omzet[day] += line.price_subtotal_incl ?? 0;
     if (typeof line.margin === 'number') {
       marginFound = true;
       marge[day] += line.margin;
@@ -129,14 +146,24 @@ export function aggregateMonthlyDaily(
   };
 }
 
+function datePartFromDateOrder(dateTimeStr: string): string {
+  if (dateTimeStr.includes('T')) {
+    return dateTimeStr.split('T')[0];
+  }
+  if (dateTimeStr.includes(' ')) {
+    return dateTimeStr.split(' ')[0];
+  }
+  return dateTimeStr;
+}
+
 export function buildMonthlyInsights(
   orders: PosOrderRow[],
   lines: PosOrderLineRow[],
 ): { insights: MonthlyInsights; marginAvailable: boolean } | { error: string } {
-  if (lines.length > 0 && typeof lines[0].price_subtotal_incl !== 'number') {
+  if (orders.length > 0 && typeof orders[0].amount_total !== 'number') {
     return {
       error:
-        'Het veld price_subtotal_incl (inclusief btw) is niet beschikbaar op pos.order.line. Vraag je Odoo-beheerder om dit veld te activeren.',
+        'Het veld amount_total is niet beschikbaar op pos.order. Vraag je Odoo-beheerder om dit veld te controleren.',
     };
   }
 
@@ -158,19 +185,9 @@ export function buildMonthlyInsights(
 
   let marginAvailable = false;
 
-  for (const line of lines) {
-    const orderId = line.order_id?.[0];
-    const dateTimeStr = orderIdToDateTime[orderId];
-    if (!dateTimeStr) continue;
-
-    let datePart = '';
-    if (dateTimeStr.includes('T')) {
-      datePart = dateTimeStr.split('T')[0];
-    } else if (dateTimeStr.includes(' ')) {
-      datePart = dateTimeStr.split(' ')[0];
-    } else {
-      datePart = dateTimeStr;
-    }
+  for (const order of orders) {
+    const dateTimeStr = order.date_order;
+    const datePart = datePartFromDateOrder(dateTimeStr);
 
     if (!dailyData[datePart]) {
       dailyData[datePart] = {
@@ -182,36 +199,58 @@ export function buildMonthlyInsights(
       };
     }
 
-    const amount = line.price_subtotal_incl ?? 0;
-    const marginVal = line.margin ?? 0;
-
+    const amount = order.amount_total ?? 0;
     dailyData[datePart].total += amount;
-    dailyData[datePart].orderIds.add(orderId);
+    dailyData[datePart].orderIds.add(order.id);
 
+    const timeSlot = getTimeSlot(dateTimeStr);
+    if (timeSlot === 'morning') {
+      dailyData[datePart].morning.total += amount;
+      dailyData[datePart].morning.orderIds.add(order.id);
+    } else if (timeSlot === 'afternoon') {
+      dailyData[datePart].afternoon.total += amount;
+      dailyData[datePart].afternoon.orderIds.add(order.id);
+    } else {
+      dailyData[datePart].morning.total += amount;
+      dailyData[datePart].morning.orderIds.add(order.id);
+    }
+  }
+
+  for (const line of lines) {
+    const orderId = line.order_id?.[0];
+    const dateTimeStr = orderIdToDateTime[orderId];
+    if (!dateTimeStr) continue;
+
+    const datePart = datePartFromDateOrder(dateTimeStr);
+
+    if (!dailyData[datePart]) {
+      dailyData[datePart] = {
+        total: 0,
+        orderIds: new Set(),
+        margin: 0,
+        morning: { total: 0, orderIds: new Set(), margin: 0 },
+        afternoon: { total: 0, orderIds: new Set(), margin: 0 },
+      };
+    }
+
+    const marginVal = line.margin ?? 0;
     if (typeof line.margin === 'number') {
       marginAvailable = true;
       dailyData[datePart].margin = (dailyData[datePart].margin ?? 0) + marginVal;
     }
 
     const timeSlot = getTimeSlot(dateTimeStr);
-
     if (timeSlot === 'morning') {
-      dailyData[datePart].morning.total += amount;
-      dailyData[datePart].morning.orderIds.add(orderId);
       if (typeof line.margin === 'number') {
         dailyData[datePart].morning.margin =
           (dailyData[datePart].morning.margin ?? 0) + marginVal;
       }
     } else if (timeSlot === 'afternoon') {
-      dailyData[datePart].afternoon.total += amount;
-      dailyData[datePart].afternoon.orderIds.add(orderId);
       if (typeof line.margin === 'number') {
         dailyData[datePart].afternoon.margin =
           (dailyData[datePart].afternoon.margin ?? 0) + marginVal;
       }
     } else {
-      dailyData[datePart].morning.total += amount;
-      dailyData[datePart].morning.orderIds.add(orderId);
       if (typeof line.margin === 'number') {
         dailyData[datePart].morning.margin =
           (dailyData[datePart].morning.margin ?? 0) + marginVal;
