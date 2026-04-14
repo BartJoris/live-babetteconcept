@@ -69,6 +69,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         label: p.label,
         start: p.start,
         end: p.end,
+        officialStart: p.officialStart,
         vacationDays,
         omzet: t.omzet,
         orderCount: t.orderCount,

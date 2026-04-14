@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
@@ -27,6 +27,8 @@ type PeriodRow = {
   label: string;
   start: string;
   end: string;
+  /** Eerste officiële vakantiedag (omzetperiode start eerder, weekend ervoor inbegrepen). */
+  officialStart?: string;
   vacationDays?: number;
   omzet: number;
   orderCount: number;
@@ -177,6 +179,15 @@ export default function SalesVacationComparePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedYearsRef = useRef(selectedYears);
+  selectedYearsRef.current = selectedYears;
+
+  /** Stabiele sleutel: voorkomt useEffect-loops wanneer de array-referentie zonder inhoudswijziging verandert. */
+  const salesYearsSelectionKey = useMemo(
+    () => [...selectedYears].sort().join(','),
+    [selectedYears],
+  );
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedUid = localStorage.getItem('odoo_uid');
@@ -187,37 +198,46 @@ export default function SalesVacationComparePage() {
     }
   }, [router]);
 
-  const fetchData = useCallback(async () => {
-    if (!isLoggedIn || selectedYears.length === 0) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/sales-vacation-compare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ salesYears: selectedYears }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Laden mislukt');
-        return;
+  const fetchData = useCallback(
+    async (options?: { requestToken?: { aborted: boolean } }) => {
+      const token = options?.requestToken;
+      const salesYears = [...selectedYearsRef.current].sort();
+      if (!isLoggedIn || salesYears.length === 0) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/sales-vacation-compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ salesYears }),
+        });
+        const json = await res.json();
+        if (token?.aborted) return;
+        if (!res.ok) {
+          setError(typeof json.error === 'string' ? json.error : 'Laden mislukt');
+          return;
+        }
+        setPeriods(json.periods as PeriodRow[]);
+        setYearTotals((json.yearTotals as YearTotalRow[]) ?? []);
+        setMarginAvailable(Boolean(json.marginAvailable));
+        setLoadedSalesYears((json.salesYears as string[]) ?? []);
+      } catch {
+        if (!token?.aborted) setError('Netwerkfout');
+      } finally {
+        if (!token?.aborted) setLoading(false);
       }
-      setPeriods(json.periods as PeriodRow[]);
-      setYearTotals((json.yearTotals as YearTotalRow[]) ?? []);
-      setMarginAvailable(Boolean(json.marginAvailable));
-      setLoadedSalesYears((json.salesYears as string[]) ?? []);
-    } catch {
-      setError('Netwerkfout');
-    } finally {
-      setLoading(false);
-    }
-  }, [isLoggedIn, selectedYears]);
+    },
+    [isLoggedIn],
+  );
 
   useEffect(() => {
-    if (isLoggedIn && selectedYears.length > 0) {
-      fetchData();
-    }
-  }, [isLoggedIn, selectedYears, fetchData]);
+    if (!isLoggedIn || selectedYears.length === 0) return;
+    const requestToken = { aborted: false };
+    void fetchData({ requestToken });
+    return () => {
+      requestToken.aborted = true;
+    };
+  }, [isLoggedIn, salesYearsSelectionKey, fetchData]);
 
   const lookup = useMemo(() => {
     const m = new Map<string, PeriodRow>();
@@ -280,8 +300,9 @@ export default function SalesVacationComparePage() {
           <div className="mb-6">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Vakantievergelijking</h1>
             <p className="text-sm text-gray-600 mb-4">
-              Omzet tijdens de officiële schoolvakanties (Vlaanderen), per <strong>verkoopsjaar</strong> (1 september
-              t/m 31 augustus). De vijf vakantieblokken volgen de officiële data; datums verschillen per verkoopsjaar.
+              Omzet tijdens de schoolvakanties (Vlaanderen), per <strong>verkoopsjaar</strong> (1 september t/m 31
+              augustus). Per vakantie tellen we de omzet vanaf het <strong>weekend vóór de officiële start</strong>{' '}
+              (zaterdag–zondag), omdat die dagen vaak al sterk zijn. De einddatum blijft die van de officiële kalender.
               Voor het <strong>lopende verkoopsjaar</strong> tonen de totalen onderaan een schatting eind verkoopsjaar
               (gemiddelde per verstreken dag × lengte van de periode; vakantie/zonder vakantie behouden dezelfde
               verhouding als nu).
@@ -384,8 +405,13 @@ export default function SalesVacationComparePage() {
                                   <div className="text-xs text-gray-500 font-normal mt-0.5 whitespace-normal">
                                     {formatDateBE(cell.start)} – {formatDateBE(cell.end)}
                                   </div>
+                                  {cell.officialStart && cell.officialStart !== cell.start && (
+                                    <div className="text-xs text-gray-400 font-normal mt-0.5">
+                                      Officiële start {formatDateBE(cell.officialStart)}
+                                    </div>
+                                  )}
                                   <div className="text-xs text-gray-400 font-normal mt-0.5">
-                                    {dagen} {dagen === 1 ? 'dag' : 'dagen'} vakantie
+                                    {dagen} {dagen === 1 ? 'dag' : 'dagen'} (incl. weekend ervoor)
                                   </div>
                                 </>
                               )}
@@ -409,7 +435,10 @@ export default function SalesVacationComparePage() {
                     );
                   })}
                   <tr className="bg-amber-50 font-semibold border-t-2 border-amber-200">
-                    <td className="px-3 py-2 text-gray-900">Totaal vakantiedagen</td>
+                    <td className="px-3 py-2 text-gray-900 align-top">
+                      Totaal vakantiedagen
+                      <div className="text-xs font-normal text-gray-600 mt-0.5">Incl. weekend vóór start</div>
+                    </td>
                     {columnYears.map((y) => {
                       const days = yearTotalBySalesYear.get(y)?.totalVacationDays ?? 0;
                       return (

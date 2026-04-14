@@ -14,8 +14,15 @@ export type VacationPeriod = {
   vacationId: SchoolVacationId;
   /** Korte sleutel voor UI/API */
   label: string;
+  /**
+   * Eerste dag die meetelt voor omzet (inclusief het **weekend direct vóór** de officiële start,
+   * zie {@link vacationStartIncludingPriorWeekend}).
+   */
   start: string;
+  /** Laatste dag (ongewijzigd t.o.v. de officiële kalender). */
   end: string;
+  /** Eerste officiële vakantiedag (zonder uitbreiding). */
+  officialStart: string;
 };
 
 export const VACATION_LABELS: Record<SchoolVacationId, string> = {
@@ -69,6 +76,43 @@ const BY_SALES_YEAR: Record<string, YearEntry> = {
   },
 };
 
+function dateToYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * Verkoopperiode start op de zaterdag van het weekend **direct vóór** de officiële eerste vakantiedag.
+ * - Ma–vr: terug tot de zaterdag vóór die week (zo omvat je za–zo vóór een maandagstart).
+ * - Zaterdag als start: voeg het voorgaande za–zo-blok toe (start − 7 dagen).
+ * - Zondag als start: voeg het volledige weekend daarvoor toe (start − 8 dagen = zaterdag).
+ */
+export function vacationStartIncludingPriorWeekend(officialStartYmd: string): string {
+  const [y, m, d] = officialStartYmd.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  const dow = start.getDay();
+
+  if (dow === 6) {
+    const sat = new Date(start);
+    sat.setDate(sat.getDate() - 7);
+    return dateToYmd(sat);
+  }
+  if (dow === 0) {
+    const sat = new Date(start);
+    sat.setDate(sat.getDate() - 8);
+    return dateToYmd(sat);
+  }
+
+  let cur = new Date(start);
+  cur.setDate(cur.getDate() - 1);
+  while (cur.getDay() !== 6) {
+    cur.setDate(cur.getDate() - 1);
+  }
+  return dateToYmd(cur);
+}
+
 /** Aantal kalenderdagen in het interval [startYmd, endYmd] (grenzen inclusief). */
 export function vacationDaysInclusive(startYmd: string, endYmd: string): number {
   const [y1, m1, d1] = startYmd.split('-').map(Number);
@@ -92,13 +136,15 @@ export function getVacationPeriodsForSalesYears(salesYears: string[]): VacationP
     const entry = BY_SALES_YEAR[salesYear];
     if (!entry) continue;
     for (const vacationId of VACATION_ROW_ORDER) {
-      const { start, end } = entry[vacationId];
+      const { start: officialStart, end } = entry[vacationId];
+      const start = vacationStartIncludingPriorWeekend(officialStart);
       out.push({
         salesYear,
         vacationId,
         label: VACATION_LABELS[vacationId],
         start,
         end,
+        officialStart,
       });
     }
   }
