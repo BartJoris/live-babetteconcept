@@ -2,7 +2,12 @@ import type { NextApiResponse } from 'next';
 import { z } from 'zod';
 import { withAuth, type NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { fetchPosOrdersAndLinesForDateRange } from '@/lib/posSalesForRange';
-import { orderLinesHaveMarginField, sumTotalsInDateRange } from '@/lib/salesPosAggregates';
+import {
+  buildDailyTotalsMap,
+  computeVacationPrefixTotals,
+  orderLinesHaveMarginField,
+  sumTotalsInDateRange,
+} from '@/lib/salesPosAggregates';
 import {
   getOverallSalesYearCalendarBounds,
   getVacationPeriodsForSalesYears,
@@ -60,9 +65,11 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
     );
 
     const marginAvailable = orderLinesHaveMarginField(lines);
+    const dailyMap = buildDailyTotalsMap(orders, lines);
     const rows = periods.map((p) => {
       const t = sumTotalsInDateRange(orders, lines, p.start, p.end);
       const vacationDays = vacationDaysInclusive(p.start, p.end);
+      const { prefixOmzet, prefixMarge } = computeVacationPrefixTotals(dailyMap, p.start, p.end);
       return {
         salesYear: p.salesYear,
         vacationId: p.vacationId,
@@ -73,7 +80,8 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         vacationDays,
         omzet: t.omzet,
         orderCount: t.orderCount,
-        ...(marginAvailable ? { marge: t.marge } : {}),
+        prefixOmzet,
+        ...(marginAvailable ? { marge: t.marge, prefixMarge } : {}),
       };
     });
 

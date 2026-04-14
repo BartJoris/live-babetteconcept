@@ -32,7 +32,10 @@ type PeriodRow = {
   vacationDays?: number;
   omzet: number;
   orderCount: number;
+  /** Cumulatieve omzet: index i = eerste i+1 kalenderdagen vanaf start (API; ontbreekt → val terug op volledige periode). */
+  prefixOmzet?: number[];
   marge?: number;
+  prefixMarge?: number[];
 };
 
 type YearMetric = {
@@ -77,6 +80,165 @@ function vacationDaysForCell(cell: PeriodRow | undefined): number {
   if (!cell) return 0;
   if (typeof cell.vacationDays === 'number') return cell.vacationDays;
   return daysInclusiveYmd(cell.start, cell.end);
+}
+
+/**
+ * Dagen vanaf vakantiestart t/m vandaag (lokaal), afgekapt op einddatum.
+ * Lopende vakantie: alleen verstreken dagen tellen mee voor gemiddelde dagomzet.
+ */
+function elapsedVacationDaysForCell(cell: PeriodRow | undefined, todayYmd: string): number {
+  if (!cell?.start || !cell?.end) return 0;
+  if (todayYmd < cell.start) return 0;
+  const through = todayYmd <= cell.end ? todayYmd : cell.end;
+  return daysInclusiveYmd(cell.start, through);
+}
+
+function avgPerDayLabel(amount: number, days: number): string | null {
+  if (days < 1) return null;
+  return formatBE(amount / days);
+}
+
+function prefixAt(prefix: number[] | undefined, n: number): number | null {
+  if (!prefix || n < 1 || n > prefix.length) return null;
+  return prefix[n - 1];
+}
+
+/**
+ * Jaar-op-jaar omzet: als de vakantie in het huidige jaar nog loopt, vergelijk eerste N dagen
+ * met dezelfde N dagen vanaf de start bij het vorige jaar (N = verstreken dagen, afgekapt).
+ */
+function comparableYoYOmzet(
+  cell: PeriodRow | undefined,
+  prevCell: PeriodRow | undefined,
+  todayYmd: string,
+): { current: number; previous: number; dayAdjusted: boolean; compareDays?: number } {
+  const curFull = cell?.omzet ?? 0;
+  const prevFull = prevCell?.omzet ?? 0;
+  if (!cell || !prevCell) {
+    return { current: curFull, previous: prevFull, dayAdjusted: false };
+  }
+
+  const fullCur = vacationDaysForCell(cell);
+  const fullPrev = vacationDaysForCell(prevCell);
+  const elapsedCur = elapsedVacationDaysForCell(cell, todayYmd);
+  const ongoingCur = fullCur >= 1 && elapsedCur < fullCur;
+
+  if (!ongoingCur) {
+    return { current: cell.omzet, previous: prevCell.omzet, dayAdjusted: false };
+  }
+
+  const n = Math.min(elapsedCur, fullPrev, fullCur);
+  if (n < 1) {
+    return { current: cell.omzet, previous: prevCell.omzet, dayAdjusted: false };
+  }
+
+  const c = prefixAt(cell.prefixOmzet, n);
+  const p = prefixAt(prevCell.prefixOmzet, n);
+  if (c === null || p === null) {
+    return { current: cell.omzet, previous: prevCell.omzet, dayAdjusted: false };
+  }
+  return { current: c, previous: p, dayAdjusted: true, compareDays: n };
+}
+
+function comparableYoYMarge(
+  cell: PeriodRow | undefined,
+  prevCell: PeriodRow | undefined,
+  todayYmd: string,
+): { current: number; previous: number; dayAdjusted: boolean; compareDays?: number } {
+  const curFull = cell?.marge ?? 0;
+  const prevFull = prevCell?.marge ?? 0;
+  if (!cell || !prevCell) {
+    return { current: curFull, previous: prevFull, dayAdjusted: false };
+  }
+
+  const fullCur = vacationDaysForCell(cell);
+  const fullPrev = vacationDaysForCell(prevCell);
+  const elapsedCur = elapsedVacationDaysForCell(cell, todayYmd);
+  const ongoingCur = fullCur >= 1 && elapsedCur < fullCur;
+
+  if (!ongoingCur) {
+    return { current: cell.marge ?? 0, previous: prevCell.marge ?? 0, dayAdjusted: false };
+  }
+
+  const n = Math.min(elapsedCur, fullPrev, fullCur);
+  if (n < 1) {
+    return { current: cell.marge ?? 0, previous: prevCell.marge ?? 0, dayAdjusted: false };
+  }
+
+  const c = prefixAt(cell.prefixMarge, n);
+  const p = prefixAt(prevCell.prefixMarge, n);
+  if (c === null || p === null) {
+    return { current: cell.marge ?? 0, previous: prevCell.marge ?? 0, dayAdjusted: false };
+  }
+  return { current: c, previous: p, dayAdjusted: true, compareDays: n };
+}
+
+function comparableTotalsYoYOmzet(
+  yearY: string,
+  prevY: string,
+  lookup: Map<string, PeriodRow>,
+  todayYmd: string,
+): { current: number; previous: number; compareNote?: string } {
+  let sumCur = 0;
+  let sumPrev = 0;
+  let anyDayAdjusted = false;
+
+  for (const vid of VACATION_ROW_ORDER) {
+    const cell = lookup.get(`${vid}:${yearY}`);
+    const prevCell = lookup.get(`${vid}:${prevY}`);
+    if (!cell && !prevCell) continue;
+    if (!cell || !prevCell) {
+      sumCur += cell?.omzet ?? 0;
+      sumPrev += prevCell?.omzet ?? 0;
+      continue;
+    }
+    const r = comparableYoYOmzet(cell, prevCell, todayYmd);
+    sumCur += r.current;
+    sumPrev += r.previous;
+    if (r.dayAdjusted) anyDayAdjusted = true;
+  }
+
+  return {
+    current: sumCur,
+    previous: sumPrev,
+    compareNote: anyDayAdjusted
+      ? 'Waar een vakantie nog loopt: zelfde aantal kalenderdagen t.o.v. vorig jaar.'
+      : undefined,
+  };
+}
+
+function comparableTotalsYoYMarge(
+  yearY: string,
+  prevY: string,
+  lookup: Map<string, PeriodRow>,
+  todayYmd: string,
+): { current: number; previous: number; compareNote?: string } {
+  let sumCur = 0;
+  let sumPrev = 0;
+  let anyDayAdjusted = false;
+
+  for (const vid of VACATION_ROW_ORDER) {
+    const cell = lookup.get(`${vid}:${yearY}`);
+    const prevCell = lookup.get(`${vid}:${prevY}`);
+    if (!cell && !prevCell) continue;
+    if (!cell || !prevCell) {
+      sumCur += cell?.marge ?? 0;
+      sumPrev += prevCell?.marge ?? 0;
+      continue;
+    }
+    const r = comparableYoYMarge(cell, prevCell, todayYmd);
+    sumCur += r.current;
+    sumPrev += r.previous;
+    if (r.dayAdjusted) anyDayAdjusted = true;
+  }
+
+  return {
+    current: sumCur,
+    previous: sumPrev,
+    compareNote: anyDayAdjusted
+      ? 'Waar een vakantie nog loopt: zelfde aantal kalenderdagen t.o.v. vorig jaar.'
+      : undefined,
+  };
 }
 
 type SalesYearProjection = {
@@ -161,6 +323,112 @@ function ProjectionMargeLine({ value }: { value: number }) {
   return (
     <div className="text-xs font-normal text-green-800 mt-1 whitespace-nowrap">
       ∼ €{formatBE(value)} marge eind verkoopsjaar
+    </div>
+  );
+}
+
+/** Jaar-op-jaar % voor opeenvolgende kolommen (met dag-correctie als het nieuwste jaar nog loopt). */
+function collectConsecutiveYoYPctOmzet(
+  columnYears: string[],
+  lookup: Map<string, PeriodRow>,
+  vacationId: SchoolVacationId,
+  todayYmd: string,
+): number[] {
+  const pcts: number[] = [];
+  for (let i = 1; i < columnYears.length; i++) {
+    const prevY = columnYears[i - 1];
+    const currY = columnYears[i];
+    const cell = lookup.get(`${vacationId}:${currY}`);
+    const prevCell = lookup.get(`${vacationId}:${prevY}`);
+    const { current, previous } = comparableYoYOmzet(cell, prevCell, todayYmd);
+    if (previous > 0) pcts.push(((current - previous) / previous) * 100);
+  }
+  return pcts;
+}
+
+function collectConsecutiveYoYPctMarge(
+  columnYears: string[],
+  lookup: Map<string, PeriodRow>,
+  vacationId: SchoolVacationId,
+  todayYmd: string,
+): number[] {
+  const pcts: number[] = [];
+  for (let i = 1; i < columnYears.length; i++) {
+    const prevY = columnYears[i - 1];
+    const currY = columnYears[i];
+    const cell = lookup.get(`${vacationId}:${currY}`);
+    const prevCell = lookup.get(`${vacationId}:${prevY}`);
+    const { current, previous } = comparableYoYMarge(cell, prevCell, todayYmd);
+    if (previous > 0) pcts.push(((current - previous) / previous) * 100);
+  }
+  return pcts;
+}
+
+function arithmeticMean(xs: number[]): number | null {
+  if (xs.length === 0) return null;
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+/** Meest recente verkoopsjaarkolom met zomervakantie-omzet groter dan nul. */
+function latestNonzeroVacationOmzet(
+  columnYears: string[],
+  lookup: Map<string, PeriodRow>,
+  vacationId: SchoolVacationId,
+): { year: string; omzet: number } | null {
+  for (let i = columnYears.length - 1; i >= 0; i--) {
+    const y = columnYears[i];
+    const o = lookup.get(`${vacationId}:${y}`)?.omzet ?? 0;
+    if (o > 0) return { year: y, omzet: o };
+  }
+  return null;
+}
+
+function latestNonzeroVacationMarge(
+  columnYears: string[],
+  lookup: Map<string, PeriodRow>,
+  vacationId: SchoolVacationId,
+): { year: string; marge: number } | null {
+  for (let i = columnYears.length - 1; i >= 0; i--) {
+    const y = columnYears[i];
+    const m = lookup.get(`${vacationId}:${y}`)?.marge ?? 0;
+    if (m > 0) return { year: y, marge: m };
+  }
+  return null;
+}
+
+const ZOMER_ID: SchoolVacationId = 'zomer';
+
+/** Omzet- of margegroei t.o.v. het verkoopsjaar in de kolom links (eerste kolom: geen vergelijking). */
+function YearOverYearPct({
+  current,
+  previous,
+  previousYearLabel,
+  compareNote,
+}: {
+  current: number;
+  previous: number;
+  previousYearLabel: string;
+  compareNote?: string;
+}) {
+  if (previous <= 0) {
+    if (current <= 0) return null;
+    return (
+      <div className="text-xs text-gray-500 font-normal mt-0.5">
+        Geen vergelijking ({previousYearLabel}: €0)
+      </div>
+    );
+  }
+  const pct = ((current - previous) / previous) * 100;
+  const toneClass =
+    pct > 0.05 ? 'text-emerald-700' : pct < -0.05 ? 'text-red-700' : 'text-gray-600';
+  const sign = pct > 0 ? '+' : '';
+  return (
+    <div className="mt-0.5">
+      <div className={`text-xs font-medium ${toneClass}`}>
+        {sign}
+        {pct.toLocaleString('nl-BE', { maximumFractionDigits: 1 })}% t.o.v. {previousYearLabel}
+      </div>
+      {compareNote ? <div className="text-xs font-normal text-gray-500 mt-0.5">{compareNote}</div> : null}
     </div>
   );
 }
@@ -257,7 +525,19 @@ export default function SalesVacationComparePage() {
 
   const columnYears = loadedSalesYears.length > 0 ? loadedSalesYears : [...selectedYears].sort();
 
-  const todayYmd = useMemo(() => localYmd(new Date()), []);
+  const todayYmd = localYmd(new Date());
+
+  const elapsedVacationDaysByYear = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const y of columnYears) {
+      let sum = 0;
+      for (const vid of VACATION_ROW_ORDER) {
+        sum += elapsedVacationDaysForCell(lookup.get(`${vid}:${y}`), todayYmd);
+      }
+      m.set(y, sum);
+    }
+    return m;
+  }, [columnYears, lookup, todayYmd]);
 
   const projectionBySalesYear = useMemo(() => {
     const m = new Map<string, SalesYearProjection | null>();
@@ -278,6 +558,59 @@ export default function SalesVacationComparePage() {
     }
     return m;
   }, [columnYears, yearTotalBySalesYear, lookup, todayYmd, marginAvailable]);
+
+  /** Gemiddelde van opeenvolgende jaargroei % op de zomervakantie-rij; schatting volgende zomer = laatste bekende × (1 + gemiddelde). */
+  const summerOutlook = useMemo(() => {
+    if (columnYears.length < 2) {
+      return {
+        ok: false as const,
+        message: 'Selecteer minstens twee verkoopsjaren om een gemiddelde stijging en schatting voor de volgende zomer te tonen.',
+      };
+    }
+    const yoyPcts = collectConsecutiveYoYPctOmzet(columnYears, lookup, ZOMER_ID, todayYmd);
+    if (yoyPcts.length === 0) {
+      return {
+        ok: false as const,
+        message:
+          'Geen geldige jaar-op-jaar stappen voor de zomervakantie: waar een percentage zou kunnen worden berekend, is de omzet in de linkerkolom €0.',
+      };
+    }
+    const avgYoYPct = arithmeticMean(yoyPcts)!;
+    const baseline = latestNonzeroVacationOmzet(columnYears, lookup, ZOMER_ID);
+    if (!baseline) {
+      return {
+        ok: false as const,
+        message: 'Geen omzet gevonden voor de zomervakantie in de geselecteerde jaren.',
+      };
+    }
+    const projectedOmzet = baseline.omzet * (1 + avgYoYPct / 100);
+
+    let avgYoYMargePct: number | undefined;
+    let baselineMarge: { year: string; marge: number } | undefined;
+    let projectedMarge: number | undefined;
+    if (marginAvailable) {
+      const mPcts = collectConsecutiveYoYPctMarge(columnYears, lookup, ZOMER_ID, todayYmd);
+      const avgM = arithmeticMean(mPcts);
+      const bM = latestNonzeroVacationMarge(columnYears, lookup, ZOMER_ID);
+      if (avgM !== null && mPcts.length > 0 && bM) {
+        avgYoYMargePct = avgM;
+        baselineMarge = bM;
+        projectedMarge = bM.marge * (1 + avgM / 100);
+      }
+    }
+
+    return {
+      ok: true as const,
+      avgYoYPct,
+      yoyStepCount: yoyPcts.length,
+      baselineYear: baseline.year,
+      baselineOmzet: baseline.omzet,
+      projectedOmzet,
+      avgYoYMargePct,
+      baselineMarge,
+      projectedMarge,
+    };
+  }, [columnYears, lookup, marginAvailable, todayYmd]);
 
   const toggleYear = (y: string) => {
     setSelectedYears((prev) => {
@@ -305,7 +638,15 @@ export default function SalesVacationComparePage() {
               (zaterdag–zondag), omdat die dagen vaak al sterk zijn. De einddatum blijft die van de officiële kalender.
               Voor het <strong>lopende verkoopsjaar</strong> tonen de totalen onderaan een schatting eind verkoopsjaar
               (gemiddelde per verstreken dag × lengte van de periode; vakantie/zonder vakantie behouden dezelfde
-              verhouding als nu).
+              verhouding als nu). Per vakantiecel tonen we ook de <strong>gemiddelde dagomzet</strong>: omzet gedeeld door
+              het aantal <strong>verstreken</strong> dagen in die periode (t/m vandaag), niet door de volledige lengte
+              zolang de vakantie nog bezig is. Per cel (vanaf de tweede kolom) staat het{' '}
+              <strong>percentage verschil</strong> t.o.v. het verkoopsjaar in de kolom links; als een vakantie in het
+              nieuwere jaar <strong>nog bezig</strong> is, vergelijken we de omzet over hetzelfde aantal
+              kalenderdagen vanaf de start met het vorige jaar. Onder de tabel staat voor de{' '}
+              <strong>zomervakantie</strong> het gemiddelde van die historische jaar-op-jaar stappen en een{' '}
+              <strong>ruwe schatting</strong> van de omzet bij de volgende zomer (laatste bekende zomer × (1 + gemiddelde
+              groei)).
             </p>
             <div className="flex flex-wrap gap-3 items-center mb-2">
               {allYears.map((y) => (
@@ -367,7 +708,7 @@ export default function SalesVacationComparePage() {
                     {columnYears.map((y) => (
                       <th key={y} className="px-3 py-2 text-right text-gray-900 font-semibold border-b whitespace-nowrap">
                         {y}
-                        <div className="text-xs font-normal text-gray-500">Verkoopsjaar · omzet</div>
+                        <div className="text-xs font-normal text-gray-500">Verkoopsjaar · omzet · gem. /dag</div>
                       </th>
                     ))}
                     {marginAvailable &&
@@ -377,7 +718,7 @@ export default function SalesVacationComparePage() {
                           className="px-3 py-2 text-right text-gray-900 font-semibold border-b whitespace-nowrap"
                         >
                           <span className="sr-only">{y} </span>
-                          <div className="text-xs font-normal text-gray-500">Marge {y}</div>
+                          <div className="text-xs font-normal text-gray-500">Marge {y} · gem. /dag</div>
                         </th>
                       ))}
                   </tr>
@@ -390,16 +731,47 @@ export default function SalesVacationComparePage() {
                         <td className="px-3 py-2 text-gray-900 font-medium border-b border-gray-100">
                           {label}
                         </td>
-                        {columnYears.map((y) => {
+                        {columnYears.map((y, yi) => {
                           const cell = lookup.get(`${vid}:${y}`);
+                          const prevY = yi > 0 ? columnYears[yi - 1] : null;
+                          const prevCell = prevY ? lookup.get(`${vid}:${prevY}`) : null;
                           const omzet = cell?.omzet ?? 0;
                           const dagen = vacationDaysForCell(cell);
+                          const elapsedDagen = elapsedVacationDaysForCell(cell, todayYmd);
                           return (
                             <td
                               key={y}
                               className="px-3 py-2 text-right text-gray-800 border-b border-gray-100 align-top"
                             >
                               <div className="whitespace-nowrap">€{formatBE(omzet)}</div>
+                              {cell && elapsedDagen >= 1 && (
+                                <div className="text-xs text-gray-600 font-normal mt-0.5">
+                                  <div className="whitespace-nowrap">
+                                    Gem. €{avgPerDayLabel(omzet, elapsedDagen)}/dag
+                                  </div>
+                                  {elapsedDagen < dagen && (
+                                    <div className="text-gray-500 mt-0.5">
+                                      t/m vandaag: {elapsedDagen} van {dagen} dagen
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {prevY &&
+                                (() => {
+                                  const yoy = comparableYoYOmzet(cell, prevCell ?? undefined, todayYmd);
+                                  return (
+                                    <YearOverYearPct
+                                      current={yoy.current}
+                                      previous={yoy.previous}
+                                      previousYearLabel={prevY}
+                                      compareNote={
+                                        yoy.dayAdjusted && yoy.compareDays !== undefined
+                                          ? `Eerste ${yoy.compareDays} dagen van de periode vergeleken.`
+                                          : undefined
+                                      }
+                                    />
+                                  );
+                                })()}
                               {cell && (
                                 <>
                                   <div className="text-xs text-gray-500 font-normal mt-0.5 whitespace-normal">
@@ -419,15 +791,47 @@ export default function SalesVacationComparePage() {
                           );
                         })}
                         {marginAvailable &&
-                          columnYears.map((y) => {
+                          columnYears.map((y, yi) => {
                             const cell = lookup.get(`${vid}:${y}`);
                             const marge = cell?.marge ?? 0;
+                            const dagenM = vacationDaysForCell(cell);
+                            const elapsedM = elapsedVacationDaysForCell(cell, todayYmd);
+                            const prevY = yi > 0 ? columnYears[yi - 1] : null;
+                            const prevCell = prevY ? lookup.get(`${vid}:${prevY}`) : null;
                             return (
                               <td
                                 key={`m-${y}`}
-                                className="px-3 py-2 text-right text-green-800 border-b border-gray-100 whitespace-nowrap"
+                                className="px-3 py-2 text-right text-green-800 border-b border-gray-100 align-top"
                               >
-                                €{formatBE(marge)}
+                                <div className="whitespace-nowrap">€{formatBE(marge)}</div>
+                                {cell && elapsedM >= 1 && (
+                                  <div className="text-xs text-green-700/90 font-normal mt-0.5">
+                                    <div className="whitespace-nowrap">
+                                      Gem. €{avgPerDayLabel(marge, elapsedM)}/dag
+                                    </div>
+                                    {elapsedM < dagenM && (
+                                      <div className="text-green-700/70 mt-0.5">
+                                        t/m vandaag: {elapsedM} van {dagenM} dagen
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {prevY &&
+                                  (() => {
+                                    const yoy = comparableYoYMarge(cell, prevCell ?? undefined, todayYmd);
+                                    return (
+                                      <YearOverYearPct
+                                        current={yoy.current}
+                                        previous={yoy.previous}
+                                        previousYearLabel={prevY}
+                                        compareNote={
+                                          yoy.dayAdjusted && yoy.compareDays !== undefined
+                                            ? `Eerste ${yoy.compareDays} dagen van de periode vergeleken.`
+                                            : undefined
+                                        }
+                                      />
+                                    );
+                                  })()}
                               </td>
                             );
                           })}
@@ -456,29 +860,71 @@ export default function SalesVacationComparePage() {
                   </tr>
                   <tr className="bg-blue-100 font-bold border-t-2 border-gray-300">
                     <td className="px-3 py-2 text-gray-900">Totaal vakantie</td>
-                    {columnYears.map((y) => {
+                    {columnYears.map((y, yi) => {
                       let sum = 0;
                       for (const vid of VACATION_ROW_ORDER) {
                         sum += lookup.get(`${vid}:${y}`)?.omzet ?? 0;
                       }
+                      const prevY = yi > 0 ? columnYears[yi - 1] : null;
+                      const totalYoY = prevY ? comparableTotalsYoYOmzet(y, prevY, lookup, todayYmd) : null;
                       const pr = projectionBySalesYear.get(y);
+                      const totDaysFull = yearTotalBySalesYear.get(y)?.totalVacationDays ?? 0;
+                      const totDaysElapsed = elapsedVacationDaysByYear.get(y) ?? 0;
                       return (
                         <td key={y} className="px-3 py-2 text-right text-gray-900 align-top">
                           <div className="whitespace-nowrap">€{formatBE(sum)}</div>
+                          {totDaysElapsed >= 1 && (
+                            <div className="text-xs text-gray-700 font-normal mt-0.5">
+                              Gem. €{avgPerDayLabel(sum, totDaysElapsed)}/dag{' '}
+                              <span className="text-gray-500">
+                                (som omzet ÷ som verstreken dagen per vakantie
+                                {totDaysElapsed < totDaysFull ? `, ${totDaysElapsed}/${totDaysFull} dagen` : ''})
+                              </span>
+                            </div>
+                          )}
+                          {prevY && totalYoY && (
+                            <YearOverYearPct
+                              current={totalYoY.current}
+                              previous={totalYoY.previous}
+                              previousYearLabel={prevY}
+                              compareNote={totalYoY.compareNote}
+                            />
+                          )}
                           {pr && <ProjectionOmzetLine value={pr.projVakantieOmzet} />}
                         </td>
                       );
                     })}
                     {marginAvailable &&
-                      columnYears.map((y) => {
+                      columnYears.map((y, yi) => {
                         let sum = 0;
                         for (const vid of VACATION_ROW_ORDER) {
                           sum += lookup.get(`${vid}:${y}`)?.marge ?? 0;
                         }
+                        const prevY = yi > 0 ? columnYears[yi - 1] : null;
+                        const totalYoY = prevY ? comparableTotalsYoYMarge(y, prevY, lookup, todayYmd) : null;
                         const pr = projectionBySalesYear.get(y);
+                        const totDaysFull = yearTotalBySalesYear.get(y)?.totalVacationDays ?? 0;
+                        const totDaysElapsed = elapsedVacationDaysByYear.get(y) ?? 0;
                         return (
                           <td key={`mt-${y}`} className="px-3 py-2 text-right text-green-900 align-top">
                             <div className="whitespace-nowrap">€{formatBE(sum)}</div>
+                            {totDaysElapsed >= 1 && (
+                              <div className="text-xs text-green-800 font-normal mt-0.5">
+                                Gem. €{avgPerDayLabel(sum, totDaysElapsed)}/dag{' '}
+                                <span className="text-green-700/90">
+                                  (som marge ÷ som verstreken dagen
+                                  {totDaysElapsed < totDaysFull ? `, ${totDaysElapsed}/${totDaysFull}` : ''})
+                                </span>
+                              </div>
+                            )}
+                            {prevY && totalYoY && (
+                              <YearOverYearPct
+                                current={totalYoY.current}
+                                previous={totalYoY.previous}
+                                previousYearLabel={prevY}
+                                compareNote={totalYoY.compareNote}
+                              />
+                            )}
                             {pr && pr.projVakantieMarge !== undefined && (
                               <ProjectionMargeLine value={pr.projVakantieMarge} />
                             )}
@@ -549,6 +995,67 @@ export default function SalesVacationComparePage() {
                   </tr>
                 </tbody>
               </table>
+              {(periods.length > 0 || yearTotals.length > 0) && (
+                <div
+                  className={`mt-4 rounded-xl border p-4 text-sm ${
+                    summerOutlook.ok
+                      ? 'bg-sky-50 border-sky-200 text-sky-950'
+                      : 'bg-gray-50 border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <h2 className="font-semibold text-base mb-2 text-gray-900">
+                    Zomervakantie: gemiddelde stijging en schatting volgende zomer
+                  </h2>
+                  {summerOutlook.ok ? (
+                    <>
+                      <p className="mb-2">
+                        Gemiddelde jaarlijkse omzetstijging op de <strong>zomervakantie</strong> over{' '}
+                        <strong>{summerOutlook.yoyStepCount}</strong>{' '}
+                        {summerOutlook.yoyStepCount === 1
+                          ? 'jaar-op-jaar vergelijking'
+                          : 'opeenvolgende jaar-op-jaar vergelijkingen'}{' '}
+                        in deze kolommen:{' '}
+                        <strong>
+                          {summerOutlook.avgYoYPct > 0 ? '+' : ''}
+                          {summerOutlook.avgYoYPct.toLocaleString('nl-BE', {
+                            maximumFractionDigits: 1,
+                          })}
+                          %
+                        </strong>
+                        .
+                      </p>
+                      <p className="mb-2">
+                        Vertrekpunt (meest recente kolom met zomeromzet): verkoopsjaar{' '}
+                        <strong>{summerOutlook.baselineYear}</strong> — €{formatBE(summerOutlook.baselineOmzet)}.
+                      </p>
+                      <p className="mb-2 text-base font-semibold text-gray-900">
+                        Geschatte omzet volgende zomervakantie: ∼ €{formatBE(summerOutlook.projectedOmzet)}
+                      </p>
+                      {summerOutlook.projectedMarge !== undefined && summerOutlook.baselineMarge !== undefined && (
+                        <p className="mb-2 text-green-900">
+                          Marge (zelfde methode): gemiddelde stijging{' '}
+                          <strong>
+                            {(summerOutlook.avgYoYMargePct ?? 0) > 0 ? '+' : ''}
+                            {(summerOutlook.avgYoYMargePct ?? 0).toLocaleString('nl-BE', {
+                              maximumFractionDigits: 1,
+                            })}
+                            %
+                          </strong>
+                          , vertrekpunt {summerOutlook.baselineMarge.year} (€
+                          {formatBE(summerOutlook.baselineMarge.marge)}), schatting ∼ €
+                          {formatBE(summerOutlook.projectedMarge)}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-600 mt-3 leading-relaxed">
+                        Schatting = omzet meest recente zomervakantie in de tabel × (1 + gemiddelde groei). Enkel
+                        oriëntatie; geen model voor weer, prijzen of verkoopdagen.
+                      </p>
+                    </>
+                  ) : (
+                    <p>{summerOutlook.message}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

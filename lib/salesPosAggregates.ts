@@ -204,6 +204,83 @@ export function sumTotalsInDateRange(
   };
 }
 
+/** Kalenderdatums van start t/m eind (inclusief), als YYYY-MM-DD. */
+function* iterateInclusiveYmd(startYmd: string, endYmd: string): Generator<string> {
+  const [ys, ms, ds] = startYmd.split('-').map(Number);
+  const [ye, me, de] = endYmd.split('-').map(Number);
+  const cur = new Date(ys, ms - 1, ds);
+  const end = new Date(ye, me - 1, de);
+  for (; cur <= end; cur.setDate(cur.getDate() + 1)) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    yield `${y}-${m}-${d}`;
+  }
+}
+
+export type DailyBucket = {
+  omzet: number;
+  orderCount: number;
+  marge: number;
+};
+
+/** Eén keer alle orders/lijnen per kalenderdag aggregeren (zelfde regels als sumTotalsInDateRange). */
+export function buildDailyTotalsMap(orders: PosOrderRow[], lines: PosOrderLineRow[]): Map<string, DailyBucket> {
+  const orderIdToDate: Record<number, string> = {};
+  orders.forEach((order) => {
+    orderIdToDate[order.id] = order.date_order;
+  });
+
+  const map = new Map<string, DailyBucket>();
+  const bucket = (ymd: string): DailyBucket => {
+    let b = map.get(ymd);
+    if (!b) {
+      b = { omzet: 0, orderCount: 0, marge: 0 };
+      map.set(ymd, b);
+    }
+    return b;
+  };
+
+  for (const order of orders) {
+    const datePart = datePartFromDateOrder(order.date_order);
+    const b = bucket(datePart);
+    b.omzet += order.amount_total ?? 0;
+    b.orderCount += 1;
+  }
+
+  for (const line of lines) {
+    const orderId = line.order_id?.[0];
+    const dateTimeStr = orderIdToDate[orderId];
+    if (!dateTimeStr) continue;
+    const datePart = datePartFromDateOrder(dateTimeStr);
+    if (typeof line.margin === 'number') {
+      bucket(datePart).marge += line.margin;
+    }
+  }
+
+  return map;
+}
+
+/** Cumulatieve omzet/marge over opeenvolgende dagen binnen [startYmd, endYmd]; index i = eerste i+1 dagen. */
+export function computeVacationPrefixTotals(
+  daily: Map<string, DailyBucket>,
+  startYmd: string,
+  endYmd: string,
+): { prefixOmzet: number[]; prefixMarge: number[] } {
+  const prefixOmzet: number[] = [];
+  const prefixMarge: number[] = [];
+  let runO = 0;
+  let runM = 0;
+  for (const ymd of iterateInclusiveYmd(startYmd, endYmd)) {
+    const b = daily.get(ymd) ?? { omzet: 0, orderCount: 0, marge: 0 };
+    runO += b.omzet;
+    runM += b.marge;
+    prefixOmzet.push(runO);
+    prefixMarge.push(runM);
+  }
+  return { prefixOmzet, prefixMarge };
+}
+
 export function orderLinesHaveMarginField(lines: PosOrderLineRow[]): boolean {
   return lines.some((line) => typeof line.margin === 'number');
 }
