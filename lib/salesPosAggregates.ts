@@ -156,6 +156,58 @@ function datePartFromDateOrder(dateTimeStr: string): string {
   return dateTimeStr;
 }
 
+export type DateRangeTotals = {
+  omzet: number;
+  orderCount: number;
+  /** Som van regelmarges in het bereik (alleen regels met numeriek margin-telling). */
+  marge: number;
+};
+
+/** Som omzet en marge voor orders met date_order-datum in [startYmd, endYmd]. */
+export function sumTotalsInDateRange(
+  orders: PosOrderRow[],
+  lines: PosOrderLineRow[],
+  startYmd: string,
+  endYmd: string,
+): DateRangeTotals {
+  const orderIdToDate: Record<number, string> = {};
+  orders.forEach((order) => {
+    orderIdToDate[order.id] = order.date_order;
+  });
+
+  let omzet = 0;
+  let orderCount = 0;
+  for (const order of orders) {
+    const datePart = datePartFromDateOrder(order.date_order);
+    if (datePart >= startYmd && datePart <= endYmd) {
+      omzet += order.amount_total ?? 0;
+      orderCount += 1;
+    }
+  }
+
+  let marge = 0;
+  for (const line of lines) {
+    const orderId = line.order_id?.[0];
+    const dateTimeStr = orderIdToDate[orderId];
+    if (!dateTimeStr) continue;
+    const datePart = datePartFromDateOrder(dateTimeStr);
+    if (datePart < startYmd || datePart > endYmd) continue;
+    if (typeof line.margin === 'number') {
+      marge += line.margin;
+    }
+  }
+
+  return {
+    omzet,
+    orderCount,
+    marge,
+  };
+}
+
+export function orderLinesHaveMarginField(lines: PosOrderLineRow[]): boolean {
+  return lines.some((line) => typeof line.margin === 'number');
+}
+
 export function buildMonthlyInsights(
   orders: PosOrderRow[],
   lines: PosOrderLineRow[],

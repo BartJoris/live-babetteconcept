@@ -71,7 +71,7 @@ export default function Navigation() {
   const isActive = (path: string) => router.pathname === path;
   
   const isInzichtenActive = () => {
-    return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-insights', 
+    return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-vacation-compare', '/sales-insights', 
             '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
   };
   
@@ -148,6 +148,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/sales-monthly-compare" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-monthly-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Maandelijkse Vergelijking
+                    </Link>
+                    <Link href="/sales-vacation-compare" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-vacation-compare') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Vakantievergelijking
                     </Link>
                     <Link href="/sales-insights" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Verkoop Inzichten
@@ -469,6 +472,17 @@ export default function Navigation() {
                   }`}
                 >
                   Maandelijkse Vergelijking
+                </Link>
+                <Link
+                  href="/sales-vacation-compare"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-vacation-compare')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Vakantievergelijking
                 </Link>
                 <Link
                   href="/sales-insights"
