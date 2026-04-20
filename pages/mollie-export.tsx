@@ -32,6 +32,18 @@ function formatDate(dateStr: string) {
   });
 }
 
+/** Validates HTML date input value (YYYY-MM-DD) without relying on Date parsing quirks. */
+function isValidDateOnly(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(y, m - 1, d);
+  return t.getFullYear() === y && t.getMonth() === m - 1 && t.getDate() === d;
+}
+
+function isRangeValid(from: string, to: string): boolean {
+  return isValidDateOnly(from) && isValidDateOnly(to) && from <= to;
+}
+
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -59,13 +71,14 @@ export default function MollieExport() {
 
     const { from, to } = getDateRange();
 
-    if (!from || !to) {
-      setError('Selecteer een geldig datumbereik.');
-      return;
-    }
-
-    if (new Date(from) > new Date(to)) {
-      setError('Startdatum moet voor einddatum liggen.');
+    if (!isRangeValid(from, to)) {
+      if (!from || !to) {
+        setError('Selecteer een geldig datumbereik.');
+      } else if (!isValidDateOnly(from) || !isValidDateOnly(to)) {
+        setError('Ongeldige datum. Gebruik het datumveld om een periode te kiezen.');
+      } else {
+        setError('Startdatum moet voor of gelijk zijn aan de einddatum.');
+      }
       return;
     }
 
@@ -134,7 +147,7 @@ export default function MollieExport() {
   if (!isLoggedIn) return null;
 
   const { from, to } = getDateRange();
-  const rangeValid = from && to && new Date(from) <= new Date(to);
+  const rangeValid = isRangeValid(from, to);
 
   return (
     <>
@@ -230,6 +243,7 @@ export default function MollieExport() {
                     type="date"
                     value={customFrom}
                     onChange={(e) => setCustomFrom(e.target.value)}
+                    onInput={(e) => setCustomFrom(e.currentTarget.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -241,6 +255,7 @@ export default function MollieExport() {
                     type="date"
                     value={customTo}
                     onChange={(e) => setCustomTo(e.target.value)}
+                    onInput={(e) => setCustomTo(e.currentTarget.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
