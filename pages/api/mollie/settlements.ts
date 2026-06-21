@@ -1,64 +1,24 @@
-import type { NextApiResponse } from 'next';
+/**
+ * Mollie settlement CSV export — klassiek (`format` weggelaten of `classic`), volledige Odoo (`format=odoo`),
+ * of compacte bankregels (`format=odoo_bank` of `odoo-bank`).
+ *
+ * Odoo 19.1: import via Boekhouding → Bank; of rechtstreeks via `POST /api/mollie/import-odoo`.
+ */
 import { withAuth } from '@/lib/middleware/withAuth';
+import {
+  escapeCSV,
+  fetchInvoiceReference,
+  fetchSettlementsForPeriod,
+  fetchSettlementPayments,
+  fetchAllPaidPayments,
+  collectSettlementOdooRows,
+  buildCSVOdoo,
+  buildCSVOdooBank,
+  type MolliePayment,
+  type MollieSettlement,
+} from '@/lib/mollieSettlementShared';
 
-interface MolliePayment {
-  id: string;
-  mode: string;
-  createdAt: string;
-  status: string;
-  paidAt?: string;
-  description: string;
-  amount: { currency: string; value: string };
-  settlementAmount?: { currency: string; value: string };
-  amountRefunded?: { currency: string; value: string };
-  method?: string;
-  details?: {
-    consumerName?: string;
-    consumerAccount?: string;
-    consumerBic?: string;
-    [key: string]: unknown;
-  };
-  _links?: {
-    settlement?: { href: string; type: string };
-    [key: string]: unknown;
-  };
-}
-
-interface MollieListResponse {
-  count: number;
-  _embedded: { payments: MolliePayment[] };
-  _links: {
-    next?: { href: string };
-    self: { href: string };
-  };
-}
-
-interface MollieSettlement {
-  id: string;
-  reference: string;
-  createdAt: string;
-  settledAt?: string;
-  status: string;
-  amount: { currency: string; value: string };
-  invoiceId?: string;
-  periods?: Record<string, Record<string, {
-    revenue?: Array<{ description: string; method: string; count: number; amountNet: { currency: string; value: string }; amountVat: { currency: string; value: string }; amountGross: { currency: string; value: string } }>;
-    costs?: Array<{ description: string; method: string | null; count: number; amountNet: { currency: string; value: string }; amountVat: { currency: string; value: string }; amountGross: { currency: string; value: string } }>;
-  }>>;
-}
-
-interface MollieInvoice {
-  resource: string;
-  id: string;
-  reference: string;
-}
-
-interface MollieSettlementListResponse {
-  count: number;
-  _embedded: { settlements: MollieSettlement[] };
-  _links: { next?: { href: string }; self: { href: string } };
-}
-
+/** Klassieke export: dashboard-achtige labels (o.a. bancontact → mistercash). */
 const METHOD_MAP: Record<string, string> = {
   bancontact: 'mistercash',
   ideal: 'ideal',
@@ -77,13 +37,6 @@ const METHOD_MAP: Record<string, string> = {
   pointofsale: 'pointofsale',
 };
 
-function escapeCSV(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes(' ')) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
 function formatSettlementDate(isoDate: string): string {
   const d = new Date(isoDate);
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -95,107 +48,8 @@ function mapMethod(method?: string): string {
   return METHOD_MAP[method] || method;
 }
 
-async function fetchMollie(url: string, token: string) {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Mollie API ${response.status}: ${text}`);
-  }
-  return response.json();
-}
-
-async function fetchSettlementsForPeriod(
-  token: string,
-  fromDate: Date,
-  toDate: Date
-): Promise<MollieSettlement[]> {
-  const settlements: MollieSettlement[] = [];
-  const fromMonth = fromDate.getUTCMonth() + 1;
-  const fromYear = fromDate.getUTCFullYear();
-  const toMonth = toDate.getUTCMonth() + 1;
-  const toYear = toDate.getUTCFullYear();
-
-  let year = fromYear;
-  let month = fromMonth;
-
-  while (year < toYear || (year === toYear && month <= toMonth)) {
-    let url: string | null =
-      `https://api.mollie.com/v2/settlements?limit=250&year=${year}&month=${month}`;
-
-    while (url) {
-      const data: MollieSettlementListResponse = await fetchMollie(url, token);
-      for (const s of data._embedded.settlements) {
-        if (!settlements.find((existing) => existing.id === s.id)) {
-          settlements.push(s);
-        }
-      }
-      url = data._links.next?.href || null;
-    }
-
-    month++;
-    if (month > 12) {
-      month = 1;
-      year++;
-    }
-  }
-
-  return settlements;
-}
-
-async function fetchSettlementPayments(
-  token: string,
-  settlementId: string
-): Promise<MolliePayment[]> {
-  const payments: MolliePayment[] = [];
-  let url: string | null =
-    `https://api.mollie.com/v2/settlements/${settlementId}/payments?limit=250`;
-
-  while (url) {
-    const data: MollieListResponse = await fetchMollie(url, token);
-    payments.push(...data._embedded.payments);
-    url = data._links.next?.href || null;
-  }
-
-  return payments;
-}
-
-async function fetchAllPaidPayments(
-  apiKey: string,
-  from: Date,
-  to: Date
-): Promise<MolliePayment[]> {
-  const payments: MolliePayment[] = [];
-  let url: string | null =
-    'https://api.mollie.com/v2/payments?limit=250&sort=desc';
-
-  while (url) {
-    const data: MollieListResponse = await fetchMollie(url, apiKey);
-    let passedStartDate = false;
-
-    for (const payment of data._embedded.payments) {
-      const createdAt = new Date(payment.createdAt);
-      if (createdAt < from) {
-        passedStartDate = true;
-        break;
-      }
-      if (createdAt <= to && payment.status === 'paid') {
-        payments.push(payment);
-      }
-    }
-
-    if (passedStartDate) break;
-    url = data._links.next?.href || null;
-  }
-
-  return payments;
-}
-
-interface CSVRow {
+/** 13 kolommen — zelfde leveringspatroon als vóór de API-ruwe export. */
+interface CSVRowClassic {
   datum: string;
   betaalmethode: string;
   valuta: string;
@@ -212,7 +66,7 @@ interface CSVRow {
   teruggestortBedrag: string;
 }
 
-function buildCSV(rows: CSVRow[]): string {
+function buildCSVClassic(rows: CSVRowClassic[]): string {
   const headers = [
     'Datum',
     'Betaalmethode',
@@ -254,13 +108,12 @@ function buildCSV(rows: CSVRow[]): string {
   return '\uFEFF' + [headers.map(escapeCSV).join(','), ...csvRows].join('\r\n');
 }
 
-function paymentToRow(
-  payment: MolliePayment,
-  settlementRef: string
-): CSVRow {
+function paymentToRowClassic(payment: MolliePayment, settlementRef: string): CSVRowClassic {
   const refundedValue = parseFloat(payment.amountRefunded?.value || '0');
   return {
-    datum: payment.paidAt ? formatSettlementDate(payment.paidAt) : formatSettlementDate(payment.createdAt),
+    datum: payment.paidAt
+      ? formatSettlementDate(payment.paidAt)
+      : formatSettlementDate(payment.createdAt),
     betaalmethode: mapMethod(payment.method),
     valuta: payment.amount.currency,
     bedrag: payment.amount.value,
@@ -277,18 +130,18 @@ function paymentToRow(
   };
 }
 
-function costToRow(
+function costToRowClassic(
   cost: NonNullable<NonNullable<MollieSettlement['periods']>[string][string]['costs']>[number],
   settlement: MollieSettlement,
-  settledAt: string,
+  settledAtFormatted: string,
   invoiceReference?: string
-): CSVRow {
+): CSVRowClassic {
   const grossValue = parseFloat(cost.amountGross.value);
   const description = invoiceReference
     ? `Withheld fees ${invoiceReference}`
     : `Withheld fees - ${cost.description}`;
   return {
-    datum: settledAt,
+    datum: settledAtFormatted,
     betaalmethode: '',
     valuta: cost.amountGross.currency,
     bedrag: (-Math.abs(grossValue)).toFixed(2),
@@ -305,21 +158,6 @@ function costToRow(
   };
 }
 
-async function fetchInvoiceReference(
-  token: string,
-  invoiceId: string
-): Promise<string | undefined> {
-  try {
-    const invoice: MollieInvoice = await fetchMollie(
-      `https://api.mollie.com/v2/invoices/${invoiceId}`,
-      token
-    );
-    return invoice.reference;
-  } catch {
-    return undefined;
-  }
-}
-
 export default withAuth(async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -332,10 +170,16 @@ export default withAuth(async (req, res) => {
     return res.status(500).json({ error: 'MOLLIE_API_KEY of MOLLIE_ACCESS_TOKEN niet geconfigureerd' });
   }
 
-  const { from: fromStr, to: toStr } = req.query;
+  const { from: fromStr, to: toStr, format: formatParam } = req.query;
   if (!fromStr || !toStr || typeof fromStr !== 'string' || typeof toStr !== 'string') {
     return res.status(400).json({ error: 'Parameters "from" en "to" zijn verplicht (YYYY-MM-DD)' });
   }
+
+  const fmt =
+    typeof formatParam === 'string' ? formatParam.toLowerCase().replace(/-/g, '_') : '';
+  const isOdooDetail = fmt === 'odoo' || fmt === 'extended';
+  const isOdooBank = fmt === 'odoo_bank';
+  const needsOdooRows = isOdooDetail || isOdooBank;
 
   const from = new Date(fromStr + 'T00:00:00.000Z');
   const to = new Date(toStr + 'T23:59:59.999Z');
@@ -345,12 +189,38 @@ export default withAuth(async (req, res) => {
   }
 
   try {
-    let csvRows: CSVRow[] = [];
+    let csvRowsClassic: CSVRowClassic[] = [];
     let approach = 'settlements';
     let settlementError = '';
 
-    // Prefer access token for settlements (requires settlements.read scope)
     const settlementToken = accessToken || apiKey!;
+
+    if (needsOdooRows) {
+      const { rows, approach: ap, settlementError: se } = await collectSettlementOdooRows({
+        apiKey: apiKey!,
+        accessToken,
+        from,
+        to,
+      });
+      approach = ap;
+      settlementError = se;
+
+      const csv = isOdooBank ? buildCSVOdooBank(rows) : buildCSVOdoo(rows);
+      const filename = isOdooBank
+        ? `mollie-settlements-${fromStr}-tot-${toStr}-odoo-bank.csv`
+        : `mollie-settlements-${fromStr}-tot-${toStr}-odoo.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Transaction-Count', String(rows.length));
+      res.setHeader('X-Approach', approach);
+      res.setHeader('X-Export-Format', isOdooBank ? 'odoo_bank' : 'odoo');
+      if (settlementError) {
+        res.setHeader('X-Settlement-Error', 'true');
+      }
+      res.status(200).send(csv);
+      return;
+    }
 
     try {
       const settlements = await fetchSettlementsForPeriod(settlementToken, from, to);
@@ -360,7 +230,7 @@ export default withAuth(async (req, res) => {
         const ref = settlement.reference || settlement.id;
 
         for (const payment of payments) {
-          csvRows.push(paymentToRow(payment, ref));
+          csvRowsClassic.push(paymentToRowClassic(payment, ref));
         }
 
         if (settlement.periods) {
@@ -378,7 +248,7 @@ export default withAuth(async (req, res) => {
               const period = settlement.periods[yearKey][monthKey];
               if (period.costs) {
                 for (const cost of period.costs) {
-                  csvRows.push(costToRow(cost, settlement, settledAt, invoiceRef));
+                  csvRowsClassic.push(costToRowClassic(cost, settlement, settledAt, invoiceRef));
                 }
               }
             }
@@ -389,24 +259,23 @@ export default withAuth(async (req, res) => {
       approach = 'payments';
       settlementError = err instanceof Error ? err.message : 'Onbekende fout';
       console.warn('Settlements API niet beschikbaar, fallback naar Payments API:', settlementError);
-      csvRows = [];
 
       const payments = await fetchAllPaidPayments(apiKey!, from, to);
-
+      csvRowsClassic = [];
       for (const payment of payments) {
-        csvRows.push(paymentToRow(payment, ''));
+        csvRowsClassic.push(paymentToRowClassic(payment, ''));
       }
     }
 
-    csvRows.sort((a, b) => b.datum.localeCompare(a.datum));
-
-    const csv = buildCSV(csvRows);
+    csvRowsClassic.sort((a, b) => b.datum.localeCompare(a.datum));
+    const csv = buildCSVClassic(csvRowsClassic);
     const filename = `mollie-settlements-${fromStr}-tot-${toStr}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('X-Transaction-Count', String(csvRows.length));
+    res.setHeader('X-Transaction-Count', String(csvRowsClassic.length));
     res.setHeader('X-Approach', approach);
+    res.setHeader('X-Export-Format', 'classic');
     if (settlementError) {
       res.setHeader('X-Settlement-Error', 'true');
     }
