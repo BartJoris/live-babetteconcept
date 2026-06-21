@@ -224,6 +224,25 @@ export class OdooClient {
   }
 
   /**
+   * Batch create (Odoo 14+ `create` accepts a list of dicts). Returns list of new ids.
+   */
+  async createMulti(
+    uid: number,
+    password: string,
+    model: string,
+    valuesList: Record<string, unknown>[]
+  ): Promise<number[]> {
+    if (valuesList.length === 0) return [];
+    return this.call<number[]>({
+      uid,
+      password,
+      model,
+      method: 'create',
+      args: [valuesList],
+    });
+  }
+
+  /**
    * Update records in Odoo
    */
   async write(

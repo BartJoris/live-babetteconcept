@@ -15,7 +15,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Only expose boolean presence, not the actual values
-  const keys = ['ODOO_URL', 'ODOO_DB', 'ODOO_USERNAME', 'ODOO_API_KEY', 'N8N_API_KEY'] as const;
+  const keys = [
+    'ODOO_URL',
+    'ODOO_DB',
+    'ODOO_USERNAME',
+    'ODOO_API_KEY',
+    'ODOO_MOLLIE_BANK_JOURNAL_ID',
+    'N8N_API_KEY',
+  ] as const;
   const presence: Record<string, boolean> = {};
   keys.forEach((k) => {
     presence[k] = Boolean(process.env[k]);
