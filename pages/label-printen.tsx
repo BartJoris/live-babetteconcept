@@ -21,6 +21,7 @@ export default function LabelPrintenPage() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -124,6 +125,36 @@ export default function LabelPrintenPage() {
     if (confirm('Weet je zeker dat je alles wil leegmaken?')) {
       setRows([]);
     }
+  };
+
+  const handleUpdatePrices = async () => {
+    const updates = rows
+      .filter(r => r.productId != null && r.price != null && r.price >= 0)
+      .map(r => ({ variantId: r.productId as number, price: r.price as number }));
+
+    if (updates.length === 0) {
+      setAlert('Geen producten met geldige productId om bij te werken.', 'error');
+      return;
+    }
+
+    setIsUpdatingPrices(true);
+    try {
+      const res = await fetch('/api/odoo/update-stocksale-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setAlert(`${data.updated} product(en) bijgewerkt in Odoo.`, 'success');
+      } else {
+        setAlert(`${data.updated} gelukt, ${data.failed} mislukt. ${data.errors?.[0] ?? ''}`, 'error');
+      }
+    } catch {
+      setAlert('Prijzen bijwerken mislukt.', 'error');
+    }
+    setIsUpdatingPrices(false);
   };
 
   const handlePrintLabels = () => {
@@ -236,6 +267,19 @@ export default function LabelPrintenPage() {
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
           <button
+            onClick={handleUpdatePrices}
+            disabled={isUpdatingPrices || rows.length === 0}
+            style={{
+              ...btnStyle,
+              background: isUpdatingPrices ? '#93c5fd' : '#3b82f6',
+              color: '#fff',
+              border: '1px solid #3b82f6',
+              cursor: isUpdatingPrices || rows.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isUpdatingPrices ? 'Bijwerken...' : 'Prijzen aanpassen'}
+          </button>
+          <button
             onClick={handlePrintLabels}
             disabled={rows.length === 0}
             style={{
@@ -283,7 +327,32 @@ export default function LabelPrintenPage() {
                     <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.barcode}</div>
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    {r.price != null ? `€${r.price.toFixed(2)}` : '-'}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                      <span style={{ fontSize: 14 }}>€</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={r.price ?? ''}
+                        onChange={e => {
+                          const val = e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0);
+                          setRows(prev => {
+                            const next = [...prev];
+                            next[i] = { ...next[i], price: val };
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: 80,
+                          padding: 4,
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 4,
+                          textAlign: 'right',
+                          fontWeight: 600,
+                          fontSize: 14,
+                        }}
+                      />
+                    </div>
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'center' }}>
                     <input

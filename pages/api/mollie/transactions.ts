@@ -1,4 +1,3 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '@/lib/middleware/withAuth';
 
 interface MolliePayment {
