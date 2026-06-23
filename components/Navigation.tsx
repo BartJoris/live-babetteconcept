@@ -84,7 +84,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/stocksale', '/product-check', '/archiveer-varianten'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
   };
 
   return (
@@ -306,6 +306,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/stocksale" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stocksale') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🏷️ Stocksale Labels
+                    </Link>
+                    <Link href="/label-printen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/label-printen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🖨️ Label printen
                     </Link>
                     <Link href="/archiveer-varianten" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/archiveer-varianten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📦 Archiveer varianten
@@ -949,6 +952,17 @@ export default function Navigation() {
                   }`}
                 >
                   🏷️ Stocksale Labels
+                </Link>
+                <Link
+                  href="/label-printen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/label-printen')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🖨️ Label printen
                 </Link>
                 <Link
                   href="/archiveer-varianten"
