@@ -84,7 +84,7 @@ export default function Navigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/stocksale', '/product-check', '/archiveer-varianten'].includes(router.pathname);
   };
 
   return (
@@ -303,6 +303,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/stock-verkopen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stock-verkopen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       💰 Stock verkopen
+                    </Link>
+                    <Link href="/stocksale" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stocksale') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🏷️ Stocksale Labels
                     </Link>
                     <Link href="/archiveer-varianten" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/archiveer-varianten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📦 Archiveer varianten
@@ -935,6 +938,17 @@ export default function Navigation() {
                   }`}
                 >
                   💰 Stock verkopen
+                </Link>
+                <Link
+                  href="/stocksale"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/stocksale')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🏷️ Stocksale Labels
                 </Link>
                 <Link
                   href="/archiveer-varianten"
