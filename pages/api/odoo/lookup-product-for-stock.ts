@@ -79,10 +79,15 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
       'product.product',
       [['barcode', '=', String(barcode)]],
       fields,
-      1
+      10,
+      undefined,
+      'id asc'
     );
 
-    let prod = activeProducts && activeProducts.length > 0 ? activeProducts[0] : null;
+    let prod: OdooRawProduct | null = null;
+    if (activeProducts && activeProducts.length > 0) {
+      prod = activeProducts.find(p => !p.display_name.includes('(copy)')) ?? activeProducts[0];
+    }
 
     if (!prod) {
       const archivedProducts = await searchReadWithContext(
@@ -92,7 +97,9 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         fields,
         { active_test: false }
       );
-      prod = archivedProducts && archivedProducts.length > 0 ? archivedProducts[0] : null;
+      if (archivedProducts && archivedProducts.length > 0) {
+        prod = archivedProducts.find(p => !p.display_name.includes('(copy)')) ?? archivedProducts[0];
+      }
     }
 
     if (!prod) {

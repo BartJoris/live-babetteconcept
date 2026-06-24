@@ -70,17 +70,22 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
 
     const fields = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price'];
     
-    // Eerst zoeken naar actieve producten
+    // Eerst zoeken naar actieve producten, gesorteerd op id asc (origineel eerst)
     const activeProducts = await odooClient.searchRead<OdooRawProduct>(
       user.uid,
       user.password,
       'product.product',
       [['barcode', '=', String(barcode)]],
       fields,
-      1
+      10,
+      undefined,
+      'id asc'
     );
 
-    let prod = activeProducts && activeProducts.length > 0 ? activeProducts[0] : null;
+    let prod: OdooRawProduct | null = null;
+    if (activeProducts && activeProducts.length > 0) {
+      prod = activeProducts.find(p => !p.display_name.includes('(copy)')) ?? activeProducts[0];
+    }
 
     // Als geen actief product gevonden, zoek in gearchiveerde producten
     if (!prod) {
@@ -92,7 +97,9 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
         fields,
         { active_test: false }
       );
-      prod = archivedProducts && archivedProducts.length > 0 ? archivedProducts[0] : null;
+      if (archivedProducts && archivedProducts.length > 0) {
+        prod = archivedProducts.find(p => !p.display_name.includes('(copy)')) ?? archivedProducts[0];
+      }
     }
 
     if (!prod) {
