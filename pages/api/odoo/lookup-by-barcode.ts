@@ -70,24 +70,41 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
 
     const fields = ['id', 'barcode', 'display_name', 'list_price', 'qty_available', 'standard_price'];
     
-    // Eerst zoeken naar actieve producten, gesorteerd op id asc (origineel eerst)
-    const activeProducts = await odooClient.searchRead<OdooRawProduct>(
+    let prod: OdooRawProduct | null = null;
+
+    // Eerst zoeken naar actieve producten zonder "(copy)"
+    const preferredProducts = await odooClient.searchRead<OdooRawProduct>(
       user.uid,
       user.password,
       'product.product',
-      [['barcode', '=', String(barcode)]],
+      [['barcode', '=', String(barcode)], ['display_name', 'not ilike', '(copy)']],
       fields,
-      10,
+      1,
       undefined,
       'id asc'
     );
-
-    let prod: OdooRawProduct | null = null;
-    if (activeProducts && activeProducts.length > 0) {
-      prod = activeProducts.find(p => !p.display_name.includes('(copy)')) ?? activeProducts[0];
+    if (preferredProducts && preferredProducts.length > 0) {
+      prod = preferredProducts[0];
     }
 
-    // Als geen actief product gevonden, zoek in gearchiveerde producten
+    // Fallback: elk actief product met deze barcode
+    if (!prod) {
+      const allActive = await odooClient.searchRead<OdooRawProduct>(
+        user.uid,
+        user.password,
+        'product.product',
+        [['barcode', '=', String(barcode)]],
+        fields,
+        1,
+        undefined,
+        'id asc'
+      );
+      if (allActive && allActive.length > 0) {
+        prod = allActive[0];
+      }
+    }
+
+    // Laatste optie: gearchiveerde producten
     if (!prod) {
       const archivedProducts = await searchReadWithContext(
         user.uid,

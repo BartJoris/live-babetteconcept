@@ -73,22 +73,41 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const activeProducts = await odooClient.searchRead<OdooRawProduct>(
+    let prod: OdooRawProduct | null = null;
+
+    // First: try to find active product excluding copies
+    const preferredProducts = await odooClient.searchRead<OdooRawProduct>(
       user.uid,
       user.password,
       'product.product',
-      [['barcode', '=', String(barcode)]],
+      [['barcode', '=', String(barcode)], ['display_name', 'not ilike', '(copy)']],
       fields,
-      10,
+      1,
       undefined,
       'id asc'
     );
-
-    let prod: OdooRawProduct | null = null;
-    if (activeProducts && activeProducts.length > 0) {
-      prod = activeProducts.find(p => !p.display_name.includes('(copy)')) ?? activeProducts[0];
+    if (preferredProducts && preferredProducts.length > 0) {
+      prod = preferredProducts[0];
     }
 
+    // Fallback: any active product with this barcode
+    if (!prod) {
+      const allActive = await odooClient.searchRead<OdooRawProduct>(
+        user.uid,
+        user.password,
+        'product.product',
+        [['barcode', '=', String(barcode)]],
+        fields,
+        1,
+        undefined,
+        'id asc'
+      );
+      if (allActive && allActive.length > 0) {
+        prod = allActive[0];
+      }
+    }
+
+    // Last resort: archived products
     if (!prod) {
       const archivedProducts = await searchReadWithContext(
         user.uid,
