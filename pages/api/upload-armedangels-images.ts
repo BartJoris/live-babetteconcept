@@ -71,6 +71,14 @@ export default async function handler(
     });
   }
 
+  if (process.env.VERCEL) {
+    return res.status(501).json({
+      success: false,
+      results: [],
+      error: 'Deze functie is niet beschikbaar op Vercel. Gebruik de afbeeldingen upload pagina (/image-upload) in plaats van server-side bestandstoegang.',
+    });
+  }
+
   try {
     const { imageFolderPath, products, odooUid, odooPassword } = req.body as {
       imageFolderPath: string;

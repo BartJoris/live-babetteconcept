@@ -95,6 +95,13 @@ async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
     return res.status(405).json({ success: false, error: 'Only POST allowed' });
   }
 
+  if (process.env.VERCEL) {
+    return res.status(501).json({
+      error: 'Deze functie is niet beschikbaar op Vercel. Gebruik de afbeeldingen upload pagina (/image-upload) in plaats van server-side bestandstoegang.',
+      suggestion: '/image-upload',
+    });
+  }
+
   try {
     const { imageFolderPath, maxImagesPerProduct = 5 } = req.body as {
       imageFolderPath?: string;

@@ -64,6 +64,13 @@ export default async function handler(
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
+  if (process.env.VERCEL) {
+    return res.status(501).json({
+      success: false,
+      error: 'Deze functie is niet beschikbaar op Vercel. Gebruik de afbeeldingen upload pagina (/image-upload) in plaats van server-side bestandstoegang.',
+    });
+  }
+
   try {
     const { imageFolderPath, productReferences } = req.body as {
       imageFolderPath: string;

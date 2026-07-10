@@ -1,14 +1,30 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { getSupplier, getAllSuppliers } from '@/lib/suppliers';
 import type { SupplierPlugin } from '@/lib/suppliers/types';
+import { supportsDirectoryPicker, isIOS } from '@/lib/import/shared/browser-utils';
+import { compressImage } from '@/lib/import/shared/image-utils';
+
+interface ExistingImage {
+  id: number;
+  name: string;
+  thumbnail: string;
+  sequence: number;
+}
 
 interface OdooProduct {
   templateId: number;
-  reference: string;
   name: string;
+  internalRef: string;
+  hasImage: boolean;
+  mainThumbnail: string | null;
+  galleryImages: ExistingImage[];
+  createDate: string;
+  isFavorite: boolean;
+  isPublished: boolean;
+  variantCount: number;
 }
 
 interface ImageItem {
@@ -16,11 +32,27 @@ interface ImageItem {
   dataUrl: string;
   filename: string;
   file: File;
-  assignedReference: string;
+  assignedTemplateId: number | null;
   order: number;
 }
 
+type FilterMode = 'all' | 'favorites' | 'no-images' | 'recent';
+
 let _imgId = 0;
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('nl-BE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isRecent(dateStr: string, days: number = 7): boolean {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return d >= cutoff;
+}
 
 export default function ImageUploadPage() {
   const router = useRouter();
@@ -32,11 +64,12 @@ export default function ImageUploadPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [uploadResults, setUploadResults] = useState<Array<{ reference: string; success: boolean; count: number; error?: string }>>([]);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set());
+  const [uploadResults, setUploadResults] = useState<Array<{ templateId: number; name: string; success: boolean; count: number; error?: string }>>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Set vendor from URL on mount
   useEffect(() => {
     if (vendor && typeof vendor === 'string') {
       setSelectedVendor(vendor);
@@ -45,11 +78,8 @@ export default function ImageUploadPage() {
     }
   }, [vendor]);
 
-  // Load products from Odoo when vendor changes
   useEffect(() => {
-    if (selectedVendor && plugin) {
-      loadProducts();
-    }
+    if (selectedVendor && plugin) loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVendor, plugin]);
 
@@ -61,10 +91,8 @@ export default function ImageUploadPage() {
         const password = localStorage.getItem('odoo_pass');
         if (password) return { uid: String(data.user.uid), password };
       }
-    } catch { /* fallback below */ }
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
+    } catch { /* fallback */ }
+    return { uid: localStorage.getItem('odoo_uid'), password: localStorage.getItem('odoo_pass') };
   };
 
   const loadProducts = async () => {
@@ -82,13 +110,18 @@ export default function ImageUploadPage() {
       const data = await response.json();
 
       if (data.success && data.products) {
-        setProducts(data.products.map((p: { template_id: number; reference: string; name: string }) => ({
+        setProducts(data.products.map((p: { template_id: number; internalRef?: string; name: string; hasImage: boolean; mainThumbnail?: string | null; galleryImages?: ExistingImage[]; createDate: string; isFavorite: boolean; isPublished: boolean; variantCount: number }) => ({
           templateId: p.template_id,
-          reference: p.reference,
           name: p.name,
+          internalRef: p.internalRef || '',
+          hasImage: p.hasImage,
+          mainThumbnail: p.mainThumbnail || null,
+          galleryImages: p.galleryImages || [],
+          isFavorite: p.isFavorite,
+          isPublished: p.isPublished,
+          createDate: p.createDate,
+          variantCount: p.variantCount,
         })));
-      } else {
-        console.error('Failed to load products:', data.error);
       }
     } catch (err) {
       console.error('Error loading products:', err);
@@ -103,33 +136,96 @@ export default function ImageUploadPage() {
     setPlugin(p || null);
     setImages([]);
     setUploadResults([]);
+    setSelectedTemplateIds(new Set());
     router.replace(`/image-upload?vendor=${vendorId}`, undefined, { shallow: true });
   };
+
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    if (filterMode === 'favorites') result = result.filter(p => p.isFavorite);
+    else if (filterMode === 'no-images') result = result.filter(p => !p.hasImage);
+    else if (filterMode === 'recent') result = result.filter(p => isRecent(p.createDate));
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(q) || p.internalRef.toLowerCase().includes(q));
+    }
+    return result;
+  }, [products, filterMode, searchQuery]);
+
+  const filterCounts = useMemo(() => ({
+    all: products.length,
+    favorites: products.filter(p => p.isFavorite).length,
+    noImages: products.filter(p => !p.hasImage).length,
+    recent: products.filter(p => isRecent(p.createDate)).length,
+  }), [products]);
+
+  const toggleProduct = (id: number) => {
+    setSelectedTemplateIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedTemplateIds(prev => {
+      const next = new Set(prev);
+      for (const p of filteredProducts) next.add(p.templateId);
+      return next;
+    });
+  };
+
+  const deselectAll = () => setSelectedTemplateIds(new Set());
+
+  const activeProducts = useMemo(() =>
+    products.filter(p => selectedTemplateIds.has(p.templateId)),
+    [products, selectedTemplateIds]
+  );
+
+  const productById = useMemo(() => {
+    const map = new Map<number, OdooProduct>();
+    for (const p of products) map.set(p.templateId, p);
+    return map;
+  }, [products]);
 
   const addImages = useCallback(async (files: FileList | File[]) => {
     const imgConfig = plugin?.imageUpload;
     const newImages: ImageItem[] = [];
 
     for (const file of Array.from(files)) {
-      if (!/\.(jpg|jpeg|png|webp)$/i.test(file.name)) continue;
+      if (!/\.(jpg|jpeg|png|webp|gif)$/i.test(file.name)) continue;
 
-      const dataUrl = await new Promise<string>((resolve) => {
+      const rawDataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error(`Kon bestand niet lezen: ${file.name}`));
         reader.readAsDataURL(file);
       });
+      const dataUrl = await compressImage(rawDataUrl);
 
-      let assignedReference = '';
+      let assignedTemplateId: number | null = null;
+
       if (imgConfig?.extractReference) {
-        const ref = imgConfig.extractReference(file.name);
+        const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+        const ref = imgConfig.extractReference(file.name, relativePath);
         if (ref) {
-          const match = products.find(p =>
-            p.reference === ref ||
-            p.reference.toLowerCase().includes(ref.toLowerCase()) ||
-            ref.toLowerCase().includes(p.reference.toLowerCase())
+          const match = activeProducts.find(p =>
+            p.name.toLowerCase().includes(ref.toLowerCase()) ||
+            p.internalRef.toLowerCase().includes(ref.toLowerCase()) ||
+            ref.toLowerCase().includes(p.internalRef.toLowerCase())
           );
-          if (match) assignedReference = match.reference;
+          if (match) assignedTemplateId = match.templateId;
         }
+      }
+
+      if (!assignedTemplateId) {
+        const nameNoExt = file.name.replace(/\.[^.]+$/, '').toLowerCase();
+        const match = activeProducts.find(p =>
+          nameNoExt.includes(p.name.split(' – ').pop()?.trim().toLowerCase() || '') ||
+          (p.internalRef && nameNoExt.includes(p.internalRef.toLowerCase()))
+        );
+        if (match) assignedTemplateId = match.templateId;
       }
 
       newImages.push({
@@ -137,28 +233,24 @@ export default function ImageUploadPage() {
         dataUrl,
         filename: file.name,
         file,
-        assignedReference,
+        assignedTemplateId,
         order: 0,
       });
     }
 
-    // Set order within groups
     setImages(prev => {
       const all = [...prev, ...newImages];
-      // Re-calculate order per reference group
-      const grouped = new Map<string, ImageItem[]>();
+      const grouped = new Map<number | null, ImageItem[]>();
       for (const img of all) {
-        const key = img.assignedReference || '__unassigned';
+        const key = img.assignedTemplateId;
         const arr = grouped.get(key) || [];
         arr.push(img);
         grouped.set(key, arr);
       }
-      for (const [, arr] of grouped) {
-        arr.forEach((img, idx) => { img.order = idx; });
-      }
+      for (const [, arr] of grouped) arr.forEach((img, idx) => { img.order = idx; });
       return all;
     });
-  }, [plugin, products]);
+  }, [plugin, activeProducts]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -166,17 +258,14 @@ export default function ImageUploadPage() {
     if (e.dataTransfer.files.length > 0) await addImages(e.dataTransfer.files);
   }, [addImages]);
 
-  const removeImage = (id: string) => {
-    setImages(prev => prev.filter(img => img.id !== id));
-  };
+  const removeImage = (id: string) => setImages(prev => prev.filter(img => img.id !== id));
 
-  const assignImage = (imageId: string, reference: string) => {
+  const assignImage = (imageId: string, templateId: number) => {
     setImages(prev => {
       const updated = prev.map(img =>
-        img.id === imageId ? { ...img, assignedReference: reference, order: 999 } : img
+        img.id === imageId ? { ...img, assignedTemplateId: templateId, order: 999 } : img
       );
-      // Recalculate order for affected group
-      const group = updated.filter(i => i.assignedReference === reference).sort((a, b) => a.order - b.order);
+      const group = updated.filter(i => i.assignedTemplateId === templateId).sort((a, b) => a.order - b.order);
       group.forEach((img, idx) => { img.order = idx; });
       return [...updated];
     });
@@ -185,8 +274,8 @@ export default function ImageUploadPage() {
   const moveImage = (imageId: string, direction: 'up' | 'down') => {
     setImages(prev => {
       const img = prev.find(i => i.id === imageId);
-      if (!img || !img.assignedReference) return prev;
-      const group = prev.filter(i => i.assignedReference === img.assignedReference).sort((a, b) => a.order - b.order);
+      if (!img || !img.assignedTemplateId) return prev;
+      const group = prev.filter(i => i.assignedTemplateId === img.assignedTemplateId).sort((a, b) => a.order - b.order);
       const idx = group.findIndex(i => i.id === imageId);
       const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
       if (swapIdx < 0 || swapIdx >= group.length) return prev;
@@ -201,13 +290,8 @@ export default function ImageUploadPage() {
   };
 
   const uploadAll = async () => {
-    const assigned = images.filter(img => img.assignedReference);
+    const assigned = images.filter(img => img.assignedTemplateId !== null);
     if (assigned.length === 0) { alert('Geen afbeeldingen toegewezen.'); return; }
-
-    const refToTemplate: Record<string, number> = {};
-    for (const p of products) {
-      refToTemplate[p.reference] = p.templateId;
-    }
 
     setIsLoading(true);
     const results: typeof uploadResults = [];
@@ -216,26 +300,24 @@ export default function ImageUploadPage() {
       const { uid, password } = await getCredentials();
       if (!uid || !password) { alert('Geen Odoo credentials.'); setIsLoading(false); return; }
 
-      const byRef = new Map<string, ImageItem[]>();
+      const byTemplate = new Map<number, ImageItem[]>();
       for (const img of assigned) {
-        const arr = byRef.get(img.assignedReference) || [];
+        if (img.assignedTemplateId === null) continue;
+        const arr = byTemplate.get(img.assignedTemplateId) || [];
         arr.push(img);
-        byRef.set(img.assignedReference, arr);
+        byTemplate.set(img.assignedTemplateId, arr);
       }
 
-      for (const [reference, imgs] of byRef) {
-        const templateId = refToTemplate[reference];
-        if (!templateId) {
-          results.push({ reference, success: false, count: 0, error: 'Geen template ID gevonden' });
-          continue;
-        }
-
+      for (const [templateId, imgs] of byTemplate) {
+        const product = productById.get(templateId);
         const sorted = [...imgs].sort((a, b) => a.order - b.order);
+        let uploaded = 0;
 
         try {
           for (let i = 0; i < sorted.length; i++) {
-            const img = sorted[i];
-            const base64 = img.dataUrl.split(',')[1];
+            const base64 = sorted[i].dataUrl.split(',')[1];
+            const isFirst = i === 0;
+            const shouldSetAsMain = isFirst && !product?.hasImage;
 
             await fetch('/api/upload-single-image', {
               method: 'POST',
@@ -243,17 +325,18 @@ export default function ImageUploadPage() {
               body: JSON.stringify({
                 templateId,
                 base64Image: base64,
-                imageName: img.filename,
+                imageName: sorted[i].filename,
                 sequence: i + 1,
-                isMainImage: i === 0,
+                isMainImage: shouldSetAsMain,
                 odooUid: uid,
                 odooPassword: password,
               }),
             });
+            uploaded++;
           }
-          results.push({ reference, success: true, count: sorted.length });
+          results.push({ templateId, name: product?.name || String(templateId), success: true, count: sorted.length });
         } catch (err) {
-          results.push({ reference, success: false, count: 0, error: String(err) });
+          results.push({ templateId, name: product?.name || String(templateId), success: false, count: uploaded, error: String(err) });
         }
       }
 
@@ -265,25 +348,17 @@ export default function ImageUploadPage() {
     }
   };
 
-  // Group images by reference
-  const imagesByRef = new Map<string, ImageItem[]>();
+  const imagesByTemplate = new Map<number, ImageItem[]>();
   const unassigned: ImageItem[] = [];
   for (const img of images) {
-    if (img.assignedReference) {
-      const arr = imagesByRef.get(img.assignedReference) || [];
+    if (img.assignedTemplateId !== null) {
+      const arr = imagesByTemplate.get(img.assignedTemplateId) || [];
       arr.push(img);
-      imagesByRef.set(img.assignedReference, arr);
+      imagesByTemplate.set(img.assignedTemplateId, arr);
     } else {
       unassigned.push(img);
     }
   }
-
-  const filteredProducts = searchQuery
-    ? products.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.reference.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : products;
 
   const allSuppliers = getAllSuppliers();
   const imgConfig = plugin?.imageUpload;
@@ -292,21 +367,15 @@ export default function ImageUploadPage() {
     <>
       <Head><title>Afbeeldingen Uploaden - Babette</title></Head>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Header */}
+        <div className="max-w-7xl mx-auto px-4">
           <div className="mb-6">
             <Link href="/product-import" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 text-sm">
               &larr; Terug naar Import
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2">
-              Afbeeldingen Uploaden
-            </h1>
-            <p className="text-gray-700 dark:text-gray-300">
-              Upload afbeeldingen voor bestaande producten in Odoo. Werkt onafhankelijk van de product import.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2">Afbeeldingen Uploaden</h1>
+            <p className="text-gray-700 dark:text-gray-300">Selecteer producten uit Odoo en wijs afbeeldingen toe.</p>
           </div>
 
-          {/* Vendor selection */}
           {!selectedVendor ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
               <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Kies leverancier</h2>
@@ -320,242 +389,380 @@ export default function ImageUploadPage() {
               </div>
             </div>
           ) : (
-            <>
-              {/* Vendor bar */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-gray-900 dark:text-gray-100">{plugin?.displayName}</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{products.length} producten in Odoo</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={loadProducts} disabled={isLoading}
-                    className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
-                    Ververs producten
-                  </button>
-                  <button onClick={() => { setSelectedVendor(''); setPlugin(null); setImages([]); setProducts([]); setUploadResults([]); }}
-                    className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                    Andere leverancier
-                  </button>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* LEFT: Product list */}
+              <div className="lg:col-span-1">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden sticky top-4">
+                  <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-gray-900 dark:text-gray-100">{plugin?.displayName}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{products.length} producten</span>
+                    </div>
+                    <button onClick={() => { setSelectedVendor(''); setPlugin(null); setImages([]); setProducts([]); setSelectedTemplateIds(new Set()); setUploadResults([]); }}
+                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Wijzig</button>
+                  </div>
 
-              {/* Instructions */}
-              {imgConfig && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">{imgConfig.instructions}</p>
-                  {imgConfig.exampleFilenames.length > 0 && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                      Voorbeelden: {imgConfig.exampleFilenames.map((fn, i) => (
-                        <code key={i} className="bg-blue-100 dark:bg-blue-800 px-1 rounded mx-1">{fn}</code>
+                  <div className="p-3 border-b dark:border-gray-700 space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {([
+                        ['all', 'Alles', filterCounts.all],
+                        ['favorites', '⭐ Favorieten', filterCounts.favorites],
+                        ['no-images', '🚫 Zonder foto', filterCounts.noImages],
+                        ['recent', '🕐 Recent', filterCounts.recent],
+                      ] as [FilterMode, string, number][]).map(([mode, label, count]) => (
+                        <button key={mode} onClick={() => setFilterMode(mode)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            filterMode === mode
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}>
+                          {label} ({count})
+                        </button>
                       ))}
-                    </p>
-                  )}
-                </div>
-              )}
+                    </div>
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Zoek op naam of referentie..."
+                      className="w-full border dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  </div>
 
-              {/* Drop zone */}
-              <div
-                className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-dashed mb-6 transition-colors ${
-                  isDragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-              >
-                <div className="p-8 text-center">
-                  <div className="text-4xl mb-3">🖼️</div>
-                  <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Sleep afbeeldingen hierheen</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">of klik om te selecteren</p>
-                  <div className="flex gap-3 justify-center">
-                    <div>
-                      <input ref={fileInputRef} type="file" multiple accept="image/*"
-                        onChange={(e) => e.target.files && addImages(e.target.files)}
-                        className="hidden" id="img-file-select" />
-                      <label htmlFor="img-file-select"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 font-medium inline-block text-sm">
-                        Selecteer bestanden
-                      </label>
+                  <div className="px-3 py-2 border-b dark:border-gray-700 flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {selectedTemplateIds.size > 0
+                        ? <strong className="text-blue-600 dark:text-blue-400">{selectedTemplateIds.size} geselecteerd</strong>
+                        : `${filteredProducts.length} producten`}
+                    </span>
+                    <div className="flex gap-2">
+                      <button onClick={selectAllFiltered} className="text-blue-600 dark:text-blue-400 hover:underline">
+                        Selecteer alle ({filteredProducts.length})
+                      </button>
+                      {selectedTemplateIds.size > 0 && (
+                        <button onClick={deselectAll} className="text-red-500 hover:underline">Wis selectie</button>
+                      )}
                     </div>
-                    <div>
-                      <input type="file"
-                        {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-                        onChange={(e) => e.target.files && addImages(e.target.files)}
-                        className="hidden" id="img-folder-select" />
-                      <label htmlFor="img-folder-select"
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 font-medium inline-block text-sm">
-                        Selecteer map
-                      </label>
-                    </div>
+                  </div>
+
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {isLoading && products.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        Producten laden...
+                      </div>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">Geen producten gevonden</div>
+                    ) : (
+                      filteredProducts.map(p => {
+                        const isSelected = selectedTemplateIds.has(p.templateId);
+                        const imgCount = imagesByTemplate.get(p.templateId)?.length || 0;
+                        return (
+                          <div key={p.templateId}
+                            onClick={() => toggleProduct(p.templateId)}
+                            className={`flex items-center gap-3 px-3 py-2.5 border-b dark:border-gray-700 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            }`}>
+                            <input type="checkbox" checked={isSelected} readOnly
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0 pointer-events-none" />
+                            {p.mainThumbnail ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.mainThumbnail} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600" />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">
+                                ?
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{p.name}</div>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span>{formatDate(p.createDate)}</span>
+                                {p.isFavorite && <span>⭐</span>}
+                                {p.galleryImages.length > 0
+                                  ? <span className="text-green-600">{p.galleryImages.length + (p.hasImage ? 1 : 0)} foto&apos;s</span>
+                                  : p.hasImage
+                                    ? <span className="text-green-600">1 foto</span>
+                                    : <span className="text-orange-500">Geen foto</span>}
+                              </div>
+                            </div>
+                            {imgCount > 0 && (
+                              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs px-2 py-0.5 rounded-full flex-shrink-0">
+                                +{imgCount}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Image summary */}
-              {images.length > 0 && (
-                <div className="flex gap-3 text-sm mb-4 items-center">
-                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
-                    {images.length} afbeeldingen
-                  </span>
-                  <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">
-                    {images.filter(i => i.assignedReference).length} toegewezen
-                  </span>
-                  {unassigned.length > 0 && (
-                    <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full">
-                      {unassigned.length} niet toegewezen
-                    </span>
-                  )}
-                  <button onClick={() => setImages([])}
-                    className="text-red-500 hover:text-red-700 dark:text-red-400 text-xs ml-auto">
-                    Wis alles
-                  </button>
-                </div>
-              )}
+              {/* RIGHT: Image management */}
+              <div className="lg:col-span-2 space-y-6">
+                {imgConfig && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">{imgConfig.instructions}</p>
+                    {imgConfig.exampleFilenames.length > 0 && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                        Voorbeelden: {imgConfig.exampleFilenames.map((fn, i) => (
+                          <code key={i} className="bg-blue-100 dark:bg-blue-800 px-1 rounded mx-1">{fn}</code>
+                        ))}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-              {/* Assigned images by product */}
-              {Array.from(imagesByRef.entries()).map(([ref, imgs]) => {
-                const product = products.find(p => p.reference === ref);
-                const sorted = [...imgs].sort((a, b) => a.order - b.order);
-                return (
-                  <div key={ref} className="mb-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-                    <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{product?.name || ref}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({sorted.length} afbeeldingen)</span>
+                {selectedTemplateIds.size === 0 ? (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+                    <div className="text-4xl mb-4">👈</div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Selecteer producten</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Kies links de producten waarvoor je afbeeldingen wilt uploaden.
+                      Gebruik de filters om snel te vinden wat je zoekt.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Drop zone */}
+                    <div
+                      className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-dashed transition-colors ${
+                        isDragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleDrop}>
+                      <div className="p-6 text-center">
+                        <div className="text-3xl mb-2">🖼️</div>
+                        <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">Sleep afbeeldingen hierheen</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                          Afbeeldingen worden automatisch gecomprimeerd (max 1920px) en gematcht aan de {selectedTemplateIds.size} geselecteerde producten
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                          <label className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 font-medium text-sm">
+                            Selecteer bestanden
+                            <input ref={fileInputRef} type="file" multiple accept="image/*"
+                              onChange={(e) => { if (e.target.files) addImages(e.target.files); e.target.value = ''; }}
+                              className="hidden" />
+                          </label>
+                          {supportsDirectoryPicker() ? (
+                            <label className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">
+                              Selecteer map
+                              <input type="file"
+                                {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
+                                onChange={(e) => { if (e.target.files) addImages(e.target.files); e.target.value = ''; }}
+                                className="hidden" />
+                            </label>
+                          ) : (
+                            <span className="text-sm text-gray-500 dark:text-gray-400 italic self-center">
+                              {isIOS() ? 'Map selectie niet beschikbaar op iOS' : 'Map selectie niet beschikbaar'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="p-3 flex gap-3 flex-wrap items-start">
-                      {sorted.map((img, idx) => (
-                        <div key={img.id} className="relative group w-32 flex-shrink-0">
-                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
-                          </div>
-                          {idx === 0 && (
-                            <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">HOOFD</span>
-                          )}
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
-                            <button onClick={() => moveImage(img.id, 'up')} disabled={idx === 0}
-                              className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-sm disabled:opacity-30 hover:bg-gray-100">&larr;</button>
-                            <button onClick={() => moveImage(img.id, 'down')} disabled={idx === sorted.length - 1}
-                              className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-sm disabled:opacity-30 hover:bg-gray-100">&rarr;</button>
-                            <button onClick={() => removeImage(img.id)}
-                              className="w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-600">&times;</button>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Add more images to this product */}
-                      <label className="w-32 aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors flex-shrink-0">
-                        <input type="file" multiple accept="image/*" className="hidden"
-                          onChange={async (e) => {
-                            if (!e.target.files) return;
-                            const newImgs: ImageItem[] = [];
-                            for (const file of Array.from(e.target.files)) {
-                              const dataUrl = await new Promise<string>((resolve) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(reader.result as string);
-                                reader.readAsDataURL(file);
-                              });
-                              newImgs.push({
-                                id: `img-${++_imgId}`, dataUrl, filename: file.name, file,
-                                assignedReference: ref, order: sorted.length + newImgs.length,
-                              });
-                            }
-                            setImages(prev => [...prev, ...newImgs]);
-                            e.target.value = '';
-                          }}
-                        />
-                        <span className="text-2xl text-gray-400">+</span>
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
 
-              {/* Unassigned images */}
-              {unassigned.length > 0 && (
-                <div className="mb-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-orange-200 dark:border-orange-700 overflow-hidden">
-                  <div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-3">
-                    <span className="font-medium text-orange-800 dark:text-orange-200">Niet toegewezen ({unassigned.length})</span>
-                  </div>
-                  <div className="p-3">
-                    {/* Search filter for product assignment */}
-                    <div className="mb-3">
-                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Zoek product om toe te wijzen..."
-                        className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
-                    </div>
-                    <div className="flex gap-3 flex-wrap">
-                      {unassigned.map(img => (
-                        <div key={img.id} className="relative group w-32 flex-shrink-0">
-                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-orange-200 dark:border-orange-600 bg-gray-100 dark:bg-gray-700">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                    {/* Image summary */}
+                    {images.length > 0 && (
+                      <div className="flex gap-3 text-sm items-center flex-wrap">
+                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
+                          {images.length} afbeeldingen
+                        </span>
+                        <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">
+                          {images.filter(i => i.assignedTemplateId !== null).length} toegewezen
+                        </span>
+                        {unassigned.length > 0 && (
+                          <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full">
+                            {unassigned.length} niet toegewezen
+                          </span>
+                        )}
+                        <button onClick={() => setImages([])} className="text-red-500 hover:text-red-700 dark:text-red-400 text-xs ml-auto">Wis alles</button>
+                      </div>
+                    )}
+
+                    {/* Per-product image sections */}
+                    {activeProducts.map(p => {
+                      const newImgs = imagesByTemplate.get(p.templateId) || [];
+                      const sortedNew = [...newImgs].sort((a, b) => a.order - b.order);
+                      const existingCount = (p.hasImage ? 1 : 0) + p.galleryImages.length;
+                      const totalCount = existingCount + sortedNew.length;
+                      return (
+                        <div key={p.templateId} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                          <div className="px-4 py-3 border-b dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">{p.name}</span>
+                              {p.isFavorite && <span className="ml-1">⭐</span>}
+                            </div>
+                            <div className="flex gap-2">
+                              {existingCount > 0 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                  {existingCount} bestaand
+                                </span>
+                              )}
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                sortedNew.length > 0
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                  : totalCount === 0
+                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                              }`}>
+                                {sortedNew.length > 0 ? `+${sortedNew.length} nieuw` : totalCount === 0 ? 'Geen foto\'s' : 'Geen nieuwe'}
+                              </span>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
-                          <select value="" onChange={(e) => e.target.value && assignImage(img.id, e.target.value)}
-                            className="w-full text-[10px] border dark:border-gray-600 rounded px-1 py-0.5 mt-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                            <option value="">Toewijzen aan...</option>
-                            {filteredProducts.slice(0, 50).map(p => (
-                              <option key={p.reference} value={p.reference}>{p.name}</option>
+                          <div className="p-3 flex gap-3 flex-wrap items-start">
+                            {/* Existing main image */}
+                            {p.mainThumbnail && (
+                              <div className="relative w-28 flex-shrink-0 opacity-80">
+                                <div className="aspect-square rounded-lg overflow-hidden border-2 border-green-300 dark:border-green-700 bg-gray-100 dark:bg-gray-700">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={p.mainThumbnail} alt="Hoofdafbeelding" className="w-full h-full object-cover" />
+                                </div>
+                                <span className="absolute top-1 left-1 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">HOOFD</span>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">In Odoo</p>
+                              </div>
+                            )}
+                            {/* Existing gallery images */}
+                            {p.galleryImages.map(gi => (
+                              <div key={gi.id} className="relative w-28 flex-shrink-0 opacity-80">
+                                <div className="aspect-square rounded-lg overflow-hidden border-2 border-green-200 dark:border-green-800 bg-gray-100 dark:bg-gray-700">
+                                  {gi.thumbnail ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={gi.thumbnail} alt={gi.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">?</div>
+                                  )}
+                                </div>
+                                <span className="absolute top-1 left-1 bg-green-500/80 text-white text-[10px] px-1.5 py-0.5 rounded">#{gi.sequence}</span>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-1">{gi.name}</p>
+                              </div>
                             ))}
-                          </select>
-                          <button onClick={() => removeImage(img.id)}
-                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                            {/* Separator between existing and new */}
+                            {existingCount > 0 && sortedNew.length > 0 && (
+                              <div className="w-px bg-gray-300 dark:bg-gray-600 self-stretch mx-1" />
+                            )}
+                            {/* New images to upload */}
+                            {sortedNew.map((img, idx) => (
+                              <div key={img.id} className="relative group w-28 flex-shrink-0">
+                                <div className="aspect-square rounded-lg overflow-hidden border-2 border-blue-300 dark:border-blue-600 bg-gray-100 dark:bg-gray-700">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                                </div>
+                                <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
+                                  {!p.hasImage && idx === 0 ? 'HOOFD' : `NIEUW`}
+                                </span>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
+                                  <button onClick={() => moveImage(img.id, 'up')} disabled={idx === 0}
+                                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs disabled:opacity-30">&larr;</button>
+                                  <button onClick={() => moveImage(img.id, 'down')} disabled={idx === sortedNew.length - 1}
+                                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs disabled:opacity-30">&rarr;</button>
+                                  <button onClick={() => removeImage(img.id)}
+                                    className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
+                                </div>
+                              </div>
+                            ))}
+                            {/* Add more button */}
+                            <label className="w-28 aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors flex-shrink-0">
+                              <input type="file" multiple accept="image/*" className="hidden"
+                                onChange={async (e) => {
+                                  if (!e.target.files) return;
+                                  const newImgsToAdd: ImageItem[] = [];
+                                  for (const file of Array.from(e.target.files)) {
+                                    const rawUrl = await new Promise<string>((resolve) => {
+                                      const reader = new FileReader();
+                                      reader.onload = () => resolve(reader.result as string);
+                                      reader.readAsDataURL(file);
+                                    });
+                                    const compressed = await compressImage(rawUrl);
+                                    newImgsToAdd.push({
+                                      id: `img-${++_imgId}`, dataUrl: compressed, filename: file.name, file,
+                                      assignedTemplateId: p.templateId, order: sortedNew.length + newImgsToAdd.length,
+                                    });
+                                  }
+                                  setImages(prev => [...prev, ...newImgsToAdd]);
+                                  e.target.value = '';
+                                }}
+                              />
+                              <span className="text-2xl text-gray-400">+</span>
+                            </label>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+                      );
+                    })}
 
-              {/* Upload button */}
-              {images.length > 0 && !uploadResults.length && (
-                <button onClick={uploadAll} disabled={isLoading || images.filter(i => i.assignedReference).length === 0}
-                  className={`w-full py-3 rounded-xl font-bold text-lg mb-6 ${
-                    isLoading || images.filter(i => i.assignedReference).length === 0
-                      ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}>
-                  {isLoading ? 'Uploaden...' : `Upload ${images.filter(i => i.assignedReference).length} afbeeldingen naar Odoo`}
-                </button>
-              )}
+                    {/* Unassigned images */}
+                    {unassigned.length > 0 && (
+                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-orange-200 dark:border-orange-700 overflow-hidden">
+                        <div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-3">
+                          <span className="font-medium text-orange-800 dark:text-orange-200">Niet toegewezen ({unassigned.length})</span>
+                        </div>
+                        <div className="p-3 flex gap-3 flex-wrap">
+                          {unassigned.map(img => (
+                            <div key={img.id} className="relative group w-28 flex-shrink-0">
+                              <div className="aspect-square rounded-lg overflow-hidden border-2 border-orange-200 dark:border-orange-600 bg-gray-100 dark:bg-gray-700">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={img.dataUrl} alt={img.filename} className="w-full h-full object-cover" />
+                              </div>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-1">{img.filename}</p>
+                              <select value="" onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) assignImage(img.id, v); }}
+                                className="w-full text-[10px] border dark:border-gray-600 rounded px-1 py-0.5 mt-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="">Toewijzen aan...</option>
+                                {activeProducts.map(p => (
+                                  <option key={p.templateId} value={p.templateId}>{p.name}</option>
+                                ))}
+                              </select>
+                              <button onClick={() => removeImage(img.id)}
+                                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-              {/* Upload results */}
-              {uploadResults.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
-                  <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Upload Resultaten</h3>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-green-700 dark:text-green-300">{uploadResults.filter(r => r.success).length}</div>
-                      <div className="text-sm text-green-600 dark:text-green-400">Gelukt</div>
-                    </div>
-                    <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-red-700 dark:text-red-300">{uploadResults.filter(r => !r.success).length}</div>
-                      <div className="text-sm text-red-600 dark:text-red-400">Mislukt</div>
-                    </div>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{uploadResults.reduce((s, r) => s + r.count, 0)}</div>
-                      <div className="text-sm text-blue-600 dark:text-blue-400">Afbeeldingen</div>
-                    </div>
-                  </div>
-                  {uploadResults.map(r => (
-                    <div key={r.reference} className={`py-1 text-sm ${r.success ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
-                      {r.success ? '✅' : '❌'} {r.reference}: {r.success ? `${r.count} afbeeldingen` : r.error}
-                    </div>
-                  ))}
-                  <div className="mt-4 flex gap-3">
-                    <button onClick={() => { setImages([]); setUploadResults([]); }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-                      Meer afbeeldingen uploaden
-                    </button>
-                    <Link href="/product-import" className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">
-                      Terug naar Import
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </>
+                    {/* Upload button */}
+                    {images.length > 0 && !uploadResults.length && (
+                      <button onClick={uploadAll} disabled={isLoading || images.filter(i => i.assignedTemplateId !== null).length === 0}
+                        className={`w-full py-3 rounded-xl font-bold text-lg ${
+                          isLoading || images.filter(i => i.assignedTemplateId !== null).length === 0
+                            ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}>
+                        {isLoading ? 'Uploaden...' : `Upload ${images.filter(i => i.assignedTemplateId !== null).length} afbeeldingen naar Odoo`}
+                      </button>
+                    )}
+
+                    {/* Upload results */}
+                    {uploadResults.length > 0 && (
+                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Upload Resultaten</h3>
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-green-700 dark:text-green-300">{uploadResults.filter(r => r.success).length}</div>
+                            <div className="text-sm text-green-600 dark:text-green-400">Gelukt</div>
+                          </div>
+                          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-red-700 dark:text-red-300">{uploadResults.filter(r => !r.success).length}</div>
+                            <div className="text-sm text-red-600 dark:text-red-400">Mislukt</div>
+                          </div>
+                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{uploadResults.reduce((s, r) => s + r.count, 0)}</div>
+                            <div className="text-sm text-blue-600 dark:text-blue-400">Afbeeldingen</div>
+                          </div>
+                        </div>
+                        {uploadResults.map(r => (
+                          <div key={r.templateId} className={`py-1 text-sm ${r.success ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
+                            {r.success ? '✅' : '❌'} {r.name}: {r.success ? `${r.count} afbeeldingen` : r.error}
+                          </div>
+                        ))}
+                        <div className="mt-4">
+                          <button onClick={() => { setImages([]); setUploadResults([]); }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                            Meer uploaden
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

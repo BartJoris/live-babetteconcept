@@ -1,29 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-
-const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
-const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
-
-async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
-  const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
-  if (kwargs) executeArgs.push(kwargs);
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'call',
-    params: { service: 'object', method: 'execute_kw', args: executeArgs },
-    id: Date.now(),
-  };
-
-  const response = await fetch(ODOO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
-  return json.result;
-}
+import { OdooImageService } from '@/lib/import/services';
 
 interface UploadRequest {
   templateId: number;
@@ -44,14 +20,14 @@ export default async function handler(
   }
 
   try {
-    const { 
-      templateId, 
-      base64Image, 
-      imageName, 
-      sequence, 
+    const {
+      templateId,
+      base64Image,
+      imageName,
+      sequence,
       isMainImage,
       odooUid,
-      odooPassword 
+      odooPassword
     } = req.body as UploadRequest;
 
     if (!templateId || !base64Image || !odooUid || !odooPassword) {
@@ -59,35 +35,16 @@ export default async function handler(
     }
 
     const uid = parseInt(odooUid);
+    const imageService = new OdooImageService(uid, odooPassword);
 
     let imageId: number | null = null;
 
-    // If this is the main image, ONLY set it as the product template's main image
-    // Do NOT create a product.image record for the main image (it would cause duplicates)
     if (isMainImage) {
       console.log(`🖼️ Setting main image for template ${templateId}...`);
-      await callOdoo(
-        uid,
-        odooPassword,
-        'product.template',
-        'write',
-        [[templateId], { image_1920: base64Image }]
-      );
+      await imageService.setMainImage(templateId, base64Image);
       console.log(`✅ Main image set (no product.image record created to avoid duplicates)`);
     } else {
-      // Only create product.image record for additional images (not the main one)
-      imageId = await callOdoo(
-        uid,
-        odooPassword,
-        'product.image',
-        'create',
-        [{
-          name: imageName,
-          product_tmpl_id: templateId,
-          image_1920: base64Image,
-          sequence: sequence,
-        }]
-      );
+      imageId = await imageService.addGalleryImage(templateId, imageName, base64Image, sequence);
       console.log(`✅ Created product.image ${imageId} for template ${templateId}`);
     }
 
@@ -110,7 +67,7 @@ export default async function handler(
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '50mb',
+      sizeLimit: '4mb',
     },
   },
 };

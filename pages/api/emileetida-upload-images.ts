@@ -60,6 +60,13 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (process.env.VERCEL) {
+    return res.status(501).json({
+      error: 'Deze functie is niet beschikbaar op Vercel. Gebruik de afbeeldingen upload pagina (/image-upload) in plaats van server-side bestandstoegang.',
+      suggestion: '/image-upload',
+    });
+  }
+
   try {
     const { images, productReferenceToTemplateId, odooUid, odooPassword } = req.body as UploadRequest;
 

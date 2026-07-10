@@ -39,20 +39,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const uidNum = parseInt(uid);
 
-    // Search for products whose name starts with the brand name
     const templates = await callOdoo(
       uidNum, password,
       'product.template',
       'search_read',
       [[['name', 'ilike', `${brandName} -`]]],
-      { fields: ['id', 'name', 'description', 'image_1920'], limit: 500 }
-    ) as Array<{ id: number; name: string; description: string; image_1920: string | false }>;
+      { fields: ['id', 'name', 'description', 'image_128', 'create_date', 'is_favorite', 'website_published', 'product_variant_count'], limit: 500, order: 'create_date desc' }
+    ) as Array<{ id: number; name: string; description: string; image_128: string | false; create_date: string; is_favorite: boolean; website_published: boolean; product_variant_count: number }>;
+
+    // Fetch gallery images (product.image) for all templates in one call
+    const templateIds = templates.map(t => t.id);
+    const galleryImages = templateIds.length > 0
+      ? await callOdoo(
+          uidNum, password,
+          'product.image',
+          'search_read',
+          [[['product_tmpl_id', 'in', templateIds]]],
+          { fields: ['id', 'product_tmpl_id', 'name', 'image_128', 'sequence'], order: 'product_tmpl_id, sequence' }
+        ) as Array<{ id: number; product_tmpl_id: [number, string]; name: string; image_128: string | false; sequence: number }>
+      : [];
+
+    const galleryByTemplate = new Map<number, Array<{ id: number; name: string; thumbnail: string; sequence: number }>>();
+    for (const img of galleryImages) {
+      const tmplId = Array.isArray(img.product_tmpl_id) ? img.product_tmpl_id[0] : img.product_tmpl_id;
+      const list = galleryByTemplate.get(tmplId) || [];
+      list.push({
+        id: img.id,
+        name: img.name,
+        thumbnail: img.image_128 ? `data:image/png;base64,${img.image_128}` : '',
+        sequence: img.sequence,
+      });
+      galleryByTemplate.set(tmplId, list);
+    }
 
     const products = templates.map(t => ({
       template_id: t.id,
-      reference: t.description || String(t.id),
+      internalRef: t.description || '',
       name: t.name,
-      hasImage: !!t.image_1920,
+      hasImage: !!t.image_128,
+      mainThumbnail: t.image_128 ? `data:image/png;base64,${t.image_128}` : null,
+      galleryImages: galleryByTemplate.get(t.id) || [],
+      createDate: t.create_date,
+      isFavorite: t.is_favorite,
+      isPublished: t.website_published,
+      variantCount: t.product_variant_count,
     }));
 
     return res.status(200).json({

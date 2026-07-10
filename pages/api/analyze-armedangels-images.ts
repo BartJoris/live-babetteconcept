@@ -41,6 +41,17 @@ export default function handler(
     });
   }
 
+  if (process.env.VERCEL) {
+    return res.status(501).json({
+      success: false,
+      totalImages: 0,
+      uniqueProducts: 0,
+      groups: [],
+      csv: '',
+      error: 'Deze functie is niet beschikbaar op Vercel. Gebruik de afbeeldingen upload pagina (/image-upload) in plaats van server-side bestandstoegang.',
+    });
+  }
+
   try {
     // Path to the WOMEN folder
     const imageFolderPath = path.join(process.env.HOME || '/Users/bajoris', 'Downloads', 'WOMEN');
