@@ -40,18 +40,25 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
 });
 
 async function handleGet(
-  _req: NextApiRequestWithSession,
+  req: NextApiRequestWithSession,
   res: NextApiResponse,
   user: { uid: number; password: string }
 ) {
   try {
+    const categId = req.query.categ_id ? Number(req.query.categ_id) : null;
+
+    const domain: unknown[][] = [['qty_available', '<=', 0], ['active', '=', true]];
+    if (categId) {
+      domain.push(['categ_id', '=', categId]);
+    }
+
     // Step 1: Find all active variants with qty_available <= 0
     const emptyVariants = await odooClient.call<OdooVariant[]>({
       uid: user.uid,
       password: user.password,
       model: 'product.product',
       method: 'search_read',
-      args: [[['qty_available', '<=', 0], ['active', '=', true]]],
+      args: [domain],
       kwargs: {
         fields: ['id', 'display_name', 'qty_available', 'active', 'product_tmpl_id', 'barcode', 'default_code'],
       },

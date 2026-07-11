@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
 
@@ -17,6 +17,103 @@ type ProductWithVariants = {
   emptyVariants: VariantInfo[];
 };
 
+type OdooCategory = {
+  id: number;
+  name: string;
+};
+
+function CategoryFilter({
+  categories,
+  selectedCategoryId,
+  onSelect,
+}: {
+  categories: OdooCategory[];
+  selectedCategoryId: number | null;
+  onSelect: (id: number | null) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = categories.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedName = selectedCategoryId
+    ? categories.find((c) => c.id === selectedCategoryId)?.name ?? ''
+    : '';
+
+  return (
+    <div ref={ref} className="relative w-full max-w-sm">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Categorie
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <span className={selectedCategoryId ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedCategoryId ? selectedName : 'Alle categorieën'}
+        </span>
+        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-72 flex flex-col">
+          <div className="p-2 border-b">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Zoek categorie..."
+              autoFocus
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1">
+            <button
+              type="button"
+              onClick={() => { onSelect(null); setOpen(false); setSearch(''); }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                selectedCategoryId === null ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
+              }`}
+            >
+              Alle categorieën
+            </button>
+            {filtered.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => { onSelect(cat.id); setOpen(false); setSearch(''); }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                  selectedCategoryId === cat.id ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-sm text-gray-400">Geen resultaten</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ArchiveerVarianten() {
   const { isLoading, isLoggedIn } = useAuth();
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
@@ -27,14 +124,34 @@ export default function ArchiveerVarianten() {
   const [hasFetched, setHasFetched] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<number>>(new Set());
+  const [categories, setCategories] = useState<OdooCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
-  const fetchProducts = useCallback(async () => {
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    fetch('/api/odoo/fetch-categories', { method: 'POST', credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          const sorted = (data.categories as OdooCategory[]).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          setCategories(sorted);
+        }
+      })
+      .catch(() => {});
+  }, [isLoggedIn]);
+
+  const fetchProducts = useCallback(async (categId?: number | null) => {
     setFetching(true);
     setError(null);
     setSuccessMsg(null);
     setShowConfirmation(false);
     try {
-      const res = await fetch('/api/odoo/archive-variants', {
+      const url = categId
+        ? `/api/odoo/archive-variants?categ_id=${categId}`
+        : '/api/odoo/archive-variants';
+      const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });
@@ -170,21 +287,29 @@ export default function ArchiveerVarianten() {
           </p>
 
           <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
-            {!hasFetched && (
-              <div className="text-center">
-                <button
-                  onClick={fetchProducts}
-                  disabled={fetching}
-                  className={`px-6 py-3 rounded-md text-white font-medium transition-colors ${
-                    fetching
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {fetching ? 'Producten ophalen...' : 'Producten ophalen'}
-                </button>
-              </div>
-            )}
+            <div className="flex items-end gap-4 flex-wrap">
+              <CategoryFilter
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelect={(id) => {
+                  setSelectedCategoryId(id);
+                  if (hasFetched) {
+                    fetchProducts(id);
+                  }
+                }}
+              />
+              <button
+                onClick={() => fetchProducts(selectedCategoryId)}
+                disabled={fetching}
+                className={`px-6 py-2 rounded-md text-white font-medium transition-colors ${
+                  fetching
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {fetching ? 'Ophalen...' : hasFetched ? 'Vernieuwen' : 'Producten ophalen'}
+              </button>
+            </div>
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
@@ -227,7 +352,7 @@ export default function ArchiveerVarianten() {
                       Niets selecteren
                     </button>
                     <button
-                      onClick={fetchProducts}
+                      onClick={() => fetchProducts(selectedCategoryId)}
                       disabled={fetching}
                       className="text-sm px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
