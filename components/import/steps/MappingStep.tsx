@@ -7,7 +7,7 @@ interface MappingStepProps {
 export default function MappingStep({ wizard }: MappingStepProps) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">🗺️ Field Mapping &amp; Validation</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">🗺️ Veldkoppeling &amp; validatie</h2>
       <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
         <p className="text-green-800 font-medium">
           {wizard.parsedProducts.length} rijen geïmporteerd, gegroepeerd in {wizard.parsedProducts.length} producten
@@ -29,14 +29,14 @@ export default function MappingStep({ wizard }: MappingStepProps) {
         </div>
       </div>
 
-      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-3">Product Groepen Preview</h3>
+      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-3">Productgroepen voorbeeld</h3>
       <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden flex flex-col" style={{ maxHeight: '600px' }}>
         {/* Table Header */}
         <div className="overflow-x-auto flex-shrink-0">
           <table className="w-full text-sm border-collapse">
             <thead className="bg-blue-600 dark:bg-blue-700 text-white sticky top-0 z-10">
               <tr>
-                <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Reference</th>
+                <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Referentie</th>
                 <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Naam</th>
                 <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Materiaal</th>
                 <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Kleur</th>
@@ -87,7 +87,7 @@ export default function MappingStep({ wizard }: MappingStepProps) {
           onClick={() => wizard.setCurrentStep(3)}
           className="px-6 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-800"
         >
-          Volgende: Selectie →
+          Volgende: selectie →
         </button>
       </div>
     </div>

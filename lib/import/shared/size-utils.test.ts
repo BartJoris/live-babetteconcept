@@ -106,6 +106,10 @@ describe('convertSize', () => {
     it('converts 68/6M to "6 maand"', () => {
       expect(convertSize('68/6M')).toBe('6 maand');
     });
+
+    it('converts 110/5Y-116/6Y to "6 jaar"', () => {
+      expect(convertSize('110/5Y-116/6Y')).toBe('6 jaar');
+    });
   });
 
   describe('passthrough cases', () => {

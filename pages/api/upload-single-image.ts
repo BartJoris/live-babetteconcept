@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { odooClient } from '@/lib/odooClient';
 import { OdooImageService } from '@/lib/import/services';
 
 interface UploadRequest {
@@ -9,6 +10,8 @@ interface UploadRequest {
   isMainImage: boolean;
   odooUid: string;
   odooPassword: string;
+  /** Optional: when provided, force this publish state after image write. */
+  isPublished?: boolean;
 }
 
 export default async function handler(
@@ -27,7 +30,8 @@ export default async function handler(
       sequence,
       isMainImage,
       odooUid,
-      odooPassword
+      odooPassword,
+      isPublished,
     } = req.body as UploadRequest;
 
     if (!templateId || !base64Image || !odooUid || !odooPassword) {
@@ -41,8 +45,20 @@ export default async function handler(
 
     if (isMainImage) {
       console.log(`🖼️ Setting main image for template ${templateId}...`);
-      await imageService.setMainImage(templateId, base64Image);
-      console.log(`✅ Main image set (no product.image record created to avoid duplicates)`);
+      // Preserve publish flag: Odoo can reset website_published on template image write.
+      let preservePublished = isPublished;
+      if (preservePublished === undefined) {
+        const current = await odooClient.read<{ website_published: boolean }>(
+          uid,
+          odooPassword,
+          'product.template',
+          [templateId],
+          ['website_published'],
+        );
+        preservePublished = Boolean(current?.[0]?.website_published);
+      }
+      await imageService.setMainImage(templateId, base64Image, preservePublished);
+      console.log(`✅ Main image set (publish preserved=${preservePublished})`);
     } else {
       imageId = await imageService.addGalleryImage(templateId, imageName, base64Image, sequence);
       console.log(`✅ Created product.image ${imageId} for template ${templateId}`);

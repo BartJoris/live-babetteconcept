@@ -296,7 +296,7 @@ export default function SmartUploadPage() {
 
   return (
     <>
-      <Head><title>Smart Upload - Babette</title></Head>
+      <Head><title>Slim uploaden - Babette</title></Head>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-4xl mx-auto px-4">
           {/* Header */}
@@ -305,7 +305,7 @@ export default function SmartUploadPage() {
               &larr; Terug naar Import
             </Link>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2">
-              Smart Upload
+              Slim uploaden
             </h1>
             <p className="text-gray-700 dark:text-gray-300">
               Sleep bestanden hierheen. Het systeem herkent automatisch de leverancier en gaat direct door naar de import.

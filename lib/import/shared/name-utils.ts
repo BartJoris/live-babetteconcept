@@ -54,3 +54,45 @@ export function formatProductName(
 
   return result;
 }
+
+/**
+ * Strip a leading "Brand - " prefix and trailing color (" - Color" or " (Color)").
+ */
+export function extractProductBaseName(name: string): string {
+  if (!name) return '';
+  let base = name.trim();
+  // Remove first "Brand - " segment when present
+  if (base.includes(' - ')) {
+    base = base.replace(/^.*?\s+-\s+/, '');
+  }
+  base = base.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  // If still "Name - Color", drop trailing color segment
+  if (base.includes(' - ')) {
+    base = base.replace(/\s+-\s+[^-]+$/, '').trim();
+  }
+  return base;
+}
+
+/**
+ * Rebuild product display name when the brand changes.
+ * Preserves parentheses color style when the current name uses it.
+ */
+export function rebuildNameWithBrand(
+  currentName: string,
+  originalName: string | undefined,
+  color: string | undefined,
+  brandName: string,
+): string {
+  const base = toSentenceCase(
+    (originalName || extractProductBaseName(currentName) || currentName).trim(),
+  );
+  const colorPart = color?.trim() ? toSentenceCase(color.trim()) : '';
+
+  if (colorPart && /\([^)]+\)\s*$/.test(currentName)) {
+    return `${brandName} - ${base} (${colorPart})`;
+  }
+  if (colorPart) {
+    return `${brandName} - ${base} - ${colorPart}`;
+  }
+  return `${brandName} - ${base}`;
+}

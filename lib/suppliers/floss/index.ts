@@ -32,6 +32,11 @@ function parseFlossCSV(text: string, context: ParseContext): ParsedProduct[] {
     return parseFlossRows(retried.headers, retried.rows, context);
   }
 
+  // New Flöss order confirmation CSV (same layout as Jenest, item numbers F#####)
+  if (headers.includes('Item number') && headers.includes('Product name')) {
+    return parseFlossOrderRows(headers, rows, context);
+  }
+
   // Auto-detect: if first "header" row doesn't contain expected columns, it's old format
   if (!headers.includes('Style No') && !headers.includes('Style Name')) {
     const retried = parseCSV(text, {
@@ -40,10 +45,87 @@ function parseFlossCSV(text: string, context: ParseContext): ParsedProduct[] {
       skipRows: 1,
     });
     if (retried.headers.length === 0) return [];
+    if (
+      retried.headers.includes('Item number') &&
+      retried.headers.includes('Product name')
+    ) {
+      return parseFlossOrderRows(retried.headers, retried.rows, context);
+    }
     return parseFlossRows(retried.headers, retried.rows, context);
   }
 
   return parseFlossRows(headers, rows, context);
+}
+
+/** Parse Flöss sales-order CSV (Order no. / Item number / EAN Number / …). */
+function parseFlossOrderRows(
+  headers: string[],
+  rows: string[][],
+  context: ParseContext,
+): ParsedProduct[] {
+  const brandName = 'Flöss';
+  const brand = context.findBrand('flöss', 'floss');
+  const products: Record<string, ParsedProduct> = {};
+
+  for (const values of rows) {
+    const row = rowToObject(headers, values);
+    const itemNumber = (row['Item number'] || '').trim();
+    const productName = (row['Product name'] || '').trim();
+    const color = (row['Color'] || '').trim();
+    const rawSize = (row['Size'] || '').trim();
+    const ean = (row['EAN Number'] || '').trim();
+    const sku = (row['SKU'] || '').trim();
+    const quantity = parseInt(row['Line quantity'] || '0', 10) || 0;
+    const price = parseEuroPrice(row['Line unit price'] || '0');
+    const rrp = parseEuroPrice(row['Rec retail price'] || '0');
+    const description = (row['Product description'] || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .trim();
+    const productType = (row['Type'] || '').trim();
+
+    if (!itemNumber || !/^F\d+/i.test(itemNumber) || !productName) continue;
+
+    const reference = itemNumber.toUpperCase();
+    const colorKey = color.trim().toLowerCase().replace(/\s+/g, '-');
+    const productKey = colorKey ? `${reference}_${colorKey}` : reference;
+
+    if (!products[productKey]) {
+      // Match naming already used for successful AW26 imports in Odoo.
+      const formattedName = `${brandName} - ${toSentenceCase(productName)} (${toSentenceCase(color)})`;
+
+      products[productKey] = {
+        reference,
+        name: formattedName,
+        originalName: productName,
+        material: '',
+        color,
+        csvCategory: productType,
+        ecommerceDescription: description,
+        variants: [],
+        suggestedBrand: brand?.name,
+        selectedBrand: brand,
+        publicCategories: [],
+        productTags: [],
+        isFavorite: false,
+        isPublished: true,
+      };
+    }
+
+    products[productKey].variants.push({
+      size: convertSize(rawSize),
+      quantity,
+      ean,
+      sku,
+      price,
+      rrp,
+    });
+  }
+
+  const productList = Object.values(products);
+  productList.forEach((p) => {
+    p.sizeAttribute = determineSizeAttribute(p.variants);
+  });
+  return productList;
 }
 
 function parseFlossRows(headers: string[], rows: string[][], context: ParseContext): ParsedProduct[] {

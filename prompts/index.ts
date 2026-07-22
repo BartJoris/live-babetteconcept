@@ -25,6 +25,9 @@ export interface ProductPromptInput {
   material?: string;
   description?: string;
   fabricPrint?: string;
+  category?: string;
+  sizes?: string[];
+  publicCategories?: string[];
 }
 
 /**

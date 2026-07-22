@@ -41,6 +41,12 @@ export function convertSize(sizeStr: string): string {
     return unit === 'M' ? `${num} maand` : `${num} jaar`;
   }
 
+  // Flöss combined dual range: "110/5Y-116/6Y" -> use larger age -> "6 jaar"
+  const dualRangeMatch = s.match(/^\d+\/\d+Y-\d+\/(\d+)Y$/i);
+  if (dualRangeMatch) {
+    return `${dualRangeMatch[1]} jaar`;
+  }
+
   // Dual EU size: "110/116" -> use larger -> "6 jaar"
   const dualEuMatch = s.match(/^(\d{2,3})\/(\d{2,3})$/);
   if (dualEuMatch) {

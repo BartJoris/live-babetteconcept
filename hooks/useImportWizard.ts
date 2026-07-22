@@ -12,6 +12,7 @@ import type {
 } from '@/lib/suppliers/types';
 import { generateUniqueEAN13Batch } from '@/lib/import/shared/ean-utils';
 import { determineSizeAttribute, mapSizeToOdooFormat, isUnitSize } from '@/lib/import/shared';
+import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 import { findMatchingPublicCategories } from '@/components/import/shared/CategoryMatcher';
 import { transformProductForUpload, isUnitOnlyProduct } from '@/components/import/shared/product-utils';
 import { compressImage } from '@/lib/import/shared/image-utils';
@@ -27,14 +28,14 @@ import type {
 type VendorType = string | null;
 
 const STEPS: StepConfig[] = [
-  { id: 1, name: 'Upload', icon: '📤' },
-  { id: 2, name: 'Mapping', icon: '🗺️' },
+  { id: 1, name: 'Uploaden', icon: '📤' },
+  { id: 2, name: 'Koppeling', icon: '🗺️' },
   { id: 3, name: 'Voorraad', icon: '📦' },
   { id: 4, name: 'Categorieën', icon: '📁' },
   { id: 5, name: 'Afbeeldingen', icon: '🖼️' },
-  { id: 6, name: 'Preview', icon: '👁️' },
+  { id: 6, name: 'Voorbeeld', icon: '👁️' },
   { id: 7, name: 'Test', icon: '🧪' },
-  { id: 8, name: 'Import', icon: '🚀' },
+  { id: 8, name: 'Importeren', icon: '🚀' },
 ];
 
 export default function useImportWizard() {
@@ -84,6 +85,14 @@ export default function useImportWizard() {
   const [productTagSearch, setProductTagSearch] = useState('');
 
   const [categoriesDataError, setCategoriesDataError] = useState<string | null>(
+    null,
+  );
+
+  /** Cached Odoo size attribute values keyed by attribute name (e.g. MAAT Baby's). */
+  const [sizeValuesByAttribute, setSizeValuesByAttribute] = useState<
+    Record<string, Array<{ id: number; name: string }>>
+  >({});
+  const [loadingSizeAttribute, setLoadingSizeAttribute] = useState<string | null>(
     null,
   );
 
@@ -428,7 +437,7 @@ export default function useImportWizard() {
               parsedProducts.length === 0
             ) {
               alert(
-                rule.orderError || 'Upload the required files first.',
+                rule.orderError || 'Upload eerst de vereiste bestanden.',
               );
               return;
             }
@@ -692,7 +701,7 @@ export default function useImportWizard() {
       );
 
       alert(
-        `✅ Loaded ${products.length} products from Image Matcher\n📸 ${withImages} products with images\n🖼️ ${totalImages} total images`,
+        `✅ ${products.length} producten geladen van Image Matcher\n📸 ${withImages} producten met afbeeldingen\n🖼️ ${totalImages} afbeeldingen in totaal`,
       );
 
       setCurrentStep(2);
@@ -702,7 +711,7 @@ export default function useImportWizard() {
       );
     } catch (error) {
       console.error('Error loading matched products:', error);
-      alert('Error loading matched products. Please try again.');
+      alert('Fout bij laden van gekoppelde producten. Probeer het opnieuw.');
     }
   };
 
@@ -958,7 +967,11 @@ export default function useImportWizard() {
             color: product.color,
             material: product.material,
             fabricPrint: product.fabricPrint,
+            // Prefer supplier/raw description as source material for rewriting
             description: product.ecommerceDescription,
+            category: product.category?.name || product.csvCategory,
+            sizes: product.variants.map((v) => v.size).filter(Boolean),
+            publicCategories: product.publicCategories?.map((c) => c.name),
           },
           sizeAttribute: product.sizeAttribute,
           customSystemPrompt: sendCustomPrompt,
@@ -1059,6 +1072,38 @@ export default function useImportWizard() {
     );
   };
 
+  const ensureSizeValuesLoaded = async (attributeName: string) => {
+    if (
+      !attributeName ||
+      attributeName === 'Eén Maat' ||
+      sizeValuesByAttribute[attributeName] ||
+      loadingSizeAttribute === attributeName
+    ) {
+      return;
+    }
+
+    setLoadingSizeAttribute(attributeName);
+    try {
+      const response = await fetch(
+        `/api/fetch-size-values?attribute=${encodeURIComponent(attributeName)}`,
+        { credentials: 'include' },
+      );
+      const data = await response.json();
+      if (data.success && Array.isArray(data.values)) {
+        setSizeValuesByAttribute((prev) => ({
+          ...prev,
+          [attributeName]: data.values,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load size values:', error);
+    } finally {
+      setLoadingSizeAttribute((current) =>
+        current === attributeName ? null : current,
+      );
+    }
+  };
+
   const updateProductSizeAttribute = (
     productRef: string,
     newAttribute: string,
@@ -1070,6 +1115,7 @@ export default function useImportWizard() {
           : p,
       ),
     );
+    void ensureSizeValuesLoaded(newAttribute);
   };
 
   const setAllSizeAttribute = (value: string) => {
@@ -1079,6 +1125,38 @@ export default function useImportWizard() {
           ? { ...p, sizeAttribute: value }
           : p,
       ),
+    );
+    void ensureSizeValuesLoaded(value);
+  };
+
+  const updateProductBrand = (
+    productRef: string,
+    brand: Brand | null,
+    color?: string,
+  ) => {
+    setParsedProducts((products) =>
+      products.map((p) => {
+        const matchesRef = p.reference === productRef;
+        const matchesColor =
+          color === undefined || (p.color || '') === (color || '');
+        if (!matchesRef || !matchesColor) return p;
+
+        if (!brand) {
+          return { ...p, selectedBrand: undefined };
+        }
+
+        return {
+          ...p,
+          selectedBrand: brand,
+          suggestedBrand: brand.name,
+          name: rebuildNameWithBrand(
+            p.name,
+            p.originalName,
+            p.color,
+            brand.name,
+          ),
+        };
+      }),
     );
   };
 
@@ -1091,7 +1169,17 @@ export default function useImportWizard() {
     setParsedProducts((products) =>
       products.map((p) =>
         selectedProducts.has(p.reference)
-          ? { ...p, selectedBrand: brand }
+          ? {
+              ...p,
+              selectedBrand: brand,
+              suggestedBrand: brand.name,
+              name: rebuildNameWithBrand(
+                p.name,
+                p.originalName,
+                p.color,
+                brand.name,
+              ),
+            }
           : p,
       ),
     );
@@ -1259,7 +1347,262 @@ export default function useImportWizard() {
     setShowApiPreview(true);
   };
 
-  const IMPORT_BATCH_SIZE = 3;
+  // 2 products/request: good balance of speed vs timeout risk (limit is 300s on Hobby).
+  const IMPORT_BATCH_SIZE = 2;
+  const IMPORT_REPLAY_KEY = 'import_replay_payload';
+  const IMPORT_DRAFT_KEY = 'import_wizard_draft';
+
+  type ImportResultRow = {
+    success: boolean;
+    reference: string;
+    name?: string;
+    templateId?: number;
+    variantsCreated?: number;
+    variantsUpdated?: number;
+    message?: string;
+  };
+
+  type ImportReplayPayload = {
+    version: 1;
+    savedAt: string;
+    vendor: string;
+    testMode: boolean;
+    products: ParsedProduct[];
+  };
+
+  const buildProductsForApi = (products: ParsedProduct[]) =>
+    products.map((p) => {
+      const httpImages = (p.images || []).filter((img) =>
+        img.startsWith('http'),
+      );
+      return {
+        ...transformProductForUpload(p),
+        images: httpImages.length > 0 ? httpImages : undefined,
+      };
+    });
+
+  const persistImportReplay = (
+    products: ParsedProduct[],
+    testMode: boolean,
+  ) => {
+    if (typeof window === 'undefined') return;
+    const payload: ImportReplayPayload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      vendor: selectedVendor || 'unknown',
+      testMode,
+      products: buildProductsForApi(products),
+    };
+    localStorage.setItem(IMPORT_REPLAY_KEY, JSON.stringify(payload));
+    localStorage.setItem(
+      IMPORT_DRAFT_KEY,
+      JSON.stringify({
+        savedAt: payload.savedAt,
+        vendor: selectedVendor,
+        selectedReferences: Array.from(selectedProducts),
+        products: parsedProducts,
+      }),
+    );
+    console.log(
+      `💾 Import payload opgeslagen (${payload.products.length} producten) → localStorage.${IMPORT_REPLAY_KEY}`,
+    );
+  };
+
+  const downloadImportPayload = (products?: ParsedProduct[]) => {
+    const source =
+      products ||
+      parsedProducts.filter((p) => selectedProducts.has(p.reference));
+    if (source.length === 0) {
+      alert('Geen producten om te downloaden.');
+      return;
+    }
+    const payload: ImportReplayPayload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      vendor: selectedVendor || 'unknown',
+      testMode: false,
+      products: buildProductsForApi(source),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import-payload-${payload.vendor}-${new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:T]/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseImportResponse = async (
+    response: Response,
+  ): Promise<{
+    success?: boolean;
+    results?: ImportResultRow[];
+    error?: string;
+  }> => {
+    const text = await response.text();
+    if (!text) {
+      return {
+        success: false,
+        error: `Lege response (HTTP ${response.status}). Waarschijnlijk timeout.`,
+      };
+    }
+    try {
+      return JSON.parse(text) as {
+        success?: boolean;
+        results?: ImportResultRow[];
+        error?: string;
+      };
+    } catch {
+      const isTimeout =
+        response.status === 504 ||
+        /timed out|timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(text);
+      return {
+        success: false,
+        error: isTimeout
+          ? 'Server timeout (Vercel). Probeer opnieuw met kleinere batches.'
+          : `Ongeldige API-response (HTTP ${response.status}): ${text.slice(0, 180)}`,
+      };
+    }
+  };
+
+  const runImportBatches = async (
+    productsToImport: ParsedProduct[],
+    testMode: boolean,
+    signal: AbortSignal,
+  ): Promise<ImportResultRow[]> => {
+    const { uid, password } = await getCredentials();
+    if (!uid || !password) {
+      throw new Error('Geen Odoo credentials gevonden. Log eerst in.');
+    }
+
+    const productsForApi = buildProductsForApi(productsToImport);
+    persistImportReplay(productsToImport, testMode);
+
+    const totalBatches = Math.ceil(productsForApi.length / IMPORT_BATCH_SIZE);
+    setImportProgress({
+      current: 0,
+      total: productsForApi.length,
+      currentProduct: `Batch 1 van ${totalBatches}`,
+    });
+
+    const results: ImportResultRow[] = [];
+
+    for (let i = 0; i < productsForApi.length; i += IMPORT_BATCH_SIZE) {
+      const batch = productsForApi.slice(i, i + IMPORT_BATCH_SIZE);
+      const batchNum = Math.floor(i / IMPORT_BATCH_SIZE) + 1;
+
+      setImportProgress({
+        current: i,
+        total: productsForApi.length,
+        currentProduct: `Batch ${batchNum} van ${totalBatches}: ${batch[0]?.name || ''}`,
+      });
+
+      try {
+        const response = await fetch('/api/import-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            products: batch,
+            testMode,
+            vendor: selectedVendor || 'unknown',
+            uid,
+            password,
+          }),
+          signal,
+        });
+
+        const result = await parseImportResponse(response);
+
+        if (result.success && result.results) {
+          results.push(...result.results);
+        } else {
+          results.push(
+            ...batch.map((p) => ({
+              success: false,
+              reference: p.reference,
+              name: p.name,
+              message: result.error || `HTTP ${response.status}`,
+            })),
+          );
+        }
+      } catch (error) {
+        if (signal.aborted) throw error;
+        console.error('Error importing products:', error);
+        results.push(
+          ...batch.map((p) => ({
+            success: false,
+            reference: p.reference,
+            name: p.name,
+            message:
+              error instanceof Error ? error.message : String(error),
+          })),
+        );
+      }
+    }
+
+    return results;
+  };
+
+  const finalizeImportResults = (
+    results: ImportResultRow[],
+    productsToImport: ParsedProduct[],
+  ) => {
+    const summary = {
+      total: results.length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      totalVariantsCreated: results.reduce(
+        (sum, r) => sum + (r.variantsCreated || 0),
+        0,
+      ),
+      totalVariantsUpdated: results.reduce(
+        (sum, r) => sum + (r.variantsUpdated || 0),
+        0,
+      ),
+      vendor: selectedVendor || 'unknown',
+      timestamp: new Date().toISOString(),
+    };
+
+    setImportResults({ success: true, results, summary });
+    console.log('📊 Import Summary:', summary);
+
+    if (selectedVendor === 'playup') {
+      const playupResults = results
+        .filter((r) => r.success && r.templateId)
+        .map((r) => ({
+          reference: r.reference || '',
+          colorCode: r.reference?.split('-')[1] || '',
+          description: r.name?.split(' - ')[1] || '',
+          name: r.name || '',
+          templateId: r.templateId || 0,
+        }));
+
+      if (typeof window !== 'undefined' && playupResults.length > 0) {
+        sessionStorage.setItem(
+          'playup_import_results',
+          JSON.stringify(playupResults),
+        );
+        console.log(
+          `💾 Saved ${playupResults.length} Play UP products to session for image upload`,
+        );
+      }
+    }
+
+    setCurrentStep(8);
+
+    const hasPoolImages = productsToImport.some((p) =>
+      imagePool.some((img) => img.assignedReference === p.reference),
+    );
+    if (hasPoolImages && results.some((r) => r.success)) {
+      console.log('📸 Auto-uploading images from pool...');
+      setTimeout(() => uploadAllImages(), 500);
+    }
+  };
 
   const executeImport = async (testMode: boolean = false) => {
     setShowApiPreview(false);
@@ -1270,13 +1613,6 @@ export default function useImportWizard() {
     const { signal } = importAbortRef.current;
 
     try {
-      const { uid, password } = await getCredentials();
-      if (!uid || !password) {
-        alert('Geen Odoo credentials gevonden. Log eerst in.');
-        setIsLoading(false);
-        return;
-      }
-
       const productsToImport =
         testMode && apiPreviewData?.product
           ? [apiPreviewData.product]
@@ -1284,153 +1620,181 @@ export default function useImportWizard() {
               selectedProducts.has(p.reference),
             );
 
-      const productsForApi = productsToImport.map((p) => {
-        const httpImages = (p.images || []).filter((img) =>
-          img.startsWith('http'),
-        );
-        return { ...p, images: httpImages.length > 0 ? httpImages : undefined };
-      });
-
-      const totalBatches = Math.ceil(productsForApi.length / IMPORT_BATCH_SIZE);
-
-      setImportProgress({
-        current: 0,
-        total: productsForApi.length,
-        currentProduct: `Batch 1 van ${totalBatches}`,
-      });
-
-      let results: Array<{
-        success: boolean;
-        reference: string;
-        name?: string;
-        templateId?: number;
-        variantsCreated?: number;
-        variantsUpdated?: number;
-        message?: string;
-      }> = [];
-
-      try {
-        for (let i = 0; i < productsForApi.length; i += IMPORT_BATCH_SIZE) {
-          const batch = productsForApi.slice(i, i + IMPORT_BATCH_SIZE);
-          const batchNum = Math.floor(i / IMPORT_BATCH_SIZE) + 1;
-
-          setImportProgress({
-            current: i,
-            total: productsForApi.length,
-            currentProduct: `Batch ${batchNum} van ${totalBatches}`,
-          });
-
-          const response = await fetch('/api/import-products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              products: batch.map((p) => transformProductForUpload(p)),
-              testMode,
-              vendor: selectedVendor || 'unknown',
-              uid,
-              password,
-            }),
-            signal,
-          });
-
-          const result = await response.json();
-
-          if (result.success && result.results) {
-            results.push(...result.results);
-          } else {
-            results.push(
-              ...batch.map((p) => ({
-                success: false,
-                reference: p.reference,
-                name: p.name,
-                message: result.error || 'Unknown error',
-              })),
-            );
-          }
-        }
-      } catch (error) {
-        if (signal.aborted) {
-          setImportProgress(null);
-          setIsLoading(false);
-          return;
-        }
-        console.error('Error importing products:', error);
-        const imported = new Set(results.map((r) => r.reference));
-        const remaining = productsToImport.filter(
-          (p) => !imported.has(p.reference),
-        );
-        results.push(
-          ...remaining.map((p) => ({
-            success: false,
-            reference: p.reference,
-            name: p.name,
-            message: String(error),
-          })),
-        );
+      if (productsToImport.length === 0) {
+        alert('Geen producten geselecteerd om te importeren.');
+        return;
       }
 
-      setImportProgress(null);
-
-      const summary = {
-        total: results.length,
-        successful: results.filter((r) => r.success).length,
-        failed: results.filter((r) => !r.success).length,
-        totalVariantsCreated: results.reduce(
-          (sum, r) => sum + (r.variantsCreated || 0),
-          0,
-        ),
-        totalVariantsUpdated: results.reduce(
-          (sum, r) => sum + (r.variantsUpdated || 0),
-          0,
-        ),
-        vendor: selectedVendor || 'unknown',
-        timestamp: new Date().toISOString(),
-      };
-
-      setImportResults({ success: true, results, summary });
-
-      console.log('📊 Import Summary:', summary);
-
-      if (selectedVendor === 'playup') {
-        const playupResults = results
-          .filter((r) => r.success && r.templateId)
-          .map((r) => ({
-            reference: r.reference || '',
-            colorCode: r.reference?.split('-')[1] || '',
-            description: r.name?.split(' - ')[1] || '',
-            name: r.name || '',
-            templateId: r.templateId || 0,
-          }));
-
-        if (
-          typeof window !== 'undefined' &&
-          playupResults.length > 0
-        ) {
-          sessionStorage.setItem(
-            'playup_import_results',
-            JSON.stringify(playupResults),
-          );
-          console.log(
-            `💾 Saved ${playupResults.length} Play UP products to session for image upload`,
-          );
-        }
-      }
-
-      setCurrentStep(8);
-
-      const hasPoolImages = productsToImport.some((p) =>
-        imagePool.some((img) => img.assignedReference === p.reference),
+      const results = await runImportBatches(
+        productsToImport,
+        testMode,
+        signal,
       );
-      if (hasPoolImages && results.some((r) => r.success)) {
-        console.log('📸 Auto-uploading images from pool...');
-        setTimeout(() => uploadAllImages(), 500);
-      }
+      setImportProgress(null);
+      finalizeImportResults(results, productsToImport);
     } catch (error) {
+      if (importAbortRef.current?.signal.aborted) {
+        setImportProgress(null);
+        return;
+      }
       console.error('Import error:', error);
-      alert('Import failed: ' + error);
+      alert('Import mislukt: ' + error);
       setImportProgress(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Retry only products that failed in the last import result (same wizard state). */
+  const retryFailedImport = async () => {
+    if (!importResults) {
+      alert('Geen importresultaten om te herhalen.');
+      return;
+    }
+
+    const failedRefs = new Set(
+      importResults.results
+        .filter((r) => !r.success)
+        .map((r) => r.reference),
+    );
+    const productsToRetry = parsedProducts.filter((p) =>
+      failedRefs.has(p.reference),
+    );
+
+    if (productsToRetry.length === 0) {
+      alert('Geen mislukte producten gevonden in de huidige wizardstatus.');
+      return;
+    }
+
+    if (
+      !confirm(
+        `${productsToRetry.length} mislukte producten opnieuw importeren?\n\nTip: archiveer eerst gedeeltelijk aangemaakte producten in Odoo (barcodes), anders krijg je conflicten.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsLoading(true);
+    importAbortRef.current?.abort();
+    importAbortRef.current = new AbortController();
+    const { signal } = importAbortRef.current;
+
+    try {
+      const newResults = await runImportBatches(
+        productsToRetry,
+        false,
+        signal,
+      );
+      setImportProgress(null);
+
+      // Merge: keep previous successes, replace failed rows with new outcomes.
+      const byRef = new Map(
+        importResults.results.map((r) => [r.reference, r] as const),
+      );
+      for (const r of newResults) {
+        byRef.set(r.reference, r);
+      }
+      finalizeImportResults(
+        Array.from(byRef.values()),
+        productsToRetry,
+      );
+    } catch (error) {
+      if (importAbortRef.current?.signal.aborted) {
+        setImportProgress(null);
+        return;
+      }
+      console.error('Retry import error:', error);
+      alert('Opnieuw proberen mislukt: ' + error);
+      setImportProgress(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /** Re-run the last saved localStorage payload (no wizard remapping needed). */
+  const replayLastImportPayload = async () => {
+    if (typeof window === 'undefined') return;
+
+    const raw = localStorage.getItem(IMPORT_REPLAY_KEY);
+    if (!raw) {
+      alert(
+        'Geen opgeslagen import-payload gevonden. Start eerst een import of download/upload een payload JSON.',
+      );
+      return;
+    }
+
+    let payload: ImportReplayPayload;
+    try {
+      payload = JSON.parse(raw) as ImportReplayPayload;
+    } catch {
+      alert('Opgeslagen import-payload is ongeldig JSON.');
+      return;
+    }
+
+    if (!payload.products?.length) {
+      alert('Opgeslagen payload bevat geen producten.');
+      return;
+    }
+
+    if (
+      !confirm(
+        `Laatste payload opnieuw importeren?\n\n${payload.products.length} producten\nVendor: ${payload.vendor}\nOpgeslagen: ${new Date(payload.savedAt).toLocaleString('nl-NL')}`,
+      )
+    ) {
+      return;
+    }
+
+    if (payload.vendor && payload.vendor !== 'unknown') {
+      setSelectedVendor(payload.vendor);
+    }
+
+    setIsLoading(true);
+    importAbortRef.current?.abort();
+    importAbortRef.current = new AbortController();
+    const { signal } = importAbortRef.current;
+
+    try {
+      const results = await runImportBatches(
+        payload.products,
+        payload.testMode,
+        signal,
+      );
+      setImportProgress(null);
+      finalizeImportResults(results, payload.products);
+    } catch (error) {
+      if (importAbortRef.current?.signal.aborted) {
+        setImportProgress(null);
+        return;
+      }
+      console.error('Replay import error:', error);
+      alert('Opnieuw importeren mislukt: ' + error);
+      setImportProgress(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadImportPayloadFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text) as ImportReplayPayload;
+      if (!payload.products?.length) {
+        alert('Dit bestand bevat geen producten.');
+        return;
+      }
+      localStorage.setItem(IMPORT_REPLAY_KEY, JSON.stringify(payload));
+      if (payload.vendor && payload.vendor !== 'unknown') {
+        setSelectedVendor(payload.vendor);
+      }
+      // Restore into wizard so user can inspect/edit before replaying
+      setParsedProducts(payload.products);
+      setSelectedProducts(new Set(payload.products.map((p) => p.reference)));
+      alert(
+        `Payload geladen: ${payload.products.length} producten (${payload.vendor}).\nKlik op "Laatste payload opnieuw importeren" om de API-calls te herhalen.`,
+      );
+      setCurrentStep(7);
+    } catch (error) {
+      alert('Kon payload niet laden: ' + error);
     }
   };
 
@@ -1918,6 +2282,10 @@ export default function useImportWizard() {
     setAllPublished,
     updateProductSizeAttribute,
     setAllSizeAttribute,
+    updateProductBrand,
+    ensureSizeValuesLoaded,
+    sizeValuesByAttribute,
+    loadingSizeAttribute,
     applyBatchBrand,
     applyBatchCategory,
     addBatchPublicCategory,
@@ -1932,6 +2300,10 @@ export default function useImportWizard() {
     removeProductTag,
     testProduct,
     executeImport,
+    retryFailedImport,
+    replayLastImportPayload,
+    downloadImportPayload,
+    loadImportPayloadFile,
     uploadAllImages,
     resetWizard,
 

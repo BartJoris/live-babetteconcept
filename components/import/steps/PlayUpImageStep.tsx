@@ -9,7 +9,7 @@ export default function PlayUpImageStep({ wizard }: PlayUpImageStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-4">
-        📸 Manage Product Images
+        📸 Productafbeeldingen beheren
       </h2>
 
       {/* Statistics */}
@@ -53,15 +53,14 @@ export default function PlayUpImageStep({ wizard }: PlayUpImageStepProps) {
       ) && (
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-6">
           <h3 className="font-bold text-blue-900 mb-2">
-            📁 Local Images Ready
+            📁 Lokale afbeeldingen klaar
           </h3>
           <p className="text-sm text-blue-800 mb-3">
-            Images from the matcher are stored locally. Upload them manually
-            using the &quot;📁 Upload Foto&apos;s&quot; button below each
-            product.
+            Afbeeldingen van de matcher staan lokaal. Upload ze handmatig via
+            de knop &quot;📁 Upload Foto&apos;s&quot; onder elk product.
           </p>
           <p className="text-xs text-blue-700 bg-blue-100 rounded p-2">
-            💡 <strong>Tip:</strong> Images are in{' '}
+            💡 <strong>Tip:</strong> Afbeeldingen staan in{' '}
             <code className="bg-blue-200 px-1 rounded">
               ~/Downloads/Play_Up_Matched_Images/
             </code>

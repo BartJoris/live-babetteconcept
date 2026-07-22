@@ -16,9 +16,9 @@ const FIELD_LABELS: Record<string, string> = {
   variant_count: 'Varianten',
   website_published: 'Gepubliceerd',
   image_1920: 'Hoofdafbeelding',
-  public_categ_ids: 'eCommerce Categorieën',
-  product_tag_ids: 'Product Labels',
-  template: 'Template',
+  public_categ_ids: 'Webshopcategorieën',
+  product_tag_ids: 'Productlabels',
+  template: 'Sjabloon',
 };
 
 const STATUS_CONFIG = {
@@ -183,7 +183,7 @@ export default function ValidationReport({ results, onRevalidate, isLoading }: V
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Validatie Rapport</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Validatierapport</h2>
         <div className="flex gap-2">
           {onRevalidate && (
             <button

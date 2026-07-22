@@ -1,4 +1,14 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  useLayoutEffect,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 
 export interface FuzzyOption {
   id: number | string;
@@ -14,6 +24,8 @@ interface FuzzySearchSelectProps {
   className?: string;
   label?: string;
   showGroupHeaders?: boolean;
+  /** Allow confirming a typed value that is not in the options list (Enter / blur). */
+  allowCustom?: boolean;
 }
 
 interface ScoredOption extends FuzzyOption {
@@ -21,7 +33,10 @@ interface ScoredOption extends FuzzyOption {
   matchRanges: Array<[number, number]>;
 }
 
-function fuzzyScore(text: string, query: string): { score: number; ranges: Array<[number, number]> } {
+function fuzzyScore(
+  text: string,
+  query: string,
+): { score: number; ranges: Array<[number, number]> } {
   const lower = text.toLowerCase();
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return { score: 0, ranges: [] };
@@ -40,7 +55,9 @@ function fuzzyScore(text: string, query: string): { score: number; ranges: Array
   return { score: totalScore, ranges };
 }
 
-function mergeRanges(ranges: Array<[number, number]>): Array<[number, number]> {
+function mergeRanges(
+  ranges: Array<[number, number]>,
+): Array<[number, number]> {
   if (ranges.length === 0) return [];
   const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
   const merged: Array<[number, number]> = [sorted[0]];
@@ -55,7 +72,13 @@ function mergeRanges(ranges: Array<[number, number]>): Array<[number, number]> {
   return merged;
 }
 
-function HighlightedText({ text, ranges }: { text: string; ranges: Array<[number, number]> }) {
+function HighlightedText({
+  text,
+  ranges,
+}: {
+  text: string;
+  ranges: Array<[number, number]>;
+}) {
   const merged = mergeRanges(ranges);
   if (merged.length === 0) return <>{text}</>;
 
@@ -66,7 +89,10 @@ function HighlightedText({ text, ranges }: { text: string; ranges: Array<[number
       parts.push(<span key={cursor}>{text.slice(cursor, start)}</span>);
     }
     parts.push(
-      <mark key={start} className="bg-yellow-200 dark:bg-yellow-700 text-inherit rounded-sm px-0.5">
+      <mark
+        key={start}
+        className="bg-yellow-200 dark:bg-yellow-700 text-inherit rounded-sm px-0.5"
+      >
         {text.slice(start, end)}
       </mark>,
     );
@@ -86,16 +112,21 @@ export default function FuzzySearchSelect({
   className = '',
   label,
   showGroupHeaders = false,
+  allowCustom = false,
 }: FuzzySearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = useMemo(
-    () => (value != null ? options.find((o) => o.id.toString() === value.toString()) : null),
+    () =>
+      value != null
+        ? options.find((o) => o.id.toString() === value.toString())
+        : null,
     [value, options],
   );
 
@@ -124,15 +155,55 @@ export default function FuzzySearchSelect({
     return map;
   }, [scored, showGroupHeaders]);
 
-  const flatList = useMemo(() => (showGroupHeaders && grouped ? Array.from(grouped.values()).flat() : scored), [showGroupHeaders, grouped, scored]);
+  const flatList = useMemo(
+    () =>
+      showGroupHeaders && grouped
+        ? Array.from(grouped.values()).flat()
+        : scored,
+    [showGroupHeaders, grouped, scored],
+  );
+
+  const updateMenuPosition = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < 280 && rect.top > spaceBelow;
+    const maxHeight = Math.min(288, openUp ? rect.top - 8 : spaceBelow - 8);
+
+    setMenuStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: Math.max(rect.width, 180),
+      zIndex: 9999,
+      maxHeight,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updateMenuPosition();
+    const onScrollOrResize = () => updateMenuPosition();
+    window.addEventListener('resize', onScrollOrResize);
+    // Capture scroll from nested overflow containers
+    window.addEventListener('scroll', onScrollOrResize, true);
+    return () => {
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+    };
+  }, [isOpen, updateMenuPosition, flatList.length]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setSearch('');
-        setActiveIndex(-1);
-      }
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setIsOpen(false);
+      setSearch('');
+      setActiveIndex(-1);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -170,11 +241,22 @@ export default function FuzzySearchSelect({
     [onChange],
   );
 
+  const commitCustom = useCallback(() => {
+    if (!allowCustom) return;
+    const custom = search.trim();
+    if (!custom) return;
+    onChange(custom);
+    setIsOpen(false);
+    setSearch('');
+    setActiveIndex(-1);
+  }, [allowCustom, search, onChange]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
+          if (!isOpen) setIsOpen(true);
           setActiveIndex((prev) => Math.min(prev + 1, flatList.length - 1));
           break;
         case 'ArrowUp':
@@ -185,6 +267,8 @@ export default function FuzzySearchSelect({
           e.preventDefault();
           if (activeIndex >= 0 && activeIndex < flatList.length) {
             handleSelect(flatList[activeIndex].id);
+          } else if (allowCustom && search.trim()) {
+            commitCustom();
           }
           break;
         case 'Escape':
@@ -195,8 +279,95 @@ export default function FuzzySearchSelect({
           break;
       }
     },
-    [activeIndex, flatList, handleSelect],
+    [
+      activeIndex,
+      flatList,
+      handleSelect,
+      allowCustom,
+      search,
+      commitCustom,
+      isOpen,
+    ],
   );
+
+  const dropdown =
+    isOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={listRef}
+            style={menuStyle}
+            className="bg-white dark:bg-gray-800 border-2 border-blue-500 dark:border-blue-600 rounded-lg shadow-xl overflow-y-auto"
+          >
+            {flatList.length === 0 ? (
+              <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                {allowCustom && search.trim() ? (
+                  <button
+                    type="button"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={commitCustom}
+                  >
+                    Gebruik &ldquo;{search.trim()}&rdquo;
+                  </button>
+                ) : (
+                  <>Geen resultaten voor &ldquo;{search}&rdquo;</>
+                )}
+              </div>
+            ) : showGroupHeaders && grouped ? (
+              (() => {
+                let idx = 0;
+                return Array.from(grouped.entries()).map(([group, items]) => (
+                  <div key={group || 'default'}>
+                    {group && (
+                      <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-750 sticky top-0">
+                        {group}
+                      </div>
+                    )}
+                    {items.map((opt) => {
+                      const currentIdx = idx++;
+                      return (
+                        <div
+                          key={`${opt.id}__${opt.label}`}
+                          data-idx={currentIdx}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSelect(opt.id)}
+                          className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                            currentIdx === activeIndex
+                              ? 'bg-blue-500 dark:bg-blue-600 text-white'
+                              : 'text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                          }`}
+                        >
+                          <HighlightedText
+                            text={opt.label}
+                            ranges={opt.matchRanges}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
+              })()
+            ) : (
+              flatList.map((opt, i) => (
+                <div
+                  key={`${opt.id}__${opt.label}`}
+                  data-idx={i}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(opt.id)}
+                  className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                    i === activeIndex
+                      ? 'bg-blue-500 dark:bg-blue-600 text-white'
+                      : 'text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                  }`}
+                >
+                  <HighlightedText text={opt.label} ranges={opt.matchRanges} />
+                </div>
+              ))
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div className={className}>
@@ -211,7 +382,10 @@ export default function FuzzySearchSelect({
             ref={inputRef}
             type="text"
             value={isOpen ? search : (selectedOption?.label ?? '')}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }}
             onFocus={() => setIsOpen(true)}
             onClick={() => setIsOpen(true)}
             onKeyDown={handleKeyDown}
@@ -219,8 +393,9 @@ export default function FuzzySearchSelect({
             className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 pr-8 text-sm font-medium hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
             autoComplete="off"
           />
-          {value && !isOpen && (
+          {value != null && value !== '' && !isOpen && (
             <button
+              type="button"
               onClick={handleClear}
               className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 flex items-center justify-center text-xs hover:bg-gray-300 dark:hover:bg-gray-500"
               aria-label="Wissen"
@@ -229,64 +404,7 @@ export default function FuzzySearchSelect({
             </button>
           )}
         </div>
-
-        {isOpen && (
-          <div
-            ref={listRef}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-blue-500 dark:border-blue-600 rounded-lg shadow-xl max-h-72 overflow-y-auto"
-          >
-            {flatList.length === 0 ? (
-              <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
-                Geen resultaten voor &ldquo;{search}&rdquo;
-              </div>
-            ) : showGroupHeaders && grouped ? (
-              (() => {
-                let idx = 0;
-                return Array.from(grouped.entries()).map(([group, items]) => (
-                  <div key={group}>
-                    {group && (
-                      <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-750 sticky top-0">
-                        {group}
-                      </div>
-                    )}
-                    {items.map((opt) => {
-                      const currentIdx = idx++;
-                      return (
-                        <div
-                          key={opt.id}
-                          data-idx={currentIdx}
-                          onClick={() => handleSelect(opt.id)}
-                          className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                            currentIdx === activeIndex
-                              ? 'bg-blue-500 dark:bg-blue-600 text-white'
-                              : 'text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                          }`}
-                        >
-                          <HighlightedText text={opt.label} ranges={opt.matchRanges} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ));
-              })()
-            ) : (
-              flatList.map((opt, i) => (
-                <div
-                  key={opt.id}
-                  data-idx={i}
-                  onClick={() => handleSelect(opt.id)}
-                  className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                    i === activeIndex
-                      ? 'bg-blue-500 dark:bg-blue-600 text-white'
-                      : 'text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                  }`}
-                >
-                  <HighlightedText text={opt.label} ranges={opt.matchRanges} />
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        {dropdown}
       </div>
     </div>
   );

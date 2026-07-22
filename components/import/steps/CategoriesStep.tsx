@@ -25,7 +25,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
       {/* Data Status */}
       <div className="bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Geladen Data</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Geladen gegevens</h3>
           <button
             onClick={() => {
               wizard.fetchBrands();
@@ -72,14 +72,14 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Product</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Merk</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Interne Categorie</th>
-              <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">eCommerce Cat.</th>
+              <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Webshopcat.</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Productlabels</th>
             </tr>
           </thead>
           <tbody>
             {selectedProductsList.map((product, idx) => (
               <tr
-                key={product.reference}
+                key={`${product.reference}_${product.color || ''}`}
                 className={`border-b dark:border-gray-700 ${
                   idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-750'
                 }`}
@@ -96,22 +96,32 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                     options={wizard.brands.map((b) => ({
                       id: b.id,
                       label: `${b.name} (${b.source})`,
+                      group: b.source,
                     }))}
                     value={product.selectedBrand?.id ?? null}
                     onChange={(value) => {
-                      const brand = wizard.brands.find((b) => b.id.toString() === value);
+                      if (!value) {
+                        wizard.updateProductBrand(
+                          product.reference,
+                          null,
+                          product.color,
+                        );
+                        return;
+                      }
+                      const brand = wizard.brands.find(
+                        (b) => b.id.toString() === value,
+                      );
                       if (brand) {
-                        wizard.setParsedProducts((products) =>
-                          products.map((p) =>
-                            p.reference === product.reference
-                              ? { ...p, selectedBrand: brand }
-                              : p,
-                          ),
+                        wizard.updateProductBrand(
+                          product.reference,
+                          brand,
+                          product.color,
                         );
                       }
                     }}
                     placeholder="Selecteer merk..."
                     className="min-w-[180px]"
+                    showGroupHeaders
                   />
                   {product.suggestedBrand && !product.selectedBrand && (
                     <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">

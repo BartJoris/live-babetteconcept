@@ -26,7 +26,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-        {allSuccess ? '✅ Import Voltooid!' : '⚠️ Import Resultaten'}
+        {allSuccess ? '✅ Import voltooid!' : '⚠️ Importresultaten'}
       </h2>
 
       {/* Stat cards */}
@@ -61,7 +61,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
       {summary && (
         <div className="bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Import Samenvatting
+            Importsamenvatting
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
@@ -215,7 +215,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
       {wizard.imageImportResults.length > 0 && (
         <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">
-            📸 Afbeeldingen Upload Resultaten
+            📸 Resultaten afbeeldingenupload
           </h3>
           <div className="flex gap-4 text-sm mb-3">
             <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">
@@ -257,13 +257,66 @@ export default function ImportStep({ wizard }: ImportStepProps) {
         </div>
       )}
 
+      {/* Replay / retry without remapping */}
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4 mb-6">
+        <h3 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
+          Opnieuw importeren (zonder wizard opnieuw)
+        </h3>
+        <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+          De API-payload wordt bewaard in je browser. Archiveer eerst
+          gedeeltelijk aangemaakte producten in Odoo voordat je opnieuw
+          probeert (anders falen barcodes).
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {failCount > 0 && (
+            <button
+              type="button"
+              onClick={() => wizard.retryFailedImport()}
+              disabled={wizard.isLoading}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50"
+            >
+              Mislukte opnieuw proberen ({failCount})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => wizard.replayLastImportPayload()}
+            disabled={wizard.isLoading}
+            className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 font-medium disabled:opacity-50"
+          >
+            Laatste payload opnieuw importeren
+          </button>
+          <button
+            type="button"
+            onClick={() => wizard.downloadImportPayload()}
+            disabled={wizard.isLoading}
+            className="px-4 py-2 border border-amber-600 text-amber-800 dark:text-amber-200 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 font-medium disabled:opacity-50"
+          >
+            API-payload JSON downloaden
+          </button>
+          <label className="px-4 py-2 border border-amber-600 text-amber-800 dark:text-amber-200 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 font-medium cursor-pointer">
+            Laad payload JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void wizard.loadImportPayloadFile(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Footer buttons */}
       <div className="flex justify-between items-center">
         <button
           onClick={wizard.resetWizard}
           className="px-6 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
         >
-          🔄 Nieuwe Import
+          🔄 Nieuwe import
         </button>
         {imgConfig?.dedicatedPageUrl && (
           <Link

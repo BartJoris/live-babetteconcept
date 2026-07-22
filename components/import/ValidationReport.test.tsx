@@ -113,7 +113,7 @@ describe('ValidationReport', () => {
 
   it('renders the report heading', () => {
     render(<ValidationReport results={allPassResults} />);
-    expect(screen.getByText('Validatie Rapport')).toBeInTheDocument();
+    expect(screen.getByText('Validatierapport')).toBeInTheDocument();
   });
 
   it('shows revalidate button when onRevalidate is provided', () => {

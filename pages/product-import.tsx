@@ -5,7 +5,7 @@ export default function ProductImportPage() {
   return (
     <>
       <Head>
-        <title>Product Import Wizard - Babette</title>
+        <title>Productimportwizard - Babette</title>
       </Head>
       <ImportWizard />
     </>

@@ -19,11 +19,11 @@ export default function ImportWizard() {
           <div className="mb-8 flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                📦 Product Import Wizard
+                📦 Productimportwizard
               </h1>
               <p className="text-gray-800 dark:text-gray-300">
-                Import producten van leveranciers in bulk met validatie en
-                preview
+                Importeer producten van leveranciers in bulk met validatie en
+                voorbeeld
               </p>
             </div>
             <div className="flex gap-2">
@@ -31,7 +31,7 @@ export default function ImportWizard() {
                 href="/smart-upload"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm whitespace-nowrap"
               >
-                Smart Upload
+                Slim uploaden
               </a>
               <a
                 href="/image-upload"
@@ -140,7 +140,7 @@ export default function ImportWizard() {
           <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto w-full">
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-900">
-                📋 API Call Preview - Production Safety Check
+                📋 API-voorbeeld — productieveiligheidscontrole
               </h3>
               <button
                 onClick={() => wizard.setShowApiPreview(false)}
@@ -152,15 +152,15 @@ export default function ImportWizard() {
             <div className="p-6">
               <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
                 <p className="text-yellow-800 font-medium">
-                  ⚠️ Production Database: Controleer alle velden voordat je
-                  bevestigt. Deze API calls zullen permanent data aanmaken in
-                  je Odoo systeem.
+                  ⚠️ Productiedatabase: controleer alle velden voordat je
+                  bevestigt. Deze API-aanroepen maken permanent data aan in
+                  je Odoo-systeem.
                 </p>
               </div>
 
               <div className="mb-6">
                 <h4 className="font-bold text-gray-900 mb-2">
-                  📦 Product Informatie:
+                  📦 Productinformatie:
                 </h4>
                 <div className="bg-gray-50 p-3 rounded text-sm">
                   <div>
@@ -185,7 +185,7 @@ export default function ImportWizard() {
                   {wizard.apiPreviewData.product.publicCategories
                     .length > 0 && (
                     <div>
-                      <strong>Public Categorieën:</strong>{' '}
+                      <strong>Publieke categorieën:</strong>{' '}
                       {wizard.apiPreviewData.product.publicCategories
                         .map((c) => c.name)
                         .join(', ')}
@@ -194,7 +194,7 @@ export default function ImportWizard() {
                   {wizard.apiPreviewData.product.productTags.length >
                     0 && (
                     <div>
-                      <strong>Product Tags:</strong>{' '}
+                      <strong>Productlabels:</strong>{' '}
                       {wizard.apiPreviewData.product.productTags
                         .map((t) => t.name)
                         .join(', ')}
@@ -206,7 +206,7 @@ export default function ImportWizard() {
               <div className="space-y-4">
                 <details className="border rounded">
                   <summary className="bg-gray-100 p-3 cursor-pointer font-medium">
-                    Step 1: Create Product Template
+                    Stap 1: Producttemplate aanmaken
                   </summary>
                   <pre className="p-3 text-xs overflow-x-auto bg-gray-50">
                     {JSON.stringify(
@@ -256,10 +256,10 @@ export default function ImportWizard() {
 
                 <details className="border rounded">
                   <summary className="bg-gray-100 p-3 cursor-pointer font-medium">
-                    Step 2: Add Brand Attribute
+                    Stap 2: Merkattribuut toevoegen
                   </summary>
                   <pre className="p-3 text-xs overflow-x-auto bg-gray-50">
-                    Brand:{' '}
+                    Merk:{' '}
                     {wizard.apiPreviewData.product.selectedBrand?.name}{' '}
                     (ID:{' '}
                     {wizard.apiPreviewData.product.selectedBrand?.id})
@@ -268,10 +268,10 @@ export default function ImportWizard() {
 
                 <details className="border rounded">
                   <summary className="bg-gray-100 p-3 cursor-pointer font-medium">
-                    Step 3: Add Size Attribute
+                    Stap 3: Maatattribuut toevoegen
                   </summary>
                   <pre className="p-3 text-xs overflow-x-auto bg-gray-50">
-                    Sizes:{' '}
+                    Maten:{' '}
                     {wizard.apiPreviewData.product.variants
                       .map((v) => v.size)
                       .join(', ')}
@@ -280,20 +280,20 @@ export default function ImportWizard() {
 
                 <details className="border rounded">
                   <summary className="bg-gray-100 p-3 cursor-pointer font-medium">
-                    Step 4: Update{' '}
+                    Stap 4: Bijwerken{' '}
                     {wizard.apiPreviewData.product.variants.length}{' '}
-                    Variants (Barcodes & Prices)
+                    varianten (barcodes &amp; prijzen)
                   </summary>
                   <div className="p-3 text-xs overflow-x-auto bg-gray-50">
                     {wizard.apiPreviewData.product.variants.map(
                       (v, idx: number) => (
                         <div key={idx} className="mb-2 p-2 border rounded">
                           <div>
-                            Variant {idx + 1}: Size {v.size}
+                            Variant {idx + 1}: maat {v.size}
                           </div>
                           <div>Barcode: {v.ean}</div>
-                          <div>Cost Price: €{v.price}</div>
-                          <div>Weight: 0.2 kg</div>
+                          <div>Kostprijs: €{v.price}</div>
+                          <div>Gewicht: 0,2 kg</div>
                         </div>
                       ),
                     )}
@@ -329,7 +329,7 @@ export default function ImportWizard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">📝 AI Prompt Editor</h3>
+              <h3 className="text-xl font-bold">📝 AI-promptbewerker</h3>
               <button
                 onClick={() => wizard.setShowPromptModal(false)}
                 className="text-white hover:text-gray-200 text-2xl"
@@ -379,10 +379,10 @@ export default function ImportWizard() {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  System Prompt{' '}
+                  Systeemprompt{' '}
                   {wizard.promptCategory === 'kinderen'
-                    ? '(Kinderen)'
-                    : '(Volwassenen)'}
+                    ? '(kinderen)'
+                    : '(volwassenen)'}
                   :
                 </label>
                 <textarea

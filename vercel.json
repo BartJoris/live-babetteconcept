@@ -1,5 +1,8 @@
 {
   "functions": {
+    "pages/api/import-products.ts": {
+      "maxDuration": 120
+    },
     "pages/api/**/*.ts": {
       "maxDuration": 30
     },

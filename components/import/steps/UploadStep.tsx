@@ -402,7 +402,7 @@ export default function UploadStep({ wizard }: UploadStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-        📤 Upload Product Data
+        📤 Productgegevens uploaden
       </h2>
       <p className="text-gray-800 dark:text-gray-300 mb-6 font-medium">
         Selecteer eerst de leverancier en upload dan de productgegevens.
@@ -411,7 +411,7 @@ export default function UploadStep({ wizard }: UploadStepProps) {
       {/* Vendor Selection */}
       <div className="mb-8">
         <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">
-          1️⃣ Selecteer Leverancier
+          1️⃣ Leverancier selecteren
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {wizard.getAllSuppliers().map((p) => (
@@ -449,7 +449,7 @@ export default function UploadStep({ wizard }: UploadStepProps) {
         <>
           <div className="mb-6">
             <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">
-              2️⃣ Upload Bestand
+              2️⃣ Bestand uploaden
             </h3>
 
             {/* Automatic Defaults Info */}
@@ -516,7 +516,7 @@ export default function UploadStep({ wizard }: UploadStepProps) {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded p-2">
                   <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Out of stock bericht:
+                    Niet-op-voorraadbericht:
                   </span>{' '}
                   <span className="text-gray-900 dark:text-gray-100">
                     Verkocht!

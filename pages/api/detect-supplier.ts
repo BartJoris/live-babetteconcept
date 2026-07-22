@@ -93,17 +93,41 @@ const SUPPLIER_RULES: SupplierRule[] = [
   {
     supplierId: 'floss',
     supplierName: 'Floss / Brunobruno',
-    csvRules: [{
-      fileInputId: 'main_csv',
-      fileInputLabel: 'Style Details CSV',
-      detect: (headers, text) => {
-        if (h(headers, 'Style No', 'Style Name', 'Wholesale Price EUR')) return 0.95;
-        if (h(headers, 'Style No', 'Style Name', 'Barcode')) return 0.9;
-        if (text.includes('Table 1') && h(headers, 'Style No')) return 0.85;
-        return 0;
+    csvRules: [
+      {
+        fileInputId: 'main_csv',
+        fileInputLabel: 'Style Details CSV',
+        detect: (headers, text) => {
+          if (h(headers, 'Style No', 'Style Name', 'Wholesale Price EUR')) return 0.95;
+          if (h(headers, 'Style No', 'Style Name', 'Barcode')) return 0.9;
+          if (text.includes('Table 1') && h(headers, 'Style No')) return 0.85;
+          return 0;
+        },
+        reason: 'Style No + Style Name + Wholesale Price EUR kolommen',
       },
-      reason: 'Style No + Style Name + Wholesale Price EUR kolommen',
-    }],
+      {
+        // Same column layout as Jenest order CSVs, but Flöss item numbers are F#####.
+        fileInputId: 'main_csv',
+        fileInputLabel: 'Order CSV',
+        detect: (headers, text, fileName) => {
+          const looksLikeOrder =
+            h(headers, 'Item number', 'Rec retail price', 'EAN Number', 'Product description') ||
+            h(headers, 'Item number', 'Product name', 'EAN Number', 'Line quantity');
+          if (!looksLikeOrder) return 0;
+
+          const lowerName = fileName.toLowerCase();
+          if (lowerName.includes('flöss') || lowerName.includes('floss') || lowerName.includes('floess')) {
+            return 0.99;
+          }
+          // Sample item numbers from the first data rows (F11179, …)
+          if (/;[Ff]\d{4,}/.test(text) || /\n[Ff]\d{4,};/.test(text)) {
+            return 0.98;
+          }
+          return 0;
+        },
+        reason: 'Order CSV met Flöss item numbers (F#####)',
+      },
+    ],
     pdfRules: [{
       fileInputId: 'pdf_invoice',
       fileInputLabel: 'Sales Order PDF',
@@ -569,9 +593,19 @@ const SUPPLIER_RULES: SupplierRule[] = [
     csvRules: [{
       fileInputId: 'main_csv',
       fileInputLabel: 'Jenest CSV',
-      detect: (headers) => {
-        if (h(headers, 'Item number', 'Rec retail price', 'EAN Number', 'Product description')) return 0.95;
-        return 0;
+      detect: (headers, text, fileName) => {
+        if (!h(headers, 'Item number', 'Rec retail price', 'EAN Number', 'Product description')) {
+          return 0;
+        }
+        // Shared layout with Flöss order CSVs — do not steal those.
+        const lowerName = fileName.toLowerCase();
+        if (lowerName.includes('flöss') || lowerName.includes('floss') || lowerName.includes('floess')) {
+          return 0;
+        }
+        if (/;[Ff]\d{4,}/.test(text) || /\n[Ff]\d{4,};/.test(text)) {
+          return 0;
+        }
+        return 0.95;
       },
       reason: 'Item number + Rec retail price + EAN Number',
     }],

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { toTitleCase, toSentenceCase, formatProductName } from './name-utils';
+import {
+  toTitleCase,
+  toSentenceCase,
+  formatProductName,
+  rebuildNameWithBrand,
+  extractProductBaseName,
+} from './name-utils';
 
 describe('toTitleCase', () => {
   it('capitalizes first letter of each word', () => {
@@ -99,5 +105,35 @@ describe('formatProductName', () => {
       { brand: 'Test', name: '', color: '' }
     );
     expect(result).toBe('Test -');
+  });
+});
+
+describe('rebuildNameWithBrand', () => {
+  it('rebuilds parentheses color style when brand changes', () => {
+    expect(
+      rebuildNameWithBrand(
+        'Jenest - Iris raincoat (Berry gingham)',
+        'Iris Raincoat',
+        'Berry Gingham',
+        'Flöss',
+      ),
+    ).toBe('Flöss - Iris raincoat (Berry gingham)');
+  });
+
+  it('rebuilds dash color style when brand changes', () => {
+    expect(
+      rebuildNameWithBrand(
+        'Jenest - Livia tshirt - Lt fuchsia pink',
+        'Livia tshirt',
+        'Lt fuchsia pink',
+        'Flöss',
+      ),
+    ).toBe('Flöss - Livia tshirt - Lt fuchsia pink');
+  });
+
+  it('extracts base name without originalName', () => {
+    expect(extractProductBaseName('Flöss - Bloom dress (Blossom pink)')).toBe(
+      'Bloom dress',
+    );
   });
 });

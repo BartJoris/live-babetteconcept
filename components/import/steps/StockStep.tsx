@@ -1,10 +1,22 @@
+import { useEffect, useState } from 'react';
+import FuzzySearchSelect from '@/components/import/shared/FuzzySearchSelect';
+import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 import type { UseImportWizardReturn } from '@/hooks/useImportWizard';
+
+const SIZE_ATTRIBUTE_OPTIONS = [
+  "MAAT Baby's",
+  'MAAT Kinderen',
+  'MAAT Tieners',
+  'MAAT Volwassenen',
+  'Eén Maat',
+] as const;
 
 interface StockStepProps {
   wizard: UseImportWizardReturn;
 }
 
 export default function StockStep({ wizard }: StockStepProps) {
+  const [bulkBrandId, setBulkBrandId] = useState<string>('');
   const existingBarcodesArray = Array.from(wizard.existingBarcodes.entries());
 
   const hasExistingBarcodes = (productRef: string) => {
@@ -13,12 +25,87 @@ export default function StockStep({ wizard }: StockStepProps) {
     return product.variants.some((v) => wizard.existingBarcodes.has(v.ean));
   };
 
+  const brandOptions = wizard.brands.map((b) => ({
+    id: b.id,
+    label: `${b.name} (${b.source})`,
+    group: b.source,
+  }));
+
+  // Prefetch Odoo size values for attributes used by selected products
+  useEffect(() => {
+    const attrs = new Set<string>();
+    for (const product of wizard.parsedProducts) {
+      if (!wizard.selectedProducts.has(product.reference)) continue;
+      const attr =
+        product.sizeAttribute ||
+        wizard.determineSizeAttribute(product.variants[0]?.size || '');
+      if (attr && attr !== 'Eén Maat') attrs.add(attr);
+    }
+    for (const attr of attrs) {
+      void wizard.ensureSizeValuesLoaded(attr);
+    }
+  }, [wizard.parsedProducts, wizard.selectedProducts]);
+
+  useEffect(() => {
+    if (wizard.brands.length === 0) {
+      void wizard.fetchBrands();
+    }
+  }, [wizard.brands.length]);
+
+  const applyBulkBrand = () => {
+    if (!bulkBrandId) return;
+    const brand = wizard.brands.find((b) => b.id.toString() === bulkBrandId);
+    if (!brand) return;
+    wizard.setParsedProducts((products) =>
+      products.map((p) => {
+        if (!wizard.selectedProducts.has(p.reference)) return p;
+        return {
+          ...p,
+          selectedBrand: { id: brand.id, name: brand.name },
+          suggestedBrand: brand.name,
+          name: rebuildNameWithBrand(
+            p.name,
+            p.originalName,
+            p.color,
+            brand.name,
+          ),
+        };
+      }),
+    );
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">☑️ Selecteer Producten &amp; Voorraad</h2>
       <p className="text-gray-600 mb-4">
         Selecteer welke producten je wilt importeren, pas voorraad aan en genereer barcodes.
       </p>
+
+      {/* Bulk brand — available here, not only on Categorieën */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-[240px] flex-1">
+          <FuzzySearchSelect
+            options={brandOptions}
+            value={bulkBrandId || null}
+            onChange={setBulkBrandId}
+            placeholder={
+              wizard.brands.length === 0
+                ? 'Merken laden...'
+                : 'Zoek merk voor geselecteerde producten...'
+            }
+            label="Merk (bulk)"
+            showGroupHeaders
+          />
+        </div>
+        <button
+          type="button"
+          onClick={applyBulkBrand}
+          disabled={!bulkBrandId || wizard.selectedProducts.size === 0}
+          className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Pas merk toe op selectie ({wizard.selectedProducts.size})
+        </button>
+      </div>
 
       {/* Action buttons bar */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -111,9 +198,11 @@ export default function StockStep({ wizard }: StockStepProps) {
           }}
         >
           <option value="">📏 Maat...</option>
-          <option value="MAAT Kinderen">MAAT Kinderen</option>
-          <option value="MAAT Volwassenen">MAAT Volwassenen</option>
-          <option value="Eén Maat">Eén Maat</option>
+          {SIZE_ATTRIBUTE_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
         </select>
 
         <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded text-sm font-medium">
@@ -183,15 +272,44 @@ export default function StockStep({ wizard }: StockStepProps) {
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-600">
                     <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{product.reference}</span>
                     {product.color && <span>Kleur: {product.color}</span>}
+                    <div className="min-w-[200px]">
+                      <FuzzySearchSelect
+                        options={brandOptions}
+                        value={product.selectedBrand?.id ?? null}
+                        onChange={(value) => {
+                          if (!value) {
+                            wizard.updateProductBrand(
+                              product.reference,
+                              null,
+                              product.color,
+                            );
+                            return;
+                          }
+                          const brand = wizard.brands.find(
+                            (b) => b.id.toString() === value,
+                          );
+                          if (brand) {
+                            wizard.updateProductBrand(
+                              product.reference,
+                              brand,
+                              product.color,
+                            );
+                          }
+                        }}
+                        placeholder="Selecteer merk..."
+                      />
+                    </div>
                     <select
                       value={productSizeAttribute}
                       onChange={(e) => wizard.updateProductSizeAttribute(product.reference, e.target.value)}
                       className="text-xs border rounded px-2 py-1 bg-white"
                       disabled={unitOnly}
                     >
-                      <option value="MAAT Kinderen">MAAT Kinderen</option>
-                      <option value="MAAT Volwassenen">MAAT Volwassenen</option>
-                      <option value="Eén Maat">Eén Maat</option>
+                      {SIZE_ATTRIBUTE_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                     <label className="flex items-center gap-1">
                       <input
@@ -239,17 +357,39 @@ export default function StockStep({ wizard }: StockStepProps) {
                           key={idx}
                           className={`border-t ${barcodeExists ? 'bg-orange-50' : ''}`}
                         >
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={
-                                productSizeAttribute === 'MAAT Volwassenen'
-                                  ? wizard.mapSizeToOdooFormat(variant.size)
-                                  : variant.size
-                              }
-                              onChange={(e) => wizard.updateVariantField(product.reference, idx, 'size', e.target.value)}
-                              className="w-20 border rounded px-2 py-1 text-sm"
-                            />
+                          <td className="p-2 min-w-[140px]">
+                            {productSizeAttribute === 'Eén Maat' ? (
+                              <span className="text-xs text-gray-500 px-1">Eén maat</span>
+                            ) : (
+                              <FuzzySearchSelect
+                                options={(
+                                  wizard.sizeValuesByAttribute[productSizeAttribute] || []
+                                ).map((v) => ({
+                                  id: v.name,
+                                  label: v.name,
+                                }))}
+                                value={
+                                  productSizeAttribute === 'MAAT Volwassenen'
+                                    ? wizard.mapSizeToOdooFormat(variant.size)
+                                    : variant.size
+                                }
+                                onChange={(value) =>
+                                  wizard.updateVariantField(
+                                    product.reference,
+                                    idx,
+                                    'size',
+                                    value,
+                                  )
+                                }
+                                placeholder={
+                                  wizard.loadingSizeAttribute === productSizeAttribute
+                                    ? 'Laden...'
+                                    : 'Zoek maat...'
+                                }
+                                allowCustom
+                                className="min-w-[120px]"
+                              />
+                            )}
                           </td>
                           <td className="p-2">
                             <input

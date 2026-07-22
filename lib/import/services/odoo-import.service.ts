@@ -38,6 +38,8 @@ export interface VariantUpdateResult {
 export interface SizeAttributeResult {
   attributeId: number;
   valueIds: number[];
+  /** Size labels parallel to `valueIds` (avoids extra Odoo reads later). */
+  sizeNames: string[];
 }
 
 export class OdooImportError extends Error {
@@ -85,7 +87,8 @@ export class OdooImportService {
       tracking: 'none',
       available_in_pos: true,
       website_id: DEFAULT_WEBSITE_ID,
-      website_published: data.isPublished,
+      // Explicit boolean — Odoo may ignore omitted/undefined publish flags.
+      website_published: data.isPublished === true,
       purchase_ok: false,
       out_of_stock_message: '<p>Verkocht!</p><p><br></p>',
       is_favorite: data.isFavorite,
@@ -110,7 +113,28 @@ export class OdooImportService {
     }
 
     try {
-      return await odooClient.create(this.uid, this.password, 'product.template', templateData);
+      const templateId = await odooClient.create(
+        this.uid,
+        this.password,
+        'product.template',
+        templateData,
+      );
+
+      // Assigning website_id can auto-publish in some Odoo versions — re-assert.
+      if (data.isPublished !== true) {
+        await odooClient.write(
+          this.uid,
+          this.password,
+          'product.template',
+          [templateId],
+          { website_published: false },
+        );
+        console.log(
+          `🌐 Forced website_published=false on template ${templateId}`,
+        );
+      }
+
+      return templateId;
     } catch (err) {
       throw new OdooImportError(
         `Failed to create product template "${data.name}": ${(err as Error).message}`,
@@ -213,27 +237,39 @@ export class OdooImportService {
       attributeId = maatAttr[0].id;
     }
 
+    // One lookup for all existing values on this attribute (instead of N searches).
+    const existingValues = await odooClient.searchRead<{
+      id: number;
+      name: string;
+    }>(
+      this.uid,
+      this.password,
+      'product.attribute.value',
+      [['attribute_id', '=', attributeId]],
+      ['id', 'name'],
+      2000,
+    );
+    const byName = new Map(
+      (existingValues || []).map((v) => [v.name, v.id] as const),
+    );
+
     const valueIds: number[] = [];
+    const sizeNames: string[] = [];
     for (const size of sizes) {
-      const existing = await odooClient.searchRead<{ id: number }>(
+      sizeNames.push(size);
+      const existingId = byName.get(size);
+      if (existingId) {
+        valueIds.push(existingId);
+        continue;
+      }
+      const id = await odooClient.create(
         this.uid,
         this.password,
         'product.attribute.value',
-        [['attribute_id', '=', attributeId], ['name', '=', size]],
-        ['id'],
+        { attribute_id: attributeId, name: size },
       );
-
-      if (existing && existing.length > 0) {
-        valueIds.push(existing[0].id);
-      } else {
-        const id = await odooClient.create(
-          this.uid,
-          this.password,
-          'product.attribute.value',
-          { attribute_id: attributeId, name: size },
-        );
-        valueIds.push(id);
-      }
+      byName.set(size, id);
+      valueIds.push(id);
     }
 
     await odooClient.create(
@@ -247,7 +283,45 @@ export class OdooImportService {
       },
     );
 
-    return { attributeId, valueIds };
+    return { attributeId, valueIds, sizeNames };
+  }
+
+  /**
+   * Poll until Odoo has generated the expected number of variants
+   * (replaces a fixed 1s sleep).
+   */
+  async waitForVariants(
+    templateId: number,
+    expectedCount: number,
+    maxWaitMs = 4000,
+  ): Promise<
+    Array<{ id: number; product_template_variant_value_ids: number[] }>
+  > {
+    const started = Date.now();
+    let latest: Array<{
+      id: number;
+      product_template_variant_value_ids: number[];
+    }> = [];
+
+    while (Date.now() - started < maxWaitMs) {
+      latest = await odooClient.searchRead<{
+        id: number;
+        product_template_variant_value_ids: number[];
+      }>(
+        this.uid,
+        this.password,
+        'product.product',
+        [['product_tmpl_id', '=', templateId]],
+        ['id', 'product_template_variant_value_ids'],
+      );
+
+      if (latest.length >= expectedCount) {
+        return latest;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+
+    return latest;
   }
 
   // -----------------------------------------------------------------------
@@ -265,17 +339,24 @@ export class OdooImportService {
     templateId: number,
     variants: ImportVariantData[],
     sizeValueIds: number[],
-  ): Promise<VariantUpdateResult> {
-    const odooVariants = await odooClient.searchRead<{
+    sizeNames: string[] = [],
+    prefetchedVariants?: Array<{
       id: number;
       product_template_variant_value_ids: number[];
-    }>(
-      this.uid,
-      this.password,
-      'product.product',
-      [['product_tmpl_id', '=', templateId]],
-      ['id', 'product_template_variant_value_ids'],
-    );
+    }>,
+  ): Promise<VariantUpdateResult> {
+    const odooVariants =
+      prefetchedVariants ??
+      (await odooClient.searchRead<{
+        id: number;
+        product_template_variant_value_ids: number[];
+      }>(
+        this.uid,
+        this.password,
+        'product.product',
+        [['product_tmpl_id', '=', templateId]],
+        ['id', 'product_template_variant_value_ids'],
+      ));
 
     const total = odooVariants.length;
     let updated = 0;
@@ -285,7 +366,16 @@ export class OdooImportService {
     if (isSingleVariant) {
       updated = await this.updateSingleVariant(odooVariants[0]?.id, variants);
     } else {
-      updated = await this.updateMultipleVariants(odooVariants, variants, sizeValueIds);
+      const sizeValueIdToName = new Map<number, string>();
+      sizeValueIds.forEach((id, index) => {
+        if (sizeNames[index]) sizeValueIdToName.set(id, sizeNames[index]);
+      });
+      updated = await this.updateMultipleVariants(
+        odooVariants,
+        variants,
+        sizeValueIds,
+        sizeValueIdToName,
+      );
     }
 
     return { updated, total };
@@ -356,46 +446,73 @@ export class OdooImportService {
     odooVariants: Array<{ id: number; product_template_variant_value_ids: number[] }>,
     variants: ImportVariantData[],
     sizeValueIds: number[],
+    sizeValueIdToName: Map<number, string>,
   ): Promise<number> {
-    let updated = 0;
+    const allPtavIds = Array.from(
+      new Set(
+        odooVariants.flatMap((v) => v.product_template_variant_value_ids || []),
+      ),
+    );
 
-    for (const odooVariant of odooVariants) {
+    // One batched PTAV read for the whole template (was 1 call per variant).
+    const ptavRows =
+      allPtavIds.length > 0
+        ? await odooClient.searchRead<{
+            id: number;
+            product_attribute_value_id: [number, string];
+          }>(
+            this.uid,
+            this.password,
+            'product.template.attribute.value',
+            [['id', 'in', allPtavIds]],
+            ['id', 'product_attribute_value_id'],
+          )
+        : [];
+
+    const ptavToAttrValueId = new Map(
+      ptavRows.map(
+        (row) => [row.id, row.product_attribute_value_id[0]] as const,
+      ),
+    );
+
+    // Fill any missing size names in one read (fallback if caller omitted them).
+    const missingSizeIds = sizeValueIds.filter((id) => !sizeValueIdToName.has(id));
+    if (missingSizeIds.length > 0) {
+      const names = await odooClient.read<{ id: number; name: string }>(
+        this.uid,
+        this.password,
+        'product.attribute.value',
+        missingSizeIds,
+        ['id', 'name'],
+      );
+      for (const row of names || []) {
+        sizeValueIdToName.set(row.id, row.name);
+      }
+    }
+
+    const csvBySize = new Map(variants.map((v) => [v.size, v] as const));
+
+    const jobs = odooVariants.map((odooVariant) => async (): Promise<boolean> => {
       try {
-        const variantValueIds = odooVariant.product_template_variant_value_ids || [];
-        if (variantValueIds.length === 0) continue;
-
-        const valuesResult = await odooClient.searchRead<{
-          product_attribute_value_id: [number, string];
-        }>(
-          this.uid,
-          this.password,
-          'product.template.attribute.value',
-          [['id', 'in', variantValueIds]],
-          ['product_attribute_value_id'],
-        );
+        const variantValueIds =
+          odooVariant.product_template_variant_value_ids || [];
+        if (variantValueIds.length === 0) return false;
 
         let sizeValueId: number | null = null;
-        for (const val of valuesResult) {
-          const valueId = val.product_attribute_value_id[0];
-          if (sizeValueIds.includes(valueId)) {
+        for (const ptavId of variantValueIds) {
+          const valueId = ptavToAttrValueId.get(ptavId);
+          if (valueId != null && sizeValueIds.includes(valueId)) {
             sizeValueId = valueId;
             break;
           }
         }
-        if (!sizeValueId) continue;
+        if (!sizeValueId) return false;
 
-        const sizeValueResult = await odooClient.read<{ name: string }>(
-          this.uid,
-          this.password,
-          'product.attribute.value',
-          [sizeValueId],
-          ['name'],
-        );
-        if (!sizeValueResult || sizeValueResult.length === 0) continue;
+        const sizeName = sizeValueIdToName.get(sizeValueId);
+        if (!sizeName) return false;
 
-        const sizeName = sizeValueResult[0].name;
-        const csvVariant = variants.find(v => v.size === sizeName);
-        if (!csvVariant) continue;
+        const csvVariant = csvBySize.get(sizeName);
+        if (!csvVariant) return false;
 
         const updateData: Record<string, unknown> = {
           standard_price: csvVariant.price,
@@ -417,7 +534,11 @@ export class OdooImportService {
           );
         } catch (writeError) {
           const msg = (writeError as Error).message || '';
-          if (msg.includes('barcode') && msg.includes('already exists') && updateData.barcode) {
+          if (
+            msg.includes('barcode') &&
+            msg.includes('already exists') &&
+            updateData.barcode
+          ) {
             delete updateData.barcode;
             await odooClient.write(
               this.uid,
@@ -432,10 +553,24 @@ export class OdooImportService {
         }
 
         await this.createStock(odooVariant.id, csvVariant.quantity);
-        updated++;
+        return true;
       } catch (variantError) {
-        console.error(`Error updating variant ${odooVariant.id}:`, variantError);
+        console.error(
+          `Error updating variant ${odooVariant.id}:`,
+          variantError,
+        );
+        return false;
       }
+    });
+
+    // Limited parallelism: faster than fully sequential, safer than unbounded.
+    const concurrency = 4;
+    let updated = 0;
+    for (let i = 0; i < jobs.length; i += concurrency) {
+      const chunk = await Promise.all(
+        jobs.slice(i, i + concurrency).map((job) => job()),
+      );
+      updated += chunk.filter(Boolean).length;
     }
 
     return updated;

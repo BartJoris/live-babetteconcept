@@ -15,7 +15,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-        👁️ Preview Import
+        👁️ Voorbeeld import
       </h2>
 
       {/* Automatische Standaardinstellingen */}
@@ -30,7 +30,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
           <span>• Kassa</span>
           <span>• Website Babette</span>
           <span>• Inkoop uitgeschakeld</span>
-          <span>• Out of stock &quot;Verkocht!&quot;</span>
+          <span>• Niet op voorraad: &quot;Verkocht!&quot;</span>
           <span>• Facturatiebeleid Geleverde hoeveelheden</span>
         </div>
       </div>
@@ -39,7 +39,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
           <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-            Product Templates
+            Producttemplates
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             {wizard.readyProducts.length}
@@ -47,7 +47,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
         </div>
         <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
           <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-            Product Varianten
+            Productvarianten
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             {wizard.totalVariants}
@@ -101,7 +101,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
                   Categorie
                 </th>
                 <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">
-                  eCommerce Cat.
+                  Webshopcat.
                 </th>
                 <th className="p-3 text-center font-semibold border-b border-blue-700 dark:border-blue-800">
                   Varianten
@@ -167,11 +167,11 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
                       <td className="p-3 text-center">
                         {isReady ? (
                           <span className="text-green-600 dark:text-green-400 font-bold">
-                            ✓ Ready
+                            ✓ Klaar
                           </span>
                         ) : (
                           <span className="text-red-600 dark:text-red-400 font-bold">
-                            ✗ Incomplete
+                            ✗ Onvolledig
                           </span>
                         )}
                       </td>
@@ -196,7 +196,7 @@ export default function PreviewStep({ wizard }: PreviewStepProps) {
             onClick={() => wizard.setCurrentStep(7)}
             className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium"
           >
-            🧪 Test Mode →
+            🧪 Testmodus →
           </button>
           <button
             onClick={() => {

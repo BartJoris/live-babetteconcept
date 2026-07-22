@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 import type { ParsedProduct } from '@/lib/suppliers/types';
+import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 
 import FuzzySearchSelect from './FuzzySearchSelect';
 import MultiTagSelect from './MultiTagSelect';
@@ -49,7 +50,16 @@ export default function BulkCategoryAssign({
 
       if (selectedBrand) {
         const brand = brands.find((b) => b.id.toString() === selectedBrand);
-        if (brand) changes.selectedBrand = { id: brand.id, name: brand.name };
+        if (brand) {
+          changes.selectedBrand = { id: brand.id, name: brand.name };
+          changes.suggestedBrand = brand.name;
+          changes.name = rebuildNameWithBrand(
+            p.name,
+            p.originalName,
+            p.color,
+            brand.name,
+          );
+        }
       }
 
       if (selectedCategory) {
@@ -139,8 +149,8 @@ export default function BulkCategoryAssign({
           options={publicCategories}
           selectedIds={selectedPublicCats}
           onChange={setSelectedPublicCats}
-          placeholder="Zoek eCommerce categorieën..."
-          label="eCommerce categorieën"
+          placeholder="Zoek webshopcategorieën..."
+          label="Webshopcategorieën"
           maxVisible={3}
         />
 
@@ -148,8 +158,8 @@ export default function BulkCategoryAssign({
           options={productTags}
           selectedIds={selectedTags}
           onChange={setSelectedTags}
-          placeholder="Zoek product tags..."
-          label="Product tags"
+          placeholder="Zoek productlabels..."
+          label="Productlabels"
           maxVisible={3}
         />
       </div>

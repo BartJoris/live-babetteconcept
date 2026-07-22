@@ -71,7 +71,8 @@ async function handler(
         const uniqueSizes = Array.from(
           new Set(product.variants.map(v => normalizeSize(v.size)))
         ).filter(Boolean);
-        const isNoVariantProduct = uniqueSizes.length === 1;
+        const isNoVariantProduct =
+          uniqueSizes.length === 1 || product.sizeAttribute === 'Eén Maat';
 
         // Step 1: Create product template
         console.log('Step 1: Creating product template...');
@@ -106,6 +107,7 @@ async function handler(
 
         // Step 3-4: Add size attribute (skip for single-size products)
         let sizeValueIds: number[] = [];
+        let sizeNames: string[] = [];
         if (isNoVariantProduct) {
           console.log('Single-size product detected: skipping size attribute line');
         } else {
@@ -114,11 +116,18 @@ async function handler(
           console.log(`Step 3-4: Adding size attribute${product.sizeAttribute ? ` (user-selected: ${product.sizeAttribute})` : ' (auto-detected)'}...`);
           const sizeResult = await importService.addSizeAttribute(templateId, sizeAttributeName, sizes);
           sizeValueIds = sizeResult.valueIds;
+          sizeNames = sizeResult.sizeNames;
         }
 
-        // Step 5-7: Wait for variant generation, then update
+        // Step 5-7: Wait for variant generation (poll, no fixed 1s sleep), then update
         console.log('Step 5-7: Waiting for variant generation and updating...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const expectedVariants = isNoVariantProduct
+          ? 1
+          : Math.max(sizeValueIds.length, 1);
+        const prefetchedVariants = await importService.waitForVariants(
+          templateId,
+          expectedVariants,
+        );
 
         const variantData: ImportVariantData[] = product.variants.map(v => ({
           size: v.size,
@@ -129,7 +138,13 @@ async function handler(
           quantity: v.quantity,
         }));
 
-        const variantResult = await importService.updateVariants(templateId, variantData, sizeValueIds);
+        const variantResult = await importService.updateVariants(
+          templateId,
+          variantData,
+          sizeValueIds,
+          sizeNames,
+          prefetchedVariants,
+        );
         console.log(`✅ Updated ${variantResult.updated}/${variantResult.total} variants`);
 
         // Step 8: Upload images
@@ -244,6 +259,9 @@ async function handler(
 }
 
 export default withAuth(handler);
+
+// Ceiling only (does not slow imports). 120s covers ~2 products with many variants.
+export const maxDuration = 120;
 
 export const config = {
   api: {

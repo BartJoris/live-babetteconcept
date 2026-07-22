@@ -71,8 +71,8 @@ export default function Navigation() {
   const isActive = (path: string) => router.pathname === path;
   
   const isInzichtenActive = () => {
-    return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-vacation-compare', '/sales-insights', 
-            '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
+    return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-vacation-compare', '/sales-insights',
+            '/sales-best-days', '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
   };
   
   const isImporterenActive = () => {
@@ -154,6 +154,9 @@ export default function Navigation() {
                     </Link>
                     <Link href="/sales-insights" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-insights') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Verkoop Inzichten
+                    </Link>
+                    <Link href="/sales-best-days" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-best-days') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Beste verkoopsdagen
                     </Link>
                     <Link href="/sales-products" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/sales-products') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Solden
@@ -503,6 +506,17 @@ export default function Navigation() {
                   }`}
                 >
                   Verkoop Inzichten
+                </Link>
+                <Link
+                  href="/sales-best-days"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/sales-best-days')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Beste verkoopsdagen
                 </Link>
                 <Link
                   href="/sales-products"

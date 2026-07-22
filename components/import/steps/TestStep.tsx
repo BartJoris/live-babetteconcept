@@ -8,7 +8,7 @@ export default function TestStep({ wizard }: TestStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-        🧪 Test Mode
+        🧪 Testmodus
       </h2>
 
       <div className="space-y-4 mb-6">
@@ -53,7 +53,7 @@ export default function TestStep({ wizard }: TestStepProps) {
                 onClick={() => wizard.testProduct(product)}
                 className="ml-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium flex-shrink-0"
               >
-                🧪 Test Dit Product
+                🧪 Dit product testen
               </button>
             </div>
           </div>
@@ -65,6 +65,46 @@ export default function TestStep({ wizard }: TestStepProps) {
             categorieën toe.
           </div>
         )}
+      </div>
+
+      <div className="bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          API payload bewaren / herhalen
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Download de klaarstaande API-payload zodat je dezelfde import later
+          opnieuw kunt afvuren zonder mapping opnieuw te doen.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => wizard.downloadImportPayload()}
+            className="px-4 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
+          >
+            API-payload JSON downloaden
+          </button>
+          <button
+            type="button"
+            onClick={() => wizard.replayLastImportPayload()}
+            disabled={wizard.isLoading}
+            className="px-4 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium disabled:opacity-50"
+          >
+            Laatste payload opnieuw importeren
+          </button>
+          <label className="px-4 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium cursor-pointer">
+            Laad payload JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void wizard.loadImportPayloadFile(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -92,7 +132,7 @@ export default function TestStep({ wizard }: TestStepProps) {
               : 'bg-green-600 text-white hover:bg-green-700'
           }`}
         >
-          Skip Test → Direct Importeren
+          Test overslaan → Direct importeren
         </button>
       </div>
     </div>
