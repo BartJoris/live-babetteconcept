@@ -26,11 +26,15 @@ describe('GET/POST /api/mcp auth', () => {
     expect(res.status).toBe(503);
   });
 
-  it('returns 401 without Authorization header', async () => {
+  it('returns 401 without Authorization header and advertises resource metadata', async () => {
     process.env.MCP_API_TOKEN = 'test-secret';
+    process.env.MCP_PUBLIC_BASE_URL = 'https://live.babetteconcept.be';
     const { GET } = await import('../route');
-    const res = await GET(new Request('http://localhost/api/mcp') as never);
+    const res = await GET(new Request('https://live.babetteconcept.be/api/mcp') as never);
     expect(res.status).toBe(401);
+    expect(res.headers.get('WWW-Authenticate')).toContain(
+      'resource_metadata="https://live.babetteconcept.be/.well-known/oauth-protected-resource"'
+    );
   });
 
   it('forwards to MCP handler when Bearer token matches', async () => {
