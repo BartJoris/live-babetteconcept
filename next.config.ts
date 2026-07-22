@@ -3,6 +3,8 @@ const nextConfig = {
   output: process.env.VERCEL ? undefined : 'standalone',
   reactStrictMode: true,
   trailingSlash: true,
+  // Keep /api/mcp usable without a 308 (POST + Authorization must not redirect).
+  skipTrailingSlashRedirect: true,
   
   serverExternalPackages: ['pdf-parse', 'pdfjs-dist'],
   

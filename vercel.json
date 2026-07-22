@@ -2,6 +2,9 @@
   "functions": {
     "pages/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/mcp/route.ts": {
+      "maxDuration": 60
     }
   }
 }
