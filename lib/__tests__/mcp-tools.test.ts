@@ -39,6 +39,15 @@ describe('MCP tools access control', () => {
         'get_pos_sales_summary',
         'list_brands',
         'list_recent_webshop_orders',
+        'get_retail_calendar',
+        'list_categories',
+        'analyze_assortment',
+        'rank_brands',
+        'analyze_solden_discounts',
+        'get_stock_summary',
+        'list_last_size_left',
+        'list_aged_stock',
+        'count_assortment',
       ])
     );
   });
