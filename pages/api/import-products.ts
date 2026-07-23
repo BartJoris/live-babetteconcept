@@ -261,7 +261,7 @@ async function handler(
 export default withAuth(handler);
 
 // Ceiling only (does not slow imports). 120s covers ~2 products with many variants.
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 export const config = {
   api: {

@@ -10,7 +10,9 @@ import { buildAssistantSystemPrompt, createMcpAiTools } from '@/lib/mcp/chatTool
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+// Keep ≤60s for plans without Fluid Compute extended duration.
+// See https://vercel.com/docs/functions/limitations#max-duration
+export const maxDuration = 60;
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,

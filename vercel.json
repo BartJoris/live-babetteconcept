@@ -1,12 +1,15 @@
 {
   "functions": {
     "pages/api/import-products.ts": {
-      "maxDuration": 120
+      "maxDuration": 60
     },
     "pages/api/**/*.ts": {
       "maxDuration": 30
     },
     "app/api/mcp/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/assistant/chat/route.ts": {
       "maxDuration": 60
     }
   }
