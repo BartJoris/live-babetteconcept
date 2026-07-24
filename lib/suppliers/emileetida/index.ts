@@ -1,4 +1,8 @@
-import { parseCSV, findHeader, parseEuroPrice, determineSizeAttribute, toSentenceCase } from '@/lib/import/shared';
+import { parseCSV, findHeader, parseEuroPrice, determineSizeAttribute } from '@/lib/import/shared';
+import {
+  DEFAULT_PRODUCT_NAME_TEMPLATE,
+  formatProductName,
+} from '@/lib/import/shared/name-utils';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
 import { extractEmileetidaImageInfo } from '@/lib/suppliers/emileetida/image-filename';
 import {
@@ -89,7 +93,16 @@ function parseEmileetidaOrder(
         ? `${productRef}_${colorName.toUpperCase().replace(/\s+/g, '')}`
         : productRef;
 
-      const formattedName = `Emile & Ida - ${toSentenceCase(productName)} - ${toSentenceCase(colorName)} (${productRef.toLowerCase()})`;
+      const formattedName = formatProductName(
+        DEFAULT_PRODUCT_NAME_TEMPLATE,
+        {
+          brand: 'Emile & Ida',
+          name: productName,
+          color: colorName,
+          reference: productRef.toLowerCase(),
+        },
+        { name: 'sentence', color: 'sentence', reference: 'none' },
+      );
       const ecommerceRef = fabricPrint ? `${productName} ${fabricPrint}` : productName;
 
       products[productKey] = {

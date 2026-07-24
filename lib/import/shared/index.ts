@@ -15,7 +15,10 @@ export {
   toTitleCase,
   toSentenceCase,
   formatProductName,
+  productNameTemplateData,
+  DEFAULT_PRODUCT_NAME_TEMPLATE,
 } from './name-utils';
+export type { NameCasingMode, NameTemplateCasing } from './name-utils';
 
 export {
   generateEAN13,

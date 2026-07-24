@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import FuzzySearchSelect from '@/components/import/shared/FuzzySearchSelect';
-import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
+import {
+  DEFAULT_PRODUCT_NAME_TEMPLATE,
+  formatProductName,
+  productNameTemplateData,
+  rebuildNameWithBrand,
+} from '@/lib/import/shared/name-utils';
 import type { UseImportWizardReturn } from '@/hooks/useImportWizard';
 
 const SIZE_ATTRIBUTE_OPTIONS = [
@@ -11,13 +16,25 @@ const SIZE_ATTRIBUTE_OPTIONS = [
   'Eén Maat',
 ] as const;
 
+const NAME_TEMPLATE_STORAGE_KEY = 'import-product-name-template';
+
 interface StockStepProps {
   wizard: UseImportWizardReturn;
 }
 
 export default function StockStep({ wizard }: StockStepProps) {
   const [bulkBrandId, setBulkBrandId] = useState<string>('');
+  const [nameTemplate, setNameTemplate] = useState(DEFAULT_PRODUCT_NAME_TEMPLATE);
   const existingBarcodesArray = Array.from(wizard.existingBarcodes.entries());
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NAME_TEMPLATE_STORAGE_KEY);
+      if (stored?.includes('{')) setNameTemplate(stored);
+    } catch {
+      // ignore (private mode)
+    }
+  }, []);
 
   const hasExistingBarcodes = (productRef: string) => {
     const product = wizard.parsedProducts.find((p) => p.reference === productRef);
@@ -74,6 +91,40 @@ export default function StockStep({ wizard }: StockStepProps) {
     );
   };
 
+  const firstSelected = wizard.parsedProducts.find((p) =>
+    wizard.selectedProducts.has(p.reference),
+  );
+  const namePreview = firstSelected
+    ? formatProductName(
+        nameTemplate || DEFAULT_PRODUCT_NAME_TEMPLATE,
+        productNameTemplateData(firstSelected),
+        { name: 'sentence', color: 'sentence', reference: 'none' },
+      )
+    : '';
+
+  const applyNameTemplate = () => {
+    const template = nameTemplate.trim() || DEFAULT_PRODUCT_NAME_TEMPLATE;
+    try {
+      localStorage.setItem(NAME_TEMPLATE_STORAGE_KEY, template);
+    } catch {
+      // ignore
+    }
+    setNameTemplate(template);
+    wizard.setParsedProducts((products) =>
+      products.map((p) => {
+        if (!wizard.selectedProducts.has(p.reference)) return p;
+        return {
+          ...p,
+          name: formatProductName(template, productNameTemplateData(p), {
+            name: 'sentence',
+            color: 'sentence',
+            reference: 'none',
+          }),
+        };
+      }),
+    );
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">☑️ Selecteer Producten &amp; Voorraad</h2>
@@ -105,6 +156,53 @@ export default function StockStep({ wizard }: StockStepProps) {
         >
           Pas merk toe op selectie ({wizard.selectedProducts.size})
         </button>
+      </div>
+
+      {/* Global product name template */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 space-y-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[280px] flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Productnaam-template (bulk)
+            </label>
+            <input
+              type="text"
+              value={nameTemplate}
+              onChange={(e) => setNameTemplate(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm font-mono bg-white"
+              placeholder={DEFAULT_PRODUCT_NAME_TEMPLATE}
+              spellCheck={false}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={applyNameTemplate}
+            disabled={!nameTemplate.trim() || wizard.selectedProducts.size === 0}
+            className="px-4 py-2 bg-amber-600 text-white rounded text-sm font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Pas namen toe op selectie ({wizard.selectedProducts.size})
+          </button>
+          <button
+            type="button"
+            onClick={() => setNameTemplate(DEFAULT_PRODUCT_NAME_TEMPLATE)}
+            className="px-3 py-2 bg-white border border-amber-300 text-amber-900 rounded text-sm hover:bg-amber-100"
+          >
+            Reset
+          </button>
+        </div>
+        <p className="text-xs text-amber-900/80">
+          Placeholders:{' '}
+          <code className="bg-white/70 px-1 rounded">{'{brand}'}</code>{' '}
+          <code className="bg-white/70 px-1 rounded">{'{name}'}</code>{' '}
+          <code className="bg-white/70 px-1 rounded">{'{color}'}</code>{' '}
+          <code className="bg-white/70 px-1 rounded">{'{reference}'}</code>
+          {namePreview ? (
+            <>
+              {' '}
+              · Voorbeeld: <span className="font-medium">{namePreview}</span>
+            </>
+          ) : null}
+        </p>
       </div>
 
       {/* Action buttons bar */}

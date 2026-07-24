@@ -5,6 +5,7 @@ import {
   formatProductName,
   rebuildNameWithBrand,
   extractProductBaseName,
+  productNameTemplateData,
 } from './name-utils';
 
 describe('toTitleCase', () => {
@@ -104,7 +105,49 @@ describe('formatProductName', () => {
       '{brand} - {name} - {color}',
       { brand: 'Test', name: '', color: '' }
     );
-    expect(result).toBe('Test -');
+    expect(result).toBe('Test');
+  });
+
+  it('supports reference placeholder and strips empty parentheses', () => {
+    expect(
+      formatProductName(
+        '{brand} - {name} - {color} ({reference})',
+        {
+          brand: 'Emile & Ida',
+          name: 'BONNET',
+          color: 'CHATAIGNE',
+          reference: 'ida-eveland',
+        },
+        { name: 'sentence', color: 'sentence', reference: 'none' },
+      ),
+    ).toBe('Emile & Ida - Bonnet - Chataigne (ida-eveland)');
+
+    expect(
+      formatProductName(
+        '{brand} - {name} ({reference})',
+        { brand: 'Emile & Ida', name: 'Bonnet', reference: '' },
+      ),
+    ).toBe('Emile & Ida - Bonnet');
+  });
+});
+
+describe('productNameTemplateData', () => {
+  it('prefers originalName and productName for placeholders', () => {
+    expect(
+      productNameTemplateData({
+        name: 'Emile & Ida - Bonnet - Chataigne (ida-eveland)',
+        originalName: 'BONNET',
+        productName: 'IDA-EVELAND',
+        reference: 'IDA-EVELAND_CHATAIGNE',
+        color: 'CHATAIGNE',
+        selectedBrand: { name: 'Emile & Ida' },
+      }),
+    ).toEqual({
+      brand: 'Emile & Ida',
+      name: 'BONNET',
+      color: 'CHATAIGNE',
+      reference: 'ida-eveland',
+    });
   });
 });
 
