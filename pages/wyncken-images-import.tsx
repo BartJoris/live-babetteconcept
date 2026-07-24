@@ -21,6 +21,17 @@ interface UploadResult {
 }
 
 export default function WynckenImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfProducts, setPdfProducts] = useState<Array<{
@@ -40,11 +51,6 @@ export default function WynckenImagesImport() {
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -288,8 +294,7 @@ export default function WynckenImagesImport() {
       console.log(`📸 Matched images for ${imageMap.size} products`);
 
       // Find products in Odoo
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('Geen Odoo credentials gevonden');
         setLoading(false);
         return;
@@ -331,8 +336,6 @@ export default function WynckenImagesImport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           references: referencesToSearch,
-          uid,
-          password,
         }),
       });
 
@@ -399,8 +402,6 @@ export default function WynckenImagesImport() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     reference: styleReference,
-                    uid,
-                    password,
                   }),
                 });
                 
@@ -417,8 +418,6 @@ export default function WynckenImagesImport() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       reference: styleCode,
-                      uid,
-                      password,
                     }),
                   });
                   
@@ -445,8 +444,6 @@ export default function WynckenImagesImport() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   reference: styleReference,
-                  uid,
-                  password,
                 }),
               });
               
@@ -521,8 +518,7 @@ export default function WynckenImagesImport() {
   };
 
   const uploadImagesToOdoo = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden');
       return;
     }
@@ -611,8 +607,6 @@ export default function WynckenImagesImport() {
           body: JSON.stringify({
             images: batch,
             productKeyToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 

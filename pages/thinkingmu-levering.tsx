@@ -80,6 +80,17 @@ interface CheckResult {
 }
 
 const ThinkingMuLeveringPage: NextPage = () => {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
@@ -243,11 +254,7 @@ const ThinkingMuLeveringPage: NextPage = () => {
       return;
     }
 
-    // Get credentials from localStorage
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Please log in to Odoo first');
       return;
     }
@@ -272,8 +279,6 @@ const ThinkingMuLeveringPage: NextPage = () => {
         body: JSON.stringify({ 
           barcodes, 
           products: productsForCheck, 
-          uid, 
-          password,
           brandName: 'Thinking Mu' // Specify the brand for new products
         }),
       });
@@ -368,10 +373,7 @@ const ThinkingMuLeveringPage: NextPage = () => {
     setShowValidationModal(false);
     setLoading(true);
     
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Please log in to Odoo first');
       setLoading(false);
       return;
@@ -392,8 +394,6 @@ const ThinkingMuLeveringPage: NextPage = () => {
                 variantId: product.variantId,
                 quantityToAdd: product.quantity,
                 costPrice: product.costPrice,
-                uid,
-                password,
               }),
             });
 
@@ -442,8 +442,6 @@ const ThinkingMuLeveringPage: NextPage = () => {
               quantity: product.quantity,
               costPrice: product.costPrice,
               attributeValues,
-              uid,
-              password,
             };
 
             const response = await fetch('/api/create-product-variant', {
@@ -492,8 +490,6 @@ const ThinkingMuLeveringPage: NextPage = () => {
                 brandId: product.brand.id,
                 size: product.detectedSize,
                 color: product.detectedColor,
-                uid,
-                password,
               }),
             });
 

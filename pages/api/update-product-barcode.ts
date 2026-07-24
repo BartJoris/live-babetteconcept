@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -30,12 +31,11 @@ interface UpdateBarcodeRequest {
   model: 'product.template' | 'product.product';
   newBarcode: string;
   clearBarcode?: boolean;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -43,11 +43,8 @@ export default async function handler(
   }
 
   try {
-    const { productId, model, newBarcode, clearBarcode, uid, password }: UpdateBarcodeRequest = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    const { uid, password } = req.session.user!;
+    const { productId, model, newBarcode, clearBarcode }: UpdateBarcodeRequest = req.body;
 
     if (!productId || !model) {
       return res.status(400).json({ error: 'Product ID and model are required' });
@@ -61,7 +58,7 @@ export default async function handler(
 
     // Update the product barcode
     const result = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       model,
       'write',
@@ -74,7 +71,7 @@ export default async function handler(
     if (result) {
       // Fetch updated product to confirm
       const updatedProduct = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         model,
         'read',
@@ -102,3 +99,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

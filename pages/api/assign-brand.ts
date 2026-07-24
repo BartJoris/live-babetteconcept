@@ -1,11 +1,11 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL!;
 const ODOO_DB = process.env.ODOO_DB!;
 
 type AssignBrandRequest = {
-  uid: number;
-  password: string;
+
   templateIds: number[]; // Product template IDs to update
   brandId: number; // Brand value ID to assign
   attributeId: number; // MERK or Merk 1 attribute ID
@@ -21,14 +21,14 @@ type AssignBrandResponse = {
   testMode: boolean;
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { uid, password, templateIds, brandId, attributeId, testMode } = req.body as AssignBrandRequest;
-
-  if (!uid || !password || !templateIds || !brandId || !attributeId) {
+  const { templateIds, brandId, attributeId, testMode } = req.body as AssignBrandRequest;
+  if (!templateIds || !brandId || !attributeId) {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const templatesToProcess = isTest && templateIds[0] !== undefined ? [templateIds[0]] : templateIds;
 
   try {
+    const { uid, password } = req.session.user!;
     console.log(`🔧 Assigning brand ${brandId} to ${templatesToProcess.length} templates (${isTest ? 'TEST MODE' : 'PRODUCTION'})`);
 
     const results: Array<{ templateId: number; templateName: string; status: string }> = [];
@@ -184,4 +185,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-
+export default withAuth(handler);

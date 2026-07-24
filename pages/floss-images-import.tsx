@@ -38,17 +38,23 @@ interface UploadResult {
 const ODOO_URL = '/api/floss-search-products';
 
 export default function FlossImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [productGroups, setProductGroups] = useState<ProductGroup[]>([]);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [folderName, setFolderName] = useState('');
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const parseFilename = (filename: string): { styleNo: string; styleName: string; color: string; imageType: string } | null => {
     // Format: "F10841 - Robin Dress - Blue-tangerine Stripe - Main.jpg"
@@ -123,8 +129,7 @@ export default function FlossImagesImport() {
   };
 
   const searchOdooProducts = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden. Log eerst in via de product import pagina.');
       return;
     }
@@ -136,7 +141,7 @@ export default function FlossImagesImport() {
       const response = await fetch(ODOO_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ styleNos, uid, password }),
+        body: JSON.stringify({ styleNos }),
       });
 
       const data = await response.json();
@@ -159,8 +164,7 @@ export default function FlossImagesImport() {
   };
 
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden.');
       return;
     }
@@ -209,8 +213,6 @@ export default function FlossImagesImport() {
           body: JSON.stringify({
             images: batch,
             styleNoToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 

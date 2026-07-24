@@ -18,6 +18,17 @@ interface ProductWithImages extends ProductToFetch {
 }
 
 export default function PlayUpImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [products, setProducts] = useState<ProductToFetch[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,11 +46,6 @@ export default function PlayUpImagesImport() {
     colourDescription: string;
   }>>([]);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // Handle EAN CSV upload
   const handleEANUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,8 +182,7 @@ export default function PlayUpImagesImport() {
 
     console.log(`📦 Found ${productMap.size} unique products in CSV`);
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden');
       return;
     }
@@ -222,8 +227,6 @@ export default function PlayUpImagesImport() {
               fields: ['id', 'name', 'default_code', 'product_tmpl_id'],
               limit: 1,
             },
-            uid,
-            password,
           }),
         });
 
@@ -240,8 +243,6 @@ export default function PlayUpImagesImport() {
               model: 'product.template',
               method: 'read',
               args: [[templateId], ['active', 'name']],
-              uid,
-              password,
             }),
           });
           
@@ -275,8 +276,6 @@ export default function PlayUpImagesImport() {
                 fields: ['id', 'name', 'default_code'],
                 limit: 1,
               },
-              uid,
-              password,
             }),
           });
 
@@ -444,8 +443,7 @@ export default function PlayUpImagesImport() {
   };
 
   const uploadImagesToOdoo = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden');
       return;
     }
@@ -502,8 +500,6 @@ export default function PlayUpImagesImport() {
                   image_1920: uploadedCount === 0 ? base64Image : undefined,
                 },
               ],
-              uid,
-              password,
             }),
           });
 

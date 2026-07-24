@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -25,22 +26,18 @@ async function callOdoo(uid: number, password: string, model: string, method: st
   return json.result;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
-  const { uid, password } = req.method === 'POST' ? req.body : req.query;
-
-  if (!uid || !password) {
-    return res.status(400).json({ error: 'Missing uid or password' });
-  }
+  const { uid, password } = req.session.user!;
 
   try {
     console.log('🔍 Fetching categories...');
 
     // Fetch Internal Categories
     const internalCategories = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.category',
       'search_read',
@@ -56,7 +53,7 @@ export default async function handler(
     try {
       // Fetch ALL public categories instead of just those from sample products
       publicCategories = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.public.category',
         'search_read',
@@ -76,7 +73,7 @@ export default async function handler(
 
     // Fetch POS Categories
     const posCategories = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'pos.category',
       'search_read',
@@ -97,7 +94,7 @@ export default async function handler(
         try {
           // Fetch ALL tags instead of just from sample products
           productTags = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             modelName,
             'search_read',
@@ -123,7 +120,7 @@ export default async function handler(
 
     // Sample products that should have these fields
     const sampleProductWithPublicCategs = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'search_read',
@@ -132,7 +129,7 @@ export default async function handler(
     );
 
     const sampleProductsWithTags = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'search_read',
@@ -168,3 +165,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

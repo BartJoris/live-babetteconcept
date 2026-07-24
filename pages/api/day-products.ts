@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL!;
 const ODOO_DB = process.env.ODOO_DB!;
@@ -14,18 +15,19 @@ type OrderLine = {
   discount?: number;
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Only POST allowed' });
   }
 
-  const { uid, password, date } = req.body;
-
-  if (!uid || !password || !date) {
+  const { date } = req.body;
+  if (!date) {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
   try {
+    const { uid, password } = req.session.user!;
     // 1. Zoek de hoofdcategorie 'Solden zomer 2025'
     const mainCategoryPayload = {
       jsonrpc: '2.0',
@@ -319,4 +321,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('❌ API error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
-} 
+}
+
+export default withAuth(handler);

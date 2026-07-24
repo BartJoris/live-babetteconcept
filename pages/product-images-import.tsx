@@ -17,6 +17,17 @@ interface ProductWithImages extends ProductToFetch {
 }
 
 export default function Ao76ImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [products, setProducts] = useState<ProductToFetch[]>([]);
@@ -28,11 +39,6 @@ export default function Ao76ImagesImport() {
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; currentProduct?: string } | null>(null);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // Compress image to ensure it's under size limit
   const compressImage = async (file: File): Promise<string> => {
@@ -173,13 +179,12 @@ export default function Ao76ImagesImport() {
       return;
     }
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden. Log eerst in!');
       return;
     }
 
-    console.log(`🔍 Starting Odoo search with credentials: uid=${uid}`);
+    console.log('🔍 Starting Odoo search');
 
     setLoading(true);
     const parsed: ProductToFetch[] = [];
@@ -208,8 +213,6 @@ export default function Ao76ImagesImport() {
               fields: ['id', 'name', 'description'],
               limit: 1,
             },
-            uid,
-            password,
           }),
         });
 
@@ -418,8 +421,7 @@ export default function Ao76ImagesImport() {
   };
 
   const uploadImagesToOdoo = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden');
       return;
     }
@@ -471,8 +473,6 @@ export default function Ao76ImagesImport() {
             method: 'search_read',
             args: [[['product_tmpl_id', '=', product.templateId]]],
             kwargs: { fields: ['id'] },
-            uid,
-            password,
           }),
         });
 
@@ -488,8 +488,6 @@ export default function Ao76ImagesImport() {
               model: 'product.image',
               method: 'unlink',
               args: [imageIds],
-              uid,
-              password,
             }),
           });
         }
@@ -512,8 +510,6 @@ export default function Ao76ImagesImport() {
                   model: 'product.template',
                   method: 'write',
                   args: [[product.templateId], { image_1920: base64Image }],
-                  uid,
-                  password,
                 }),
               });
 
@@ -541,8 +537,6 @@ export default function Ao76ImagesImport() {
                     image_1920: base64Image,
                     sequence: i + 1,
                   }],
-                  uid,
-                  password,
                 }),
               });
 
@@ -970,8 +964,6 @@ export default function Ao76ImagesImport() {
                                   method: 'search_read',
                                   args: [[['product_tmpl_id', '=', product.templateId]]],
                                   kwargs: { fields: ['id'] },
-                                  uid: getCredentials().uid,
-                                  password: getCredentials().password,
                                 }),
                               });
 
@@ -985,8 +977,6 @@ export default function Ao76ImagesImport() {
                                     model: 'product.image',
                                     method: 'unlink',
                                     args: [imageIds],
-                                    uid: getCredentials().uid,
-                                    password: getCredentials().password,
                                   }),
                                 });
                               }
@@ -1004,8 +994,6 @@ export default function Ao76ImagesImport() {
                                         model: 'product.template',
                                         method: 'write',
                                         args: [[product.templateId], { image_1920: base64Image }],
-                                        uid: getCredentials().uid,
-                                        password: getCredentials().password,
                                       }),
                                     });
 
@@ -1026,8 +1014,6 @@ export default function Ao76ImagesImport() {
                                           image_1920: base64Image,
                                           sequence: i + 1,
                                         }],
-                                        uid: getCredentials().uid,
-                                        password: getCredentials().password,
                                       }),
                                     });
 

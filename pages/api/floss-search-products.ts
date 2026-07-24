@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -27,8 +28,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 
 interface SearchRequest {
   styleNos: string[];
-  uid: string;
-  password: string;
+
 }
 
 interface ProductResult {
@@ -39,8 +39,8 @@ interface ProductResult {
   imageCount: number;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -48,22 +48,22 @@ export default async function handler(
   }
 
   try {
-    const { styleNos, uid, password } = req.body as SearchRequest;
+    const { uid, password } = req.session.user!;
+    const { styleNos } = req.body as SearchRequest;
 
-    if (!styleNos || styleNos.length === 0 || !uid || !password) {
+    if (!styleNos || styleNos.length === 0) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
     const products: Record<string, ProductResult> = {};
-    const uidNum = parseInt(uid);
-
+    
     // Flöss products store their Style No in the `description` field (internal notes),
     // NOT in `default_code`. The product name format is "Flöss - Style Name - Color".
 
     // Strategy 1: Search by description (internal notes) containing the style number
     // Search all Flöss/Brunobruno products at once
     const flossTemplateIds = await callOdoo(
-      uidNum, password,
+      uid, password,
       'product.template', 'search',
       [[
         '|', '|',
@@ -78,7 +78,7 @@ export default async function handler(
 
     if (flossTemplateIds && flossTemplateIds.length > 0) {
       const templates = await callOdoo(
-        uidNum, password,
+        uid, password,
         'product.template', 'read',
         [flossTemplateIds, ['name', 'default_code', 'description']]
       );
@@ -128,7 +128,7 @@ export default async function handler(
     const notFoundAfterDesc = styleNos.filter(s => !products[s]);
     if (notFoundAfterDesc.length > 0) {
       const codeIds = await callOdoo(
-        uidNum, password,
+        uid, password,
         'product.template', 'search',
         [[['default_code', 'in', notFoundAfterDesc.map(s => s.toUpperCase())]]],
         { limit: 500 }
@@ -136,7 +136,7 @@ export default async function handler(
 
       if (codeIds && codeIds.length > 0) {
         const templates = await callOdoo(
-          uidNum, password,
+          uid, password,
           'product.template', 'read',
           [codeIds, ['name', 'default_code']]
         );
@@ -162,7 +162,7 @@ export default async function handler(
     if (allFoundTemplateIds.length > 0) {
       try {
         const allImageIds = await callOdoo(
-          uidNum, password,
+          uid, password,
           'product.image', 'search_read',
           [[['product_tmpl_id', 'in', allFoundTemplateIds]]],
           { fields: ['product_tmpl_id'], limit: 1000 }
@@ -200,3 +200,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

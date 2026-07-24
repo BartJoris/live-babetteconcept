@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -36,12 +37,11 @@ interface CreateHvidProductRequest {
   brandId: number;
   size?: string;
   color?: string;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -49,14 +49,11 @@ export default async function handler(
   }
 
   try {
+    const { uid, password } = req.session.user!;
     const { 
       name, barcode, sku, costPrice, salePrice, quantity, 
-      categoryId, brandId, size, color, uid, password 
+      categoryId, brandId, size, color 
     }: CreateHvidProductRequest = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
 
     if (!name || !barcode || !categoryId || !brandId) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -83,7 +80,7 @@ export default async function handler(
     };
 
     const templateId = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'create',
@@ -94,7 +91,7 @@ export default async function handler(
 
     // Get MERK attribute ID
     const merkAttrResult = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.attribute',
       'search_read',
@@ -109,7 +106,7 @@ export default async function handler(
 
     // Add brand attribute
     await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template.attribute.line',
       'create',
@@ -125,7 +122,7 @@ export default async function handler(
       // Add Maat attribute if size is provided
       if (size) {
         const maatAttrResult = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.attribute',
           'search_read',
@@ -137,7 +134,7 @@ export default async function handler(
 
           // Check if size value exists
           const existingSize = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.attribute.value',
             'search_read',
@@ -152,7 +149,7 @@ export default async function handler(
             sizeValueId = existingSize[0].id;
           } else {
             sizeValueId = await callOdoo(
-              parseInt(uid),
+              uid,
               password,
               'product.attribute.value',
               'create',
@@ -161,7 +158,7 @@ export default async function handler(
           }
 
           await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.template.attribute.line',
             'create',
@@ -177,7 +174,7 @@ export default async function handler(
       // Add Kleur attribute if color is provided
       if (color) {
         const kleurAttrResult = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.attribute',
           'search_read',
@@ -189,7 +186,7 @@ export default async function handler(
 
           // Check if color value exists
           const existingColor = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.attribute.value',
             'search_read',
@@ -204,7 +201,7 @@ export default async function handler(
             colorValueId = existingColor[0].id;
           } else {
             colorValueId = await callOdoo(
-              parseInt(uid),
+              uid,
               password,
               'product.attribute.value',
               'create',
@@ -213,7 +210,7 @@ export default async function handler(
           }
 
           await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.template.attribute.line',
             'create',
@@ -232,7 +229,7 @@ export default async function handler(
 
     // Get the created variants
     const variants = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'search_read',
@@ -250,7 +247,7 @@ export default async function handler(
     const variantId = variants[0].id;
 
     await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'write',
@@ -260,7 +257,7 @@ export default async function handler(
     // Add initial stock
     if (quantity > 0) {
       const locations = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'stock.location',
         'search_read',
@@ -272,7 +269,7 @@ export default async function handler(
 
       if (locations && locations.length > 0) {
         await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'stock.quant',
           'create',
@@ -287,7 +284,7 @@ export default async function handler(
 
     // Get final product details
     const finalProduct = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'read',
@@ -295,7 +292,7 @@ export default async function handler(
     );
 
     const finalVariant = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'read',
@@ -317,3 +314,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

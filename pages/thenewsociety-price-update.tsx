@@ -29,6 +29,17 @@ interface UpdateResult {
 }
 
 export default function TheNewSocietyPriceUpdate() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const { isLoggedIn } = useAuth();
   const [, setOrderCsvFile] = useState<File | null>(null);
   const [, setConfirmationCsvFile] = useState<File | null>(null);
@@ -39,11 +50,6 @@ export default function TheNewSocietyPriceUpdate() {
   const [updateResults, setUpdateResults] = useState<UpdateResult[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // Parse Order CSV (order-*.csv)
   const parseOrderCSV = async (text: string) => {
@@ -239,8 +245,7 @@ export default function TheNewSocietyPriceUpdate() {
 
     setLoading(true);
     try {
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('Odoo credentials niet gevonden. Log opnieuw in.');
         return;
       }
@@ -327,8 +332,7 @@ export default function TheNewSocietyPriceUpdate() {
       return;
     }
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Odoo credentials niet gevonden. Log opnieuw in.');
       return;
     }
@@ -356,8 +360,6 @@ export default function TheNewSocietyPriceUpdate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           updates,
-          uid,
-          password,
         }),
       });
 

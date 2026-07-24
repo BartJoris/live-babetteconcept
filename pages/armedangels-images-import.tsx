@@ -21,6 +21,17 @@ interface UploadResult {
 }
 
 export default function ArmedAngelsImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [catalogCsvFile, setCatalogCsvFile] = useState<File | null>(null);
@@ -30,11 +41,6 @@ export default function ArmedAngelsImagesImport() {
   const [loading, setLoading] = useState(false);
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -195,8 +201,7 @@ export default function ArmedAngelsImagesImport() {
       console.log(`📸 References with images:`, Array.from(imagesByReference.keys()));
 
       // Match products with images and template IDs
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('No Odoo credentials found');
         setLoading(false);
         return;
@@ -292,8 +297,7 @@ export default function ArmedAngelsImagesImport() {
   };
 
   const uploadImagesToOdoo = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('No Odoo credentials found');
       return;
     }
@@ -354,8 +358,6 @@ export default function ArmedAngelsImagesImport() {
                       image_1920: base64Image,
                       sequence: i + 1,
                     }],
-                uid,
-                password,
               }),
             });
 

@@ -1,6 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { getIronSession } from 'iron-session';
-import { sessionOptions, SessionData } from '@/lib/session';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -71,8 +70,8 @@ async function odooCall<T>(params: {
   return json.result as T;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'GET') {
@@ -80,13 +79,7 @@ export default async function handler(
   }
 
   try {
-    const session = await getIronSession<SessionData>(req, res, sessionOptions);
-
-    if (!session.isLoggedIn || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { uid, password } = session.user;
+    const { uid, password } = req.session.user!;
 
     // Fetch recent e-commerce orders (sent, sale, done - no drafts or cancelled)
     // Shows last 10 orders so you can easily download documents
@@ -212,3 +205,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

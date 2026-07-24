@@ -1,7 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import Navigation from '@/components/Navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 function partText(part: { type: string; text?: string }): string | null {
@@ -58,7 +57,6 @@ export default function AssistantPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-stone-50">
-        <Navigation />
         <main className="max-w-3xl mx-auto px-4 py-10 text-stone-600">Laden…</main>
       </div>
     );
@@ -70,7 +68,6 @@ export default function AssistantPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 via-orange-50/30 to-stone-100">
-      <Navigation />
       <main className="max-w-3xl mx-auto px-4 py-6 flex flex-col" style={{ minHeight: 'calc(100vh - 4rem)' }}>
         <header className="mb-4">
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">

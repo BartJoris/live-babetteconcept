@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -25,22 +26,23 @@ async function callOdoo(uid: number, password: string, model: string, method: st
   return json.result;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { brandName, uid, password } = req.body as { brandName: string; uid: string; password: string };
+    const { uid, password } = req.session.user!;
+    const { brandName } = req.body as { brandName: string };
 
-    if (!brandName || !uid || !password) {
-      return res.status(400).json({ error: 'Missing required parameters: brandName, uid, password' });
+    if (!brandName) {
+      return res.status(400).json({ error: 'Missing required parameters: brandName' });
     }
 
-    const uidNum = parseInt(uid);
-
+    
     const templates = await callOdoo(
-      uidNum, password,
+      uid, password,
       'product.template',
       'search_read',
       [[['name', 'ilike', `${brandName} -`]]],
@@ -51,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const templateIds = templates.map(t => t.id);
     const galleryImages = templateIds.length > 0
       ? await callOdoo(
-          uidNum, password,
+          uid, password,
           'product.image',
           'search_read',
           [[['product_tmpl_id', 'in', templateIds]]],
@@ -98,3 +100,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+export default withAuth(handler);

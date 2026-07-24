@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { odooClient } from '@/lib/odooClient';
 import { OdooImageService } from '@/lib/import/services';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 interface UploadRequest {
   templateId: number;
@@ -8,14 +9,13 @@ interface UploadRequest {
   imageName: string;
   sequence: number;
   isMainImage: boolean;
-  odooUid: string;
-  odooPassword: string;
+
   /** Optional: when provided, force this publish state after image write. */
   isPublished?: boolean;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -23,23 +23,14 @@ export default async function handler(
   }
 
   try {
-    const {
-      templateId,
-      base64Image,
-      imageName,
-      sequence,
-      isMainImage,
-      odooUid,
-      odooPassword,
-      isPublished,
-    } = req.body as UploadRequest;
+    const { uid, password } = req.session.user!;
+    const { templateId, base64Image, imageName, sequence, isMainImage, isPublished } = req.body as UploadRequest;
 
-    if (!templateId || !base64Image || !odooUid || !odooPassword) {
+    if (!templateId || !base64Image) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const uid = parseInt(odooUid);
-    const imageService = new OdooImageService(uid, odooPassword);
+    const imageService = new OdooImageService(uid, password);
 
     let imageId: number | null = null;
 
@@ -50,7 +41,7 @@ export default async function handler(
       if (preservePublished === undefined) {
         const current = await odooClient.read<{ website_published: boolean }>(
           uid,
-          odooPassword,
+          password,
           'product.template',
           [templateId],
           ['website_published'],
@@ -87,3 +78,5 @@ export const config = {
     },
   },
 };
+
+export default withAuth(handler);

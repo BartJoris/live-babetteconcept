@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   const checkSession = async () => {
     try {
-      const res = await fetch('/api/auth/session');
+      const res = await fetch('/api/session');
       const data = await res.json();
       if (data.isLoggedIn) {
         router.push('/dashboard');
@@ -40,10 +40,7 @@ export default function LoginPage() {
       const json = await res.json();
 
       if (json.success && json.user) {
-        // Session cookie is set automatically
-        // Also store credentials in localStorage for use by product import page
-        localStorage.setItem('odoo_uid', String(json.user.uid));
-        localStorage.setItem('odoo_pass', password);
+        // Session cookie is set automatically (iron-session via withAuth)
         router.push('/dashboard');
       } else {
         setError(json.error || 'Ongeldige login');

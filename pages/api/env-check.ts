@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { timingSafeEqualString } from '@/lib/security/timingSafeEqualString';
 
 const N8N_API_KEY = process.env.N8N_API_KEY;
 
@@ -7,10 +8,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = (req.headers['x-api-key'] as string) || (req.query.key as string) || '';
-  // Debug logs for local dev: presence only, not values
-  console.log('env-check: hasN8nKeyEnv=', Boolean(N8N_API_KEY), 'hasHeader=', Boolean(apiKey));
-  if (!N8N_API_KEY || apiKey !== N8N_API_KEY) {
+  // Only accept header — never query ?key= (ends up in access logs)
+  const headerKey = req.headers['x-api-key'];
+  const authHeader = req.headers.authorization;
+  let apiKey = '';
+  if (typeof headerKey === 'string' && headerKey) {
+    apiKey = headerKey;
+  } else if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    apiKey = authHeader.slice(7).trim();
+  }
+  if (!N8N_API_KEY || !timingSafeEqualString(apiKey, N8N_API_KEY)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

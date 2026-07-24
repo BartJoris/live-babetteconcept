@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { timingSafeEqualString } from '@/lib/security/timingSafeEqualString';
 
 const ODOO_URL = process.env.ODOO_URL!; // Should point to the JSON-RPC endpoint, e.g. https://your-odoo/jsonrpc
 const ODOO_DB = process.env.ODOO_DB!;
@@ -26,11 +27,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Simple API key protection for n8n
-    const apiKey = (req.headers['x-api-key'] as string) || (req.query.key as string) || '';
-    // Debug logs for local dev: presence only
-    console.log('pos-session-total: hasN8nKeyEnv=', Boolean(N8N_API_KEY), 'hasHeader=', Boolean(apiKey));
-    if (!N8N_API_KEY || apiKey !== N8N_API_KEY) {
+    // Simple API key protection for n8n — header only, never query ?key=
+    const headerKey = req.headers['x-api-key'];
+    const authHeader = req.headers.authorization;
+    let apiKey = '';
+    if (typeof headerKey === 'string' && headerKey) {
+      apiKey = headerKey;
+    } else if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+      apiKey = authHeader.slice(7).trim();
+    }
+    if (!N8N_API_KEY || !timingSafeEqualString(apiKey, N8N_API_KEY)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

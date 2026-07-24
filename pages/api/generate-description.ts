@@ -1,8 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 
 import { KINDEREN_SYSTEM_PROMPT, KINDEREN_USER_PROMPT_TEMPLATE } from '../../prompts/kinderen';
 import { VOLWASSENEN_SYSTEM_PROMPT, VOLWASSENEN_USER_PROMPT_TEMPLATE } from '../../prompts/volwassenen';
 import type { BabetteProductPromptInput } from '../../prompts/babette';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 type PromptCategory = 'kinderen' | 'volwassenen';
 
@@ -61,8 +62,8 @@ function extractResponsesText(data: {
   return joined || null;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse,
 ) {
   if (req.method === 'GET') {
@@ -165,3 +166,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

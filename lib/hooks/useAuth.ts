@@ -27,12 +27,9 @@ export function useAuth(redirectToLogin = true) {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/session', {
+      const res = await fetch('/api/session', {
         method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'same-origin',
       });
 
       if (!res.ok) {

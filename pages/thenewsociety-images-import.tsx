@@ -30,6 +30,17 @@ interface UploadResult {
 }
 
 export default function TheNewSocietyImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [imagesFolder, setImagesFolder] = useState<File[]>([]);
@@ -39,11 +50,6 @@ export default function TheNewSocietyImagesImport() {
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,8 +176,7 @@ export default function TheNewSocietyImagesImport() {
       console.log(`📸 Matched images for ${imagesMap.size} product-color combinations`);
 
       // Fetch products from Odoo
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
         setLoading(false);
         return;
@@ -211,8 +216,6 @@ export default function TheNewSocietyImagesImport() {
                 fields: ['id', 'name', 'default_code', 'description'],
                 limit: 1,
               },
-              uid,
-              password,
             }),
           });
 
@@ -237,8 +240,6 @@ export default function TheNewSocietyImagesImport() {
                   fields: ['id', 'name', 'default_code', 'description'],
                   limit: 1,
                 },
-                uid,
-                password,
               }),
             });
 
@@ -262,8 +263,6 @@ export default function TheNewSocietyImagesImport() {
                     fields: ['id', 'name', 'default_code', 'description'],
                     limit: 1,
                   },
-                  uid,
-                  password,
                 }),
               });
 
@@ -287,8 +286,6 @@ export default function TheNewSocietyImagesImport() {
                       fields: ['id', 'name', 'default_code', 'description'],
                       limit: 1,
                     },
-                    uid,
-                    password,
                   }),
                 });
 
@@ -314,8 +311,6 @@ export default function TheNewSocietyImagesImport() {
                     fields: ['id', 'name', 'sequence', 'image_1920'],
                     order: 'sequence asc',
                   },
-                  uid,
-                  password,
                 }),
               });
 
@@ -386,8 +381,7 @@ export default function TheNewSocietyImagesImport() {
   };
 
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
       return;
     }
@@ -450,8 +444,6 @@ export default function TheNewSocietyImagesImport() {
           body: JSON.stringify({
             images: batch,
             productKeyToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 
@@ -585,8 +577,7 @@ export default function TheNewSocietyImagesImport() {
     const product = productsWithImages[productIndex];
     if (!product.foundInOdoo || !product.templateId) return;
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
       return;
     }
@@ -603,8 +594,6 @@ export default function TheNewSocietyImagesImport() {
             fields: ['id', 'name', 'sequence', 'image_1920'],
             order: 'sequence asc',
           },
-          uid,
-          password,
         }),
       });
 

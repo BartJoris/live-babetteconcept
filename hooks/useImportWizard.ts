@@ -157,33 +157,24 @@ export default function useImportWizard() {
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [generatingBarcodes, setGeneratingBarcodes] = useState(false);
 
-  // ─── Credentials helper ───────────────────────────────────────────────
-  const getCredentials = async () => {
-    try {
-      const response = await fetch('/api/auth/session');
-      const data = await response.json();
+  // ─── Auth helper ──────────────────────────────────────────────────────
 
-      if (data.isLoggedIn && data.user) {
-        const password = localStorage.getItem('odoo_pass');
-        if (password) {
-          return { uid: String(data.user.uid), password };
-        }
-      }
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
     } catch (error) {
       console.error('Error checking session:', error);
+      return false;
     }
-
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
   };
 
   // ─── Data fetching ────────────────────────────────────────────────────
   const fetchBrands = async () => {
     try {
       setCategoriesDataError(null);
-      const { uid, password } = await getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         setCategoriesDataError(
           'Je bent niet ingelogd op Odoo. Log in op de startpagina om merken en categorieën te laden.',
         );
@@ -193,7 +184,7 @@ export default function useImportWizard() {
       const response = await fetch('/api/fetch-brands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password }),
+        body: JSON.stringify({}),
       });
       const data = await response.json();
 
@@ -215,8 +206,7 @@ export default function useImportWizard() {
     try {
       setIsLoading(true);
       setCategoriesDataError(null);
-      const { uid, password } = await getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         setCategoriesDataError(
           'Je bent niet ingelogd op Odoo. Log in op de startpagina om merken en categorieën te laden.',
         );
@@ -227,7 +217,7 @@ export default function useImportWizard() {
       const response = await fetch('/api/debug-categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, password }),
+        body: JSON.stringify({}),
       });
       const data = await response.json();
 
@@ -1475,8 +1465,7 @@ export default function useImportWizard() {
     testMode: boolean,
     signal: AbortSignal,
   ): Promise<ImportResultRow[]> => {
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       throw new Error('Geen Odoo credentials gevonden. Log eerst in.');
     }
 
@@ -1510,8 +1499,6 @@ export default function useImportWizard() {
             products: batch,
             testMode,
             vendor: selectedVendor || 'unknown',
-            uid,
-            password,
           }),
           signal,
         });
@@ -1811,8 +1798,7 @@ export default function useImportWizard() {
     }
 
     const imgResults: ImageImportResult[] = [];
-    const { uid, password } = await getCredentials();
-    if (!uid || !password) return;
+    if (!(await ensureLoggedIn())) return;
 
     setIsLoading(true);
 
@@ -1846,8 +1832,6 @@ export default function useImportWizard() {
                 imageName: sorted[i].filename,
                 sequence: i + 1,
                 isMainImage: i === 0,
-                odooUid: uid,
-                odooPassword: password,
               }),
             });
 

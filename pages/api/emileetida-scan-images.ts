@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 interface ImageMatch {
   filename: string;
@@ -56,8 +57,8 @@ function extractImageNumber(filename: string): number {
   return match ? parseInt(match[1]) : 0;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse<ScanResponse>
 ) {
   if (req.method !== 'POST') {
@@ -195,3 +196,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

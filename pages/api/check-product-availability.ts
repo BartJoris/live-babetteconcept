@@ -1,6 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { getIronSession } from 'iron-session';
-import { sessionOptions, SessionData } from '@/lib/session';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -59,8 +58,8 @@ interface ProductAvailability {
   price_total: number;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -68,13 +67,7 @@ export default async function handler(
   }
 
   try {
-    const session = await getIronSession<SessionData>(req, res, sessionOptions);
-
-    if (!session.isLoggedIn || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { uid, password } = session.user;
+    const { uid, password } = req.session.user!;
     const { orderId } = req.body;
 
     if (!orderId) {
@@ -206,3 +199,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

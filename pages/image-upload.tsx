@@ -83,29 +83,28 @@ export default function ImageUploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVendor, plugin]);
 
-  const getCredentials = async () => {
+
+  const ensureLoggedIn = async () => {
     try {
-      const response = await fetch('/api/auth/session');
+      const response = await fetch('/api/session');
       const data = await response.json();
-      if (data.isLoggedIn && data.user) {
-        const password = localStorage.getItem('odoo_pass');
-        if (password) return { uid: String(data.user.uid), password };
-      }
-    } catch { /* fallback */ }
-    return { uid: localStorage.getItem('odoo_uid'), password: localStorage.getItem('odoo_pass') };
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
   };
 
   const loadProducts = async () => {
     if (!plugin) return;
     setIsLoading(true);
     try {
-      const { uid, password } = await getCredentials();
-      if (!uid || !password) { alert('Geen Odoo credentials. Log eerst in.'); setIsLoading(false); return; }
+      if (!(await ensureLoggedIn())) { alert('Geen Odoo credentials. Log eerst in.'); setIsLoading(false); return; }
 
       const response = await fetch('/api/search-products-by-brand', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandName: plugin.brandName, uid, password }),
+        body: JSON.stringify({ brandName: plugin.brandName }),
       });
       const data = await response.json();
 
@@ -297,8 +296,7 @@ export default function ImageUploadPage() {
     const results: typeof uploadResults = [];
 
     try {
-      const { uid, password } = await getCredentials();
-      if (!uid || !password) { alert('Geen Odoo credentials.'); setIsLoading(false); return; }
+      if (!(await ensureLoggedIn())) { alert('Geen Odoo credentials.'); setIsLoading(false); return; }
 
       const byTemplate = new Map<number, ImageItem[]>();
       for (const img of assigned) {
@@ -328,8 +326,6 @@ export default function ImageUploadPage() {
                 imageName: sorted[i].filename,
                 sequence: i + 1,
                 isMainImage: shouldSetAsMain,
-                odooUid: uid,
-                odooPassword: password,
               }),
             });
             uploaded++;

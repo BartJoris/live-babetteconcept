@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 export const config = {
   api: {
@@ -247,8 +248,8 @@ function extractProducts(pdfText: string): BayiriProduct[] {
   return products;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -342,3 +343,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

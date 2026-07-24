@@ -79,6 +79,17 @@ interface CheckResult {
 }
 
 const HvidLeveringPage: NextPage = () => {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [loading, setLoading] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ProductLine[]>([]);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
@@ -223,11 +234,7 @@ const HvidLeveringPage: NextPage = () => {
       return;
     }
 
-    // Get credentials from localStorage
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Please log in to Odoo first');
       return;
     }
@@ -239,7 +246,7 @@ const HvidLeveringPage: NextPage = () => {
       const response = await fetch('/api/check-duplicate-barcodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ barcodes, products: parsedProducts, uid, password }),
+        body: JSON.stringify({ barcodes, products: parsedProducts }),
       });
 
       const data = await response.json();
@@ -301,11 +308,7 @@ const HvidLeveringPage: NextPage = () => {
       return;
     }
 
-    // Get credentials from localStorage
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Please log in to Odoo first');
       return;
     }
@@ -315,7 +318,7 @@ const HvidLeveringPage: NextPage = () => {
       const response = await fetch('/api/update-product-barcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, model, newBarcode, clearBarcode, uid, password }),
+        body: JSON.stringify({ productId, model, newBarcode, clearBarcode }),
       });
 
       const data = await response.json();
@@ -382,10 +385,7 @@ const HvidLeveringPage: NextPage = () => {
     setShowValidationModal(false);
     setLoading(true);
     
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Please log in to Odoo first');
       setLoading(false);
       return;
@@ -406,8 +406,6 @@ const HvidLeveringPage: NextPage = () => {
                 variantId: product.variantId,
                 quantityToAdd: product.quantity,
                 costPrice: product.costPrice,
-                uid,
-                password,
               }),
             });
 
@@ -458,8 +456,6 @@ const HvidLeveringPage: NextPage = () => {
               quantity: product.quantity,
               costPrice: product.costPrice,
               attributeValues,  // Send all attribute values
-              uid,
-              password,
             };
 
             console.log('Creating variant with data:', requestData);
@@ -511,8 +507,6 @@ const HvidLeveringPage: NextPage = () => {
                 brandId: product.brand.id,
                 size: product.detectedSize,
                 color: product.detectedColor,
-                uid,
-                password,
               }),
             });
 

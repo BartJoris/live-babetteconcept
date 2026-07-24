@@ -29,6 +29,17 @@ interface UpdateResult {
 }
 
 export default function WeekendHouseKidsPriceUpdate() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const { isLoggedIn } = useAuth();
   const [, setOrderCsvFile] = useState<File | null>(null);
   const [, setConfirmationCsvFile] = useState<File | null>(null);
@@ -39,11 +50,6 @@ export default function WeekendHouseKidsPriceUpdate() {
   const [updateResults, setUpdateResults] = useState<UpdateResult[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // Parse Order CSV (order-*.csv)
   const parseOrderCSV = async (text: string) => {
@@ -221,8 +227,7 @@ export default function WeekendHouseKidsPriceUpdate() {
 
     setLoading(true);
     try {
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('Odoo credentials niet gevonden. Log opnieuw in.');
         return;
       }
@@ -309,8 +314,7 @@ export default function WeekendHouseKidsPriceUpdate() {
       return;
     }
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Odoo credentials niet gevonden. Log opnieuw in.');
       return;
     }
@@ -338,8 +342,6 @@ export default function WeekendHouseKidsPriceUpdate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           updates,
-          uid,
-          password,
         }),
       });
 

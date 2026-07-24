@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -30,14 +31,14 @@ interface FetchImagesRequest {
   productReference: string;
   vendorUrl: string;
   templateId: number;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
+  const { uid, password } = req.session.user!;
   console.log('🚀 [API CALLED] fetch-product-images endpoint hit');
   
   if (req.method !== 'POST') {
@@ -47,10 +48,10 @@ export default async function handler(
 
   try {
     console.log('📦 [REQUEST BODY] Received:', { productName: req.body?.productName, productReference: req.body?.productReference, vendorUrl: req.body?.vendorUrl, templateId: req.body?.templateId });
-    const { productName, productReference, vendorUrl, templateId, uid, password } = req.body as FetchImagesRequest;
+    const { productName, productReference, vendorUrl, templateId } = req.body as FetchImagesRequest;
 
-    if (!productName || !vendorUrl || !templateId || !uid || !password) {
-      console.log('❌ [ERROR] Missing parameters:', { productName: !!productName, productReference: !!productReference, vendorUrl: !!vendorUrl, templateId: !!templateId, uid: !!uid, password: !!password });
+    if (!productName || !vendorUrl || !templateId) {
+      console.log('❌ [ERROR] Missing parameters:', { productName: !!productName, productReference: !!productReference, vendorUrl: !!vendorUrl, templateId: !!templateId });
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
@@ -274,7 +275,7 @@ export default async function handler(
         
         // Create product.image record
         const imageId = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.image',
           'create',
@@ -326,4 +327,4 @@ export default async function handler(
   }
 }
 
-
+export default withAuth(handler);

@@ -21,6 +21,17 @@ interface UploadResult {
 }
 
 export default function OnemoreImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [localImages, setLocalImages] = useState<File[]>([]);
@@ -30,11 +41,6 @@ export default function OnemoreImagesImport() {
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -200,8 +206,7 @@ export default function OnemoreImagesImport() {
       console.log(`📸 Matched images for ${imageMap.size} products`);
 
       // Find products in Odoo
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('Geen Odoo credentials gevonden');
         setLoading(false);
         return;
@@ -241,8 +246,6 @@ export default function OnemoreImagesImport() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               reference: normalizedReference,
-              uid,
-              password,
               includeDescription: true, // Request description field
             }),
           });
@@ -270,8 +273,6 @@ export default function OnemoreImagesImport() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   reference: product.productName,
-                  uid,
-                  password,
                 }),
               });
               
@@ -289,8 +290,6 @@ export default function OnemoreImagesImport() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     reference: product.productReference,
-                    uid,
-                    password,
                   }),
                 });
                 
@@ -396,8 +395,7 @@ export default function OnemoreImagesImport() {
   };
 
   const uploadImagesToOdoo = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden');
       return;
     }
@@ -487,8 +485,6 @@ export default function OnemoreImagesImport() {
           body: JSON.stringify({
             images: batch,
             productKeyToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 

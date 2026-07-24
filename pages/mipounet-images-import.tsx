@@ -45,6 +45,17 @@ function parseImageFilename(filename: string): { ref: string; suffix: string } |
 }
 
 export default function MipounetImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [allImages, setAllImages] = useState<ImageFile[]>([]);
   const [folderName, setFolderName] = useState('');
   const [products, setProducts] = useState<ProductGroup[]>([]);
@@ -59,11 +70,6 @@ export default function MipounetImagesImport() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const addPhotoRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // ============================================
   // FOLDER SELECTION & IMAGE PARSING
@@ -120,7 +126,11 @@ export default function MipounetImagesImport() {
     }
 
     setLoading(true);
-    const { uid, password } = getCredentials();
+    if (!(await ensureLoggedIn())) {
+      alert('Geen Odoo credentials gevonden. Log eerst in!');
+      setLoading(false);
+      return;
+    }
 
     // Group images by reference
     const groups = new Map<string, ImageFile[]>();
@@ -138,24 +148,22 @@ export default function MipounetImagesImport() {
       let odooTemplateId: number | undefined;
       let odooProductName: string | undefined;
 
-      if (uid && password) {
-        try {
-          const resp = await fetch('/api/search-mipounet-products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: ref, uid, password }),
-          });
-          const data = await resp.json();
-          if (data.found && data.products.length > 0) {
-            const best = data.products[0];
-            odooTemplateId = best.templateId;
-            odooProductName = best.name;
-            odooHasImages = best.hasImages || false;
-            odooImageCount = best.imageCount || 0;
-          }
-        } catch (err) {
-          console.error(`Error checking Odoo for ${ref}:`, err);
+      try {
+        const resp = await fetch('/api/search-mipounet-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference: ref }),
+        });
+        const data = await resp.json();
+        if (data.found && data.products.length > 0) {
+          const best = data.products[0];
+          odooTemplateId = best.templateId;
+          odooProductName = best.name;
+          odooHasImages = best.hasImages || false;
+          odooImageCount = best.imageCount || 0;
         }
+      } catch (err) {
+        console.error(`Error checking Odoo for ${ref}:`, err);
       }
 
       matched.push({
@@ -245,8 +253,7 @@ export default function MipounetImagesImport() {
   // UPLOAD TO ODOO
   // ============================================
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Odoo credentials niet gevonden. Log eerst in via Product Import.');
       return;
     }
@@ -290,8 +297,6 @@ export default function MipounetImagesImport() {
               imageName,
               sequence: i + 1,
               isMainImage: i === 0,
-              odooUid: uid,
-              odooPassword: password,
             }),
           });
 

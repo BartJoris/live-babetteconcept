@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface ProductCheckItem {
   id: number;
@@ -317,8 +318,6 @@ export default function ProductCheckPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId, base64Image: false, imageName: '', sequence: 0, isMainImage: true,
-          odooUid: localStorage.getItem('odoo_uid') || '',
-          odooPassword: localStorage.getItem('odoo_pass') || '',
         }),
       });
       if (!r.ok) throw new Error('Kan hoofdafbeelding niet verwijderen');
@@ -361,8 +360,6 @@ export default function ProductCheckPage() {
             imageName: file.name,
             sequence: maxSeq,
             isMainImage: false,
-            odooUid: localStorage.getItem('odoo_uid') || '',
-            odooPassword: localStorage.getItem('odoo_pass') || '',
           }),
         });
         if (!r.ok) {
@@ -908,7 +905,7 @@ export default function ProductCheckPage() {
                         {expandedDescriptionIds.has(product.id) && product.description && (
                           <tr>
                             <td colSpan={7} className="px-4 py-3 bg-green-50 dark:bg-green-900/10">
-                              <div className="text-sm text-gray-700 dark:text-gray-300 max-w-3xl" dangerouslySetInnerHTML={{ __html: product.description }} />
+                              <div className="text-sm text-gray-700 dark:text-gray-300 max-w-3xl" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description) }} />
                             </td>
                           </tr>
                         )}

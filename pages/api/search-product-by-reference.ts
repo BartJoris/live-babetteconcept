@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -27,12 +28,11 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 
 interface SearchRequest {
   reference: string;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -40,16 +40,17 @@ export default async function handler(
   }
 
   try {
-    const { reference, uid, password } = req.body as SearchRequest;
+    const { uid, password } = req.session.user!;
+    const { reference } = req.body as SearchRequest;
 
-    if (!reference || !uid || !password) {
+    if (!reference) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
     // Search for product template by default_code (internal reference)
     // Try exact match first
     let templateIds = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'search',
@@ -60,7 +61,7 @@ export default async function handler(
     // If not found, try case-insensitive search
     if (!templateIds || templateIds.length === 0) {
       templateIds = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'search',
@@ -72,7 +73,7 @@ export default async function handler(
     // If still not found, search in product variants
     if (!templateIds || templateIds.length === 0) {
       const variantIds = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.product',
         'search',
@@ -83,7 +84,7 @@ export default async function handler(
       if (variantIds && variantIds.length > 0) {
         // Get template ID from variant
         const variant = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.product',
           'read',
@@ -99,7 +100,7 @@ export default async function handler(
     if (templateIds && templateIds.length > 0) {
       // Get template details
       const template = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'read',
@@ -132,3 +133,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
-import Navigation from '@/components/Navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 interface Product {
@@ -97,7 +96,6 @@ export default function FixMinirodiniNames() {
       <Head>
         <title>Fix Mini Rodini Names | Babette Concept</title>
       </Head>
-      <Navigation />
       <main className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">

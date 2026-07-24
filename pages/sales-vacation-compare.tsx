@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   listKnownSalesYears,
@@ -707,7 +706,6 @@ function YearOverYearPct({
 }
 
 export default function SalesVacationComparePage() {
-  const router = useRouter();
   const { isLoggedIn } = useAuth();
   const allYears = useMemo(() => listKnownSalesYears().slice().reverse(), []);
   const defaultSelection = useMemo(() => allYears.slice(0, 4), [allYears]);
@@ -728,16 +726,6 @@ export default function SalesVacationComparePage() {
     () => [...selectedYears].sort().join(','),
     [selectedYears],
   );
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (!storedUid || !storedPass) {
-        router.push('/');
-      }
-    }
-  }, [router]);
 
   const fetchData = useCallback(
     async (options?: { requestToken?: { aborted: boolean } }) => {

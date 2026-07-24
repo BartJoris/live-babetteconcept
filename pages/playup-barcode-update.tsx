@@ -231,8 +231,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               fields: ['id', 'name'],
               limit: 1,
             },
-            uid: localStorage.getItem('odoo_uid'),
-            password: localStorage.getItem('odoo_pass'),
           }),
         });
 
@@ -257,8 +255,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                 fields: ['id', 'name'],
                 limit: 1,
               },
-              uid: localStorage.getItem('odoo_uid'),
-              password: localStorage.getItem('odoo_pass'),
             }),
           });
 
@@ -285,8 +281,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               kwargs: {
                 fields: ['id', 'name', 'product_template_attribute_value_ids'],
               },
-              uid: localStorage.getItem('odoo_uid'),
-              password: localStorage.getItem('odoo_pass'),
             }),
           });
 
@@ -308,8 +302,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                   kwargs: {
                     fields: ['product_attribute_value_id'],
                   },
-                  uid: localStorage.getItem('odoo_uid'),
-                  password: localStorage.getItem('odoo_pass'),
                 }),
               });
 
@@ -328,8 +320,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
                     kwargs: {
                       fields: ['name', 'attribute_id'],
                     },
-                    uid: localStorage.getItem('odoo_uid'),
-                    password: localStorage.getItem('odoo_pass'),
                   }),
                 });
 
@@ -436,8 +426,6 @@ const PlayUpBarcodeUpdate: NextPage = () => {
               [match.odooVariantId],
               { barcode: match.eanProduct!.eanCode },
             ],
-            uid: localStorage.getItem('odoo_uid'),
-            password: localStorage.getItem('odoo_pass'),
           }),
         });
 

@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 interface ImageInfo {
   filename: string;
@@ -26,8 +27,8 @@ interface AnalysisResult {
   error?: string;
 }
 
-export default function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse<AnalysisResult>
 ) {
   if (req.method !== 'POST') {
@@ -155,3 +156,5 @@ export default function handler(
     });
   }
 }
+
+export default withAuth(handler);

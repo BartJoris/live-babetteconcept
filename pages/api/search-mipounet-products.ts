@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -28,8 +29,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 interface SearchRequest {
   reference: string; // e.g., "1310.02" (model.color)
   color?: string;
-  uid: string;
-  password: string;
+
 }
 
 interface ProductResult {
@@ -41,8 +41,8 @@ interface ProductResult {
   imageCount: number;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -50,9 +50,10 @@ export default async function handler(
   }
 
   try {
-    const { reference, color, uid, password } = req.body as SearchRequest;
+    const { uid, password } = req.session.user!;
+    const { reference, color } = req.body as SearchRequest;
 
-    if (!reference || !uid || !password) {
+    if (!reference) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
@@ -60,7 +61,7 @@ export default async function handler(
 
     // Strategy 1: Search by description (Interne Notitie) — this is where the reference is stored
     const descIds = await callOdoo(
-      parseInt(uid), password,
+      uid, password,
       'product.template', 'search',
       [[['description', '=', reference]]],
       { limit: 10 }
@@ -68,7 +69,7 @@ export default async function handler(
 
     if (descIds && descIds.length > 0) {
       const templates = await callOdoo(
-        parseInt(uid), password,
+        uid, password,
         'product.template', 'read',
         [descIds, ['name', 'default_code', 'description']]
       );
@@ -87,14 +88,14 @@ export default async function handler(
     // Strategy 2: Search description with ilike (handles "reference|productName" format)
     if (results.length === 0) {
       const descLikeIds = await callOdoo(
-        parseInt(uid), password,
+        uid, password,
         'product.template', 'search',
         [[['description', '=ilike', `${reference}%`]]],
         { limit: 10 }
       );
       if (descLikeIds && descLikeIds.length > 0) {
         const templates = await callOdoo(
-          parseInt(uid), password,
+          uid, password,
           'product.template', 'read',
           [descLikeIds, ['name', 'default_code', 'description']]
         );
@@ -114,14 +115,14 @@ export default async function handler(
     // Strategy 3: Fallback — search by name containing "Mipounet" and the reference
     if (results.length === 0) {
       const nameIds = await callOdoo(
-        parseInt(uid), password,
+        uid, password,
         'product.template', 'search',
         [['&', ['name', 'ilike', 'mipounet'], ['name', 'ilike', reference]]],
         { limit: 20 }
       );
       if (nameIds && nameIds.length > 0) {
         const templates = await callOdoo(
-          parseInt(uid), password,
+          uid, password,
           'product.template', 'read',
           [nameIds, ['name', 'default_code', 'description']]
         );
@@ -147,13 +148,13 @@ export default async function handler(
     for (const result of unique) {
       try {
         const imageIds = await callOdoo(
-          parseInt(uid), password,
+          uid, password,
           'product.image', 'search',
           [[['product_tmpl_id', '=', result.templateId]]],
           { limit: 100 }
         );
         const template = await callOdoo(
-          parseInt(uid), password,
+          uid, password,
           'product.template', 'read',
           [[result.templateId], ['image_1920']]
         );
@@ -183,3 +184,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 /**
  * Supplier detection rules.
@@ -760,7 +761,8 @@ function detectPDF(fileId: string, fileName: string): FileDetectionResult {
   return { fileId, fileName, isPdf: true, matches, bestMatch: matches[0] || null };
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse<DetectionResponse>) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse<DetectionResponse>) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, files: [], detectedSupplier: null, detectedSupplierName: null, allFilesMatched: false, error: 'Method not allowed' });
   }
@@ -819,3 +821,5 @@ export default function handler(req: NextApiRequest, res: NextApiResponse<Detect
     return res.status(500).json({ success: false, files: [], detectedSupplier: null, detectedSupplierName: null, allFilesMatched: false, error: (error as Error).message });
   }
 }
+
+export default withAuth(handler);

@@ -67,6 +67,17 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export default function AfbeeldingenPage() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,10 +87,6 @@ export default function AfbeeldingenPage() {
   const [productStates, setProductStates] = useState<Record<number, ProductState>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const getCredentials = () => ({
-    uid: localStorage.getItem('odoo_uid'),
-    password: localStorage.getItem('odoo_pass'),
-  });
 
   const getState = useCallback((id: number): ProductState =>
     productStates[id] || {
@@ -211,8 +218,7 @@ export default function AfbeeldingenPage() {
     const state = getState(productId);
     if (!product || state.staged.length === 0) return;
 
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       patchState(productId, { error: 'Niet ingelogd. Herlaad de pagina.' });
       return;
     }
@@ -240,8 +246,6 @@ export default function AfbeeldingenPage() {
             imageName: name,
             sequence: isMain ? 0 : sequence,
             isMainImage: isMain,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
         const data = await res.json();

@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -29,12 +30,11 @@ interface UpdateStockRequest {
   variantId: number;
   quantityToAdd: number;
   costPrice?: number;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -42,11 +42,8 @@ export default async function handler(
   }
 
   try {
-    const { variantId, quantityToAdd, costPrice, uid, password }: UpdateStockRequest = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    const { uid, password } = req.session.user!;
+    const { variantId, quantityToAdd, costPrice }: UpdateStockRequest = req.body;
 
     if (!variantId || quantityToAdd === undefined) {
       return res.status(400).json({ error: 'Missing variantId or quantityToAdd' });
@@ -55,7 +52,7 @@ export default async function handler(
     // Update cost price if provided
     if (costPrice !== undefined && costPrice !== null) {
       await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.product',
         'write',
@@ -66,7 +63,7 @@ export default async function handler(
 
     // Get current stock level
     const variant = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'read',
@@ -82,7 +79,7 @@ export default async function handler(
     // Create stock.quant record to add inventory
     // First, get the default location (stock)
     const locations = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'stock.location',
       'search_read',
@@ -100,7 +97,7 @@ export default async function handler(
 
     // Check if quant already exists for this product in this location
     const existingQuants = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'stock.quant',
       'search_read',
@@ -116,7 +113,7 @@ export default async function handler(
       const currentQuantity = existingQuants[0].quantity || 0;
       
       await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'stock.quant',
         'write',
@@ -125,7 +122,7 @@ export default async function handler(
     } else {
       // Create new quant
       await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'stock.quant',
         'create',
@@ -139,7 +136,7 @@ export default async function handler(
 
     // Get updated stock level
     const updatedVariant = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'read',
@@ -165,3 +162,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

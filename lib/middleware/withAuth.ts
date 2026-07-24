@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getIronSession, IronSession } from 'iron-session';
 import { sessionOptions, SessionData } from '../session';
+import { rateLimitApi } from './rateLimiter';
 
 export type NextApiRequestWithSession = NextApiRequest & {
   session: IronSession<SessionData>;
@@ -11,12 +12,24 @@ export type AuthenticatedApiHandler = (
   res: NextApiResponse
 ) => Promise<void> | void;
 
+export type WithAuthOptions = {
+  /** Apply general API rate limiting (default: true) */
+  rateLimit?: boolean;
+};
+
 /**
- * Higher-order function to protect API routes with authentication
- * Validates session and attaches user context to request
+ * Higher-order function to protect API routes with authentication.
+ * Validates session, optionally rate-limits, and attaches user context to request.
  */
-export function withAuth(handler: AuthenticatedApiHandler) {
+export function withAuth(handler: AuthenticatedApiHandler, options: WithAuthOptions = {}) {
+  const { rateLimit = true } = options;
+
   return async (req: NextApiRequest, res: NextApiResponse) => {
+    if (rateLimit) {
+      const allowed = await rateLimitApi(req, res);
+      if (!allowed) return;
+    }
+
     // Get session from iron-session
     const session = await getIronSession<SessionData>(req, res, sessionOptions);
 

@@ -44,6 +44,17 @@ interface UploadResult {
 }
 
 export default function EmileEtIdaImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   // Step 1: CSV + Folder selection
   const [csvProducts, setCsvProducts] = useState<CsvProduct[]>([]);
   const [allImages, setAllImages] = useState<ImageFile[]>([]);
@@ -69,11 +80,6 @@ export default function EmileEtIdaImagesImport() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const addPhotoRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // ============================================
   // CSV PARSING
@@ -277,8 +283,11 @@ export default function EmileEtIdaImagesImport() {
         .replace(/light$/, '');
     };
 
-    // Get credentials for Odoo lookup
-    const { uid, password } = getCredentials();
+    if (!(await ensureLoggedIn())) {
+      alert('Geen Odoo credentials gevonden. Log eerst in!');
+      setLoading(false);
+      return;
+    }
 
     // Build matching map
     const matched: ProductWithImages[] = [];
@@ -357,7 +366,7 @@ export default function EmileEtIdaImagesImport() {
       let odooTemplateId: number | undefined;
       let odooProductName: string | undefined;
 
-      if (uid && password && allProductImages.length > 0) {
+      if (allProductImages.length > 0) {
         try {
           const searchResponse = await fetch('/api/search-emileetida-products', {
             method: 'POST',
@@ -365,8 +374,6 @@ export default function EmileEtIdaImagesImport() {
             body: JSON.stringify({
               reference: csvProduct.reference,
               color: csvProduct.colorName,
-              uid,
-              password,
             }),
           });
           const searchData = await searchResponse.json();
@@ -500,8 +507,7 @@ export default function EmileEtIdaImagesImport() {
   // UPLOAD TO ODOO
   // ============================================
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in via Product Import.');
       return;
     }
@@ -542,8 +548,6 @@ export default function EmileEtIdaImagesImport() {
           body: JSON.stringify({
             reference: product.csvProduct.reference,
             color: product.csvProduct.colorName,
-            uid,
-            password,
           }),
         });
         const searchData = await searchResponse.json();
@@ -590,8 +594,6 @@ export default function EmileEtIdaImagesImport() {
               imageName,
               sequence: imgIdx + 1,
               isMainImage: imgIdx === 0,
-              odooUid: uid,
-              odooPassword: password,
             }),
           });
 

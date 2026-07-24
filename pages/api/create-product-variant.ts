@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -31,12 +32,11 @@ interface CreateVariantRequest {
   costPrice?: number;
   attributeValues?: { [attrName: string]: string };  // Attribute name → selected value
   quantity: number;
-  uid: string;
-  password: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -44,11 +44,8 @@ export default async function handler(
   }
 
   try {
-    const { templateId, barcode, costPrice, attributeValues, quantity, uid, password }: CreateVariantRequest = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    const { uid, password } = req.session.user!;
+    const { templateId, barcode, costPrice, attributeValues, quantity }: CreateVariantRequest = req.body;
 
     if (!templateId || !barcode) {
       return res.status(400).json({ error: 'Missing templateId or barcode' });
@@ -59,7 +56,7 @@ export default async function handler(
 
     // Get template's attribute lines
     const attributeLines = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template.attribute.line',
       'search_read',
@@ -90,7 +87,7 @@ export default async function handler(
 
         // Check if this value already exists
         const existingValue = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.attribute.value',
           'search_read',
@@ -109,7 +106,7 @@ export default async function handler(
         } else {
           // Create new value
           valueId = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.attribute.value',
             'create',
@@ -129,7 +126,7 @@ export default async function handler(
         if (!valueInLine) {
           // Add to attribute line's values
           await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.template.attribute.line',
             'write',
@@ -143,7 +140,7 @@ export default async function handler(
         if (!valueInLine) {
           try {
             const ptavId = await callOdoo(
-              parseInt(uid),
+              uid,
               password,
               'product.template.attribute.value',
               'create',
@@ -182,7 +179,7 @@ export default async function handler(
         if (lineValueIds.includes(valueId)) {
           // Search for existing PTAV
           const existingPTAV = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.template.attribute.value',
             'search_read',
@@ -209,7 +206,7 @@ export default async function handler(
         console.log(`Warning: Could not find PTAV for value ${valueId} in first attempt`);
         // Try searching across all attribute lines (maybe it's in a different line than expected)
         const anyPTAV = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template.attribute.value',
           'search_read',
@@ -256,7 +253,7 @@ export default async function handler(
 
     // Get all variants
     const variants = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'search_read',
@@ -280,7 +277,7 @@ export default async function handler(
 
       // Get attribute values for this variant
       const variantAttrValues = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template.attribute.value',
         'read',
@@ -321,7 +318,7 @@ export default async function handler(
         try {
           // Create the product.product variant manually
           targetVariantId = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.product',
             'create',
@@ -364,7 +361,7 @@ export default async function handler(
     }
 
     await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'write',
@@ -376,7 +373,7 @@ export default async function handler(
     // Add initial stock if quantity > 0
     if (quantity > 0) {
       const locations = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'stock.location',
         'search_read',
@@ -388,7 +385,7 @@ export default async function handler(
 
       if (locations && locations.length > 0) {
         await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'stock.quant',
           'create',
@@ -404,7 +401,7 @@ export default async function handler(
 
     // Get created variant details
     const createdVariant = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.product',
       'read',
@@ -431,3 +428,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

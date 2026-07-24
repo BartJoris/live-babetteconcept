@@ -41,6 +41,17 @@ interface UploadResult {
 }
 
 export default function MiniRodiniImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [csvProducts, setCsvProducts] = useState<CsvProduct[]>([]);
   const [allImages, setAllImages] = useState<ImageFile[]>([]);
   const [csvFileName, setCsvFileName] = useState<string>('');
@@ -61,11 +72,6 @@ export default function MiniRodiniImagesImport() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const addPhotoRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // ============================================
   // CSV PARSING
@@ -216,7 +222,11 @@ export default function MiniRodiniImagesImport() {
 
     setLoading(true);
 
-    const { uid, password } = getCredentials();
+    if (!(await ensureLoggedIn())) {
+      alert('Geen Odoo credentials gevonden. Log eerst in!');
+      setLoading(false);
+      return;
+    }
 
     const matched: ProductWithImages[] = [];
     const unmatchedImgs: ImageFile[] = [];
@@ -244,7 +254,7 @@ export default function MiniRodiniImagesImport() {
       let odooTemplateId: number | undefined;
       let odooProductName: string | undefined;
 
-      if (uid && password && productImages.length > 0) {
+      if (productImages.length > 0) {
         try {
           const searchResponse = await fetch('/api/search-minirodini-products', {
             method: 'POST',
@@ -252,8 +262,6 @@ export default function MiniRodiniImagesImport() {
             body: JSON.stringify({
               reference: csvProduct.uniqueKey,
               color: csvProduct.variantName,
-              uid,
-              password,
             }),
           });
           const searchData = await searchResponse.json();
@@ -383,8 +391,7 @@ export default function MiniRodiniImagesImport() {
   // UPLOAD TO ODOO
   // ============================================
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in via Product Import.');
       return;
     }
@@ -421,8 +428,6 @@ export default function MiniRodiniImagesImport() {
           body: JSON.stringify({
             reference: product.csvProduct.uniqueKey,
             color: product.csvProduct.variantName,
-            uid,
-            password,
           }),
         });
         const searchData = await searchResponse.json();
@@ -466,8 +471,6 @@ export default function MiniRodiniImagesImport() {
               imageName,
               sequence: imgIdx + 1,
               isMainImage: imgIdx === 0,
-              odooUid: uid,
-              odooPassword: password,
             }),
           });
 

@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 interface ColumnAnalysis {
   header: string;
@@ -253,7 +254,8 @@ Respond with ONLY valid JSON, no markdown.`;
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<AnalysisResponse>) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse<AnalysisResponse>) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, files: [], error: 'Method not allowed' });
   }
@@ -300,3 +302,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
   }
 }
+
+export default withAuth(handler);

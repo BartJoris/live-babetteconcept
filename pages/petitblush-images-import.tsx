@@ -34,17 +34,23 @@ interface UploadResult {
 }
 
 export default function PetitBlushImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [productGroups, setProductGroups] = useState<ProductGroup[]>([]);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [folderName, setFolderName] = useState('');
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const parseFilename = (filename: string): { sku: string; imageType: string } | null => {
     // "SS26-104.jpg" → main, "SS26-104 Back.jpg" → back, "SS26-501.1.jpg" → extra
@@ -111,8 +117,7 @@ export default function PetitBlushImagesImport() {
   };
 
   const searchOdooProducts = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden. Log eerst in via de product import pagina.');
       return;
     }
@@ -124,7 +129,7 @@ export default function PetitBlushImagesImport() {
       const response = await fetch('/api/floss-search-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ styleNos, uid, password }),
+        body: JSON.stringify({ styleNos }),
       });
 
       const data = await response.json();
@@ -147,8 +152,7 @@ export default function PetitBlushImagesImport() {
   };
 
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden.');
       return;
     }
@@ -205,8 +209,6 @@ export default function PetitBlushImagesImport() {
           body: JSON.stringify({
             images: batch,
             styleNoToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 

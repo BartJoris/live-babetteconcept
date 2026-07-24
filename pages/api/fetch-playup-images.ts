@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -32,14 +33,14 @@ interface FetchPlayUpImagesRequest {
   templateId: number;
   playupUsername: string;
   playupPassword: string;
-  odooUid: string;
-  odooPassword: string;
+
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
+  const { uid, password } = req.session.user!;
   console.log('🎮 [Play UP Images] API called');
   
   if (req.method !== 'POST') {
@@ -47,18 +48,9 @@ export default async function handler(
   }
 
   try {
-    const { 
-      productDescription, 
-      colorCode,
-      colorName,
-      templateId, 
-      playupUsername, 
-      playupPassword,
-      odooUid, 
-      odooPassword 
-    } = req.body as FetchPlayUpImagesRequest;
+    const { productDescription, colorCode, colorName, templateId, playupUsername, playupPassword } = req.body as FetchPlayUpImagesRequest;
 
-    if (!productDescription || !templateId || !playupUsername || !playupPassword || !odooUid || !odooPassword) {
+    if (!productDescription || !templateId || !playupUsername || !playupPassword) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
@@ -232,8 +224,8 @@ export default async function handler(
         console.log(`☁️ [${i + 1}/${imageData.length}] Uploading to Odoo...`);
         
         const imageId = await callOdoo(
-          parseInt(odooUid),
-          odooPassword,
+          uid,
+          password,
           'product.image',
           'create',
           [{
@@ -284,3 +276,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

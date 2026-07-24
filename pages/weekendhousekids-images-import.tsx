@@ -22,6 +22,17 @@ interface UploadResult {
 }
 
 export default function WeekendHouseKidsImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [stillsFolder, setStillsFolder] = useState<File[]>([]);
@@ -32,11 +43,6 @@ export default function WeekendHouseKidsImagesImport() {
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,8 +151,7 @@ export default function WeekendHouseKidsImagesImport() {
       console.log(`📸 Matched looks for ${looksMap.size} products`);
 
       // Fetch products from Odoo
-      const { uid, password } = getCredentials();
-      if (!uid || !password) {
+      if (!(await ensureLoggedIn())) {
         alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
         setLoading(false);
         return;
@@ -177,8 +182,6 @@ export default function WeekendHouseKidsImagesImport() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               reference,
-              uid,
-              password,
             }),
           });
 
@@ -236,8 +239,7 @@ export default function WeekendHouseKidsImagesImport() {
   };
 
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
       return;
     }
@@ -310,8 +312,6 @@ export default function WeekendHouseKidsImagesImport() {
           body: JSON.stringify({
             images: batch,
             productReferenceToTemplateId,
-            odooUid: uid,
-            odooPassword: password,
           }),
         });
 

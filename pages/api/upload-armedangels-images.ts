@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -57,10 +58,11 @@ async function callOdoo(
   return json.result;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse<UploadResponse>
 ) {
+  const { uid, password } = req.session.user!;
   console.log('🎯 [Armed Angels Images Upload] API called');
 
   if (req.method !== 'POST') {
@@ -80,11 +82,10 @@ export default async function handler(
   }
 
   try {
-    const { imageFolderPath, products, odooUid, odooPassword } = req.body as {
+    const { imageFolderPath, products } = req.body as {
       imageFolderPath: string;
       products: MatchedProduct[];
-      odooUid: string;
-      odooPassword: string;
+
     };
 
     if (!imageFolderPath || !products || products.length === 0) {
@@ -95,7 +96,7 @@ export default async function handler(
       });
     }
 
-    if (!odooUid || !odooPassword) {
+    if (!uid || !password) {
       return res.status(400).json({
         success: false,
         results: [],
@@ -177,7 +178,7 @@ export default async function handler(
               console.log(
                 `🖼️ Setting main image for template ${product.templateId}...`
               );
-              await callOdoo(parseInt(odooUid), odooPassword, 'product.template', 'write', [
+              await callOdoo(uid, password, 'product.template', 'write', [
                 [product.templateId],
                 { image_1920: base64 },
               ]);
@@ -189,7 +190,7 @@ export default async function handler(
               console.log(
                 `📸 Adding image ${i + 1} to template ${product.templateId}...`
               );
-              await callOdoo(parseInt(odooUid), odooPassword, 'product.image', 'create', [
+              await callOdoo(uid, password, 'product.image', 'create', [
                 {
                   name: `${product.reference} - Image ${i + 1}`,
                   product_tmpl_id: product.templateId,
@@ -255,3 +256,5 @@ export const config = {
     },
   },
 };
+
+export default withAuth(handler);

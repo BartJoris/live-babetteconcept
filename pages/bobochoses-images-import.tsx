@@ -61,6 +61,17 @@ const getColorName = (colorCode: string): string => {
 };
 
 export default function BobochosesImagesImport() {
+  const ensureLoggedIn = async () => {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      return Boolean(data.isLoggedIn);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      return false;
+    }
+  };
+
   // Step 1: CSV + Folder selection
   const [csvProducts, setCsvProducts] = useState<CsvProduct[]>([]);
   const [allImages, setAllImages] = useState<ImageFile[]>([]);
@@ -87,11 +98,6 @@ export default function BobochosesImagesImport() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const addPhotoRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const getCredentials = () => {
-    const uid = localStorage.getItem('odoo_uid');
-    const password = localStorage.getItem('odoo_pass');
-    return { uid, password };
-  };
 
   // ============================================
   // CSV PARSING - Bobo Choses Packing List format
@@ -254,7 +260,11 @@ export default function BobochosesImagesImport() {
 
     setLoading(true);
 
-    const { uid, password } = getCredentials();
+    if (!(await ensureLoggedIn())) {
+      alert('Geen Odoo credentials gevonden. Log eerst in!');
+      setLoading(false);
+      return;
+    }
     
     // Group images by reference
     const imagesByRef = new Map<string, ImageFile[]>();
@@ -279,29 +289,25 @@ export default function BobochosesImagesImport() {
       let odooHasImages = false;
       let odooImageCount = 0;
 
-      if (uid && password) {
-        try {
-          const searchResponse = await fetch('/api/search-bobochoses-products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reference: ref,
-              uid,
-              password,
-            }),
-          });
-          const searchData = await searchResponse.json();
+      try {
+        const searchResponse = await fetch('/api/search-bobochoses-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: ref,
+          }),
+        });
+        const searchData = await searchResponse.json();
 
-          if (searchData.found && searchData.products.length > 0) {
-            const bestMatch = searchData.products[0];
-            odooTemplateId = bestMatch.templateId;
-            odooProductName = bestMatch.name;
-            odooHasImages = bestMatch.hasImages || false;
-            odooImageCount = bestMatch.imageCount || 0;
-          }
-        } catch (error) {
-          console.error(`Error checking Odoo for ${ref}:`, error);
+        if (searchData.found && searchData.products.length > 0) {
+          const bestMatch = searchData.products[0];
+          odooTemplateId = bestMatch.templateId;
+          odooProductName = bestMatch.name;
+          odooHasImages = bestMatch.hasImages || false;
+          odooImageCount = bestMatch.imageCount || 0;
         }
+      } catch (error) {
+        console.error(`Error checking Odoo for ${ref}:`, error);
       }
 
       // Create a pseudo-product for this reference
@@ -356,8 +362,11 @@ export default function BobochosesImagesImport() {
 
     setLoading(true);
 
-    // Get credentials for Odoo lookup
-    const { uid, password } = getCredentials();
+    if (!(await ensureLoggedIn())) {
+      alert('Geen Odoo credentials gevonden. Log eerst in!');
+      setLoading(false);
+      return;
+    }
 
     // Build matching map
     const matched: ProductWithImages[] = [];
@@ -382,36 +391,32 @@ export default function BobochosesImagesImport() {
       // Sort by image number
       productImages.sort((a, b) => a.imageNumber - b.imageNumber);
 
-      // Check Odoo for existing images (if credentials available)
+      // Check Odoo for existing images
       let odooHasImages = false;
       let odooImageCount = 0;
       let odooTemplateId: number | undefined;
       let odooProductName: string | undefined;
 
-      if (uid && password) {
-        try {
-          const searchResponse = await fetch('/api/search-bobochoses-products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reference: csvProduct.reference,
-              colorCode: csvProduct.colorCode,
-              uid,
-              password,
-            }),
-          });
-          const searchData = await searchResponse.json();
+      try {
+        const searchResponse = await fetch('/api/search-bobochoses-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: csvProduct.reference,
+            colorCode: csvProduct.colorCode,
+          }),
+        });
+        const searchData = await searchResponse.json();
 
-          if (searchData.found && searchData.products.length > 0) {
-            const bestMatch = searchData.products[0];
-            odooTemplateId = bestMatch.templateId;
-            odooProductName = bestMatch.name;
-            odooHasImages = bestMatch.hasImages || false;
-            odooImageCount = bestMatch.imageCount || 0;
-          }
-        } catch (error) {
-          console.error(`Error checking Odoo for ${csvProduct.reference}:`, error);
+        if (searchData.found && searchData.products.length > 0) {
+          const bestMatch = searchData.products[0];
+          odooTemplateId = bestMatch.templateId;
+          odooProductName = bestMatch.name;
+          odooHasImages = bestMatch.hasImages || false;
+          odooImageCount = bestMatch.imageCount || 0;
         }
+      } catch (error) {
+        console.error(`Error checking Odoo for ${csvProduct.reference}:`, error);
       }
 
       matched.push({
@@ -519,8 +524,7 @@ export default function BobochosesImagesImport() {
   // UPLOAD TO ODOO
   // ============================================
   const uploadImages = async () => {
-    const { uid, password } = getCredentials();
-    if (!uid || !password) {
+    if (!(await ensureLoggedIn())) {
       alert('⚠️ Odoo credentials niet gevonden. Log eerst in via Product Import.');
       return;
     }
@@ -562,8 +566,6 @@ export default function BobochosesImagesImport() {
             body: JSON.stringify({
               reference: product.csvProduct.reference,
               colorCode: product.csvProduct.colorCode || undefined,
-              uid,
-              password,
             }),
           });
           const searchData = await searchResponse.json();
@@ -575,8 +577,6 @@ export default function BobochosesImagesImport() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 reference: product.csvProduct.reference,
-                uid,
-                password,
               }),
             });
             const fallbackData = await fallbackResponse.json();
@@ -637,8 +637,6 @@ export default function BobochosesImagesImport() {
                 imageName,
                 sequence: imgIdx + 1,
                 isMainImage: imgIdx === 0,
-                odooUid: uid,
-                odooPassword: password,
               }),
             });
 

@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -28,8 +29,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 interface SearchRequest {
   reference: string;      // e.g., "AD008"
   color?: string;         // e.g., "creme" (optional - for more precise matching)
-  uid: string;
-  password: string;
+
 }
 
 interface ProductResult {
@@ -41,8 +41,8 @@ interface ProductResult {
   imageCount: number;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -50,9 +50,10 @@ export default async function handler(
   }
 
   try {
-    const { reference, color, uid, password } = req.body as SearchRequest;
+    const { uid, password } = req.session.user!;
+    const { reference, color } = req.body as SearchRequest;
 
-    if (!reference || !uid || !password) {
+    if (!reference) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
@@ -67,7 +68,7 @@ export default async function handler(
       const refWithColor = `${reference.toUpperCase()}_${color.toUpperCase().replace(/\s+/g, '')}`;
       
       const exactTemplateIds = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'search',
@@ -77,7 +78,7 @@ export default async function handler(
 
       if (exactTemplateIds && exactTemplateIds.length > 0) {
         const templates = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template',
           'read',
@@ -101,7 +102,7 @@ export default async function handler(
     if (results.length === 0) {
       // Search for products where default_code starts with the reference
       const partialTemplateIds = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'search',
@@ -111,7 +112,7 @@ export default async function handler(
 
       if (partialTemplateIds && partialTemplateIds.length > 0) {
         const templates = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template',
           'read',
@@ -158,7 +159,7 @@ export default async function handler(
     // Strategy 3: Search by product name containing the reference (fallback)
     if (results.length === 0) {
       const nameSearchIds = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'search',
@@ -172,7 +173,7 @@ export default async function handler(
 
       if (nameSearchIds && nameSearchIds.length > 0) {
         const templates = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template',
           'read',
@@ -218,7 +219,7 @@ export default async function handler(
         try {
           // Check for product.image records
           const imageIds = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.image',
             'search',
@@ -228,7 +229,7 @@ export default async function handler(
           
           // Also check if main image exists on template
           const template = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.template',
             'read',
@@ -265,3 +266,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

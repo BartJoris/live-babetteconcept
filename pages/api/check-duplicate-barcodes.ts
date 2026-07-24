@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -156,8 +157,8 @@ function findBaseProduct(baseName: string, hvidProducts: any[]): any | null {
   return null;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -165,7 +166,8 @@ export default async function handler(
   }
 
   try {
-    const { barcodes, products, uid, password } = req.body as {
+    const { uid, password } = req.session.user!;
+    const { barcodes, products } = req.body as {
       barcodes: string[];
       products?: Array<{
         barcode: string;
@@ -175,13 +177,8 @@ export default async function handler(
         price: number;
         total: number;
       }>;
-      uid: string;
-      password: string;
-    };
 
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    };
 
     if (!barcodes || !Array.isArray(barcodes) || barcodes.length === 0) {
       return res.status(400).json({ error: 'Please provide an array of barcodes' });
@@ -192,7 +189,7 @@ export default async function handler(
     
     // Get all HVID products for matching
     const hvidProducts = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.template',
       'search_read',
@@ -204,7 +201,7 @@ export default async function handler(
 
     // Get Hvid category and brand
     const hvidCategory = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.category',
       'search_read',
@@ -215,7 +212,7 @@ export default async function handler(
     );
 
     const hvidBrandValues = await callOdoo(
-      parseInt(uid),
+      uid,
       password,
       'product.attribute.value',
       'search_read',
@@ -261,7 +258,7 @@ export default async function handler(
 
         // Search in product.template (main products)
         const productTemplates = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template',
           'search_read',
@@ -273,7 +270,7 @@ export default async function handler(
 
         // Search in product.product (variants)
         const productVariants = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.product',
           'search_read',
@@ -322,7 +319,7 @@ export default async function handler(
           
           // Get template's variants
           const templateVariants = await callOdoo(
-            parseInt(uid),
+            uid,
             password,
             'product.product',
             'search_read',
@@ -363,7 +360,7 @@ export default async function handler(
               console.log(`Fetching attributes for base product: ${baseProduct.name} (ID: ${baseProduct.id})`);
               
               const attributeLines = await callOdoo(
-                parseInt(uid),
+                uid,
                 password,
                 'product.template.attribute.line',
                 'search_read',
@@ -393,7 +390,7 @@ export default async function handler(
                 let attrValues: string[] = [];
                 if (line.value_ids && line.value_ids.length > 0) {
                   const values = await callOdoo(
-                    parseInt(uid),
+                    uid,
                     password,
                     'product.attribute.value',
                     'read',
@@ -575,3 +572,4 @@ export default async function handler(
   }
 }
 
+export default withAuth(handler);

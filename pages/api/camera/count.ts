@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCameras, getAnalysisProvider } from '@/lib/cameraConfig';
 import { cameraStore } from '@/lib/cameraStore';
 import { analyzeImage } from '@/lib/analysisProvider';
+import { timingSafeEqualString } from '@/lib/security/timingSafeEqualString';
 
 async function fetchSnapshot(url: string, user?: string, pass?: string): Promise<Buffer> {
   const headers: Record<string, string> = {};
@@ -27,9 +28,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const secret = process.env.CAMERA_API_SECRET?.trim();
+  if (!secret) {
+    return res.status(503).json({
+      error: 'Camera API disabled',
+      message: 'CAMERA_API_SECRET is not configured',
+    });
+  }
+
   const authHeader = req.headers['x-camera-secret'];
-  const secret = process.env.CAMERA_API_SECRET;
-  if (secret && authHeader !== secret) {
+  const provided = typeof authHeader === 'string' ? authHeader : '';
+  if (!timingSafeEqualString(provided, secret)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

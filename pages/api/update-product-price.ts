@@ -1,5 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { odooClient } from '@/lib/odooClient';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 interface UpdateRequest {
   variantId: number;
@@ -8,8 +9,7 @@ interface UpdateRequest {
 
 interface UpdateProductPriceRequest {
   updates: UpdateRequest[];
-  uid: string;
-  password: string;
+
 }
 
 interface UpdateResult {
@@ -18,8 +18,8 @@ interface UpdateResult {
   error?: string;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse<{ success: boolean; results: UpdateResult[] } | { error: string; details?: string }>
 ) {
   if (req.method !== 'POST') {
@@ -27,11 +27,8 @@ export default async function handler(
   }
 
   try {
-    const { updates, uid, password }: UpdateProductPriceRequest = req.body;
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing Odoo credentials' });
-    }
+    const { uid, password } = req.session.user!;
+    const { updates }: UpdateProductPriceRequest = req.body;
 
     if (!Array.isArray(updates) || updates.length === 0) {
       return res.status(400).json({ error: 'Missing or empty updates array' });
@@ -53,7 +50,7 @@ export default async function handler(
     for (const update of updates) {
       try {
         await odooClient.write(
-          parseInt(uid),
+          uid,
           password,
           'product.product',
           [update.variantId],
@@ -93,3 +90,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -27,8 +28,7 @@ async function callOdoo(uid: number, password: string, model: string, method: st
 
 interface BatchSearchRequest {
   references: string[]; // Array of references to search for
-  uid: string;
-  password: string;
+
   includeDescription?: boolean;
 }
 
@@ -40,8 +40,8 @@ interface ProductSearchResult {
   description: string | null;
 }
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
@@ -49,14 +49,11 @@ export default async function handler(
   }
 
   try {
-    const { references, uid, password, includeDescription } = req.body as BatchSearchRequest;
+    const { uid, password } = req.session.user!;
+    const { references, includeDescription } = req.body as BatchSearchRequest;
 
     if (!references || !Array.isArray(references) || references.length === 0) {
       return res.status(400).json({ error: 'Missing or empty references array' });
-    }
-
-    if (!uid || !password) {
-      return res.status(400).json({ error: 'Missing required fields: uid, password' });
     }
 
     console.log(`🔍 Batch searching for ${references.length} products...`);
@@ -81,7 +78,7 @@ export default async function handler(
       // Strategy 1: Batch search by default_code (exact match)
       // Search for all references at once using 'in' operator
       const defaultCodeResults = await callOdoo(
-        parseInt(uid),
+        uid,
         password,
         'product.template',
         'search_read',
@@ -110,7 +107,7 @@ export default async function handler(
       if (notFoundByDefaultCode.length > 0) {
         // Strategy 2: Batch search by description (exact match)
         const descriptionResults = await callOdoo(
-          parseInt(uid),
+          uid,
           password,
           'product.template',
           'search_read',
@@ -150,7 +147,7 @@ export default async function handler(
             const partialSearchPromises = batch.map(async (ref) => {
               try {
                 const result = await callOdoo(
-                  parseInt(uid),
+                  uid,
                   password,
                   'product.template',
                   'search_read',
@@ -206,7 +203,7 @@ export default async function handler(
                   // Search in name field - this is important for Wynken products
                   // which are stored as "Wynken - {style} - {colour}"
                   const result = await callOdoo(
-                    parseInt(uid),
+                    uid,
                     password,
                     'product.template',
                     'search_read',
@@ -278,3 +275,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);

@@ -1,8 +1,10 @@
 // pages/api/pos-sales-widget.ts
-// API endpoint for iOS widget - uses Basic Auth with Odoo credentials
+// iOS widget endpoint — Basic Auth with Odoo credentials (widgets cannot use session cookies).
+// Rate-limited to reduce brute-force risk.
 
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { odooClient } from '@/lib/odooClient';
+import { rateLimitApi } from '@/lib/middleware/rateLimiter';
 
 type PosSession = {
   id: number;
@@ -22,16 +24,17 @@ function getBasicAuthCredentials(req: NextApiRequest): { username: string; passw
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return null;
   }
-  
+
   try {
-    const base64Credentials = authHeader.substring(6);
+    const base64Credentials = authHeader.slice(6);
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    const [username, password] = credentials.split(':');
-    
-    if (!username || !password) {
-      return null;
-    }
-    
+    const separator = credentials.indexOf(':');
+    if (separator <= 0) return null;
+
+    const username = credentials.slice(0, separator);
+    const password = credentials.slice(separator + 1);
+    if (!username || !password) return null;
+
     return { username, password };
   } catch {
     return null;
@@ -46,8 +49,10 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const allowed = await rateLimitApi(req, res);
+  if (!allowed) return;
+
   try {
-    // Get Odoo credentials from Basic Auth
     const credentials = getBasicAuthCredentials(req);
     if (!credentials) {
       return res.status(401).json({ error: 'Unauthorized - Basic Auth required' });
@@ -55,13 +60,11 @@ export default async function handler(
 
     const { username, password } = credentials;
 
-    // Authenticate with Odoo using the same method as the login endpoint
     const uid = await odooClient.authenticate(username, password);
     if (!uid) {
       return res.status(401).json({ error: 'Invalid Odoo credentials' });
     }
 
-    // Search for open POS sessions
     const sessions = await odooClient.searchRead<PosSession>(
       uid,
       password,
@@ -74,7 +77,6 @@ export default async function handler(
     );
 
     if (!sessions.length) {
-      // Try to get the last closed session
       const closedSessions = await odooClient.searchRead<PosSession>(
         uid,
         password,
@@ -126,7 +128,6 @@ export default async function handler(
 
     const session = sessions[0];
 
-    // Get orders for the session
     const orders = await odooClient.searchRead<PosOrder>(
       uid,
       password,
@@ -158,4 +159,3 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
-

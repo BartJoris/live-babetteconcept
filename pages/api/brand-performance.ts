@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL!;
 const ODOO_DB = process.env.ODOO_DB!;
@@ -80,16 +81,17 @@ function getPeriod(dateStr: string, year: number): 'winterSales' | 'winterRegula
   return null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(
+  req: NextApiRequestWithSession, res: NextApiResponse) {
+  const { uid, password } = req.session.user!;
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { uid, password, year } = req.body;
-
-  if (!uid || !password || !year) {
+  const { year } = req.body;
+  if (!year) {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
@@ -506,3 +508,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
+export default withAuth(handler);

@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 type DailySalesProduct = {
@@ -40,7 +39,6 @@ type ProductDetail = {
 };
 
 export default function SalesProductsPage() {
-  const router = useRouter();
   const { isLoggedIn } = useAuth();
   const [data, setData] = useState<SalesProductData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,19 +46,6 @@ export default function SalesProductsPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dayDetails, setDayDetails] = useState<ProductDetail[]>([]);
   const [loadingDayDetails, setLoadingDayDetails] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        // setUid(Number(storedUid)); // This line is removed as per the new_code
-        // setPassword(storedPass); // This line is removed as per the new_code
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set default month to current month
   useEffect(() => {

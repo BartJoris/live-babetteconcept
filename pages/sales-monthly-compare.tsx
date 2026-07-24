@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Line } from 'react-chartjs-2';
 import {
@@ -57,7 +56,6 @@ function isBelgianHoliday(year: number, month: number, day: number) {
 }
 
 export default function DailyComparePage() {
-  const router = useRouter();
   const { isLoggedIn } = useAuth();
   const [selectedPeriods, setSelectedPeriods] = useState<{ year: number; month: number }[]>([
     { year: new Date().getFullYear(), month: new Date().getMonth() + 1 },
@@ -66,20 +64,6 @@ export default function DailyComparePage() {
   const [loading, setLoading] = useState(false);
   const [marginAvailable, setMarginAvailable] = useState(false);
   const [activeTab, setActiveTab] = useState<'daily' | 'cumulative'>('cumulative');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUid = localStorage.getItem('odoo_uid');
-      const storedPass = localStorage.getItem('odoo_pass');
-      if (storedUid && storedPass) {
-        // This part is now handled by useAuth, so we can remove it.
-        // setUid(Number(storedUid));
-        // setPassword(storedPass);
-      } else {
-        router.push('/');
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCompareData = useCallback(async () => {
     if (!isLoggedIn || !selectedPeriods.length) return;
