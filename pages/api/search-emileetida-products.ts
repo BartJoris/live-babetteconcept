@@ -4,7 +4,14 @@ import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
 
-async function callOdoo(uid: number, password: string, model: string, method: string, args: unknown[], kwargs?: Record<string, unknown>) {
+async function callOdoo(
+  uid: number,
+  password: string,
+  model: string,
+  method: string,
+  args: unknown[],
+  kwargs?: Record<string, unknown>,
+) {
   const executeArgs: unknown[] = [ODOO_DB, uid, password, model, method, args];
   if (kwargs) executeArgs.push(kwargs);
 
@@ -22,14 +29,15 @@ async function callOdoo(uid: number, password: string, model: string, method: st
   });
 
   const json = await response.json();
-  if (json.error) throw new Error(json.error.data?.message || JSON.stringify(json.error));
+  if (json.error) {
+    throw new Error(json.error.data?.message || JSON.stringify(json.error));
+  }
   return json.result;
 }
 
 interface SearchRequest {
-  reference: string;      // e.g., "AD008"
-  color?: string;         // e.g., "creme" (optional - for more precise matching)
-
+  reference: string; // e.g. "AD008" or "IDA-EDGAR"
+  color?: string; // e.g. "creme" / "FARINE"
 }
 
 interface ProductResult {
@@ -41,9 +49,17 @@ interface ProductResult {
   imageCount: number;
 }
 
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeColorToken(color: string): string {
+  return color.toUpperCase().replace(/[-_\s]+/g, '');
+}
+
 async function handler(
   req: NextApiRequestWithSession,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -58,39 +74,107 @@ async function handler(
     }
 
     const results: ProductResult[] = [];
+    const baseRef = reference.toUpperCase();
+    const colorToken = color ? normalizeColorToken(color) : '';
+    const refWithColor = colorToken ? `${baseRef}_${colorToken}` : '';
 
-    // Build search domain
-    // Emile et Ida products have references like "AD015_CREME" or just "AD015"
-    // Product names are like "Emile & Ida - Tee shirt imprime place fruit - Creme (ad015)"
-    
-    // Strategy 1: Search by exact reference + color combination (e.g., AD008_CREME)
-    if (color) {
-      const refWithColor = `${reference.toUpperCase()}_${color.toUpperCase().replace(/\s+/g, '')}`;
-      
-      const exactTemplateIds = await callOdoo(
+    // Primary: description (Interne Notitie) stores reference like
+    // "IDA-EDGAR_FARINE|IDA-EDGAR" or "AD015_CREME|AD015"
+    const descriptionQueries = [
+      ...(refWithColor ? [refWithColor] : []),
+      baseRef,
+    ];
+
+    for (const query of descriptionQueries) {
+      if (results.length > 0) break;
+
+      const templateIds = await callOdoo(
         uid,
         password,
         'product.template',
         'search',
-        [[['default_code', '=', refWithColor]]],
-        { limit: 10 }
+        [[['description', 'ilike', query]]],
+        { limit: 50 },
       );
 
-      if (exactTemplateIds && exactTemplateIds.length > 0) {
+      if (!templateIds?.length) continue;
+
+      const templates = await callOdoo(
+        uid,
+        password,
+        'product.template',
+        'read',
+        [templateIds, ['name', 'default_code', 'description']],
+      );
+
+      for (const tmpl of templates) {
+        const desc = stripHtml(tmpl.description || '');
+        const descUpper = desc.toUpperCase();
+
+        // Prefer exact color-specific reference when provided
+        if (refWithColor && !descUpper.includes(refWithColor)) {
+          // Still accept base ref match if color appears in name/description
+          if (!descUpper.includes(baseRef)) continue;
+          if (
+            colorToken &&
+            !descUpper.includes(colorToken) &&
+            !String(tmpl.name || '')
+              .toUpperCase()
+              .includes(colorToken)
+          ) {
+            continue;
+          }
+        }
+
+        const colorFromDesc = desc.includes('_')
+          ? desc.split('|')[0]?.split('_').slice(1).join('_')
+          : undefined;
+
+        results.push({
+          templateId: tmpl.id,
+          name: tmpl.name,
+          reference: tmpl.default_code || desc.split('|')[0] || baseRef,
+          color: colorFromDesc || color,
+          hasImages: false,
+          imageCount: 0,
+        });
+      }
+    }
+
+    // Fallback: product name contains Emile + reference
+    if (results.length === 0) {
+      const nameSearchIds = await callOdoo(
+        uid,
+        password,
+        'product.template',
+        'search',
+        [['&', ['name', 'ilike', 'emile'], ['name', 'ilike', reference]]],
+        { limit: 20 },
+      );
+
+      if (nameSearchIds?.length) {
         const templates = await callOdoo(
           uid,
           password,
           'product.template',
           'read',
-          [exactTemplateIds, ['name', 'default_code']]
+          [nameSearchIds, ['name', 'default_code', 'description']],
         );
 
         for (const tmpl of templates) {
+          if (color) {
+            const normalizedColor = color.toLowerCase().replace(/[-_\s]+/g, '');
+            const nameNorm = String(tmpl.name || '')
+              .toLowerCase()
+              .replace(/[-_\s]+/g, '');
+            if (!nameNorm.includes(normalizedColor)) continue;
+          }
+
           results.push({
             templateId: tmpl.id,
             name: tmpl.name,
-            reference: tmpl.default_code || refWithColor,
-            color: color,
+            reference: tmpl.default_code || reference,
+            color,
             hasImages: false,
             imageCount: 0,
           });
@@ -98,154 +182,41 @@ async function handler(
       }
     }
 
-    // Strategy 2: If no exact match with color, search by reference containing the base ref
-    if (results.length === 0) {
-      // Search for products where default_code starts with the reference
-      const partialTemplateIds = await callOdoo(
-        uid,
-        password,
-        'product.template',
-        'search',
-        [[['default_code', '=ilike', `${reference.toUpperCase()}%`]]],
-        { limit: 50 }
-      );
-
-      if (partialTemplateIds && partialTemplateIds.length > 0) {
-        const templates = await callOdoo(
-          uid,
-          password,
-          'product.template',
-          'read',
-          [partialTemplateIds, ['name', 'default_code']]
-        );
-
-        for (const tmpl of templates) {
-          const refCode = tmpl.default_code || '';
-          // Extract color from reference if it's in format AD008_COLOR
-          const colorFromRef = refCode.includes('_') ? refCode.split('_')[1] : undefined;
-          
-          // If color was specified, filter to only matching colors
-          if (color) {
-            const normalizedSearchColor = color.toUpperCase().replace(/\s+/g, '');
-            const normalizedRefColor = colorFromRef?.toUpperCase().replace(/\s+/g, '');
-            
-            // Check if colors match (fuzzy matching)
-            if (normalizedRefColor && normalizedRefColor.includes(normalizedSearchColor) || 
-                normalizedSearchColor.includes(normalizedRefColor || '')) {
-              results.push({
-                templateId: tmpl.id,
-                name: tmpl.name,
-                reference: refCode,
-                color: colorFromRef,
-                hasImages: false,
-                imageCount: 0,
-              });
-            }
-          } else {
-            // No color specified - return all matches
-            results.push({
-              templateId: tmpl.id,
-              name: tmpl.name,
-              reference: refCode,
-              color: colorFromRef,
-              hasImages: false,
-              imageCount: 0,
-            });
-          }
-        }
-      }
-    }
-
-    // Strategy 3: Search by product name containing the reference (fallback)
-    if (results.length === 0) {
-      const nameSearchIds = await callOdoo(
-        uid,
-        password,
-        'product.template',
-        'search',
-        [[
-          '&',
-          ['name', 'ilike', 'emile'],
-          ['name', 'ilike', reference]
-        ]],
-        { limit: 20 }
-      );
-
-      if (nameSearchIds && nameSearchIds.length > 0) {
-        const templates = await callOdoo(
-          uid,
-          password,
-          'product.template',
-          'read',
-          [nameSearchIds, ['name', 'default_code']]
-        );
-
-        for (const tmpl of templates) {
-          // If color was specified, check if name contains the color
-          if (color) {
-            const normalizedColor = color.toLowerCase();
-            if (tmpl.name.toLowerCase().includes(normalizedColor)) {
-              results.push({
-                templateId: tmpl.id,
-                name: tmpl.name,
-                reference: tmpl.default_code || reference,
-                color: color,
-                hasImages: false,
-                imageCount: 0,
-              });
-            }
-          } else {
-            results.push({
-              templateId: tmpl.id,
-              name: tmpl.name,
-              reference: tmpl.default_code || reference,
-              hasImages: false,
-              imageCount: 0,
-            });
-          }
-        }
-      }
-    }
-
-    // Remove duplicates
-    const uniqueResults = results.filter((result, index, self) => 
-      index === self.findIndex(r => r.templateId === result.templateId)
+    const uniqueResults = results.filter(
+      (result, index, self) =>
+        index === self.findIndex((r) => r.templateId === result.templateId),
     );
 
-    // Fetch image counts for all found products
-    if (uniqueResults.length > 0) {
-      // Get product.image records for these templates
-      for (const result of uniqueResults) {
-        try {
-          // Check for product.image records
-          const imageIds = await callOdoo(
-            uid,
-            password,
-            'product.image',
-            'search',
-            [[['product_tmpl_id', '=', result.templateId]]],
-            { limit: 100 }
-          );
-          
-          // Also check if main image exists on template
-          const template = await callOdoo(
-            uid,
-            password,
-            'product.template',
-            'read',
-            [[result.templateId], ['image_1920']]
-          );
-          
-          const hasMainImage = template && template[0]?.image_1920 ? 1 : 0;
-          const galleryImageCount = imageIds?.length || 0;
-          
-          result.imageCount = hasMainImage + galleryImageCount;
-          result.hasImages = result.imageCount > 0;
-        } catch (err) {
-          console.error(`Error fetching images for template ${result.templateId}:`, err);
-          result.imageCount = 0;
-          result.hasImages = false;
-        }
+    for (const result of uniqueResults) {
+      try {
+        const imageIds = await callOdoo(
+          uid,
+          password,
+          'product.image',
+          'search',
+          [[['product_tmpl_id', '=', result.templateId]]],
+          { limit: 100 },
+        );
+
+        const template = await callOdoo(
+          uid,
+          password,
+          'product.template',
+          'read',
+          [[result.templateId], ['image_1920']],
+        );
+
+        const hasMainImage = template?.[0]?.image_1920 ? 1 : 0;
+        const galleryImageCount = imageIds?.length || 0;
+        result.imageCount = hasMainImage + galleryImageCount;
+        result.hasImages = result.imageCount > 0;
+      } catch (err) {
+        console.error(
+          `Error fetching images for template ${result.templateId}:`,
+          err,
+        );
+        result.imageCount = 0;
+        result.hasImages = false;
       }
     }
 
@@ -256,7 +227,6 @@ async function handler(
       searchedReference: reference,
       searchedColor: color,
     });
-
   } catch (error) {
     console.error('Error searching Emile et Ida products:', error);
     const err = error as { message?: string };

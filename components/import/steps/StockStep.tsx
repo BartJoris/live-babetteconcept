@@ -188,22 +188,19 @@ export default function StockStep({ wizard }: StockStepProps) {
           📝 Prompts
         </button>
 
-        <select
-          className="px-3 py-2 border rounded text-sm bg-white"
-          value=""
-          onChange={(e) => {
-            if (e.target.value) {
-              wizard.setAllSizeAttribute(e.target.value);
-            }
-          }}
-        >
-          <option value="">📏 Maat...</option>
-          {SIZE_ATTRIBUTE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-[180px]">
+          <FuzzySearchSelect
+            options={SIZE_ATTRIBUTE_OPTIONS.map((opt) => ({
+              id: opt,
+              label: opt,
+            }))}
+            value={null}
+            onChange={(value) => {
+              if (value) wizard.setAllSizeAttribute(value);
+            }}
+            placeholder="📏 Maat..."
+          />
+        </div>
 
         <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded text-sm font-medium">
           {wizard.selectedCount} producten / {wizard.totalVariants} varianten geselecteerd
@@ -227,8 +224,8 @@ export default function StockStep({ wizard }: StockStepProps) {
         </div>
       )}
 
-      {/* Product cards */}
-      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+      {/* Product cards — no overflow trap: native/portal menus must stay clickable */}
+      <div className="space-y-4">
         {wizard.parsedProducts.map((product) => {
           const isSelected = wizard.selectedProducts.has(product.reference);
           const productExistsInOdoo = hasExistingBarcodes(product.reference);
@@ -299,18 +296,29 @@ export default function StockStep({ wizard }: StockStepProps) {
                         placeholder="Selecteer merk..."
                       />
                     </div>
-                    <select
-                      value={productSizeAttribute}
-                      onChange={(e) => wizard.updateProductSizeAttribute(product.reference, e.target.value)}
-                      className="text-xs border rounded px-2 py-1 bg-white"
-                      disabled={unitOnly}
-                    >
-                      {SIZE_ATTRIBUTE_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="min-w-[160px]">
+                      {unitOnly ? (
+                        <span className="inline-block text-xs text-gray-600 px-3 py-2 border-2 border-gray-200 rounded-lg bg-gray-50">
+                          Eén Maat
+                        </span>
+                      ) : (
+                        <FuzzySearchSelect
+                          options={SIZE_ATTRIBUTE_OPTIONS.map((opt) => ({
+                            id: opt,
+                            label: opt,
+                          }))}
+                          value={productSizeAttribute}
+                          onChange={(value) => {
+                            if (!value) return;
+                            wizard.updateProductSizeAttribute(
+                              product.reference,
+                              value,
+                            );
+                          }}
+                          placeholder="Maat-attribuut..."
+                        />
+                      )}
+                    </div>
                     <label className="flex items-center gap-1">
                       <input
                         type="checkbox"

@@ -169,7 +169,9 @@ export default function FuzzySearchSelect({
     const rect = el.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < 280 && rect.top > spaceBelow;
-    const maxHeight = Math.min(288, openUp ? rect.top - 8 : spaceBelow - 8);
+    // Keep a usable click target even near viewport edges
+    const available = openUp ? rect.top - 8 : spaceBelow - 8;
+    const maxHeight = Math.max(160, Math.min(288, available));
 
     setMenuStyle({
       position: 'fixed',
@@ -329,8 +331,14 @@ export default function FuzzySearchSelect({
                         <div
                           key={`${opt.id}__${opt.label}`}
                           data-idx={currentIdx}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => handleSelect(opt.id)}
+                          role="option"
+                          aria-selected={currentIdx === activeIndex}
+                          onMouseDown={(e) => {
+                            // Select on mousedown so outside-handlers / blur cannot steal the click
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSelect(opt.id);
+                          }}
                           className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                             currentIdx === activeIndex
                               ? 'bg-blue-500 dark:bg-blue-600 text-white'
@@ -352,8 +360,13 @@ export default function FuzzySearchSelect({
                 <div
                   key={`${opt.id}__${opt.label}`}
                   data-idx={i}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelect(opt.id)}
+                  role="option"
+                  aria-selected={i === activeIndex}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelect(opt.id);
+                  }}
                   className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                     i === activeIndex
                       ? 'bg-blue-500 dark:bg-blue-600 text-white'

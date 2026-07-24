@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
-export default function Navigation() {
+/** App chrome nav — named AppNavigation to avoid clashing with the browser Navigation API. */
+export default function AppNavigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInzichtenOpen, setIsInzichtenOpen] = useState(false);
   const [isImporterenOpen, setIsImporterenOpen] = useState(false);

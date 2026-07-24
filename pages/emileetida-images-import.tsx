@@ -2,6 +2,10 @@ import { useState, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
+import {
+  colorsMatchEmileetida,
+  extractEmileetidaImageInfo,
+} from '@/lib/suppliers/emileetida/image-filename';
 
 // Product from CSV
 interface CsvProduct {
@@ -145,82 +149,6 @@ export default function EmileEtIdaImagesImport() {
   // ============================================
   // IMAGE PARSING
   // ============================================
-  
-  // Known colors for better matching
-  const KNOWN_COLORS = [
-    'creme', 'abricot', 'lizeron', 'tulipe', 'paquerette', 'fraise', 'cerise',
-    'mistigri', 'guariguette', 'vichy', 'rouge', 'bleu', 'rose', 'jaune',
-    'blossom', 'ciel', 'mimosa', 'dore', 'nuage', 'coquelicot', 'marine',
-    'corail', 'macaron', 'wisteria', 'tournesol', 'chambray', 'denim', 'brownie',
-    'galet', 'mer', 'poussin', 'rayure', 'betsy', 'michelle', 'althea', 'rosier',
-    'bergere', 'margot', 'fantasia', 'champetre', 'cerisette', 'banane', 'radis',
-    'chine', 'beige', 'light', 'fine', 'noir', 'vivi', 'bb'
-  ];
-
-  const extractImageInfo = (filename: string): { ref: string; color: string; isLifestyle: boolean; imageNumber: number } => {
-    // Format 1: Hyphen-separated product photos like "AD008-creme-01.jpg" or "AD207B-lizeron-BB.jpg"
-    // Handle multiple hyphens like "AD042A-mimosa-03.jpg", "AD015-creme-BB-01.jpg"
-    const hyphenMatch = filename.match(/^(AD[A-Z0-9]+)-(.+?)(?:-(?:BB|\d+))?(?:-\d+)?\.[^.]+$/i);
-    if (hyphenMatch) {
-      const ref = hyphenMatch[1].toUpperCase();
-      // Extract color, removing BB and numbers
-      let colorPart = hyphenMatch[2].toLowerCase();
-      // Remove trailing numbers and BB
-      colorPart = colorPart.replace(/-(?:bb|\d+).*$/i, '').replace(/\d+$/, '');
-      
-      // Get image number
-      let imageNum = 0;
-      const numMatch = filename.match(/-(\d+)\.[^.]+$/);
-      if (numMatch) imageNum = parseInt(numMatch[1]);
-      
-      return {
-        ref,
-        color: colorPart,
-        isLifestyle: false,
-        imageNumber: imageNum,
-      };
-    }
-
-    // Format 2: Space-separated lifestyle photos like "EMILE IDA E26 AD019 AD009..."
-    const isLifestyle = filename.toUpperCase().startsWith('EMILE');
-    
-    // Extract all AD references from lifestyle photos
-    const refs: string[] = [];
-    const colors: string[] = [];
-    
-    const baseName = filename.replace(/\.[^.]+$/, '')
-      .replace(/\s*\(\d+[°]?\)\s*$/, '')
-      .replace(/\s*\(\d+\s*$/, '');
-    
-    const parts = baseName.split(/\s+/);
-    
-    for (const part of parts) {
-      const upper = part.toUpperCase();
-      const lower = part.toLowerCase();
-      
-      if (['EMILE', 'IDA', 'E26', 'E25'].includes(upper)) continue;
-      
-      // AD references
-      if (/^AD[A-Z0-9]+$/i.test(upper)) {
-        refs.push(upper);
-      }
-      // Colors
-      else if (KNOWN_COLORS.includes(lower)) {
-        colors.push(lower);
-      }
-    }
-
-    // Get image number from (1), (2) etc.
-    const parenMatch = filename.match(/\((\d+)\)/);
-    const imageNum = parenMatch ? parseInt(parenMatch[1]) : 0;
-
-    return {
-      ref: refs[0] || '', // Primary ref
-      color: colors[0] || '',
-      isLifestyle,
-      imageNumber: imageNum,
-    };
-  };
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -236,7 +164,7 @@ export default function EmileEtIdaImagesImport() {
     );
 
     const parsed: ImageFile[] = imageFiles.map(file => {
-      const info = extractImageInfo(file.name);
+      const info = extractEmileetidaImageInfo(file.name);
       return {
         filename: file.name,
         previewUrl: URL.createObjectURL(file),
@@ -274,15 +202,6 @@ export default function EmileEtIdaImagesImport() {
 
     setLoading(true);
 
-    // Normalize color for comparison
-    const normalizeColor = (color: string): string => {
-      return color.toLowerCase()
-        .replace(/[-_\s]/g, '')
-        .replace(/rouge$/, '') // "vichy rouge" -> "vichy"
-        .replace(/clair$/, '') // "beige clair" -> "beige"
-        .replace(/light$/, '');
-    };
-
     if (!(await ensureLoggedIn())) {
       alert('Geen Odoo credentials gevonden. Log eerst in!');
       setLoading(false);
@@ -297,7 +216,6 @@ export default function EmileEtIdaImagesImport() {
     // For each CSV product, find matching images
     for (const csvProduct of csvProducts) {
       const productImages: ImageFile[] = [];
-      const normalizedProductColor = normalizeColor(csvProduct.colorName);
       const productRef = csvProduct.reference.toUpperCase();
 
       // Find product photos (exact ref match + color match)
@@ -306,21 +224,13 @@ export default function EmileEtIdaImagesImport() {
         if (img.isLifestyle) continue;
 
         const imgRef = img.extractedRef.toUpperCase();
-        const normalizedImgColor = normalizeColor(img.extractedColor);
 
         // Reference must match
         if (imgRef !== productRef) continue;
 
-        // Color must match (partial match allowed)
-        const colorMatches = 
-          normalizedProductColor === normalizedImgColor ||
-          normalizedProductColor.includes(normalizedImgColor) ||
-          normalizedImgColor.includes(normalizedProductColor) ||
-          // Handle special cases
-          (normalizedProductColor === 'guariguette' && normalizedImgColor === 'gariguette') ||
-          (normalizedProductColor === 'gariguette' && normalizedImgColor === 'guariguette');
-
-        if (!colorMatches) continue;
+        if (!colorsMatchEmileetida(csvProduct.colorName, img.extractedColor)) {
+          continue;
+        }
 
         productImages.push(img);
         usedImages.add(img.filename);
@@ -341,13 +251,11 @@ export default function EmileEtIdaImagesImport() {
         if (!filenameUpper.includes(productRef)) continue;
 
         // If lifestyle has a color, it must match our product
-        if (img.extractedColor) {
-          const normalizedImgColor = normalizeColor(img.extractedColor);
-          const colorMatches = 
-            normalizedProductColor.includes(normalizedImgColor) ||
-            normalizedImgColor.includes(normalizedProductColor);
-          
-          if (!colorMatches) continue;
+        if (
+          img.extractedColor &&
+          !colorsMatchEmileetida(csvProduct.colorName, img.extractedColor)
+        ) {
+          continue;
         }
 
         lifestyleImages.push(img);
@@ -461,7 +369,7 @@ export default function EmileEtIdaImagesImport() {
   // IMAGE MANIPULATION
   // ============================================
   const addImageToProduct = (uniqueKey: string, file: File) => {
-    const info = extractImageInfo(file.name);
+    const info = extractEmileetidaImageInfo(file.name);
     const newImage: ImageFile = {
       filename: file.name,
       previewUrl: URL.createObjectURL(file),
@@ -702,6 +610,23 @@ export default function EmileEtIdaImagesImport() {
           {currentStep === 1 && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold mb-6">📁 Stap 1: Selecteer CSV en Afbeeldingen</h2>
+
+              <div className="mb-6 rounded-lg border border-pink-200 bg-pink-50 p-4 text-sm text-pink-900">
+                <p className="font-semibold mb-1">Ondersteunde bestandsnamen</p>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>
+                    Woman/AW26: <code>IDA-EDGAR-farine-01.jpg</code>,{' '}
+                    <code>IDA-ELEA-MARS.jpg</code>
+                  </li>
+                  <li>
+                    Accessoires: <code>AE119-BB-blush-01.jpg</code>,{' '}
+                    <code>AEBANANA1-vichy-acajou.jpg</code>
+                  </li>
+                  <li>
+                    Kids (legacy): <code>AD008-creme-01.jpg</code>
+                  </li>
+                </ul>
+              </div>
 
               <div className="grid grid-cols-2 gap-6">
                 {/* CSV Upload */}

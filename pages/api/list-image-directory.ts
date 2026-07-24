@@ -15,9 +15,20 @@ function getAllowedRoots(): string[] {
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean)
-      .map((p) => path.resolve(p.startsWith('~') ? path.join(process.env.HOME || '', p.slice(1)) : p));
+      .map((p) => {
+        if (p.startsWith('~')) {
+          return path.resolve(
+            path.join(
+              /* turbopackIgnore: true */ process.env.HOME || '',
+              p.slice(1),
+            ),
+          );
+        }
+        return path.resolve(/* turbopackIgnore: true */ p);
+      });
   }
-  return [path.resolve(process.cwd())];
+  // turbopackIgnore: bare process.cwd() otherwise NFT-traces the whole repo
+  return [path.resolve(/* turbopackIgnore: true */ process.cwd())];
 }
 
 function isPathAllowed(resolvedPath: string, allowedRoots: string[]): boolean {
@@ -52,10 +63,15 @@ async function handler(
     // Expand tilde to home directory
     let expandedPath = imageFolderPath;
     if (expandedPath.startsWith('~')) {
-      expandedPath = path.join(process.env.HOME || '', expandedPath.slice(1));
+      expandedPath = path.join(
+        /* turbopackIgnore: true */ process.env.HOME || '',
+        expandedPath.slice(1),
+      );
     }
 
-    const resolvedPath = path.resolve(expandedPath);
+    const resolvedPath = path.resolve(
+      /* turbopackIgnore: true */ expandedPath,
+    );
     const allowedRoots = getAllowedRoots();
     if (!isPathAllowed(resolvedPath, allowedRoots)) {
       return res.status(403).json({

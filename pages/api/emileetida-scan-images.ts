@@ -2,11 +2,15 @@ import type { NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import {
+  extractEmileetidaImageInfo,
+  extractEmileetidaReferences,
+} from '@/lib/suppliers/emileetida/image-filename';
 
 interface ImageMatch {
   filename: string;
   filepath: string;
-  matchedReferences: string[]; // Product references found in filename (e.g., AD019, AD009)
+  matchedReferences: string[]; // Product references found in filename (e.g., AD019, IDA-EDGAR)
   imageNumber: number; // For sorting (1, 2, 3... based on filename)
 }
 
@@ -22,39 +26,6 @@ interface ScanResponse {
   productImages?: ProductImages[];
   unmatchedImages?: ImageMatch[];
   error?: string;
-}
-
-// Extract product references from Emile et Ida filename
-// Format: "EMILE IDA E26 AD019 AD009 ADBOBFRAISE ADBOBCERISE (1).jpg"
-// Product references start with "AD" followed by numbers and optionally letters
-function extractReferences(filename: string): string[] {
-  // Remove extension and image number suffix like (1), (2), etc.
-  const baseName = filename.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)\s*$/, '');
-  
-  // Split by spaces and find all parts that look like product references
-  const parts = baseName.split(/\s+/);
-  const references: string[] = [];
-  
-  for (const part of parts) {
-    // Match AD followed by numbers, optionally followed by letters
-    // Examples: AD019, AD009, AD207B, AD101A, ADBOBFRAISE, ADBOBCERISE
-    const upperPart = part.toUpperCase();
-    if (/^AD\d+[A-Z]?$/i.test(upperPart)) {
-      // Standard reference like AD019, AD207B
-      references.push(upperPart);
-    } else if (/^AD[A-Z]+$/i.test(upperPart)) {
-      // Named reference like ADBOBFRAISE, ADBOBCERISE, ADMISTIGRI
-      references.push(upperPart);
-    }
-  }
-  
-  return references;
-}
-
-// Extract image number from filename (1), (2), etc.
-function extractImageNumber(filename: string): number {
-  const match = filename.match(/\((\d+)\)/);
-  return match ? parseInt(match[1]) : 0;
 }
 
 async function handler(
@@ -108,12 +79,15 @@ async function handler(
     console.log(`📸 Found ${imageFiles.length} image files`);
 
     // Parse each image file to extract references
-    const allImages: ImageMatch[] = imageFiles.map(filename => ({
-      filename,
-      filepath: path.join(expandedPath, filename),
-      matchedReferences: extractReferences(filename),
-      imageNumber: extractImageNumber(filename),
-    }));
+    const allImages: ImageMatch[] = imageFiles.map(filename => {
+      const info = extractEmileetidaImageInfo(filename);
+      return {
+        filename,
+        filepath: path.join(expandedPath, filename),
+        matchedReferences: extractEmileetidaReferences(filename),
+        imageNumber: info.imageNumber,
+      };
+    });
 
     // Normalize product references for matching (uppercase)
     const normalizedProductRefs = new Set(

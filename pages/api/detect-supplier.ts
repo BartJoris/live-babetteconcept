@@ -195,13 +195,24 @@ const SUPPLIER_RULES: SupplierRule[] = [
       },
       {
         fileInputId: 'tarif_csv',
-        fileInputLabel: 'TARIF CSV (RRP Prijzen)',
-        detect: (headers) => {
+        fileInputLabel: 'RRP / SRP CSV (TARIF of orderbevestiging)',
+        detect: (headers, text) => {
           if (h(headers, 'Gencod', 'RRP EUR')) return 0.95;
           if (h(headers, 'Gencod', 'WHLS EUR')) return 0.9;
+          // DRNMODE order confirmation: STYLE;REFERENCE;VARIANT;SRP
+          const sample = (text || '').slice(0, 12_000).toUpperCase();
+          if (
+            sample.includes('REFERENCE') &&
+            sample.includes('VARIANT') &&
+            sample.includes('SRP') &&
+            (sample.includes('ORDER CONFIRMATION') || sample.includes('DRNMODE') || sample.includes('STYLE'))
+          ) {
+            return 0.93;
+          }
+          if (h(headers, 'REFERENCE', 'VARIANT', 'SRP')) return 0.9;
           return 0;
         },
-        reason: 'Gencod + RRP EUR kolommen (TARIF)',
+        reason: 'TARIF (Gencod+RRP) of orderbevestiging (REFERENCE+VARIANT+SRP)',
       },
     ],
   },
@@ -691,7 +702,8 @@ const SUPPLIER_RULES: SupplierRule[] = [
 
 function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
   const lines = content.trim().split('\n');
-  const firstLines = lines.slice(0, 10).join('\n');
+  // Order confirmations put the real header ~30+ lines down (STYLE/REFERENCE/SRP)
+  const firstLines = lines.slice(0, 80).join('\n');
 
   // Try to extract headers - handle various formats
   let headers: string[] = [];
@@ -710,6 +722,19 @@ function detectCSV(fileId: string, fileName: string, content: string): FileDetec
     }
   }
 
+  // Prefer a deeper header row when it looks like STYLE/REFERENCE/VARIANT/SRP
+  let confirmationHeaders: string[] = [];
+  for (let i = 0; i < Math.min(lines.length, 80); i++) {
+    const upper = lines[i].toUpperCase();
+    if (upper.includes('REFERENCE') && upper.includes('VARIANT') && upper.includes('SRP')) {
+      for (const d of delimiters) {
+        const cells = lines[i].split(d).map((s) => s.trim().replace(/^"|"$/g, ''));
+        if (cells.length > confirmationHeaders.length) confirmationHeaders = cells;
+      }
+      break;
+    }
+  }
+
   const matches: DetectionMatch[] = [];
 
   for (const rule of SUPPLIER_RULES) {
@@ -719,6 +744,14 @@ function detectCSV(fileId: string, fileName: string, content: string): FileDetec
       if (confidence < 0.5 && altHeaders.length > 0) {
         const altConfidence = csvRule.detect(altHeaders, firstLines, fileName);
         if (altConfidence > confidence) confidence = altConfidence;
+      }
+      if (confidence < 0.5 && confirmationHeaders.length > 0) {
+        const confConfidence = csvRule.detect(
+          confirmationHeaders,
+          firstLines,
+          fileName,
+        );
+        if (confConfidence > confidence) confidence = confConfidence;
       }
       if (confidence > 0.3) {
         matches.push({

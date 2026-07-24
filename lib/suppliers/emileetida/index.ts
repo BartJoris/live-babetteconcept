@@ -1,5 +1,13 @@
 import { parseCSV, findHeader, parseEuroPrice, determineSizeAttribute, toSentenceCase } from '@/lib/import/shared';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
+import { extractEmileetidaImageInfo } from '@/lib/suppliers/emileetida/image-filename';
+import {
+  buildEmileetidaPriceLookup,
+  isEmileetidaOrderConfirmationCsv,
+  isEmileetidaTarifCsv,
+  lookupEmileetidaRrp,
+  type EmileetidaPriceLookup,
+} from '@/lib/suppliers/emileetida/prices';
 
 /**
  * Emile et Ida size format: 02A -> 2 jaar, 03M -> 3 maand, TU -> U,
@@ -26,27 +34,11 @@ function convertEmileetidaSize(size: string): string {
   return size;
 }
 
-function buildTarifPriceMap(text: string): Map<string, number> {
-  const priceMap = new Map<string, number>();
-  const { headers, rows } = parseCSV(text, { delimiter: ';' });
-
-  const gencodIdx = findHeader(headers, 'gencod');
-  const rrpIdx = findHeader(headers, 'rrp eur');
-  if (gencodIdx === -1 || rrpIdx === -1) return priceMap;
-
-  for (const values of rows) {
-    const gencod = values[gencodIdx]?.trim() || '';
-    const rrpStr = values[rrpIdx]?.trim() || '0';
-    if (!gencod) continue;
-
-    const rrp = parseEuroPrice(rrpStr);
-    if (rrp > 0) priceMap.set(gencod, rrp);
-  }
-
-  return priceMap;
-}
-
-function parseEmileetidaOrder(text: string, priceMap: Map<string, number>, context: ParseContext): ParsedProduct[] {
+function parseEmileetidaOrder(
+  text: string,
+  priceLookup: EmileetidaPriceLookup,
+  context: ParseContext,
+): ParsedProduct[] {
   const { headers, rows } = parseCSV(text, { delimiter: ';' });
   if (headers.length === 0 || rows.length === 0) return [];
 
@@ -82,7 +74,13 @@ function parseEmileetidaOrder(text: string, priceMap: Map<string, number>, conte
 
     if (!productName || !ean13) continue;
 
-    const rrp = priceMap.get(ean13) || (unitPrice * 2.5);
+    const rrp = lookupEmileetidaRrp(
+      priceLookup,
+      ean13,
+      productRef,
+      colorName,
+      unitPrice,
+    );
     const productKey = `${productRef}|${colorName}`;
     const displaySize = convertEmileetidaSize(sizeName);
 
@@ -126,7 +124,7 @@ function parseEmileetidaOrder(text: string, priceMap: Map<string, number>, conte
   }
 
   const productList = Object.values(products);
-  productList.forEach(product => {
+  productList.forEach((product) => {
     product.sizeAttribute = determineSizeAttribute(product.variants);
   });
   return productList;
@@ -139,7 +137,13 @@ const emileetidaPlugin: SupplierPlugin = {
 
   fileInputs: [
     { id: 'main_csv', label: 'Order CSV', accept: '.csv', required: true, type: 'csv' },
-    { id: 'tarif_csv', label: 'TARIF CSV (RRP Prijzen)', accept: '.csv', required: false, type: 'csv' },
+    {
+      id: 'tarif_csv',
+      label: 'RRP / SRP CSV (TARIF of orderbevestiging)',
+      accept: '.csv',
+      required: false,
+      type: 'csv',
+    },
   ],
 
   fileDetection: [
@@ -152,31 +156,34 @@ const emileetidaPlugin: SupplierPlugin = {
     },
     {
       fileInputId: 'tarif_csv',
-      detect: (text: string) => {
-        const firstLine = text.split('\n')[0]?.toLowerCase() || '';
-        return firstLine.includes('rrp eur') && firstLine.includes('gencod');
-      },
+      detect: (text: string) =>
+        isEmileetidaTarifCsv(text) || isEmileetidaOrderConfirmationCsv(text),
     },
   ],
 
   parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
-    const tarifText = files['tarif_csv'] as string;
-    const priceMap = tarifText ? buildTarifPriceMap(tarifText) : new Map<string, number>();
+    const tarifText = (files['tarif_csv'] as string) || '';
+    const priceLookup = buildEmileetidaPriceLookup(tarifText);
 
     const orderText = files['main_csv'] as string;
     if (!orderText) return [];
 
-    return parseEmileetidaOrder(orderText, priceMap, context);
+    return parseEmileetidaOrder(orderText, priceLookup, context);
   },
 
   imageUpload: {
     enabled: true,
-    instructions: 'Upload product afbeeldingen via de dedicated pagina.',
-    exampleFilenames: ['EMILE IDA E26 AD019 AD009.jpg'],
+    instructions:
+      'Upload product afbeeldingen via de dedicated pagina. AW26: IDA-REF-kleur-01.jpg of AE119-blush-01.jpg',
+    exampleFilenames: [
+      'IDA-EDGAR-farine-01.jpg',
+      'AE119-BB-blush-01.jpg',
+      'EMILE IDA E26 AD019 AD009.jpg',
+    ],
     filenameFilter: /\.(jpg|jpeg|png)$/i,
     extractReference: (filename: string) => {
-      const match = filename.match(/AD\d+/i);
-      return match ? match[0].toLowerCase() : null;
+      const info = extractEmileetidaImageInfo(filename);
+      return info.ref ? info.ref.toLowerCase() : null;
     },
     dedicatedPageUrl: '/emileetida-images-import',
     dedicatedPageLabel: 'Upload Emile et Ida Afbeeldingen',
