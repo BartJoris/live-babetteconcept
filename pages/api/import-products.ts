@@ -112,7 +112,10 @@ async function handler(
           console.log('Single-size product detected: skipping size attribute line');
         } else {
           const sizeAttributeName = product.sizeAttribute || null;
-          const sizes = product.variants.map(v => v.size);
+          // Unique sizes only — duplicates inflate expected variant counts
+          const sizes = Array.from(
+            new Set(product.variants.map((v) => v.size).filter(Boolean)),
+          );
           console.log(`Step 3-4: Adding size attribute${product.sizeAttribute ? ` (user-selected: ${product.sizeAttribute})` : ' (auto-detected)'}...`);
           const sizeResult = await importService.addSizeAttribute(templateId, sizeAttributeName, sizes);
           sizeValueIds = sizeResult.valueIds;
@@ -124,7 +127,7 @@ async function handler(
         const expectedVariants = isNoVariantProduct
           ? 1
           : Math.max(sizeValueIds.length, 1);
-        const prefetchedVariants = await importService.waitForVariants(
+        let prefetchedVariants = await importService.waitForVariants(
           templateId,
           expectedVariants,
         );
@@ -138,13 +141,34 @@ async function handler(
           quantity: v.quantity,
         }));
 
-        const variantResult = await importService.updateVariants(
+        let variantResult = await importService.updateVariants(
           templateId,
           variantData,
           sizeValueIds,
           sizeNames,
           prefetchedVariants,
         );
+        // Retry once if Odoo was still generating a size (common miss: S/M)
+        if (
+          !isNoVariantProduct &&
+          variantResult.updated < expectedVariants
+        ) {
+          console.warn(
+            `⚠️ Only ${variantResult.updated}/${expectedVariants} variants updated — retrying after re-wait`,
+          );
+          prefetchedVariants = await importService.waitForVariants(
+            templateId,
+            expectedVariants,
+            10_000,
+          );
+          variantResult = await importService.updateVariants(
+            templateId,
+            variantData,
+            sizeValueIds,
+            sizeNames,
+            prefetchedVariants,
+          );
+        }
         console.log(`✅ Updated ${variantResult.updated}/${variantResult.total} variants`);
 
         // Step 8: Upload images

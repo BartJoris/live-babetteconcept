@@ -289,11 +289,14 @@ export class OdooImportService {
   /**
    * Poll until Odoo has generated the expected number of variants
    * (replaces a fixed 1s sleep).
+   *
+   * Adult MAAT lines can take several seconds; returning early left random
+   * sizes (often S/M) without barcode/price/stock.
    */
   async waitForVariants(
     templateId: number,
     expectedCount: number,
-    maxWaitMs = 4000,
+    maxWaitMs = 15_000,
   ): Promise<
     Array<{ id: number; product_template_variant_value_ids: number[] }>
   > {
@@ -302,6 +305,8 @@ export class OdooImportService {
       id: number;
       product_template_variant_value_ids: number[];
     }> = [];
+    let stableSince = Date.now();
+    let lastCount = -1;
 
     while (Date.now() - started < maxWaitMs) {
       latest = await odooClient.searchRead<{
@@ -315,10 +320,20 @@ export class OdooImportService {
         ['id', 'product_template_variant_value_ids'],
       );
 
-      if (latest.length >= expectedCount) {
+      if (latest.length !== lastCount) {
+        lastCount = latest.length;
+        stableSince = Date.now();
+      }
+
+      // Require expected count AND a short stability window so late variants
+      // (e.g. S - 36) are included before we write barcodes.
+      if (
+        latest.length >= expectedCount &&
+        Date.now() - stableSince >= 300
+      ) {
         return latest;
       }
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     return latest;
