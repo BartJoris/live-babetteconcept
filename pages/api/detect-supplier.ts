@@ -697,6 +697,19 @@ const SUPPLIER_RULES: SupplierRule[] = [
       },
       reason: 'Le New Black format met "Weekend House" als merknaam',
     }],
+    pdfRules: [{
+      fileInputId: 'rrp_pdf',
+      fileInputLabel: 'RRP / Order Confirmation PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (l.includes('weekend') && (l.includes('rrp') || l.includes('srp') || l.includes('aw') || l.includes('fw'))) return 0.9;
+        if (l.includes('weekend house') || l.includes('weekendhouse')) return 0.85;
+        if (l.includes('whk') && (l.includes('rrp') || l.includes('srp'))) return 0.8;
+        if (l.includes('weekend') && l.includes('kids')) return 0.7;
+        return 0;
+      },
+      reason: 'Weekend House Kids RRP / order confirmation PDF',
+    }],
   },
 ];
 

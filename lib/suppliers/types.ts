@@ -28,6 +28,8 @@ export interface ParsedProduct {
   sizeAttribute?: string;
   images?: string[];
   imagesFetched?: boolean;
+  /** Where list/RRP came from — PDF SRP or wholesale × multiplier fallback */
+  rrpSource?: 'pdf' | 'fallback';
 }
 
 export interface ProductVariant {

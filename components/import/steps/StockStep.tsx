@@ -26,6 +26,12 @@ export default function StockStep({ wizard }: StockStepProps) {
   const [bulkBrandId, setBulkBrandId] = useState<string>('');
   const [nameTemplate, setNameTemplate] = useState(DEFAULT_PRODUCT_NAME_TEMPLATE);
   const existingBarcodesArray = Array.from(wizard.existingBarcodes.entries());
+  const rrpFallbackCount = wizard.parsedProducts.filter((p) => p.rrpSource === 'fallback').length;
+  const rrpPdfCount = wizard.parsedProducts.filter((p) => p.rrpSource === 'pdf').length;
+  const emptyEanCount = wizard.parsedProducts.reduce(
+    (sum, p) => sum + p.variants.filter((v) => !v.ean?.trim()).length,
+    0,
+  );
 
   useEffect(() => {
     try {
@@ -322,6 +328,32 @@ export default function StockStep({ wizard }: StockStepProps) {
         </div>
       )}
 
+      {/* RRP source + empty EAN warnings */}
+      {(rrpFallbackCount > 0 || emptyEanCount > 0) && (
+        <div className="space-y-3 mb-4">
+          {rrpFallbackCount > 0 && (
+            <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
+              <h4 className="font-bold text-orange-800 mb-1">⚠️ RRP fallback (inkoop × 2,5)</h4>
+              <p className="text-orange-700 text-sm">
+                {rrpPdfCount === 0
+                  ? `Geen RRP uit PDF — alle ${rrpFallbackCount} producten gebruiken verkoopprijs = inkoop × 2,5.`
+                  : `${rrpFallbackCount} producten zonder PDF-match gebruiken verkoopprijs = inkoop × 2,5. ${rrpPdfCount} producten hebben RRP uit PDF.`}
+                {' '}Controleer de oranje ×2,5 badges bij Verkoopprijs.
+              </p>
+            </div>
+          )}
+          {emptyEanCount > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+              <h4 className="font-bold text-amber-800 mb-1">ℹ️ Lege barcodes</h4>
+              <p className="text-amber-700 text-sm">
+                {emptyEanCount} variant{emptyEanCount !== 1 ? 'en' : ''} zonder EAN.
+                Vul ze hier in of laat ze leeg.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Product cards — no overflow trap: native/portal menus must stay clickable */}
       <div className="space-y-4">
         {wizard.parsedProducts.map((product) => {
@@ -439,6 +471,16 @@ export default function StockStep({ wizard }: StockStepProps) {
                     <span className="text-xs text-green-600 font-medium">
                       €{(product.variants[0]?.rrp || product.variants[0]?.price || 0).toFixed(2)}
                     </span>
+                    {product.rrpSource === 'pdf' && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 font-medium">
+                        RRP uit PDF
+                      </span>
+                    )}
+                    {product.rrpSource === 'fallback' && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">
+                        ×2,5
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -502,8 +544,13 @@ export default function StockStep({ wizard }: StockStepProps) {
                               type="text"
                               value={variant.ean}
                               onChange={(e) => wizard.updateVariantField(product.reference, idx, 'ean', e.target.value)}
+                              placeholder="EAN (optioneel)"
                               className={`w-36 border rounded px-2 py-1 text-sm font-mono ${
-                                barcodeExists ? 'border-orange-400 bg-orange-50' : ''
+                                barcodeExists
+                                  ? 'border-orange-400 bg-orange-50'
+                                  : !variant.ean?.trim()
+                                    ? 'border-amber-300 bg-amber-50'
+                                    : ''
                               }`}
                             />
                           </td>
@@ -527,8 +574,17 @@ export default function StockStep({ wizard }: StockStepProps) {
                                 step="0.01"
                                 value={variant.rrp}
                                 onChange={(e) => wizard.updateVariantField(product.reference, idx, 'rrp', parseFloat(e.target.value) || 0)}
-                                className="w-20 border rounded px-2 py-1 text-sm"
+                                className={`w-20 border rounded px-2 py-1 text-sm ${
+                                  product.rrpSource === 'fallback'
+                                    ? 'border-orange-300 bg-orange-50'
+                                    : product.rrpSource === 'pdf'
+                                      ? 'border-green-300 bg-green-50'
+                                      : ''
+                                }`}
                               />
+                              {product.rrpSource === 'fallback' && (
+                                <span className="text-[10px] text-orange-700 font-medium">×2,5</span>
+                              )}
                             </div>
                           </td>
                           <td className="p-2">

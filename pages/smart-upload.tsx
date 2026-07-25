@@ -212,14 +212,12 @@ export default function SmartUploadPage() {
         setDetection(data);
         setOverrides({});
 
-        if (data.detectedSupplier && data.allFilesMatched) {
-          await goToImport(data, files, {}, data.detectedSupplier, data.detectedSupplierName!);
-          return;
-        }
-
+        // Never auto-redirect: user may still add CSV + RRP PDF (or more files).
         setStatus('detected');
         if (data.detectedSupplier) {
-          setStatusMessage(`Leverancier herkend: ${data.detectedSupplierName}`);
+          setStatusMessage(
+            `Leverancier herkend: ${data.detectedSupplierName}. Voeg desgewenst meer bestanden toe, daarna Start import.`,
+          );
         } else {
           setStatusMessage('Leverancier niet herkend');
         }
@@ -231,7 +229,7 @@ export default function SmartUploadPage() {
       setStatus('detected');
       setStatusMessage('Fout bij detectie');
     }
-  }, [goToImport]);
+  }, []);
 
   // Auto-detect whenever files change
   useEffect(() => {
@@ -308,7 +306,8 @@ export default function SmartUploadPage() {
               Slim uploaden
             </h1>
             <p className="text-gray-700 dark:text-gray-300">
-              Sleep bestanden hierheen. Het systeem herkent automatisch de leverancier en gaat direct door naar de import.
+              Sleep één of meer bestanden hierheen (CSV + optionele RRP-PDF). Het systeem herkent de leverancier;
+              jij klikt daarna op Start import.
             </p>
           </div>
 
@@ -363,7 +362,7 @@ export default function SmartUploadPage() {
                   Sleep bestanden hierheen
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                  CSV&apos;s en PDF&apos;s van dezelfde leverancier - het systeem herkent automatisch alles
+                  Selecteer meerdere bestanden tegelijk of voeg ze daarna toe met &quot;+ Meer bestanden&quot;
                 </p>
                 <input ref={fileInputRef} type="file" accept=".csv,.pdf" multiple onChange={handleFileInput} className="hidden" />
                 <button onClick={() => fileInputRef.current?.click()}

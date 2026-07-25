@@ -1,5 +1,16 @@
 import { parseEuroPrice, determineSizeAttribute, toSentenceCase } from '@/lib/import/shared';
-import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
+import type {
+  SupplierPlugin,
+  ParsedProduct,
+  SupplierFiles,
+  ParseContext,
+  EnrichmentResult,
+} from '@/lib/suppliers/types';
+import {
+  applyWeekendHouseKidsRrp,
+  FALLBACK_MULTIPLIER,
+  parseWeekendHouseKidsSrpFromText,
+} from './rrp';
 
 function convertWeekendHouseKidsSize(sizeStr: string): string {
   if (!sizeStr) return sizeStr;
@@ -59,7 +70,7 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
   const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
 
-  if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || eanIdx === -1) {
+  if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1) {
     return [];
   }
 
@@ -75,13 +86,14 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
     const productName = values[productNameIdx] || '';
     const colorName = values[colorNameIdx] || '';
     const sizeName = values[sizeNameIdx] || '';
-    const ean = values[eanIdx] || '';
+    const ean = eanIdx !== -1 ? values[eanIdx] || '' : '';
     const quantity = parseInt(values[quantityIdx] || '0');
     const unitPrice = parseEuroPrice(values[unitPriceIdx] || '0');
     const composition = values[compositionIdx] || '';
     const description = values[descriptionIdx] || '';
 
-    if (!productReference || !productName || !colorName || !sizeName || !ean) continue;
+    // EAN may be empty — user fills later or leaves blank
+    if (!productReference || !productName || !colorName || !sizeName) continue;
 
     const productKey = `${productReference}-${colorName}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
@@ -102,6 +114,7 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
         productTags: [],
         isFavorite: false,
         isPublished: true,
+        rrpSource: 'fallback',
       };
     }
 
@@ -112,7 +125,7 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
       quantity,
       ean,
       price: unitPrice,
-      rrp: unitPrice * 2.5,
+      rrp: Math.round(unitPrice * FALLBACK_MULTIPLIER * 100) / 100,
     });
   }
 
@@ -124,14 +137,52 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   return productList;
 }
 
+function processPdfResults(
+  pdfData: Record<string, unknown>,
+  existingProducts: ParsedProduct[],
+  _context: ParseContext,
+): EnrichmentResult {
+  const rawMap = (pdfData.priceMap || {}) as Record<string, number>;
+  const priceMap = new Map<string, number>();
+  for (const [ref, rrp] of Object.entries(rawMap)) {
+    if (typeof rrp === 'number' && rrp > 0) {
+      priceMap.set(ref.toUpperCase(), rrp);
+    }
+  }
+
+  // Also accept pre-parsed text if API returns it (tests / alternate path)
+  if (priceMap.size === 0 && typeof pdfData.text === 'string') {
+    const fromText = parseWeekendHouseKidsSrpFromText(pdfData.text);
+    for (const [ref, rrp] of fromText) {
+      priceMap.set(ref, rrp);
+    }
+  }
+
+  const result = applyWeekendHouseKidsRrp(existingProducts, priceMap);
+  return {
+    products: result.products,
+    message: result.message,
+  };
+}
+
 const weekendHouseKidsPlugin: SupplierPlugin = {
   id: 'weekendhousekids',
   displayName: 'Weekend House Kids',
   brandName: 'Weekend House Kids',
   fileInputs: [
     { id: 'main_csv', label: 'Weekend House Kids CSV', accept: '.csv', required: true, type: 'csv' },
+    {
+      id: 'rrp_pdf',
+      label: 'RRP / Order Confirmation PDF (optioneel - verkoopprijs)',
+      accept: '.pdf',
+      required: false,
+      type: 'pdf',
+    },
   ],
   parse,
+  serverSideFileInputs: ['rrp_pdf'],
+  pdfParseEndpoint: '/api/parse-weekendhousekids-pdf',
+  processPdfResults,
 
   imageUpload: {
     enabled: true,
