@@ -593,18 +593,36 @@ export default function useImportWizard() {
         }
       } else if (data.success && plugin.processPdfResults) {
         const context = createParseContext(brands, selectedVendor);
-        const result = plugin.processPdfResults(
-          data,
-          parsedProducts,
-          context,
-        );
 
-        if (result.products.length > 0) {
-          setParsedProducts(result.products);
-          setSelectedProducts(
-            new Set(result.products.map((p) => p.reference)),
+        // Keep PDF JSON in supplier files so later CSV uploads can re-combine
+        const updatedFiles = {
+          ...supplierFilesRef.current,
+          [fileInputId]: JSON.stringify(data),
+        };
+        supplierFilesRef.current = updatedFiles;
+        setSupplierFiles(updatedFiles);
+
+        // Prefer full parse (PDF + any CSVs already loaded)
+        let products = plugin.parse(updatedFiles as SupplierFiles, context);
+        let message: string | undefined;
+        if (products.length === 0) {
+          const result = plugin.processPdfResults(
+            data,
+            parsedProducts,
+            context,
           );
-          checkExistingBarcodes(result.products);
+          products = result.products;
+          message = result.message;
+        } else {
+          message = `${products.length} producten uit PDF (+ CSV's indien aanwezig).`;
+        }
+
+        if (products.length > 0) {
+          setParsedProducts(products);
+          setSelectedProducts(
+            new Set(products.map((p) => p.reference)),
+          );
+          checkExistingBarcodes(products);
         }
 
         setSupplierFileStatus((prev) => ({
@@ -612,8 +630,8 @@ export default function useImportWizard() {
           [fileInputId]: true,
         }));
 
-        if (result.message) {
-          alert(result.message);
+        if (message) {
+          alert(message);
         }
       } else {
         alert(

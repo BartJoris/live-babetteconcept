@@ -313,29 +313,38 @@ const SUPPLIER_RULES: SupplierRule[] = [
     supplierName: 'Wyncken',
     csvRules: [
       {
-        fileInputId: 'descriptions_csv',
-        fileInputLabel: 'Product Descriptions CSV',
-        detect: (headers) => {
-          if (h(headers, 'Product ID', 'Style', 'Description', 'Textile Content')) return 0.95;
-          return 0;
-        },
-        reason: 'Product ID + Style + Description + Textile Content',
-      },
-      {
         fileInputId: 'barcodes_csv',
         fileInputLabel: 'Barcodes CSV',
         detect: (headers) => {
-          if (h(headers, 'Product ID', 'Style', 'Barcode') && !headers.some(hdr => hdr.toLowerCase().includes('description'))) return 0.95;
+          if (h(headers, 'Product ID', 'Style', 'Barcode', 'Size')) return 0.95;
+          if (h(headers, 'Product ID', 'Barcode') && headers.some(hdr => hdr.toLowerCase() === 'size')) return 0.9;
           return 0;
         },
-        reason: 'Product ID + Style + Barcode (zonder Description)',
+        reason: 'Product ID + Style + Size + Barcode',
+      },
+      {
+        fileInputId: 'descriptions_csv',
+        fileInputLabel: 'Master Data CSV',
+        detect: (headers) => {
+          if (h(headers, 'Product ID', 'Style', 'Textile Content') &&
+              headers.some(hdr => /rrp|wsp/i.test(hdr))) return 0.95;
+          if (h(headers, 'Product ID', 'Style', 'Description', 'Textile Content')) return 0.9;
+          return 0;
+        },
+        reason: 'Master Data: Product ID + Textile Content + RRP/WSP',
       },
     ],
     pdfRules: [{
       fileInputId: 'pdf_invoice',
-      fileInputLabel: 'Invoice PDF',
-      detect: (fn) => fn.toLowerCase().includes('wyncken') || /PF-\d+/i.test(fn) ? 0.8 : 0,
-      reason: 'Bestandsnaam verwijst naar Wyncken',
+      fileInputLabel: 'Sales Order / Invoice PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (/so-\d+/i.test(fn) || l.includes('sales') || l.includes('order')) return 0.9;
+        if (l.includes('wyncken') || l.includes('wynken') || /PF-\d+/i.test(fn)) return 0.85;
+        if (l.includes('babette') && (l.includes('aw') || l.includes('ss'))) return 0.6;
+        return 0;
+      },
+      reason: 'Wyncken sales order (SO) of proforma (PF)',
     }],
   },
 

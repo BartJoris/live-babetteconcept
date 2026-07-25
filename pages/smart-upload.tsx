@@ -169,9 +169,18 @@ export default function SmartUploadPage() {
             const res = await fetch(plugin.pdfParseEndpoint, { method: 'POST', body: formData });
             const pdfData = await res.json();
             if (pdfData.success) {
-              const csvProducts = Object.keys(fileMap).length > 0 ? plugin.parse(fileMap, createParseContext([], supplierId)) : [];
-              const result = plugin.processPdfResults(pdfData, csvProducts, createParseContext([], supplierId));
-              if (result.products.length > 0) sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
+              // Store PDF JSON so supplier.parse() can combine with CSVs (Wyncken etc.)
+              fileMap[pf.fileInputId] = JSON.stringify(pdfData);
+              const context = createParseContext([], supplierId);
+              const fromParse = plugin.parse(fileMap, context);
+              if (fromParse.length > 0) {
+                sessionStorage.setItem('smart_upload_products', JSON.stringify(fromParse));
+              } else if (plugin.processPdfResults) {
+                const result = plugin.processPdfResults(pdfData, [], context);
+                if (result.products.length > 0) {
+                  sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
+                }
+              }
             }
           }
         }
