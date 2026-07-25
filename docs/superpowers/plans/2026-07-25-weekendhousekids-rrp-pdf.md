@@ -42,7 +42,7 @@
 - Produces: `parseWeekendHouseKidsSrpFromText(text: string): Map<string, number>`
 - Produces: `applyWeekendHouseKidsRrp(products, priceMap): { products, matched, fallback, message }`
 
-- [ ] **Step 1: Add `rrpSource` to ParsedProduct**
+- [x] **Step 1: Add `rrpSource` to ParsedProduct**
 
 ```ts
 rrpSource?: 'pdf' | 'fallback';
