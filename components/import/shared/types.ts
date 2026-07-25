@@ -15,23 +15,31 @@ export interface StepConfig {
   icon: string;
 }
 
+export type ImportProductStatus = 'success' | 'partial' | 'failed';
+
 export interface ImportResultItem {
   success: boolean;
+  status?: ImportProductStatus;
+  partial?: boolean;
   reference: string;
   name?: string;
   templateId?: number;
   variantsCreated?: number;
   variantsUpdated?: number;
+  variantsExpected?: number;
   imagesUploaded?: number;
   message?: string;
+  warnings?: string[];
 }
 
 export interface ImportResults {
   success: boolean;
+  hasPartial?: boolean;
   results: ImportResultItem[];
   summary?: {
     total: number;
     successful: number;
+    partial: number;
     failed: number;
     totalVariantsCreated: number;
     totalVariantsUpdated: number;

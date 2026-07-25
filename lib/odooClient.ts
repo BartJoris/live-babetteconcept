@@ -1,6 +1,22 @@
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
 
+/** HTTP statuses that are safe to retry (rate limit / transient gateway). */
+const RETRYABLE_HTTP_STATUSES = new Set([429, 502, 503, 504]);
+const MAX_RPC_ATTEMPTS = 5;
+const RPC_RETRY_BASE_MS = 500;
+
+export function isRetryableHttpStatus(status: number): boolean {
+  return RETRYABLE_HTTP_STATUSES.has(status);
+}
+
+/** Exponential backoff with small jitter: 500ms, 1s, 2s, 4s… */
+export function rpcRetryDelayMs(attemptIndex: number, baseMs = RPC_RETRY_BASE_MS): number {
+  const exp = Math.min(baseMs * 2 ** attemptIndex, 8_000);
+  const jitter = Math.floor(Math.random() * 150);
+  return exp + jitter;
+}
+
 export interface OdooCallParams {
   uid: number;
   password: string;
@@ -73,7 +89,8 @@ export class OdooClient {
   }
 
   /**
-   * Execute a generic Odoo RPC call
+   * Execute a generic Odoo RPC call.
+   * Retries on HTTP 429 / 502 / 503 / 504 with exponential backoff.
    */
   async call<T = unknown>(params: OdooCallParams): Promise<T> {
     const { uid, password, model, method, args, kwargs } = params;
@@ -83,39 +100,60 @@ export class OdooClient {
       executeArgs.push(kwargs);
     }
 
-    const payload = {
-      jsonrpc: '2.0',
-      method: 'call',
-      params: {
-        service: 'object',
-        method: 'execute_kw',
-        args: executeArgs,
-      },
-      id: Date.now(),
-    };
+    let lastHttpStatus: number | undefined;
 
-    const response = await fetch(this.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    for (let attempt = 0; attempt < MAX_RPC_ATTEMPTS; attempt++) {
+      const payload = {
+        jsonrpc: '2.0',
+        method: 'call',
+        params: {
+          service: 'object',
+          method: 'execute_kw',
+          args: executeArgs,
+        },
+        id: Date.now() + attempt,
+      };
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        lastHttpStatus = response.status;
+        if (
+          isRetryableHttpStatus(response.status) &&
+          attempt < MAX_RPC_ATTEMPTS - 1
+        ) {
+          const delay = rpcRetryDelayMs(attempt);
+          console.warn(
+            `Odoo HTTP ${response.status} on ${model}.${method} — retry ${attempt + 1}/${MAX_RPC_ATTEMPTS - 1} in ${delay}ms`,
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const json: OdooResponse<T> = await response.json();
+
+      if (json.error) {
+        const errorMessage =
+          json.error.data?.message || json.error.message || 'Unknown Odoo error';
+        throw new Error(errorMessage);
+      }
+
+      if (json.result === undefined) {
+        throw new Error('No result returned from Odoo');
+      }
+
+      return json.result;
     }
 
-    const json: OdooResponse<T> = await response.json();
-
-    if (json.error) {
-      const errorMessage = json.error.data?.message || json.error.message || 'Unknown Odoo error';
-      throw new Error(errorMessage);
-    }
-
-    if (json.result === undefined) {
-      throw new Error('No result returned from Odoo');
-    }
-
-    return json.result;
+    throw new Error(
+      `HTTP error! status: ${lastHttpStatus ?? 'unknown'} (retries exhausted)`,
+    );
   }
 
   /**

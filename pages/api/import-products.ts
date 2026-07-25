@@ -6,6 +6,12 @@ import { rateLimitImport } from '@/lib/middleware/rateLimiter';
 import { logProductImport } from '@/lib/auditLog';
 import { OdooImportService, OdooImageService } from '@/lib/import/services';
 import type { ImportProductData, ImportVariantData } from '@/lib/import/services';
+import {
+  buildPartialVariantMessage,
+  summarizeImportResults,
+  type ImportProductStatus,
+  type ImportResultLike,
+} from '@/lib/import/import-result-status';
 
 function getClientIp(req: NextApiRequestWithSession): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -47,7 +53,7 @@ async function handler(
     const importService = new OdooImportService(uid, password);
     const imageService = new OdooImageService(uid, password);
 
-    const results = [];
+    const results: ImportResultLike[] = [];
 
     for (const product of products) {
       try {
@@ -181,15 +187,28 @@ async function handler(
           console.log(`✅ Uploaded ${imagesUploaded}/${product.images.length} images`);
         }
 
+        const isPartial =
+          !isNoVariantProduct && variantResult.updated < expectedVariants;
+        const status: ImportProductStatus = isPartial ? 'partial' : 'success';
+        const warnings = isPartial
+          ? [buildPartialVariantMessage(variantResult.updated, expectedVariants)]
+          : [];
+
         results.push({
-          success: true,
+          success: status === 'success',
+          status,
+          partial: isPartial,
           reference: product.reference,
           name: displayName,
           templateId,
           variantsCreated: variantResult.total,
           variantsUpdated: variantResult.updated,
+          variantsExpected: expectedVariants,
           imagesUploaded,
-          message: `Created template ${templateId} with ${variantResult.total} variants${imagesUploaded > 0 ? ` and ${imagesUploaded} images` : ''}`,
+          warnings,
+          message: isPartial
+            ? `Template ${templateId} aangemaakt, maar ${warnings[0]}`
+            : `Created template ${templateId} with ${variantResult.updated}/${expectedVariants} variants${imagesUploaded > 0 ? ` and ${imagesUploaded} images` : ''}`,
         });
 
       } catch (productError) {
@@ -197,6 +216,8 @@ async function handler(
         const err = productError as { message?: string };
         results.push({
           success: false,
+          status: 'failed',
+          partial: false,
           reference: product.reference,
           name: product.name,
           message: err.message || String(productError),
@@ -204,11 +225,13 @@ async function handler(
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-    console.log(`\n🎉 Import complete: ${successCount}/${results.length} successful`);
+    const tallies = summarizeImportResults(results);
+    console.log(
+      `\n🎉 Import complete: ${tallies.successful} ok, ${tallies.partial} partial, ${tallies.failed} failed / ${tallies.total}`,
+    );
 
     const successfulProducts = results
-      .filter(r => r.success)
+      .filter((r) => r.status === 'success')
       .map(r => ({
         reference: r.reference,
         name: r.name,
@@ -218,8 +241,19 @@ async function handler(
         imagesUploaded: r.imagesUploaded || 0,
       }));
 
+    const partialProducts = results
+      .filter((r) => r.status === 'partial')
+      .map((r) => ({
+        reference: r.reference,
+        name: r.name,
+        templateId: r.templateId,
+        variantsUpdated: r.variantsUpdated || 0,
+        variantsExpected: r.variantsExpected || 0,
+        warning: r.message,
+      }));
+
     const failedProducts = results
-      .filter(r => !r.success)
+      .filter((r) => r.status === 'failed')
       .map(r => ({
         reference: r.reference,
         name: r.name,
@@ -230,28 +264,32 @@ async function handler(
       req.session.user!.uid,
       req.session.user!.username,
       getClientIp(req),
-      true,
+      tallies.failed === 0 && tallies.partial === 0,
       products.length,
       {
-        successful: successCount,
-        failed: results.length - successCount,
+        successful: tallies.successful,
+        partial: tallies.partial,
+        failed: tallies.failed,
         testMode,
         vendor: (req.body as { vendor?: string }).vendor || 'unknown',
         successfulProducts: successfulProducts.slice(0, 50),
+        partialProducts: partialProducts.slice(0, 50),
         failedProducts: failedProducts.slice(0, 50),
-        totalVariantsCreated: results.reduce((sum, r) => sum + (r.variantsCreated || 0), 0),
-        totalVariantsUpdated: results.reduce((sum, r) => sum + (r.variantsUpdated || 0), 0),
+        totalVariantsCreated: tallies.totalVariantsCreated,
+        totalVariantsUpdated: tallies.totalVariantsUpdated,
         totalImagesUploaded: results.reduce((sum, r) => sum + (r.imagesUploaded || 0), 0),
       }
     );
 
     return res.status(200).json({
-      success: true,
+      success: tallies.failed === 0 && tallies.partial === 0,
+      hasPartial: tallies.partial > 0,
       results,
       summary: {
-        total: results.length,
-        successful: successCount,
-        failed: results.length - successCount,
+        total: tallies.total,
+        successful: tallies.successful,
+        partial: tallies.partial,
+        failed: tallies.failed,
       },
     });
 

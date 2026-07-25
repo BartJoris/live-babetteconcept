@@ -578,8 +578,8 @@ export class OdooImportService {
       }
     });
 
-    // Limited parallelism: faster than fully sequential, safer than unbounded.
-    const concurrency = 4;
+    // Keep low: Odoo/Cloudflare often 429s when writing several variants at once.
+    const concurrency = 2;
     let updated = 0;
     for (let i = 0; i < jobs.length; i += concurrency) {
       const chunk = await Promise.all(

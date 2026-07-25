@@ -20,10 +20,17 @@ import type {
   Category,
   StepConfig,
   ImportResults,
+  ImportResultItem,
   ImportProgress,
   ImagePoolItem,
   ImageImportResult,
 } from '@/components/import/shared/types';
+import {
+  buildImportLogPayload,
+  isImportRecoverable,
+  resolveImportStatus,
+  summarizeImportResults,
+} from '@/lib/import/import-result-status';
 
 type VendorType = string | null;
 
@@ -1342,15 +1349,7 @@ export default function useImportWizard() {
   const IMPORT_REPLAY_KEY = 'import_replay_payload';
   const IMPORT_DRAFT_KEY = 'import_wizard_draft';
 
-  type ImportResultRow = {
-    success: boolean;
-    reference: string;
-    name?: string;
-    templateId?: number;
-    variantsCreated?: number;
-    variantsUpdated?: number;
-    message?: string;
-  };
+  type ImportResultRow = ImportResultItem;
 
   type ImportReplayPayload = {
     version: 1;
@@ -1505,15 +1504,27 @@ export default function useImportWizard() {
 
         const result = await parseImportResponse(response);
 
-        if (result.success && result.results) {
+        // Batch may include partials: top-level success can be false while results exist
+        if (result.results && result.results.length > 0) {
           results.push(...result.results);
+        } else if (!response.ok || result.error) {
+          results.push(
+            ...batch.map((p) => ({
+              success: false,
+              status: 'failed' as const,
+              reference: p.reference,
+              name: p.name,
+              message: result.error || `HTTP ${response.status}`,
+            })),
+          );
         } else {
           results.push(
             ...batch.map((p) => ({
               success: false,
+              status: 'failed' as const,
               reference: p.reference,
               name: p.name,
-              message: result.error || `HTTP ${response.status}`,
+              message: 'Geen importresultaten ontvangen van de server',
             })),
           );
         }
@@ -1523,6 +1534,7 @@ export default function useImportWizard() {
         results.push(
           ...batch.map((p) => ({
             success: false,
+            status: 'failed' as const,
             reference: p.reference,
             name: p.name,
             message:
@@ -1539,28 +1551,33 @@ export default function useImportWizard() {
     results: ImportResultRow[],
     productsToImport: ParsedProduct[],
   ) => {
+    const normalized = results.map((r) => {
+      const status = resolveImportStatus(r);
+      return {
+        ...r,
+        status,
+        success: status === 'success',
+        partial: status === 'partial',
+      };
+    });
+    const tallies = summarizeImportResults(normalized);
     const summary = {
-      total: results.length,
-      successful: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
-      totalVariantsCreated: results.reduce(
-        (sum, r) => sum + (r.variantsCreated || 0),
-        0,
-      ),
-      totalVariantsUpdated: results.reduce(
-        (sum, r) => sum + (r.variantsUpdated || 0),
-        0,
-      ),
+      ...tallies,
       vendor: selectedVendor || 'unknown',
       timestamp: new Date().toISOString(),
     };
 
-    setImportResults({ success: true, results, summary });
+    setImportResults({
+      success: tallies.failed === 0 && tallies.partial === 0,
+      hasPartial: tallies.partial > 0,
+      results: normalized,
+      summary,
+    });
     console.log('📊 Import Summary:', summary);
 
     if (selectedVendor === 'playup') {
-      const playupResults = results
-        .filter((r) => r.success && r.templateId)
+      const playupResults = normalized
+        .filter((r) => r.templateId && resolveImportStatus(r) !== 'failed')
         .map((r) => ({
           reference: r.reference || '',
           colorCode: r.reference?.split('-')[1] || '',
@@ -1585,10 +1602,39 @@ export default function useImportWizard() {
     const hasPoolImages = productsToImport.some((p) =>
       imagePool.some((img) => img.assignedReference === p.reference),
     );
-    if (hasPoolImages && results.some((r) => r.success)) {
+    // Full success + partial (template exists) can still receive images
+    if (
+      hasPoolImages &&
+      normalized.some((r) => r.templateId && resolveImportStatus(r) !== 'failed')
+    ) {
       console.log('📸 Auto-uploading images from pool...');
       setTimeout(() => uploadAllImages(), 500);
     }
+  };
+
+  const downloadImportLog = () => {
+    if (!importResults) {
+      alert('Geen importresultaten om te downloaden.');
+      return;
+    }
+    const payload = buildImportLogPayload({
+      vendor: importResults.summary?.vendor || selectedVendor || 'unknown',
+      timestamp:
+        importResults.summary?.timestamp || new Date().toISOString(),
+      results: importResults.results,
+    });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import-log-${payload.vendor}-${new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:T]/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const executeImport = async (testMode: boolean = false) => {
@@ -1632,30 +1678,32 @@ export default function useImportWizard() {
     }
   };
 
-  /** Retry only products that failed in the last import result (same wizard state). */
+  /** Retry failed + partial products from the last import result. */
   const retryFailedImport = async () => {
     if (!importResults) {
       alert('Geen importresultaten om te herhalen.');
       return;
     }
 
-    const failedRefs = new Set(
+    const retryRefs = new Set(
       importResults.results
-        .filter((r) => !r.success)
+        .filter((r) => isImportRecoverable(r))
         .map((r) => r.reference),
     );
     const productsToRetry = parsedProducts.filter((p) =>
-      failedRefs.has(p.reference),
+      retryRefs.has(p.reference),
     );
 
     if (productsToRetry.length === 0) {
-      alert('Geen mislukte producten gevonden in de huidige wizardstatus.');
+      alert(
+        'Geen mislukte of gedeeltelijke producten gevonden in de huidige wizardstatus.',
+      );
       return;
     }
 
     if (
       !confirm(
-        `${productsToRetry.length} mislukte producten opnieuw importeren?\n\nTip: archiveer eerst gedeeltelijk aangemaakte producten in Odoo (barcodes), anders krijg je conflicten.`,
+        `${productsToRetry.length} mislukte/gedeeltelijke producten opnieuw importeren?\n\nTip: archiveer eerst gedeeltelijk aangemaakte producten in Odoo (barcodes), anders krijg je conflicten.`,
       )
     ) {
       return;
@@ -1805,7 +1853,10 @@ export default function useImportWizard() {
     try {
       for (const [reference, images] of grouped) {
         const result = importResults.results.find(
-          (r) => r.success && r.reference === reference,
+          (r) =>
+            r.reference === reference &&
+            r.templateId &&
+            resolveImportStatus(r) !== 'failed',
         );
         if (!result?.templateId) {
           imgResults.push({
@@ -1822,7 +1873,9 @@ export default function useImportWizard() {
 
         for (let i = 0; i < sorted.length; i++) {
           try {
-            const base64 = sorted[i].dataUrl.split(',')[1];
+            const base64 = sorted[i].dataUrl.includes(',')
+              ? sorted[i].dataUrl.split(',')[1]
+              : sorted[i].dataUrl;
             const response = await fetch('/api/upload-single-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -2287,6 +2340,7 @@ export default function useImportWizard() {
     retryFailedImport,
     replayLastImportPayload,
     downloadImportPayload,
+    downloadImportLog,
     loadImportPayloadFile,
     uploadAllImages,
     resetWizard,

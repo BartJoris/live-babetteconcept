@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import EnhancedImageManager from '@/components/import/shared/EnhancedImageManager';
 import type { UseImportWizardReturn } from '@/hooks/useImportWizard';
+import {
+  isImportRecoverable,
+  resolveImportStatus,
+} from '@/lib/import/import-result-status';
 
 interface ImportStepProps {
   wizard: UseImportWizardReturn;
@@ -10,9 +14,17 @@ export default function ImportStep({ wizard }: ImportStepProps) {
   if (!wizard.importResults) return null;
 
   const { results, summary } = wizard.importResults;
-  const successCount = results.filter((r) => r.success).length;
-  const failCount = results.filter((r) => !r.success).length;
-  const allSuccess = failCount === 0;
+  const successCount =
+    summary?.successful ??
+    results.filter((r) => resolveImportStatus(r) === 'success').length;
+  const partialCount =
+    summary?.partial ??
+    results.filter((r) => resolveImportStatus(r) === 'partial').length;
+  const failCount =
+    summary?.failed ??
+    results.filter((r) => resolveImportStatus(r) === 'failed').length;
+  const retryCount = results.filter((r) => isImportRecoverable(r)).length;
+  const allSuccess = failCount === 0 && partialCount === 0;
 
   const plugin = wizard.selectedVendor
     ? wizard.getSupplier(wizard.selectedVendor)
@@ -20,23 +32,53 @@ export default function ImportStep({ wizard }: ImportStepProps) {
   const imgConfig = plugin?.imageUpload;
 
   const successfulProducts = wizard.parsedProducts.filter((p) =>
-    results.some((r) => r.success && r.reference === p.reference),
+    results.some(
+      (r) =>
+        r.reference === p.reference &&
+        r.templateId &&
+        resolveImportStatus(r) !== 'failed',
+    ),
   );
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-        {allSuccess ? '✅ Import voltooid!' : '⚠️ Importresultaten'}
+        {allSuccess ? 'Import voltooid!' : 'Importresultaten'}
       </h2>
 
+      {(partialCount > 0 || failCount > 0) && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-100">
+          <p className="font-semibold mb-1">Niet alles is volledig gelukt</p>
+          <p className="text-sm">
+            {partialCount > 0 && (
+              <>
+                {partialCount} product(en) gedeeltelijk (niet alle maten kregen
+                EAN/prijs).{' '}
+              </>
+            )}
+            {failCount > 0 && <>{failCount} product(en) mislukt. </>}
+            Download het importlog voor details, of probeer de openstaande
+            producten opnieuw.
+          </p>
+        </div>
+      )}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
           <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
             Succesvol
           </div>
           <div className="text-3xl font-bold text-green-600 dark:text-green-400">
             {successCount}
+          </div>
+        </div>
+        <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
+          <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+            Gedeeltelijk
+          </div>
+          <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+            {partialCount}
           </div>
         </div>
         <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
@@ -82,7 +124,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
             </div>
             <div>
               <span className="text-gray-500 dark:text-gray-400">
-                Varianten Aangemaakt:
+                Varianten aangemaakt:
               </span>{' '}
               <span className="font-medium text-gray-900 dark:text-gray-100">
                 {summary.totalVariantsCreated}
@@ -90,7 +132,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
             </div>
             <div>
               <span className="text-gray-500 dark:text-gray-400">
-                Varianten Bijgewerkt:
+                Varianten bijgewerkt:
               </span>{' '}
               <span className="font-medium text-gray-900 dark:text-gray-100">
                 {summary.totalVariantsUpdated}
@@ -119,7 +161,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
                   Product ID
                 </th>
                 <th className="p-3 text-center font-semibold border-b border-blue-700 dark:border-blue-800">
-                  Varianten
+                  Maten
                 </th>
                 <th className="p-3 text-center font-semibold border-b border-blue-700 dark:border-blue-800">
                   Afbeeldingen
@@ -135,45 +177,78 @@ export default function ImportStep({ wizard }: ImportStepProps) {
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-sm border-collapse">
             <tbody>
-              {results.map((result, idx) => (
-                <tr
-                  key={`${result.reference}_${idx}`}
-                  className={`border-b dark:border-gray-700 transition-colors ${
-                    idx % 2 === 0
-                      ? 'bg-white dark:bg-gray-800'
-                      : 'bg-gray-50 dark:bg-gray-750'
-                  }`}
-                >
-                  <td className="p-3 text-center text-lg">
-                    {result.success ? '✅' : '❌'}
-                  </td>
-                  <td className="p-3 font-medium text-gray-900 dark:text-gray-100">
-                    {result.templateId ? (
-                      <Link
-                        href={`/product-debug?id=${result.templateId}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {result.name || result.reference}
-                      </Link>
-                    ) : (
-                      result.name || result.reference
-                    )}
-                  </td>
-                  <td className="p-3 font-mono text-xs text-gray-600 dark:text-gray-400">
-                    {result.templateId || '—'}
-                  </td>
-                  <td className="p-3 text-center text-gray-900 dark:text-gray-100">
-                    {(result.variantsCreated || 0) +
-                      (result.variantsUpdated || 0)}
-                  </td>
-                  <td className="p-3 text-center text-gray-900 dark:text-gray-100">
-                    {result.imagesUploaded || 0}
-                  </td>
-                  <td className="p-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
-                    {result.message || '—'}
-                  </td>
-                </tr>
-              ))}
+              {results.map((result, idx) => {
+                const status = resolveImportStatus(result);
+                const expected =
+                  result.variantsExpected ??
+                  result.variantsCreated ??
+                  result.variantsUpdated ??
+                  0;
+                const updated = result.variantsUpdated ?? 0;
+                const rowBg =
+                  status === 'failed'
+                    ? 'bg-red-50 dark:bg-red-900/20'
+                    : status === 'partial'
+                      ? 'bg-amber-50 dark:bg-amber-900/20'
+                      : idx % 2 === 0
+                        ? 'bg-white dark:bg-gray-800'
+                        : 'bg-gray-50 dark:bg-gray-750';
+
+                return (
+                  <tr
+                    key={`${result.reference}_${idx}`}
+                    className={`border-b dark:border-gray-700 transition-colors ${rowBg}`}
+                  >
+                    <td className="p-3 text-center text-sm font-semibold">
+                      {status === 'success' && (
+                        <span className="text-green-700 dark:text-green-300">
+                          OK
+                        </span>
+                      )}
+                      {status === 'partial' && (
+                        <span className="text-amber-700 dark:text-amber-300">
+                          Gedeeltelijk
+                        </span>
+                      )}
+                      {status === 'failed' && (
+                        <span className="text-red-700 dark:text-red-300">
+                          Mislukt
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 font-medium text-gray-900 dark:text-gray-100">
+                      {result.templateId ? (
+                        <Link
+                          href={`/product-debug?id=${result.templateId}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          {result.name || result.reference}
+                        </Link>
+                      ) : (
+                        result.name || result.reference
+                      )}
+                    </td>
+                    <td className="p-3 font-mono text-xs text-gray-600 dark:text-gray-400">
+                      {result.templateId || '—'}
+                    </td>
+                    <td
+                      className={`p-3 text-center font-medium ${
+                        status === 'partial'
+                          ? 'text-amber-700 dark:text-amber-300'
+                          : 'text-gray-900 dark:text-gray-100'
+                      }`}
+                    >
+                      {expected > 0 ? `${updated}/${expected}` : updated || '—'}
+                    </td>
+                    <td className="p-3 text-center text-gray-900 dark:text-gray-100">
+                      {result.imagesUploaded || 0}
+                    </td>
+                    <td className="p-3 text-sm text-gray-700 dark:text-gray-300 max-w-md whitespace-normal">
+                      {result.message || '—'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -185,7 +260,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
           {imgConfig.dedicatedPageUrl ? (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
               <p className="text-blue-800 dark:text-blue-200 mb-2">
-                📸 Afbeeldingen uploaden via een speciale pagina:
+                Afbeeldingen uploaden via een speciale pagina:
               </p>
               <Link
                 href={imgConfig.dedicatedPageUrl}
@@ -215,7 +290,7 @@ export default function ImportStep({ wizard }: ImportStepProps) {
       {wizard.imageImportResults.length > 0 && (
         <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">
-            📸 Resultaten afbeeldingenupload
+            Resultaten afbeeldingenupload
           </h3>
           <div className="flex gap-4 text-sm mb-3">
             <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">
@@ -260,22 +335,30 @@ export default function ImportStep({ wizard }: ImportStepProps) {
       {/* Replay / retry without remapping */}
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4 mb-6">
         <h3 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
-          Opnieuw importeren (zonder wizard opnieuw)
+          Opnieuw importeren / logs
         </h3>
         <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-          De API-payload wordt bewaard in je browser. Archiveer eerst
-          gedeeltelijk aangemaakte producten in Odoo voordat je opnieuw
-          probeert (anders falen barcodes).
+          Download het importlog voor een overzicht van wat wel/niet lukte.
+          Archiveer eerst gedeeltelijk aangemaakte producten in Odoo voordat je
+          opnieuw probeert (anders falen barcodes).
         </p>
         <div className="flex flex-wrap gap-2">
-          {failCount > 0 && (
+          <button
+            type="button"
+            onClick={() => wizard.downloadImportLog()}
+            disabled={wizard.isLoading}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 font-medium disabled:opacity-50"
+          >
+            Importlog downloaden
+          </button>
+          {retryCount > 0 && (
             <button
               type="button"
               onClick={() => wizard.retryFailedImport()}
               disabled={wizard.isLoading}
               className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50"
             >
-              Mislukte opnieuw proberen ({failCount})
+              Mislukte/gedeeltelijke opnieuw ({retryCount})
             </button>
           )}
           <button
@@ -316,14 +399,14 @@ export default function ImportStep({ wizard }: ImportStepProps) {
           onClick={wizard.resetWizard}
           className="px-6 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
         >
-          🔄 Nieuwe import
+          Nieuwe import
         </button>
         {imgConfig?.dedicatedPageUrl && (
           <Link
             href={imgConfig.dedicatedPageUrl}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
           >
-            📸 Afbeeldingen Uploaden
+            Afbeeldingen Uploaden
           </Link>
         )}
       </div>
