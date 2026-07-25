@@ -22,6 +22,7 @@ import type {
   ImportResults,
   ImportResultItem,
   ImportProgress,
+  ImageUploadProgressState,
   ImagePoolItem,
   ImageImportResult,
 } from '@/components/import/shared/types';
@@ -31,6 +32,7 @@ import {
   resolveImportStatus,
   summarizeImportResults,
 } from '@/lib/import/import-result-status';
+import { uploadProductImagesBatch } from '@/lib/import/image-upload-client';
 
 type VendorType = string | null;
 
@@ -118,6 +120,8 @@ export default function useImportWizard() {
   const [imageImportResults, setImageImportResults] = useState<
     ImageImportResult[]
   >([]);
+  const [imageUploadProgress, setImageUploadProgress] =
+    useState<ImageUploadProgressState | null>(null);
 
   // ─── Image pool ───────────────────────────────────────────────────────
   const [imagePool, setImagePool] = useState<ImagePoolItem[]>([]);
@@ -1845,69 +1849,105 @@ export default function useImportWizard() {
       grouped.set(img.assignedReference, list);
     }
 
+    const entries = Array.from(grouped.entries());
+    const totalImages = entries.reduce((sum, [, imgs]) => sum + imgs.length, 0);
+    if (totalImages === 0) {
+      alert('Geen toegewezen afbeeldingen om te uploaden.');
+      return;
+    }
+
     const imgResults: ImageImportResult[] = [];
     if (!(await ensureLoggedIn())) return;
 
     setIsLoading(true);
+    const doneByRef = new Map<string, number>();
+    const bumpProgress = (reference: string, count: number, label?: string) => {
+      doneByRef.set(reference, count);
+      let current = 0;
+      for (const n of doneByRef.values()) current += n;
+      setImageUploadProgress({
+        current,
+        total: totalImages,
+        currentProduct: label || reference,
+      });
+    };
+
+    setImageUploadProgress({
+      current: 0,
+      total: totalImages,
+      currentProduct: entries[0]?.[0],
+    });
 
     try {
-      for (const [reference, images] of grouped) {
-        const result = importResults.results.find(
-          (r) =>
-            r.reference === reference &&
-            r.templateId &&
-            resolveImportStatus(r) !== 'failed',
-        );
-        if (!result?.templateId) {
-          imgResults.push({
-            reference,
-            success: false,
-            imagesUploaded: 0,
-            error: 'Product niet gevonden in import resultaten',
-          });
-          continue;
-        }
+      // Up to 2 products in parallel; each product sends one multi-image request
+      const concurrency = 2;
+      for (let i = 0; i < entries.length; i += concurrency) {
+        const chunk = entries.slice(i, i + concurrency);
+        const chunkResults = await Promise.all(
+          chunk.map(async ([reference, images]) => {
+            const result = importResults.results.find(
+              (r) =>
+                r.reference === reference &&
+                r.templateId &&
+                resolveImportStatus(r) !== 'failed',
+            );
+            if (!result?.templateId) {
+              bumpProgress(reference, images.length, reference);
+              return {
+                reference,
+                success: false,
+                imagesUploaded: 0,
+                error: 'Product niet gevonden in import resultaten',
+              } satisfies ImageImportResult;
+            }
 
-        const sorted = [...images].sort((a, b) => a.order - b.order);
-        let uploaded = 0;
+            const sorted = [...images].sort((a, b) => a.order - b.order);
+            setImageUploadProgress((prev) => ({
+              current: prev?.current || 0,
+              total: totalImages,
+              currentProduct: result.name || reference,
+              currentFile: sorted[0]?.filename,
+            }));
 
-        for (let i = 0; i < sorted.length; i++) {
-          try {
-            const base64 = sorted[i].dataUrl.includes(',')
-              ? sorted[i].dataUrl.split(',')[1]
-              : sorted[i].dataUrl;
-            const response = await fetch('/api/upload-single-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                templateId: result.templateId,
-                base64Image: base64,
-                imageName: sorted[i].filename,
-                sequence: i + 1,
-                isMainImage: i === 0,
-              }),
+            const payload = sorted.map((img, idx) => ({
+              base64: img.dataUrl.includes(',')
+                ? img.dataUrl.split(',')[1]
+                : img.dataUrl,
+              imageName: img.filename,
+              sequence: idx + 1,
+              isMainImage: idx === 0,
+            }));
+
+            const upload = await uploadProductImagesBatch({
+              templateId: result.templateId,
+              images: payload,
             });
 
-            if (response.ok) uploaded++;
-          } catch (error) {
-            console.error(
-              `Error uploading image ${sorted[i].filename}:`,
-              error,
+            bumpProgress(
+              reference,
+              sorted.length,
+              result.name || reference,
             );
-          }
-        }
 
-        imgResults.push({
-          reference,
-          success: uploaded > 0,
-          imagesUploaded: uploaded,
-        });
+            return {
+              reference,
+              success: upload.uploaded > 0,
+              imagesUploaded: upload.uploaded,
+              error:
+                upload.errors.length > 0
+                  ? upload.errors.slice(0, 3).join('; ')
+                  : undefined,
+            } satisfies ImageImportResult;
+          }),
+        );
+        imgResults.push(...chunkResults);
       }
 
       setImageImportResults(imgResults);
     } catch (err) {
       alert(`Fout: ${err}`);
     } finally {
+      setImageUploadProgress(null);
       setIsLoading(false);
     }
   };
@@ -2022,6 +2062,7 @@ export default function useImportWizard() {
     setSelectedProducts(new Set());
     setImportResults(null);
     setImageImportResults([]);
+    setImageUploadProgress(null);
     setSupplierFiles({});
     setSupplierFileStatus({});
     setImagePool([]);
@@ -2355,6 +2396,7 @@ export default function useImportWizard() {
     setApiPreviewData,
     imageImportResults,
     setImageImportResults,
+    imageUploadProgress,
 
     // Loading states
     isLoading,

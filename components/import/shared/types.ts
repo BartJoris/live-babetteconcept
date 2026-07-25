@@ -63,6 +63,13 @@ export interface ImportProgress {
   currentProduct?: string;
 }
 
+export interface ImageUploadProgressState {
+  current: number;
+  total: number;
+  currentProduct?: string;
+  currentFile?: string;
+}
+
 export interface ImageImportResult {
   reference: string;
   success: boolean;

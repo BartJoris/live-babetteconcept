@@ -1,4 +1,5 @@
 import useImportWizard from '@/hooks/useImportWizard';
+import ImageUploadProgressBar from './shared/ImageUploadProgressBar';
 import UploadStep from './steps/UploadStep';
 import MappingStep from './steps/MappingStep';
 import StockStep from './steps/StockStep';
@@ -130,6 +131,15 @@ export default function ImportWizard() {
             <div className="text-xs text-gray-500">
               Dit kan enkele minuten duren. Sluit dit venster niet.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image upload progress modal */}
+      {wizard.imageUploadProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6">
+            <ImageUploadProgressBar progress={wizard.imageUploadProgress} />
           </div>
         </div>
       )}

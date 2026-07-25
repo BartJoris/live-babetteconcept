@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
+import ProductImageUploader from '@/components/images/ProductImageUploader';
+import type { ImageTarget, PoolImage } from '@/lib/images/types';
 import {
   colorsMatchEmileetida,
   extractEmileetidaImageInfo,
@@ -39,14 +41,6 @@ interface ProductWithImages {
   uploaded: boolean;
 }
 
-interface UploadResult {
-  productKey: string;
-  productName: string;
-  success: boolean;
-  imagesUploaded: number;
-  error?: string;
-}
-
 export default function EmileEtIdaImagesImport() {
   const ensureLoggedIn = async () => {
     try {
@@ -69,8 +63,9 @@ export default function EmileEtIdaImagesImport() {
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
   const [unmatchedImages, setUnmatchedImages] = useState<ImageFile[]>([]);
   
-  // Step 3: Upload
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
+  // Step 3: Upload via ProductImageUploader
+  const [uploaderTargets, setUploaderTargets] = useState<ImageTarget[]>([]);
+  const [uploaderImages, setUploaderImages] = useState<PoolImage[]>([]);
   
   // UI State
   const [currentStep, setCurrentStep] = useState(1);
@@ -412,138 +407,54 @@ export default function EmileEtIdaImagesImport() {
   };
 
   // ============================================
-  // UPLOAD TO ODOO
+  // PROCEED TO UPLOAD (ProductImageUploader)
   // ============================================
-  const uploadImages = async () => {
-    if (!(await ensureLoggedIn())) {
-      alert('⚠️ Odoo credentials niet gevonden. Log eerst in via Product Import.');
-      return;
-    }
-
+  const proceedToUpload = () => {
     const toUpload = productsWithImages.filter(p => p.selected && p.images.length > 0 && !p.uploaded);
     if (toUpload.length === 0) {
       alert('Selecteer eerst producten om te uploaden');
       return;
     }
 
-    // Check for products with existing images
     const withExisting = toUpload.filter(p => p.odooHasImages);
     if (withExisting.length > 0) {
-      const confirm = window.confirm(
+      const confirmed = window.confirm(
         `⚠️ WAARSCHUWING: ${withExisting.length} van de ${toUpload.length} geselecteerde producten hebben al afbeeldingen in Odoo.\n\n` +
         `Deze worden OVERSCHREVEN!\n\n` +
         `Producten:\n${withExisting.slice(0, 5).map(p => `• ${p.csvProduct.reference} - ${p.csvProduct.colorName}`).join('\n')}` +
         (withExisting.length > 5 ? `\n... en ${withExisting.length - 5} meer` : '') +
         `\n\nWeet je zeker dat je wilt doorgaan?`
       );
-      
-      if (!confirm) {
-        return;
-      }
+      if (!confirmed) return;
     }
 
-    setLoading(true);
-    const results: UploadResult[] = [];
+    const targets: ImageTarget[] = toUpload.map(p => ({
+      key: p.csvProduct.uniqueKey,
+      label: `${p.csvProduct.productName} - ${p.csvProduct.colorName}`,
+      templateId: p.odooTemplateId,
+      reference: p.csvProduct.reference,
+      hasExistingImages: p.odooHasImages,
+    }));
 
-    for (let i = 0; i < toUpload.length; i++) {
-      const product = toUpload[i];
-      
-      try {
-        // First, find the Odoo product template ID
-        const searchResponse = await fetch('/api/search-emileetida-products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reference: product.csvProduct.reference,
-            color: product.csvProduct.colorName,
-          }),
-        });
-        const searchData = await searchResponse.json();
-
-        if (!searchData.found || searchData.products.length === 0) {
-          results.push({
-            productKey: product.csvProduct.uniqueKey,
-            productName: `${product.csvProduct.productName} - ${product.csvProduct.colorName}`,
-            success: false,
-            imagesUploaded: 0,
-            error: 'Product niet gevonden in Odoo',
-          });
-          continue;
-        }
-
-        // Find the best matching product (by color)
-        let templateId = searchData.products[0].templateId;
-        const normalizedProductColor = product.csvProduct.colorName.toLowerCase().replace(/\s+/g, '');
-        
-        for (const p of searchData.products) {
-          const pColor = (p.color || '').toLowerCase().replace(/\s+/g, '');
-          if (pColor === normalizedProductColor || p.name.toLowerCase().includes(normalizedProductColor)) {
-            templateId = p.templateId;
-            break;
-          }
-        }
-
-        // Upload each image
-        let imagesUploaded = 0;
-        for (let imgIdx = 0; imgIdx < product.images.length; imgIdx++) {
-          const img = product.images[imgIdx];
-          const buffer = await img.file.arrayBuffer();
-          const base64 = Buffer.from(buffer).toString('base64');
-
-          const imageType = img.isLifestyle ? 'Lifestyle' : 'Product';
-          const imageName = `${product.csvProduct.reference} - ${product.csvProduct.colorName} - ${imageType} ${imgIdx + 1}`;
-
-          const uploadResponse = await fetch('/api/upload-single-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              templateId,
-              base64Image: base64,
-              imageName,
-              sequence: imgIdx + 1,
-              isMainImage: imgIdx === 0,
-            }),
-          });
-
-          const uploadData = await uploadResponse.json();
-          if (uploadData.success) {
-            imagesUploaded++;
-          }
-        }
-
-        results.push({
-          productKey: product.csvProduct.uniqueKey,
-          productName: `${product.csvProduct.productName} - ${product.csvProduct.colorName}`,
-          success: true,
-          imagesUploaded,
-        });
-      } catch (error) {
-        results.push({
-          productKey: product.csvProduct.uniqueKey,
-          productName: `${product.csvProduct.productName} - ${product.csvProduct.colorName}`,
-          success: false,
-          imagesUploaded: 0,
-          error: String(error),
+    const poolImages: PoolImage[] = [];
+    let idNum = 0;
+    for (const product of toUpload) {
+      for (let i = 0; i < product.images.length; i++) {
+        const img = product.images[i];
+        poolImages.push({
+          id: `emile-${++idNum}`,
+          dataUrl: img.previewUrl,
+          filename: img.filename,
+          file: img.file,
+          assignedKey: product.csvProduct.uniqueKey,
+          order: i,
         });
       }
     }
 
-    // Mark uploaded products
-    const successfulKeys = results.filter(r => r.success).map(r => r.productKey);
-    setProductsWithImages(prev =>
-      prev.map(p =>
-        successfulKeys.includes(p.csvProduct.uniqueKey)
-          ? { ...p, selected: false, uploaded: true }
-          : p
-      )
-    );
-
-    setUploadResults(results);
-    setLoading(false);
+    setUploaderTargets(targets);
+    setUploaderImages(poolImages);
     setCurrentStep(3);
-
-    const totalImages = results.reduce((sum, r) => sum + r.imagesUploaded, 0);
-    alert(`✅ ${totalImages} afbeeldingen geüpload voor ${results.filter(r => r.success).length} producten`);
   };
 
   // ============================================
@@ -987,78 +898,45 @@ export default function EmileEtIdaImagesImport() {
                   ← Terug
                 </button>
                 <button
-                  onClick={uploadImages}
-                  disabled={loading || stats.selected === 0}
+                  onClick={proceedToUpload}
+                  disabled={stats.selected === 0}
                   className={`px-6 py-2 rounded font-bold ${
                     stats.selected > 0
                       ? 'bg-pink-500 text-white hover:bg-pink-600'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {loading ? '⏳ Uploaden...' : `🚀 Upload ${stats.selected} Producten`}
+                  🚀 Upload {stats.selected} Producten
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Results */}
+          {/* Step 3: Review & Upload via ProductImageUploader */}
           {currentStep === 3 && (
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold mb-4">✅ Stap 3: Resultaten</h2>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-green-600">
-                    {uploadResults.filter(r => r.success).length}
-                  </div>
-                  <div className="text-sm text-gray-600">Succesvol</div>
-                </div>
-                <div className="bg-red-50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-red-600">
-                    {uploadResults.filter(r => !r.success).length}
-                  </div>
-                  <div className="text-sm text-gray-600">Mislukt</div>
-                </div>
-              </div>
-
-              <div className="max-h-96 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 sticky top-0">
-                    <tr>
-                      <th className="p-2 text-left">Product</th>
-                      <th className="p-2 text-left">Status</th>
-                      <th className="p-2 text-left">Afbeeldingen</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {uploadResults.map(result => (
-                      <tr key={result.productKey} className="border-b">
-                        <td className="p-2">{result.productName}</td>
-                        <td className="p-2">
-                          {result.success ? (
-                            <span className="text-green-600">✅ Succes</span>
-                          ) : (
-                            <span className="text-red-600">❌ {result.error}</span>
-                          )}
-                        </td>
-                        <td className="p-2">{result.imagesUploaded}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Remaining products info */}
-              {stats.withImages - stats.uploaded > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded p-4 mt-4">
-                  <p className="text-blue-800">
-                    📋 Nog <strong>{stats.withImages - stats.uploaded}</strong> producten met afbeeldingen te uploaden.
-                  </p>
-                </div>
-              )}
-
+              <h2 className="text-xl font-bold mb-2">🚀 Stap 3: Controleer & Upload naar Odoo</h2>
+              <p className="text-gray-600 mb-4">
+                Controleer de volgorde, verwijder of voeg afbeeldingen toe, en upload naar Odoo.
+              </p>
+              <ProductImageUploader
+                mode="brand"
+                targets={uploaderTargets}
+                images={uploaderImages}
+                onImagesChange={setUploaderImages}
+                showUploadButton
+                enableFolderPick={false}
+                enableUrlImport={false}
+                showInstructions={false}
+              />
               <div className="flex justify-between mt-6 pt-4 border-t">
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    className="px-4 py-2 border rounded hover:bg-gray-100"
+                  >
+                    ← Terug naar selectie
+                  </button>
                   <button
                     onClick={() => {
                       setCurrentStep(1);
@@ -1066,7 +944,8 @@ export default function EmileEtIdaImagesImport() {
                       setAllImages([]);
                       setProductsWithImages([]);
                       setUnmatchedImages([]);
-                      setUploadResults([]);
+                      setUploaderTargets([]);
+                      setUploaderImages([]);
                       setCsvFileName('');
                       setFolderName('');
                     }}
@@ -1074,17 +953,6 @@ export default function EmileEtIdaImagesImport() {
                   >
                     🔄 Opnieuw beginnen
                   </button>
-                  {stats.withImages - stats.uploaded > 0 && (
-                    <button
-                      onClick={() => {
-                        setUploadResults([]);
-                        setCurrentStep(2);
-                      }}
-                      className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      ← Terug naar lijst ({stats.withImages - stats.uploaded} over)
-                    </button>
-                  )}
                 </div>
                 <Link
                   href="/product-import"

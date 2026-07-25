@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import ProductImageUploader from '@/components/images/ProductImageUploader';
+import type { ImageTarget, PoolImage } from '@/lib/images/types';
 
 interface ProductWithImages {
   productReference: string;
@@ -11,14 +13,6 @@ interface ProductWithImages {
   looks: File[];
   stillCount: number;
   lookCount: number;
-}
-
-interface UploadResult {
-  productReference: string;
-  success: boolean;
-  stillsUploaded: number;
-  looksUploaded: number;
-  error?: string;
 }
 
 export default function WeekendHouseKidsImagesImport() {
@@ -38,11 +32,20 @@ export default function WeekendHouseKidsImagesImport() {
   const [stillsFolder, setStillsFolder] = useState<File[]>([]);
   const [looksFolder, setLooksFolder] = useState<File[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
-  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [poolImages, setPoolImages] = useState<PoolImage[]>([]);
 
+  const targets = useMemo<ImageTarget[]>(() => {
+    return productsWithImages
+      .filter(p => p.foundInOdoo && p.templateId !== null)
+      .map(p => ({
+        key: p.productReference,
+        label: `${p.productReference} - ${p.name}`,
+        templateId: p.templateId!,
+        reference: p.productReference,
+      }));
+  }, [productsWithImages]);
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -225,6 +228,34 @@ export default function WeekendHouseKidsImagesImport() {
         }
       }
 
+      const newPoolImages: PoolImage[] = [];
+      let poolId = 0;
+      for (const product of products) {
+        if (!product.foundInOdoo || !product.templateId) continue;
+        let order = 0;
+        for (const file of product.stills) {
+          newPoolImages.push({
+            id: `whk-${++poolId}`,
+            dataUrl: URL.createObjectURL(file),
+            filename: file.name,
+            file,
+            assignedKey: product.productReference,
+            order: order++,
+          });
+        }
+        for (const file of product.looks) {
+          newPoolImages.push({
+            id: `whk-${++poolId}`,
+            dataUrl: URL.createObjectURL(file),
+            filename: file.name,
+            file,
+            assignedKey: product.productReference,
+            order: order++,
+          });
+        }
+      }
+      setPoolImages(newPoolImages);
+
       setProductsWithImages(products);
       setCurrentStep(2);
       setLoading(false);
@@ -236,227 +267,6 @@ export default function WeekendHouseKidsImagesImport() {
       alert(`❌ Fout: ${(error as Error).message}`);
       setLoading(false);
     }
-  };
-
-  const uploadImages = async () => {
-    if (!(await ensureLoggedIn())) {
-      alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
-      return;
-    }
-
-    const productsToUpload = productsWithImages.filter(p => p.foundInOdoo && (p.stillCount > 0 || p.lookCount > 0));
-    
-    if (productsToUpload.length === 0) {
-      alert('⚠️ Geen producten met images gevonden om te uploaden');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Prepare images for upload
-      const allImages: Array<{ base64: string; filename: string; productReference: string; isLook: boolean }> = [];
-      const productReferenceToTemplateId: Record<string, number> = {};
-
-      for (const product of productsToUpload) {
-        if (!product.templateId) continue;
-        
-        productReferenceToTemplateId[product.productReference] = product.templateId;
-
-        // Add stills first
-        for (const file of product.stills) {
-          const base64 = await fileToBase64(file);
-          allImages.push({
-            base64,
-            filename: file.name,
-            productReference: product.productReference,
-            isLook: false,
-          });
-        }
-
-        // Then add looks
-        for (const file of product.looks) {
-          const base64 = await fileToBase64(file);
-          allImages.push({
-            base64,
-            filename: file.name,
-            productReference: product.productReference,
-            isLook: true,
-          });
-        }
-      }
-
-      console.log(`📤 Uploading ${allImages.length} images (${allImages.filter(i => !i.isLook).length} stills, ${allImages.filter(i => i.isLook).length} looks)...`);
-
-      const BATCH_SIZE = 10;
-      const batches: typeof allImages[] = [];
-      
-      for (let i = 0; i < allImages.length; i += BATCH_SIZE) {
-        batches.push(allImages.slice(i, i + BATCH_SIZE));
-      }
-
-      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
-
-      const results: UploadResult[] = [];
-      let totalUploaded = 0;
-
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        setUploadProgress({ current: batchIndex * BATCH_SIZE, total: allImages.length });
-        
-        console.log(`🏠 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images...`);
-
-        const response = await fetch('/api/weekendhousekids-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            productReferenceToTemplateId,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
-          // Add failed results for this batch
-          for (const img of batch) {
-            const existingResult = results.find(r => r.productReference === img.productReference);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = `Batch ${batchIndex + 1} upload failed`;
-            } else {
-              results.push({
-                productReference: img.productReference,
-                success: false,
-                stillsUploaded: 0,
-                looksUploaded: 0,
-                error: `Batch ${batchIndex + 1} upload failed`,
-              });
-            }
-          }
-          continue;
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-          console.log(`✅ Batch ${batchIndex + 1} complete: ${data.results?.filter((r: any) => r.success).length || 0}/${batch.length} uploaded`);
-          totalUploaded += data.results?.filter((r: any) => r.success).length || 0;
-          
-          // Group results by product reference
-          const resultsByProduct: Record<string, { stills: number; looks: number }> = {};
-          
-          for (const result of data.results || []) {
-            if (result.success) {
-              const img = batch.find(b => b.filename === result.filename);
-              if (img) {
-                if (!resultsByProduct[img.productReference]) {
-                  resultsByProduct[img.productReference] = { stills: 0, looks: 0 };
-                }
-                if (img.isLook) {
-                  resultsByProduct[img.productReference].looks++;
-                } else {
-                  resultsByProduct[img.productReference].stills++;
-                }
-              }
-            }
-          }
-
-          // Add to results
-          for (const [productReference, counts] of Object.entries(resultsByProduct)) {
-            const existingResult = results.find(r => r.productReference === productReference);
-            if (existingResult) {
-              existingResult.stillsUploaded += counts.stills;
-              existingResult.looksUploaded += counts.looks;
-            } else {
-              results.push({
-                productReference,
-                success: true,
-                stillsUploaded: counts.stills,
-                looksUploaded: counts.looks,
-              });
-            }
-          }
-        } else {
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, data.error);
-          for (const img of batch) {
-            const existingResult = results.find(r => r.productReference === img.productReference);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = data.error || 'Unknown error';
-            } else {
-              results.push({
-                productReference: img.productReference,
-                success: false,
-                stillsUploaded: 0,
-                looksUploaded: 0,
-                error: data.error || 'Unknown error',
-              });
-            }
-          }
-        }
-      }
-
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${allImages.length} images`);
-
-      setUploadResults(results);
-      setCurrentStep(3);
-      setLoading(false);
-      setUploadProgress(null);
-
-      const totalStills = results.reduce((sum, r) => sum + r.stillsUploaded, 0);
-      const totalLooks = results.reduce((sum, r) => sum + r.looksUploaded, 0);
-      alert(`✅ Upload voltooid!\n${totalUploaded}/${allImages.length} images geüpload\n${totalStills} stills, ${totalLooks} looks`);
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      alert(`❌ Fout bij uploaden: ${(error as Error).message}`);
-      setLoading(false);
-      setUploadProgress(null);
-    }
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const addImageToProduct = (productIndex: number, files: FileList | null, isLook: boolean, inputElement?: HTMLInputElement) => {
-    if (!files || files.length === 0) return;
-    const newProducts = [...productsWithImages];
-    const newImages = Array.from(files);
-    
-    if (isLook) {
-      newProducts[productIndex].looks = [...newProducts[productIndex].looks, ...newImages];
-      newProducts[productIndex].lookCount = newProducts[productIndex].looks.length;
-    } else {
-      newProducts[productIndex].stills = [...newProducts[productIndex].stills, ...newImages];
-      newProducts[productIndex].stillCount = newProducts[productIndex].stills.length;
-    }
-    
-    setProductsWithImages(newProducts);
-    
-    if (inputElement) {
-      inputElement.value = '';
-    }
-  };
-
-  const removeImageFromProduct = (productIndex: number, imageIndex: number, isLook: boolean) => {
-    const newProducts = [...productsWithImages];
-    if (isLook) {
-      newProducts[productIndex].looks.splice(imageIndex, 1);
-      newProducts[productIndex].lookCount = newProducts[productIndex].looks.length;
-    } else {
-      newProducts[productIndex].stills.splice(imageIndex, 1);
-      newProducts[productIndex].stillCount = newProducts[productIndex].stills.length;
-    }
-    setProductsWithImages(newProducts);
   };
 
   const filteredProducts = productsWithImages.filter(product => {
@@ -552,12 +362,12 @@ export default function WeekendHouseKidsImagesImport() {
               </div>
             )}
 
-            {/* Step 2: Review Products */}
+            {/* Step 2: Review & Upload via ProductImageUploader */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    2️⃣ Review Producten
+                    2️⃣ Review & Upload
                   </h2>
                   <div className="flex gap-2">
                     <button
@@ -581,254 +391,73 @@ export default function WeekendHouseKidsImagesImport() {
                   </div>
                 </div>
 
-                <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                  {filteredProducts.map((product, productIndex) => (
-                    <div
-                      key={product.productReference}
-                      className={`p-4 rounded-lg border-2 ${
-                        product.foundInOdoo
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                            {product.productReference} - {product.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {product.foundInOdoo ? (
-                              <span className="text-green-600">✅ Gevonden in Odoo - Template ID: {product.templateId}</span>
-                            ) : (
-                              <span className="text-red-600">❌ Niet gevonden in Odoo</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            📸 {product.stillCount} stills, 🎭 {product.lookCount} looks
-                          </p>
-                        </div>
-                        {product.foundInOdoo && product.templateId && (
-                          <a
-                            href={`${process.env.NEXT_PUBLIC_ODOO_URL || 'https://www.babetteconcept.be'}/web#id=${product.templateId}&model=product.template&view_type=form`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                          >
-                            Bekijk in Odoo
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Stills Preview */}
-                      {product.stills.length > 0 && (
-                        <div className="mb-3">
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">📸 Stills ({product.stillCount})</h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {product.stills.map((image, imageIndex) => (
-                              <div key={imageIndex} className="relative">
-                                <img
-                                  src={URL.createObjectURL(image)}
-                                  alt={image.name}
-                                  className="w-full h-24 object-cover rounded border-2 border-gray-300 dark:border-gray-600"
-                                />
-                                <button
-                                  onClick={() => removeImageFromProduct(productIndex, imageIndex, false)}
-                                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                                  title="Verwijder afbeelding"
-                                >
-                                  ×
-                                </button>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">{image.name}</p>
-                              </div>
-                            ))}
-                            {/* Add still button */}
-                            <div className="relative">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => addImageToProduct(productIndex, e.target.files, false, e.target)}
-                                className="hidden"
-                                id={`add-still-${productIndex}`}
-                              />
-                              <label
-                                htmlFor={`add-still-${productIndex}`}
-                                className="w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                                title="Stills toevoegen"
-                              >
-                                <span className="text-2xl text-gray-400 dark:text-gray-500 hover:text-green-500 dark:hover:text-green-400">+</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Looks Preview */}
-                      {product.looks.length > 0 && (
-                        <div className="mb-3">
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">🎭 Looks ({product.lookCount})</h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {product.looks.map((image, imageIndex) => (
-                              <div key={imageIndex} className="relative">
-                                <img
-                                  src={URL.createObjectURL(image)}
-                                  alt={image.name}
-                                  className="w-full h-24 object-cover rounded border-2 border-gray-300 dark:border-gray-600"
-                                />
-                                <button
-                                  onClick={() => removeImageFromProduct(productIndex, imageIndex, true)}
-                                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                                  title="Verwijder afbeelding"
-                                >
-                                  ×
-                                </button>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">{image.name}</p>
-                              </div>
-                            ))}
-                            {/* Add look button */}
-                            <div className="relative">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => addImageToProduct(productIndex, e.target.files, true, e.target)}
-                                className="hidden"
-                                id={`add-look-${productIndex}`}
-                              />
-                              <label
-                                htmlFor={`add-look-${productIndex}`}
-                                className="w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                                title="Looks toevoegen"
-                              >
-                                <span className="text-2xl text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400">+</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add buttons if no images yet */}
-                      {product.stills.length === 0 && product.looks.length === 0 && (
-                        <div className="flex gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => addImageToProduct(productIndex, e.target.files, false, e.target)}
-                            className="hidden"
-                            id={`add-still-empty-${productIndex}`}
-                          />
-                          <label
-                            htmlFor={`add-still-empty-${productIndex}`}
-                            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm cursor-pointer"
-                          >
-                            📸 Stills Toevoegen
-                          </label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => addImageToProduct(productIndex, e.target.files, true, e.target)}
-                            className="hidden"
-                            id={`add-look-empty-${productIndex}`}
-                          />
-                          <label
-                            htmlFor={`add-look-empty-${productIndex}`}
-                            className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm cursor-pointer"
-                          >
-                            🎭 Looks Toevoegen
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">{productsWithImages.filter(p => p.foundInOdoo).length}</div>
+                    <div className="text-sm text-green-600 dark:text-green-400">Gevonden in Odoo</div>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-red-700 dark:text-red-300">{productsWithImages.filter(p => !p.foundInOdoo).length}</div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Niet gevonden</div>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{poolImages.length}</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">Afbeeldingen</div>
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center">
+                {productFilter === 'notFound' ? (
+                  <div className="space-y-2">
+                    {filteredProducts.map(p => (
+                      <div
+                        key={p.productReference}
+                        className="p-4 rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-900/20"
+                      >
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                          {p.productReference} - {p.name}
+                        </h3>
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          Niet gevonden in Odoo
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {p.stillCount} stills, {p.lookCount} looks
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ProductImageUploader
+                    mode="brand"
+                    targets={targets}
+                    images={poolImages}
+                    onImagesChange={setPoolImages}
+                    showUploadButton
+                    enableFolderPick={false}
+                    enableCompress={false}
+                  />
+                )}
+
+                <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
                   >
                     ← Terug
                   </button>
                   <button
-                    onClick={uploadImages}
-                    disabled={loading || filteredProducts.filter(p => p.foundInOdoo && (p.stillCount > 0 || p.lookCount > 0)).length === 0}
-                    className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      setProductsWithImages([]);
+                      setPoolImages([]);
+                      setCsvFile(null);
+                      setStillsFolder([]);
+                      setLooksFolder([]);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
-                    {loading ? (
-                      <>
-                        {uploadProgress && `⏳ Uploading ${uploadProgress.current}/${uploadProgress.total}...`}
-                        {!uploadProgress && '⏳ Uploading...'}
-                      </>
-                    ) : (
-                      `🚀 Upload Images (${filteredProducts.filter(p => p.foundInOdoo && (p.stillCount > 0 || p.lookCount > 0)).reduce((sum, p) => sum + p.stillCount + p.lookCount, 0)} images)`
-                    )}
+                    Nieuwe Import Starten
                   </button>
                 </div>
-
-                {uploadProgress && (
-                  <div className="mt-4">
-                    <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                      <div
-                        className="bg-blue-600 h-4 rounded-full transition-all"
-                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
-                      {uploadProgress.current} van {uploadProgress.total} images
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 3: Upload Results */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  3️⃣ Upload Resultaten
-                </h2>
-
-                <div className="space-y-4">
-                  {uploadResults.map((result) => (
-                    <div
-                      key={result.productReference}
-                      className={`p-4 rounded-lg border-2 ${
-                        result.success
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                      }`}
-                    >
-                      <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                        {result.productReference}
-                      </h3>
-                      {result.success ? (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          ✅ {result.stillsUploaded} stills, {result.looksUploaded} looks geüpload
-                        </p>
-                      ) : (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                          ❌ {result.error}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => {
-                    setCurrentStep(1);
-                    setProductsWithImages([]);
-                    setUploadResults([]);
-                    setCsvFile(null);
-                    setStillsFolder([]);
-                    setLooksFolder([]);
-                  }}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                >
-                  🔄 Nieuwe Import Starten
-                </button>
               </div>
             )}
           </div>

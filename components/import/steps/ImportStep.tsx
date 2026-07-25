@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import EnhancedImageManager from '@/components/import/shared/EnhancedImageManager';
+import ImageUploadProgressBar from '@/components/import/shared/ImageUploadProgressBar';
 import type { UseImportWizardReturn } from '@/hooks/useImportWizard';
 import {
   isImportRecoverable,
@@ -255,8 +256,13 @@ export default function ImportStep({ wizard }: ImportStepProps) {
       </div>
 
       {/* Image upload section */}
-      {wizard.imageImportResults.length === 0 && imgConfig?.enabled && (
+      {imgConfig?.enabled && (
         <div className="mb-6">
+          {wizard.imageUploadProgress && (
+            <div className="mb-4">
+              <ImageUploadProgressBar progress={wizard.imageUploadProgress} />
+            </div>
+          )}
           {imgConfig.dedicatedPageUrl ? (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
               <p className="text-blue-800 dark:text-blue-200 mb-2">
@@ -280,7 +286,8 @@ export default function ImportStep({ wizard }: ImportStepProps) {
                 wizard.setImagePool(images);
                 await wizard.uploadAllImages();
               }}
-              isUploading={wizard.isLoading}
+              isUploading={wizard.isLoading && Boolean(wizard.imageUploadProgress)}
+              uploadProgress={wizard.imageUploadProgress}
             />
           )}
         </div>

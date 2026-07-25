@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import ProductImageUploader from '@/components/images/ProductImageUploader';
+import type { ImageTarget, PoolImage } from '@/lib/images/types';
 
 interface ExistingImage {
   id: number;
@@ -21,14 +23,6 @@ interface ProductWithImages {
   existingImageCount: number;
 }
 
-interface UploadResult {
-  productReference: string;
-  colorName: string;
-  success: boolean;
-  imagesUploaded: number;
-  error?: string;
-}
-
 export default function TheNewSocietyImagesImport() {
   const ensureLoggedIn = async () => {
     try {
@@ -45,11 +39,34 @@ export default function TheNewSocietyImagesImport() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [imagesFolder, setImagesFolder] = useState<File[]>([]);
   const [productsWithImages, setProductsWithImages] = useState<ProductWithImages[]>([]);
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [productFilter, setProductFilter] = useState<'all' | 'found' | 'notFound'>('all');
-  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [poolImages, setPoolImages] = useState<PoolImage[]>([]);
 
+  const targets = useMemo<ImageTarget[]>(() => {
+    return productsWithImages
+      .filter(p => p.foundInOdoo && p.templateId !== null)
+      .map(p => {
+        const key = `${p.productReference}-${p.colorName}`;
+        const firstExisting = p.existingImages[0];
+        return {
+          key,
+          label: `${p.productReference} - ${p.colorName}`,
+          templateId: p.templateId!,
+          reference: p.productReference,
+          hasExistingImages: p.existingImageCount > 0,
+          mainThumbnail: firstExisting?.image_1920
+            ? `data:image/jpeg;base64,${firstExisting.image_1920}`
+            : null,
+          galleryThumbnails: p.existingImages.slice(1).map(img => ({
+            id: img.id,
+            name: img.name,
+            thumbnail: img.image_1920 ? `data:image/jpeg;base64,${img.image_1920}` : '',
+            sequence: img.sequence,
+          })),
+        };
+      });
+  }, [productsWithImages]);
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -367,6 +384,24 @@ export default function TheNewSocietyImagesImport() {
         }
       }
 
+      const newPoolImages: PoolImage[] = [];
+      let poolId = 0;
+      for (const product of products) {
+        if (!product.foundInOdoo || !product.templateId) continue;
+        const assignedKey = `${product.productReference}-${product.colorName}`;
+        product.images.forEach((file, idx) => {
+          newPoolImages.push({
+            id: `tns-${++poolId}`,
+            dataUrl: URL.createObjectURL(file),
+            filename: file.name,
+            file,
+            assignedKey,
+            order: idx,
+          });
+        });
+      }
+      setPoolImages(newPoolImages);
+
       setProductsWithImages(products);
       setCurrentStep(2);
       setLoading(false);
@@ -377,243 +412,6 @@ export default function TheNewSocietyImagesImport() {
       console.error('Error parsing CSV and matching images:', error);
       alert(`❌ Fout: ${(error as Error).message}`);
       setLoading(false);
-    }
-  };
-
-  const uploadImages = async () => {
-    if (!(await ensureLoggedIn())) {
-      alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
-      return;
-    }
-
-    const productsToUpload = productsWithImages.filter(p => p.foundInOdoo && p.imageCount > 0);
-    
-    if (productsToUpload.length === 0) {
-      alert('⚠️ Geen producten met images gevonden om te uploaden');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Prepare images for upload
-      const allImages: Array<{ base64: string; filename: string; productReference: string; colorName: string }> = [];
-      const productKeyToTemplateId: Record<string, number> = {};
-
-      for (const product of productsToUpload) {
-        if (!product.templateId) continue;
-        
-        const productKey = `${product.productReference}-${product.colorName}`;
-        productKeyToTemplateId[productKey] = product.templateId;
-
-        // Add all images
-        for (const file of product.images) {
-          const base64 = await fileToBase64(file);
-          allImages.push({
-            base64,
-            filename: file.name,
-            productReference: product.productReference,
-            colorName: product.colorName,
-          });
-        }
-      }
-
-      console.log(`📤 Uploading ${allImages.length} images...`);
-
-      const BATCH_SIZE = 10;
-      const batches: typeof allImages[] = [];
-      
-      for (let i = 0; i < allImages.length; i += BATCH_SIZE) {
-        batches.push(allImages.slice(i, i + BATCH_SIZE));
-      }
-
-      console.log(`📦 Split into ${batches.length} batch(es) of max ${BATCH_SIZE} images`);
-
-      const results: UploadResult[] = [];
-      let totalUploaded = 0;
-
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        setUploadProgress({ current: batchIndex * BATCH_SIZE, total: allImages.length });
-        
-        console.log(`🌿 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} images...`);
-
-        const response = await fetch('/api/thenewsociety-upload-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: batch,
-            productKeyToTemplateId,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Batch ${batchIndex + 1} failed with status ${response.status}:`, errorText.substring(0, 200));
-          // Add failed results for this batch
-          for (const img of batch) {
-            const existingResult = results.find(r => r.productReference === img.productReference && r.colorName === img.colorName);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = `Batch ${batchIndex + 1} upload failed`;
-            } else {
-              results.push({
-                productReference: img.productReference,
-                colorName: img.colorName,
-                success: false,
-                imagesUploaded: 0,
-                error: `Batch ${batchIndex + 1} upload failed`,
-              });
-            }
-          }
-          continue;
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-          console.log(`✅ Batch ${batchIndex + 1} complete: ${data.imagesUploaded || 0}/${batch.length} uploaded`);
-          totalUploaded += data.imagesUploaded || 0;
-          
-          // Group results by product reference and color
-          const resultsByProduct: Record<string, number> = {};
-          
-          for (const result of data.results || []) {
-            if (result.success) {
-              const key = `${result.productReference}-${result.colorName}`;
-              if (!resultsByProduct[key]) {
-                resultsByProduct[key] = 0;
-              }
-              resultsByProduct[key]++;
-            }
-          }
-
-          // Add to results
-          for (const [key, count] of Object.entries(resultsByProduct)) {
-            const [productReference, colorName] = key.split('-');
-            const existingResult = results.find(r => r.productReference === productReference && r.colorName === colorName);
-            if (existingResult) {
-              existingResult.imagesUploaded += count;
-            } else {
-              results.push({
-                productReference,
-                colorName,
-                success: true,
-                imagesUploaded: count,
-              });
-            }
-          }
-        } else {
-          console.error(`❌ Batch ${batchIndex + 1} failed:`, data.error);
-          for (const img of batch) {
-            const existingResult = results.find(r => r.productReference === img.productReference && r.colorName === img.colorName);
-            if (existingResult) {
-              existingResult.success = false;
-              existingResult.error = data.error || 'Unknown error';
-            } else {
-              results.push({
-                productReference: img.productReference,
-                colorName: img.colorName,
-                success: false,
-                imagesUploaded: 0,
-                error: data.error || 'Unknown error',
-              });
-            }
-          }
-        }
-      }
-
-      console.log(`🎉 Total uploaded: ${totalUploaded}/${allImages.length} images`);
-
-      setUploadResults(results);
-      setCurrentStep(3);
-      setLoading(false);
-      setUploadProgress(null);
-
-      alert(`✅ Upload voltooid!\n${totalUploaded}/${allImages.length} images geüpload`);
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      alert(`❌ Fout bij uploaden: ${(error as Error).message}`);
-      setLoading(false);
-      setUploadProgress(null);
-    }
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const addImageToProduct = (productIndex: number, files: FileList | null, inputElement?: HTMLInputElement) => {
-    if (!files || files.length === 0) return;
-    const newProducts = [...productsWithImages];
-    const newImages = Array.from(files);
-    
-    newProducts[productIndex].images = [...newProducts[productIndex].images, ...newImages];
-    newProducts[productIndex].imageCount = newProducts[productIndex].images.length;
-    
-    setProductsWithImages(newProducts);
-    
-    if (inputElement) {
-      inputElement.value = '';
-    }
-  };
-
-  const removeImageFromProduct = (productIndex: number, imageIndex: number) => {
-    const newProducts = [...productsWithImages];
-    newProducts[productIndex].images.splice(imageIndex, 1);
-    newProducts[productIndex].imageCount = newProducts[productIndex].images.length;
-    setProductsWithImages(newProducts);
-  };
-
-  const refreshExistingImages = async (productIndex: number) => {
-    const product = productsWithImages[productIndex];
-    if (!product.foundInOdoo || !product.templateId) return;
-
-    if (!(await ensureLoggedIn())) {
-      alert('⚠️ Odoo credentials niet gevonden. Log eerst in.');
-      return;
-    }
-
-    try {
-      const existingImagesResponse = await fetch('/api/odoo-call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'product.image',
-          method: 'search_read',
-          args: [[['product_tmpl_id', '=', product.templateId]]],
-          kwargs: {
-            fields: ['id', 'name', 'sequence', 'image_1920'],
-            order: 'sequence asc',
-          },
-        }),
-      });
-
-      const existingImagesData = await existingImagesResponse.json();
-      if (existingImagesData.success && existingImagesData.result) {
-        const existingImages = existingImagesData.result.map((img: any) => ({
-          id: img.id,
-          name: img.name || `Image ${img.sequence}`,
-          sequence: img.sequence || 0,
-          image_1920: img.image_1920 || '',
-        }));
-
-        const newProducts = [...productsWithImages];
-        newProducts[productIndex].existingImages = existingImages;
-        newProducts[productIndex].existingImageCount = existingImages.length;
-        setProductsWithImages(newProducts);
-      }
-    } catch (error) {
-      console.error(`Error refreshing existing images for product ${product.templateId}:`, error);
-      alert('❌ Fout bij verversen van bestaande images');
     }
   };
 
@@ -700,12 +498,12 @@ export default function TheNewSocietyImagesImport() {
               </div>
             )}
 
-            {/* Step 2: Review Products */}
+            {/* Step 2: Review & Upload via ProductImageUploader */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    2️⃣ Review Producten
+                    2️⃣ Review & Upload
                   </h2>
                   <div className="flex gap-2">
                     <button
@@ -729,241 +527,73 @@ export default function TheNewSocietyImagesImport() {
                   </div>
                 </div>
 
-                <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                  {filteredProducts.map((product, productIndex) => (
-                    <div
-                      key={`${product.productReference}-${product.colorName}`}
-                      className={`p-4 rounded-lg border-2 ${
-                        product.foundInOdoo
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                            {product.productReference} - {product.colorName}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {product.name}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {product.foundInOdoo ? (
-                              <span className="text-green-600">✅ Gevonden in Odoo - Template ID: {product.templateId}</span>
-                            ) : (
-                              <span className="text-red-600">❌ Niet gevonden in Odoo</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            📸 {product.imageCount} nieuwe images | 🖼️ {product.existingImageCount} bestaande images in Odoo
-                          </p>
-                        </div>
-                        {product.foundInOdoo && product.templateId && (
-                          <a
-                            href={`${process.env.NEXT_PUBLIC_ODOO_URL || 'https://www.babetteconcept.be'}/web#id=${product.templateId}&model=product.template&view_type=form`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                          >
-                            Bekijk in Odoo
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Existing Images from Odoo */}
-                      {product.foundInOdoo && (
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                              🖼️ Bestaande Images in Odoo ({product.existingImageCount})
-                            </h4>
-                            <button
-                              onClick={() => refreshExistingImages(productIndex)}
-                              className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
-                              title="Ververs bestaande images"
-                            >
-                              🔄 Ververs
-                            </button>
-                          </div>
-                          {product.existingImages.length > 0 ? (
-                            <div className="grid grid-cols-4 gap-2">
-                              {product.existingImages.map((existingImg) => (
-                                <div key={existingImg.id} className="relative">
-                                  <img
-                                    src={`data:image/jpeg;base64,${existingImg.image_1920}`}
-                                    alt={existingImg.name}
-                                    className="w-full h-24 object-cover rounded border-2 border-blue-400 dark:border-blue-500"
-                                  />
-                                  <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs px-1 rounded-br">
-                                    #{existingImg.sequence}
-                                  </div>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1" title={existingImg.name}>
-                                    {existingImg.name}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                              Geen bestaande images gevonden in Odoo
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* New Images to Upload */}
-                      {product.images.length > 0 && (
-                        <div className="mb-3">
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            📸 Nieuwe Images om te Uploaden ({product.imageCount})
-                          </h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {product.images.map((image, imageIndex) => (
-                              <div key={imageIndex} className="relative">
-                                <img
-                                  src={URL.createObjectURL(image)}
-                                  alt={image.name}
-                                  className="w-full h-24 object-cover rounded border-2 border-green-400 dark:border-green-500"
-                                />
-                                <button
-                                  onClick={() => removeImageFromProduct(productIndex, imageIndex)}
-                                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                                  title="Verwijder afbeelding"
-                                >
-                                  ×
-                                </button>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">{image.name}</p>
-                              </div>
-                            ))}
-                            {/* Add image button */}
-                            <div className="relative">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => addImageToProduct(productIndex, e.target.files, e.target)}
-                                className="hidden"
-                                id={`add-image-${productIndex}`}
-                              />
-                              <label
-                                htmlFor={`add-image-${productIndex}`}
-                                className="w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                                title="Images toevoegen"
-                              >
-                                <span className="text-2xl text-gray-400 dark:text-gray-500 hover:text-green-500 dark:hover:text-green-400">+</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add button if no new images yet */}
-                      {product.images.length === 0 && (
-                        <div className="flex gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => addImageToProduct(productIndex, e.target.files, e.target)}
-                            className="hidden"
-                            id={`add-image-empty-${productIndex}`}
-                          />
-                          <label
-                            htmlFor={`add-image-empty-${productIndex}`}
-                            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm cursor-pointer"
-                          >
-                            📸 Nieuwe Images Toevoegen
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">{productsWithImages.filter(p => p.foundInOdoo).length}</div>
+                    <div className="text-sm text-green-600 dark:text-green-400">Gevonden in Odoo</div>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-red-700 dark:text-red-300">{productsWithImages.filter(p => !p.foundInOdoo).length}</div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Niet gevonden</div>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{poolImages.length}</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">Afbeeldingen</div>
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center">
+                {productFilter === 'notFound' ? (
+                  <div className="space-y-2">
+                    {filteredProducts.map(p => (
+                      <div
+                        key={`${p.productReference}-${p.colorName}`}
+                        className="p-4 rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-900/20"
+                      >
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                          {p.productReference} - {p.colorName}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{p.name}</p>
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          Niet gevonden in Odoo
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {p.imageCount} images
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ProductImageUploader
+                    mode="brand"
+                    targets={targets}
+                    images={poolImages}
+                    onImagesChange={setPoolImages}
+                    showUploadButton
+                    enableFolderPick={false}
+                    enableCompress={false}
+                  />
+                )}
+
+                <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-2 border rounded hover:bg-gray-100 text-gray-900 font-medium"
+                    className="px-6 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
                   >
                     ← Terug
                   </button>
                   <button
-                    onClick={uploadImages}
-                    disabled={loading || filteredProducts.filter(p => p.foundInOdoo && p.imageCount > 0).length === 0}
-                    className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      setProductsWithImages([]);
+                      setPoolImages([]);
+                      setCsvFile(null);
+                      setImagesFolder([]);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
-                    {loading ? (
-                      <>
-                        {uploadProgress && `⏳ Uploading ${uploadProgress.current}/${uploadProgress.total}...`}
-                        {!uploadProgress && '⏳ Uploading...'}
-                      </>
-                    ) : (
-                      `🚀 Upload Images (${filteredProducts.filter(p => p.foundInOdoo && p.imageCount > 0).reduce((sum, p) => sum + p.imageCount, 0)} images)`
-                    )}
+                    Nieuwe Import Starten
                   </button>
                 </div>
-
-                {uploadProgress && (
-                  <div className="mt-4">
-                    <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                      <div
-                        className="bg-blue-600 h-4 rounded-full transition-all"
-                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
-                      {uploadProgress.current} van {uploadProgress.total} images
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 3: Upload Results */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  3️⃣ Upload Resultaten
-                </h2>
-
-                <div className="space-y-4">
-                  {uploadResults.map((result, idx) => (
-                    <div
-                      key={`${result.productReference}-${result.colorName}-${idx}`}
-                      className={`p-4 rounded-lg border-2 ${
-                        result.success
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                      }`}
-                    >
-                      <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                        {result.productReference} - {result.colorName}
-                      </h3>
-                      {result.success ? (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          ✅ {result.imagesUploaded} images geüpload
-                        </p>
-                      ) : (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                          ❌ {result.error}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => {
-                    setCurrentStep(1);
-                    setProductsWithImages([]);
-                    setUploadResults([]);
-                    setCsvFile(null);
-                    setImagesFolder([]);
-                  }}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                >
-                  🔄 Nieuwe Import Starten
-                </button>
               </div>
             )}
           </div>
