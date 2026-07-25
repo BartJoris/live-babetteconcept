@@ -2,6 +2,7 @@ import type { NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { extractPdfText } from '@/lib/pdf/extractText';
 
 export const config = {
   api: {
@@ -25,26 +26,7 @@ const RRP_MULTIPLIER = 2.7;
 
 async function extractTextFromPdf(pdfPath: string): Promise<string> {
   const pdfBuffer = fs.readFileSync(pdfPath);
-  const pdfData = new Uint8Array(pdfBuffer);
-  if (typeof DOMMatrix === 'undefined') {
-    (globalThis as { DOMMatrix?: unknown }).DOMMatrix = function () {
-      return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    };
-  }
-  const pdfModule = await import('pdf-parse');
-  const { PDFParse } = pdfModule;
-  const parser = new PDFParse(pdfData);
-  const textResult = await parser.getText();
-  if (textResult && typeof textResult === 'object') {
-    if (textResult.text) return textResult.text;
-    if (textResult.pages && Array.isArray(textResult.pages)) {
-      return textResult.pages.map((p: { text?: string }) => p.text || '').join('\n');
-    }
-    if (Array.isArray(textResult)) {
-      return textResult.map((p: { text?: string } | string) => (typeof p === 'string' ? p : (p.text || ''))).join('\n');
-    }
-  }
-  return String(textResult || '');
+  return extractPdfText(new Uint8Array(pdfBuffer));
 }
 
 function parseEuroPrice(str: string): number {

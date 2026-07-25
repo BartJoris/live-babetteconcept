@@ -2,6 +2,7 @@ import type { NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { extractPdfText } from '@/lib/pdf/extractText';
 
 export const config = {
   api: {
@@ -44,49 +45,8 @@ async function handler(
     let pdfText = '';
     
     try {
-      console.log('📦 Loading pdf-parse dynamically...');
-      
-      // Mock DOMMatrix to prevent errors in serverless environment
-      if (typeof DOMMatrix === 'undefined') {
-        console.log('📦 Creating DOMMatrix polyfill for serverless environment...');
-        (globalThis as { DOMMatrix?: unknown }).DOMMatrix = function() {
-          return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-        };
-      }
-      
-      const pdfModule = await import('pdf-parse');
-      const { PDFParse } = pdfModule;
-      console.log('📦 PDFParse loaded, creating parser...');
-      
-      const parser = new PDFParse(pdfData);
-      console.log('📦 Extracting text from PDF...');
-      
-      const textResult = await parser.getText();
-      console.log('📦 getText result type:', typeof textResult);
-      
-      // getText returns object with pages array and text property
-      if (textResult && typeof textResult === 'object') {
-        if (textResult.text) {
-          pdfText = textResult.text;
-          console.log('📦 Using result.text');
-        } else if (textResult.pages && Array.isArray(textResult.pages)) {
-          pdfText = textResult.pages.map((page: { text?: string }) => page.text || '').join('\n');
-          console.log('📦 Using result.pages');
-        } else if (Array.isArray(textResult)) {
-          pdfText = textResult.map((page: { text?: string } | string) => 
-            typeof page === 'string' ? page : (page.text || '')
-          ).join('\n');
-          console.log('📦 Using array result');
-        }
-      } else {
-        pdfText = String(textResult || '');
-        console.log('📦 Using string conversion');
-      }
-      
+      pdfText = await extractPdfText(pdfData);
       console.log(`✅ Extracted ${pdfText.length} characters from PDF`);
-      if (pdfText.length > 0) {
-        console.log('📝 First 500 chars:', pdfText.substring(0, 500));
-      }
     } catch (pdfError) {
       console.error('❌ pdf-parse failed:', pdfError);
       return res.status(500).json({ 

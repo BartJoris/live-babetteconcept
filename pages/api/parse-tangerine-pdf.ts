@@ -2,6 +2,7 @@ import type { NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { ensurePdfWorker, extractPdfText } from '@/lib/pdf/extractText';
 
 export const config = {
   api: {
@@ -30,22 +31,7 @@ if (typeof DOMMatrix === 'undefined') {
 /** Extract text from PDF using pdf-parse getText (default viewport). */
 async function extractTextFromPdf(pdfPath: string): Promise<string> {
   const pdfBuffer = fs.readFileSync(pdfPath);
-  const pdfData = new Uint8Array(pdfBuffer);
-  const pdfModule = await import('pdf-parse');
-  const { PDFParse } = pdfModule;
-  const parser = new PDFParse(pdfData);
-  const textResult = await parser.getText();
-  await parser.destroy();
-  if (textResult && typeof textResult === 'object') {
-    if (textResult.text) return textResult.text;
-    if (textResult.pages && Array.isArray(textResult.pages)) {
-      return textResult.pages.map((p: { text?: string }) => p.text || '').join('\n');
-    }
-    if (Array.isArray(textResult)) {
-      return textResult.map((p: { text?: string } | string) => (typeof p === 'string' ? p : (p.text || ''))).join('\n');
-    }
-  }
-  return String(textResult || '');
+  return extractPdfText(new Uint8Array(pdfBuffer));
 }
 
 /**
@@ -53,6 +39,7 @@ async function extractTextFromPdf(pdfPath: string): Promise<string> {
  * Handles landscape PDFs where text order depends on rotation; returns the extraction that parses to the most products.
  */
 async function extractTextWithRotations(pdfPath: string): Promise<{ text: string; rotation: number }[]> {
+  ensurePdfWorker();
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfData = new Uint8Array(pdfBuffer);
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -98,6 +85,7 @@ async function extractTextWithRotations(pdfPath: string): Promise<{ text: string
 
 /** Try to extract tables via pdf-parse getTable(); parse into products if structure matches. */
 async function extractProductsFromPdfTables(pdfPath: string): Promise<TangerinePdfProduct[]> {
+  ensurePdfWorker();
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfData = new Uint8Array(pdfBuffer);
   const pdfModule = await import('pdf-parse');

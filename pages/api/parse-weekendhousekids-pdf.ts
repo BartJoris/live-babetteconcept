@@ -3,6 +3,7 @@ import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { parseWeekendHouseKidsSrpFromText } from '@/lib/suppliers/weekendhousekids/rrp';
+import { extractPdfText } from '@/lib/pdf/extractText';
 
 export const config = {
   api: {
@@ -10,34 +11,7 @@ export const config = {
   },
 };
 
-async function extractPdfText(pdfData: Uint8Array): Promise<string> {
-  if (typeof DOMMatrix === 'undefined') {
-    (globalThis as { DOMMatrix?: unknown }).DOMMatrix = function () {
-      return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    };
-  }
 
-  const pdfModule = await import('pdf-parse');
-  const { PDFParse } = pdfModule;
-  const parser = new PDFParse(pdfData);
-  const textResult = await parser.getText();
-
-  if (textResult && typeof textResult === 'object') {
-    if (textResult.text) return textResult.text;
-    if (textResult.pages && Array.isArray(textResult.pages)) {
-      return textResult.pages.map((page: { text?: string }) => page.text || '').join('\n');
-    }
-    if (Array.isArray(textResult)) {
-      return textResult
-        .map((page: { text?: string } | string) =>
-          typeof page === 'string' ? page : page.text || '',
-        )
-        .join('\n');
-    }
-  }
-
-  return String(textResult || '');
-}
 
 async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {

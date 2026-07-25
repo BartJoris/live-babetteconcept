@@ -2,6 +2,7 @@ import type { NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { extractPdfText } from '@/lib/pdf/extractText';
 
 export const config = {
   api: {
@@ -138,25 +139,8 @@ async function handler(
     let pdfText = '';
 
     try {
-      if (typeof DOMMatrix === 'undefined') {
-        (globalThis as { DOMMatrix?: unknown }).DOMMatrix = function () {
-          return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-        };
-      }
-      const pdfModule = await import('pdf-parse');
-      const { PDFParse } = pdfModule;
-      const parser = new PDFParse(pdfData);
-      const textResult = await parser.getText();
-
-      if (textResult && typeof textResult === 'object') {
-        if (textResult.text) pdfText = textResult.text;
-        else if (textResult.pages && Array.isArray(textResult.pages))
-          pdfText = textResult.pages.map((p: { text?: string }) => p.text || '').join('\n');
-        else if (Array.isArray(textResult))
-          pdfText = textResult.map((p: { text?: string } | string) => typeof p === 'string' ? p : (p.text || '')).join('\n');
-      } else {
-        pdfText = String(textResult || '');
-      }
+      pdfText = await extractPdfText(pdfData);
+      console.log(`✅ Extracted ${pdfText.length} characters from PDF`);
     } catch (pdfError) {
       return res.status(500).json({ success: false, error: 'Failed to parse PDF: ' + (pdfError as Error).message });
     }
