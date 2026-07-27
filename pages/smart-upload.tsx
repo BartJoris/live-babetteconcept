@@ -173,13 +173,30 @@ export default function SmartUploadPage() {
               fileMap[pf.fileInputId] = JSON.stringify(pdfData);
               const context = createParseContext([], supplierId);
               const fromParse = plugin.parse(fileMap, context);
-              if (fromParse.length > 0) {
-                sessionStorage.setItem('smart_upload_products', JSON.stringify(fromParse));
-              } else if (plugin.processPdfResults) {
-                const result = plugin.processPdfResults(pdfData, [], context);
+              if (plugin.processPdfResults) {
+                // Enrich CSV products with PDF prices (WHK / Mipounet). Wyncken parse
+                // already builds products from PDF JSON — processPdfResults re-combines.
+                const result = plugin.processPdfResults(
+                  pdfData,
+                  fromParse,
+                  context,
+                );
                 if (result.products.length > 0) {
-                  sessionStorage.setItem('smart_upload_products', JSON.stringify(result.products));
+                  sessionStorage.setItem(
+                    'smart_upload_products',
+                    JSON.stringify(result.products),
+                  );
+                } else if (fromParse.length > 0) {
+                  sessionStorage.setItem(
+                    'smart_upload_products',
+                    JSON.stringify(fromParse),
+                  );
                 }
+              } else if (fromParse.length > 0) {
+                sessionStorage.setItem(
+                  'smart_upload_products',
+                  JSON.stringify(fromParse),
+                );
               }
             }
           }

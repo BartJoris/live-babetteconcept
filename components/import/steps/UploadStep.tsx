@@ -211,11 +211,14 @@ SS26NAPOLIGIRLSHORTS24MFP;1; 26,00 € ;65,00 €;05600850526269
     case 'mipounet':
       return (
         <pre className="text-xs bg-white p-3 rounded overflow-x-auto text-gray-900 border border-gray-200">
-{`"Order id";"Date";...;"Product name";"Product reference";"Color name";...;"Size name";"Quantity";"Unit price";...
-"3088059";"2025-06-29";...;"LES EFANTS T-SHIRT";"1131.04";"ORGANIC COTTON JERSEY (BLUE) - SS26";...;"2Y";"1";"16";...
+{`Order CSV: Product reference;Product name;Color name;Size name;Quantity;Unit price;EAN13
+271.23;CHARLOTTE FLAMMÉ T-SHIRT;…(AUBERGINE)…;2Y;1;24;…
 
-→ Wordt: "Mipounet - Les Efants T-Shirt" (ref: 1131.04, kleur: BLUE)
-→ Maten: 2Y → 2 jaar, 10Y → 10 jaar, 0 → U`}
+EAN CSV: SKU;EAN  →  I26.271.JER007.23.2Y;8436…
+RRP PDF: Ref. 271.23 … SRP: 59 €  (anders inkoop × 2,5)
+
+→ "Mipounet - Charlotte Flammé T-Shirt - Aubergine" (ref 271.23)
+→ Maten: 2Y → 2 jaar · Afbeeldingen: I26.271.JER007.23_FRONT.jpg`}
         </pre>
       );
     case 'wyncken':

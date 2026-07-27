@@ -254,34 +254,47 @@ const SUPPLIER_RULES: SupplierRule[] = [
     supplierName: 'Mipounet',
     csvRules: [
       {
-        fileInputId: 'main_csv',
-        fileInputLabel: 'Export CSV',
-        detect: (headers, _, fn) => {
-          if (h(headers, 'Product reference', 'EAN13') && fn.toLowerCase().includes('export')) return 0.9;
-          if (h(headers, '"Order id"') || (h(headers, 'Order id') && fn.toLowerCase().includes('export'))) return 0.85;
-          return 0;
-        },
-        reason: 'Export CSV met Product reference',
-      },
-      {
         fileInputId: 'ean_csv',
         fileInputLabel: 'EAN Codes CSV',
-        detect: (headers, _, fn) => {
-          if (h(headers, 'EAN') && fn.toLowerCase().includes('ean') && fn.toLowerCase().includes('mipounet')) return 0.95;
+        detect: (headers, text, fn) => {
+          const l = fn.toLowerCase();
+          const head = (text || '').slice(0, 800).toUpperCase();
+          if (h(headers, 'SKU', 'EAN') && (head.includes('I26') || head.includes('MV26'))) return 0.98;
+          if (h(headers, 'SKU', 'EAN') && l.includes('ean') && l.includes('mipounet')) return 0.95;
+          if (h(headers, 'SKU', 'EAN') && (l.includes('mipounet') || l.includes('ean'))) return 0.85;
           return 0;
         },
-        reason: 'Mipounet EAN codes bestand',
+        reason: 'Mipounet EAN codes (I26/MV26 SKU)',
       },
       {
-        fileInputId: 'confirmation_csv',
-        fileInputLabel: 'Order Confirmation CSV',
-        detect: (headers, _, fn) => {
-          if (fn.toLowerCase().includes('order-') && !fn.toLowerCase().includes('export') && h(headers, 'Product reference')) return 0.8;
+        fileInputId: 'main_csv',
+        fileInputLabel: 'Order / Export CSV',
+        detect: (headers, _text, fn) => {
+          const l = fn.toLowerCase();
+          if (h(headers, 'SKU', 'EAN') && !h(headers, 'Product reference')) return 0;
+          if (h(headers, 'Product reference', 'Product name', 'Unit price')) {
+            if (l.includes('mipounet')) return 0.95;
+            if (l.includes('order') || l.includes('export')) return 0.9;
+            // Le New Black style without brand column — medium confidence
+            if (h(headers, 'EAN13', 'Color name', 'Size name')) return 0.75;
+          }
+          if (h(headers, 'Order id') && h(headers, 'Product reference')) return 0.85;
           return 0;
         },
-        reason: 'Order confirmation (order-*.csv, niet export)',
+        reason: 'Mipounet order/export met Product reference',
       },
     ],
+    pdfRules: [{
+      fileInputId: 'rrp_pdf',
+      fileInputLabel: 'RRP / Order Confirmation PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (l.includes('mipounet') && (l.includes('rrp') || l.includes('srp') || l.includes('pdf'))) return 0.95;
+        if (l.includes('mipounet')) return 0.85;
+        return 0;
+      },
+      reason: 'Mipounet RRP / order confirmation PDF',
+    }],
   },
 
   // ── Bobo Choses ──

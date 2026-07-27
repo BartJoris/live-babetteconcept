@@ -30,13 +30,13 @@ interface UploadResult {
   error?: string;
 }
 
-// Parse Mipounet image filename: MV26.{model}.{fabric}.{color}[_FRONT|_BACK|...].jpg
-// Handles spaces in filenames and various suffix patterns
+// Parse Mipounet silhouette: I26|MV26.{model}.{fabric}.{color}[_FRONT|_BACK|...].jpg
+// LOOKS/Shot_* filenames intentionally return null (no product code).
 function parseImageFilename(filename: string): { ref: string; suffix: string } | null {
   const clean = filename.replace(/\s+/g, '');
   const base = clean.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-  // MV26.{model}.{fabricCode}.{color}[_suffix] or MV26.{model}.{fabricCode}.{color}
-  const match = base.match(/^MV26\.(\d+)\.[A-Z]+\d+\.(\d+)(?:[_.-](.+))?$/i);
+  // Fabric codes vary: JER007, DEN08, JER07, SAR004, …
+  const match = base.match(/^(?:I26|MV26)\.(\d+)\.[A-Z0-9]+\.(\d+)(?:[_.-](.+))?$/i);
   if (!match) return null;
   return {
     ref: `${match[1]}.${match[2]}`,
@@ -396,10 +396,10 @@ export default function MipounetImagesImport() {
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
                 <p className="text-sm font-medium text-orange-900 mb-2">Mipounet Image Matching</p>
                 <p className="text-xs text-orange-800">
-                  Afbeeldingen worden automatisch gematcht op basis van de bestandsnaam: <strong>MV26.model.stof.kleur</strong>
+                  Afbeeldingen worden automatisch gematcht op basis van de bestandsnaam: <strong>I26.model.stof.kleur</strong> (of MV26)
                 </p>
                 <p className="text-xs text-orange-700 mt-1">
-                  Voorbeeld: <code className="bg-white px-1 rounded">MV26.<strong>1310</strong>.SAR004.<strong>02</strong>_FRONT.jpg</code>
+                  Voorbeeld: <code className="bg-white px-1 rounded">I26.<strong>271</strong>.JER007.<strong>23</strong>_FRONT.jpg</code> → ref 271.23. LOOKS/Shot_* worden overgeslagen.
                   &rarr; Product referentie <strong>1310.02</strong>
                 </p>
                 <p className="text-xs text-orange-700 mt-1">
@@ -426,7 +426,7 @@ export default function MipounetImagesImport() {
                   <div className="font-medium text-gray-900 text-lg">
                     {folderName || 'Klik om de SILHOUETTES map te selecteren'}
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">Selecteer de map met MV26.*.jpg bestanden</p>
+                  <p className="text-sm text-gray-500 mt-1">Selecteer de map met I26.*.jpg silhouettes (bijv. 04 SILHOUETTES)</p>
                   {allImages.length > 0 && (
                     <div className="text-sm text-green-600 mt-3 font-bold">
                       {allImages.length} Mipounet afbeeldingen gevonden

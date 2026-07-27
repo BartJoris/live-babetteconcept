@@ -1,5 +1,17 @@
 import { parseCSV, parseEuroPrice, convertSize, determineSizeAttribute, toTitleCase } from '@/lib/import/shared';
-import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
+import type {
+  SupplierPlugin,
+  ParsedProduct,
+  SupplierFiles,
+  ParseContext,
+  EnrichmentResult,
+} from '@/lib/suppliers/types';
+import { buildMipounetEanMap, isMipounetEanCsv } from './ean';
+import {
+  applyMipounetRrp,
+  FALLBACK_MULTIPLIER,
+  parseMipounetSrpFromText,
+} from './rrp';
 
 function convertMipounetSize(sizeName: string): string {
   if (!sizeName || sizeName === '0') return 'U';
@@ -12,17 +24,12 @@ function convertMipounetSize(sizeName: string): string {
 function extractColor(colorName: string): string {
   // "COTTON TWILL (PINK) - SS26" -> "PINK"
   const match = colorName.match(/\(([^)]+)\)/);
-  return match ? match[1] : colorName.replace(/\s*-\s*SS\d+.*$/i, '').trim();
+  return match ? match[1] : colorName.replace(/\s*-\s*(SS|FW|AW)\d+.*$/i, '').trim();
 }
 
 function isExportCsv(text: string): boolean {
   const upper = text.slice(0, 500).toUpperCase();
-  return upper.includes('PRODUCT REFERENCE') && upper.includes('PRODUCT NAME');
-}
-
-function isEanCsv(text: string): boolean {
-  const upper = text.slice(0, 500).toUpperCase();
-  return upper.includes('SKU') && upper.includes('EAN') && upper.includes('MV26');
+  return upper.includes('PRODUCT REFERENCE') && upper.includes('PRODUCT NAME') && !isMipounetEanCsv(text);
 }
 
 function isOrderConfirmationCsv(text: string): boolean {
@@ -72,17 +79,19 @@ function parseExportCsv(text: string, context: ParseContext): ParsedProduct[] {
 
     const color = extractColor(colorName);
     const size = convertMipounetSize(sizeRaw);
+    const title = toTitleCase(productName);
+    const colorSuffix = color ? ` - ${toTitleCase(color)}` : '';
 
     if (!products[ref]) {
       products[ref] = {
         reference: ref,
-        name: `Mipounet - ${toTitleCase(productName)}`,
+        name: `Mipounet - ${title}${colorSuffix}`,
         originalName: productName,
         material: composition,
         color,
         fabricPrint: fabric,
         csvCategory: category,
-        ecommerceDescription: `${toTitleCase(productName)} - ${color}`,
+        ecommerceDescription: `${title}${colorSuffix}`,
         variants: [],
         suggestedBrand: brand?.name,
         selectedBrand: brand,
@@ -91,6 +100,7 @@ function parseExportCsv(text: string, context: ParseContext): ParsedProduct[] {
         isFavorite: false,
         isPublished: true,
         sizeAttribute: '',
+        rrpSource: 'fallback',
       };
     }
 
@@ -98,65 +108,16 @@ function parseExportCsv(text: string, context: ParseContext): ParsedProduct[] {
       size,
       quantity: qty,
       ean,
-      sku: `MV-${ref}-${sizeRaw}`,
+      sku: `I26-${ref}-${sizeRaw}`,
       price,
-      rrp: 0,
+      rrp: Math.round(price * FALLBACK_MULTIPLIER * 100) / 100,
     });
   }
 
   return Object.values(products);
 }
 
-function buildEanMap(text: string): Map<string, string> {
-  const lines = text.trim().split('\n');
-  const eanMap = new Map<string, string>();
-
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(10, lines.length); i++) {
-    if (lines[i].toUpperCase().includes('SKU') && lines[i].toUpperCase().includes('EAN')) {
-      headerIdx = i;
-      break;
-    }
-  }
-  if (headerIdx === -1) return eanMap;
-
-  const headers = lines[headerIdx].split(';').map(h => h.trim().toUpperCase());
-  const skuIdx = headers.findIndex(h => h === 'SKU');
-  const eanIdx = headers.findIndex(h => h.includes('EAN'));
-  if (skuIdx === -1 || eanIdx === -1) return eanMap;
-
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const cols = line.split(';').map(c => c.trim());
-    const sku = cols[skuIdx] || '';
-    const ean = cols[eanIdx] || '';
-    if (!sku || !ean) continue;
-
-    // SKU format: MV26.{model}.{fabric}.{color}.{sizeCode}
-    const parts = sku.split('.');
-    if (parts.length < 5 || parts[0] !== 'MV26') continue;
-
-    const model = parts[1];
-    const color = parts[3];
-    const sizeCode = parts.slice(4).join('.');
-    const ref = `${model}.${color}`;
-
-    let convertedSize: string;
-    if (/^[SML]$/i.test(sizeCode)) {
-      convertedSize = sizeCode.toUpperCase();
-    } else {
-      convertedSize = convertSize(sizeCode);
-    }
-
-    eanMap.set(`${ref}|${convertedSize}`, ean);
-  }
-
-  return eanMap;
-}
-
-function buildSrpMap(text: string): Map<string, number> {
+function buildSrpMapFromConfirmationCsv(text: string): Map<string, number> {
   const lines = text.split('\n');
   const srpMap = new Map<string, number>();
 
@@ -168,7 +129,6 @@ function buildSrpMap(text: string): Map<string, number> {
     const srpRaw = cols[4]?.trim();
     if (!refRaw || !srpRaw) continue;
 
-    // "1310,02" -> "1310.02"
     const refMatch = refRaw.match(/^(\d+),(\d+)$/);
     if (!refMatch) continue;
 
@@ -180,18 +140,38 @@ function buildSrpMap(text: string): Map<string, number> {
   return srpMap;
 }
 
-function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
-  const mainCsv = files['main_csv'];
-  if (!mainCsv) return [];
+function collectCsvTexts(files: SupplierFiles): string[] {
+  const texts: string[] = [];
+  for (const key of ['main_csv', 'ean_csv', 'confirmation_csv'] as const) {
+    const value = files[key];
+    if (!value) continue;
+    if (Array.isArray(value)) {
+      texts.push(...value.filter((t): t is string => typeof t === 'string'));
+    } else if (typeof value === 'string' && !value.trimStart().startsWith('{')) {
+      texts.push(value);
+    }
+  }
+  return texts;
+}
 
-  const texts = Array.isArray(mainCsv) ? mainCsv : [mainCsv];
+function applyEanMap(products: ParsedProduct[], eanMap: Map<string, string>): void {
+  for (const product of products) {
+    for (const variant of product.variants) {
+      const ean = eanMap.get(`${product.reference}|${variant.size}`);
+      if (ean) variant.ean = ean;
+    }
+  }
+}
+
+function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
+  const texts = collectCsvTexts(files);
 
   let exportText: string | null = null;
   let eanText: string | null = null;
   let confirmationText: string | null = null;
 
   for (const text of texts) {
-    if (isEanCsv(text)) {
+    if (isMipounetEanCsv(text)) {
       eanText = text;
     } else if (isOrderConfirmationCsv(text)) {
       confirmationText = text;
@@ -200,38 +180,87 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
     }
   }
 
+  // Also accept dedicated slots when content type detection is ambiguous
+  if (!exportText && typeof files['main_csv'] === 'string' && isExportCsv(files['main_csv'])) {
+    exportText = files['main_csv'];
+  }
+  if (!eanText && typeof files['ean_csv'] === 'string' && isMipounetEanCsv(files['ean_csv'])) {
+    eanText = files['ean_csv'];
+  }
+
   if (!exportText) return [];
 
   const products = parseExportCsv(exportText, context);
 
   if (eanText) {
-    const eanMap = buildEanMap(eanText);
-    for (const product of products) {
-      for (const variant of product.variants) {
-        const key = `${product.reference}|${variant.size}`;
-        const ean = eanMap.get(key);
-        if (ean) variant.ean = ean;
-      }
-    }
+    applyEanMap(products, buildMipounetEanMap(eanText));
   }
 
   if (confirmationText) {
-    const srpMap = buildSrpMap(confirmationText);
-    for (const product of products) {
-      const srp = srpMap.get(product.reference);
-      if (srp && srp > 0) {
-        for (const variant of product.variants) {
-          variant.rrp = srp;
+    const srpMap = buildSrpMapFromConfirmationCsv(confirmationText);
+    const result = applyMipounetRrp(products, srpMap);
+    result.products.forEach((product) => {
+      product.sizeAttribute = determineSizeAttribute(product.variants);
+    });
+    return result.products;
+  }
+
+  // Optional: RRP PDF JSON already in file map (smart-upload)
+  const rrpRaw = files['rrp_pdf'];
+  if (typeof rrpRaw === 'string' && rrpRaw.trimStart().startsWith('{')) {
+    try {
+      const pdfData = JSON.parse(rrpRaw) as { priceMap?: Record<string, number>; text?: string };
+      let priceMap = new Map<string, number>();
+      if (pdfData.priceMap) {
+        for (const [ref, rrp] of Object.entries(pdfData.priceMap)) {
+          if (typeof rrp === 'number' && rrp > 0) priceMap.set(ref, rrp);
         }
       }
+      if (priceMap.size === 0 && typeof pdfData.text === 'string') {
+        priceMap = parseMipounetSrpFromText(pdfData.text);
+      }
+      const result = applyMipounetRrp(products, priceMap);
+      result.products.forEach((product) => {
+        product.sizeAttribute = determineSizeAttribute(product.variants);
+      });
+      return result.products;
+    } catch {
+      /* fall through */
     }
   }
 
-  products.forEach(product => {
+  products.forEach((product) => {
     product.sizeAttribute = determineSizeAttribute(product.variants);
   });
 
   return products;
+}
+
+function processPdfResults(
+  pdfData: Record<string, unknown>,
+  existingProducts: ParsedProduct[],
+  _context: ParseContext,
+): EnrichmentResult {
+  const rawMap = (pdfData.priceMap || {}) as Record<string, number>;
+  const priceMap = new Map<string, number>();
+  for (const [ref, rrp] of Object.entries(rawMap)) {
+    if (typeof rrp === 'number' && rrp > 0) {
+      priceMap.set(ref, rrp);
+    }
+  }
+
+  if (priceMap.size === 0 && typeof pdfData.text === 'string') {
+    const fromText = parseMipounetSrpFromText(pdfData.text);
+    for (const [ref, rrp] of fromText) {
+      priceMap.set(ref, rrp);
+    }
+  }
+
+  const result = applyMipounetRrp(existingProducts, priceMap);
+  return {
+    products: result.products,
+    message: result.message,
+  };
 }
 
 const mipounetPlugin: SupplierPlugin = {
@@ -240,17 +269,60 @@ const mipounetPlugin: SupplierPlugin = {
   brandName: 'Mipounet',
 
   fileInputs: [
-    { id: 'main_csv', label: 'Mipounet CSV (Export / EAN / Order Confirmation)', accept: '.csv', required: true, multiple: true, type: 'csv' },
+    {
+      id: 'main_csv',
+      label: 'Mipounet Order / Export CSV',
+      accept: '.csv',
+      required: true,
+      type: 'csv',
+    },
+    {
+      id: 'ean_csv',
+      label: 'Mipounet EAN CSV (I26 / MV26)',
+      accept: '.csv',
+      required: false,
+      type: 'csv',
+    },
+    {
+      id: 'rrp_pdf',
+      label: 'RRP / Order Confirmation PDF (optioneel)',
+      accept: '.pdf',
+      required: false,
+      type: 'pdf',
+    },
   ],
 
   fileDetection: [
     {
+      fileInputId: 'ean_csv',
+      detect: (text) => isMipounetEanCsv(text),
+    },
+    {
       fileInputId: 'main_csv',
-      detect: (text) => isExportCsv(text) || isEanCsv(text) || isOrderConfirmationCsv(text),
+      detect: (text) => isExportCsv(text) || isOrderConfirmationCsv(text),
     },
   ],
 
+  serverSideFileInputs: ['rrp_pdf'],
+  pdfParseEndpoint: '/api/parse-mipounet-pdf',
+  processPdfResults,
+
   parse,
+
+  imageUpload: {
+    enabled: true,
+    instructions: 'Upload silhouettes (I26.{model}.{fabric}.{color}_FRONT.jpg). LOOKS/Shot_* matchen niet automatisch.',
+    exampleFilenames: ['I26.271.JER007.23_FRONT.jpg', 'I26.130.JER005.23_FRONT.jpg'],
+    filenameFilter: /\.(jpg|jpeg|png|webp)$/i,
+    extractReference: (filename: string) => {
+      const clean = filename.replace(/\s+/g, '');
+      const base = clean.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+      const match = base.match(/^(?:I26|MV26)\.(\d+)\.[A-Z0-9]+\.(\d+)(?:[_.-]|$)/i);
+      return match ? `${match[1]}.${match[2]}` : null;
+    },
+    dedicatedPageUrl: '/mipounet-images-import',
+    dedicatedPageLabel: 'Upload Mipounet Afbeeldingen',
+  },
 };
 
 export default mipounetPlugin;
