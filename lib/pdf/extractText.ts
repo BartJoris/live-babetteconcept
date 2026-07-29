@@ -1,10 +1,16 @@
 /**
  * Server-side PDF text extraction that works on Vercel.
  *
- * pdf-parse/pdfjs-dist fails there when the worker file is missing from the
- * serverless bundle. We set an inlined data-URL worker via getWorkerSource().
+ * pdf-parse/pdfjs-dist often fails there ("Setting up fake worker failed")
+ * because the worker file is missing from the serverless bundle.
+ * Text extraction therefore uses `unpdf`, which ships a serverless PDF.js
+ * build with an inlined worker.
+ *
+ * `ensurePdfWorker()` remains for callers that still need pdf-parse
+ * (e.g. Tangerine getTable / rotated pages).
  */
 
+import { extractText as unpdfExtractText, getDocumentProxy } from 'unpdf';
 import { getWorkerSource } from 'pdf-parse/worker';
 import { PDFParse } from 'pdf-parse';
 
@@ -18,7 +24,19 @@ function ensureDomMatrixPolyfill(): void {
   }
 }
 
-/** Call before any PDFParse / pdfjs usage on serverless. */
+/** PDF.js 5.x may call Math.sumPrecise; not available on all Node runtimes (incl. Vercel 22.x). */
+function ensureMathSumPrecisePolyfill(): void {
+  const math = Math as Math & { sumPrecise?: (values: Iterable<number>) => number };
+  if (typeof math.sumPrecise !== 'function') {
+    math.sumPrecise = (values) => {
+      let total = 0;
+      for (const value of values) total += value;
+      return total;
+    };
+  }
+}
+
+/** Call before any PDFParse / pdfjs usage that still goes through pdf-parse. */
 export function ensurePdfWorker(): void {
   if (workerConfigured) return;
   ensureDomMatrixPolyfill();
@@ -51,11 +69,32 @@ function normalizeTextResult(textResult: unknown): string {
   return String(textResult);
 }
 
+/**
+ * Extract plain text from a PDF buffer. Prefer this over raw pdf-parse on Vercel.
+ */
 export async function extractPdfText(data: Uint8Array | Buffer): Promise<string> {
+  const pdfData = data instanceof Uint8Array ? data : new Uint8Array(data);
+  ensureMathSumPrecisePolyfill();
+
+  try {
+    const pdf = await getDocumentProxy(pdfData);
+    const { text } = await unpdfExtractText(pdf, { mergePages: true });
+    if (text.trim()) return text;
+  } catch (unpdfError) {
+    console.warn('unpdf extract failed, falling back to pdf-parse:', unpdfError);
+  }
+
+  // Fallback for edge cases where unpdf cannot read the file
   ensurePdfWorker();
-  // pdfjs rejects Node Buffer (even though it extends Uint8Array) — always copy
-  const pdfData = new Uint8Array(data);
   const parser = new PDFParse(pdfData);
-  const textResult = await parser.getText();
-  return normalizeTextResult(textResult);
+  try {
+    const textResult = await parser.getText();
+    return normalizeTextResult(textResult);
+  } finally {
+    try {
+      await parser.destroy();
+    } catch {
+      /* ignore */
+    }
+  }
 }

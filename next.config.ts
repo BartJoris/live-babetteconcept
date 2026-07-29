@@ -6,16 +6,19 @@ const nextConfig = {
   // Keep /api/mcp usable without a 308 (POST + Authorization must not redirect).
   skipTrailingSlashRedirect: true,
   
-  serverExternalPackages: ['pdf-parse', 'pdfjs-dist', '@napi-rs/canvas'],
+  // unpdf is preferred for text extract (inlined worker). pdf-parse kept for table/rotation APIs.
+  serverExternalPackages: ['unpdf', 'pdf-parse', 'pdfjs-dist', '@napi-rs/canvas'],
 
   // pdfjs worker + native canvas are loaded at runtime; file tracing often misses them on Vercel
   outputFileTracingIncludes: {
     '/api/**/*': [
+      './node_modules/unpdf/**/*',
       './node_modules/pdf-parse/**/*',
       './node_modules/pdfjs-dist/**/*',
       './node_modules/@napi-rs/canvas/**/*',
     ],
     '/api/**': [
+      './node_modules/unpdf/**/*',
       './node_modules/pdf-parse/**/*',
       './node_modules/pdfjs-dist/**/*',
       './node_modules/@napi-rs/canvas/**/*',
