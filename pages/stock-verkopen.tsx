@@ -20,7 +20,8 @@ type Partner = {
 };
 
 const STORAGE_KEY = 'stockVerkopenRows';
-const STOCK_PERCENTAGE = 0.20;
+const STOCK_PERCENTAGE = 0.30;
+const STOCK_PERCENTAGE_LABEL = `${Math.round(STOCK_PERCENTAGE * 100)}%`;
 
 export default function StockVerkopenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
@@ -418,7 +419,7 @@ export default function StockVerkopenPage() {
       <main style={{ padding: 16, maxWidth: 1400, margin: '0 auto' }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Stock verkopen</h1>
         <p style={{ marginBottom: 16, color: '#6b7280' }}>
-          Scan producten om ze toe te voegen aan de lijst. Stock prijs = 20% van de verkoopprijs.
+          Scan producten om ze toe te voegen aan de lijst. Stock prijs = {STOCK_PERCENTAGE_LABEL} van de verkoopprijs.
         </p>
 
         {alertMessage && (
@@ -508,7 +509,7 @@ export default function StockVerkopenPage() {
                 <th style={thStyle}>Variant / Maat</th>
                 <th style={{ ...thStyle, textAlign: 'right' }}>Aankoopprijs</th>
                 <th style={{ ...thStyle, textAlign: 'right' }}>Verkoopprijs</th>
-                <th style={{ ...thStyle, textAlign: 'right', background: '#fef3c7' }}>Stock Prijs (20%)</th>
+                <th style={{ ...thStyle, textAlign: 'right', background: '#fef3c7' }}>Stock Prijs ({STOCK_PERCENTAGE_LABEL})</th>
                 <th style={{ ...thStyle, width: 80, textAlign: 'center' }}>Aantal</th>
                 <th style={{ ...thStyle, textAlign: 'right', background: '#fef3c7' }}>Totaal</th>
                 <th style={{ ...thStyle, width: 40, textAlign: 'center' }}></th>
@@ -624,7 +625,7 @@ export default function StockVerkopenPage() {
             <div style={{ ...modalStyle, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, marginBottom: 4 }}>Offerte aanmaken in Odoo</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: '#6b7280', fontSize: 14 }}>
-                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null).length} producten aan 20% van de verkoopprijs.
+                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null).length} producten aan {STOCK_PERCENTAGE_LABEL} van de verkoopprijs.
               </p>
 
               <label style={labelStyle}>
