@@ -1,45 +1,73 @@
-import { parseCSV, parseEuroPrice, toSentenceCase } from '@/lib/import/shared';
+import { parseCSV, parseEuroPrice, rowToObject, toSentenceCase } from '@/lib/import/shared';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
+
+/** Fallback markup when the export has no RRP column (order-confirmation format). */
+const RRP_MULTIPLIER = 1.2;
+
+/**
+ * On the order-confirmation export, "Description" repeats the reference and
+ * product name, then the real color, then a throwaway sample size (e.g.
+ * "AW26-602 Frills Long Coat Washed Blue 34"). The "Color name" column is
+ * not a color at all - it's an internal style code (e.g. "FRILLS LONG COAT L15").
+ */
+function extractColor(description: string, reference: string, productName: string): string {
+  let rest = description.trim();
+  if (reference && rest.startsWith(reference)) {
+    rest = rest.slice(reference.length).trim();
+  }
+  if (productName && rest.toLowerCase().startsWith(productName.toLowerCase())) {
+    rest = rest.slice(productName.length).trim();
+  }
+  return rest.replace(/\s+\S+$/, '').trim() || rest;
+}
 
 function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   const text = files['main_csv'] as string;
-  const { headers, rows } = parseCSV(text, { delimiter: ';' });
+  if (!text) return [];
 
-  const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
-  const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
-  const sizeIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
-  const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
-  const qtyIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
-  const priceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
-  const rrpIdx = headers.findIndex(h => h.toLowerCase() === 'rrp');
-  const categoryIdx = headers.findIndex(h => h.toLowerCase() === 'category');
+  const { headers, rows } = parseCSV(text, { delimiter: ';' });
+  if (headers.length === 0 || rows.length === 0) return [];
 
   const brand = context.findBrand('tiny big sister', 'tinycottons', 'tiny cottons');
   const products: Record<string, ParsedProduct> = {};
 
   for (const values of rows) {
-    const productName = values[productNameIdx] || '';
-    const composition = values[compositionIdx] || '';
-    const size = values[sizeIdx] || '';
-    const ean = values[eanIdx] || '';
-    const quantity = parseInt(values[qtyIdx] || '0') || 0;
-    const price = parseEuroPrice(values[priceIdx] || '');
-    const rrp = parseEuroPrice(values[rrpIdx] || '');
-    const category = values[categoryIdx] || '';
+    const row = rowToObject(headers, values);
 
+    const productName = row['Product name'] || '';
     if (!productName) continue;
 
-    const productKey = productName;
+    // Order-confirmation exports include a real "Product reference" so
+    // colorways of the same product name stay separate products. Older,
+    // simpler catalog exports don't have it - fall back to the product name.
+    const reference = row['Product reference'] || productName;
 
-    if (!products[productKey]) {
-      const formattedName = `Tiny Big sister - ${toSentenceCase(productName)}`;
-      products[productKey] = {
-        reference: productName,
+    const category = row['Category'] || '';
+    const material = row['Composition'] || '';
+    const description = row['Description'] || '';
+    const size = row['Size name'] || '';
+    const ean = row['EAN13'] || '';
+    const sku = row['SKU'] || '';
+    const quantity = parseInt(row['Quantity'] || '0') || 0;
+    const price = parseEuroPrice(row['Unit price'] || '');
+    // Older catalog exports have a real "RRP" column; the newer
+    // order-confirmation export doesn't, so fall back to a markup.
+    const rrp = row['RRP'] ? parseEuroPrice(row['RRP']) : price * RRP_MULTIPLIER;
+    const color = description ? extractColor(description, reference, productName) : '';
+
+    if (!products[reference]) {
+      const formattedName = ['Tiny Big sister', toSentenceCase(productName), toSentenceCase(color)]
+        .filter(Boolean)
+        .join(' - ');
+
+      products[reference] = {
+        reference,
         name: formattedName,
         originalName: productName,
-        material: composition,
-        color: '',
+        material,
+        color,
         csvCategory: category,
+        ecommerceDescription: formattedName,
         variants: [],
         suggestedBrand: brand?.name,
         selectedBrand: brand,
@@ -51,10 +79,11 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
       };
     }
 
-    products[productKey].variants.push({
+    products[reference].variants.push({
       size,
       quantity,
       ean,
+      sku: sku || undefined,
       price,
       rrp,
     });

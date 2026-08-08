@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import tinybigsisterPlugin from './index';
+import tinycottonsPlugin from './index';
 import type { ParseContext } from '@/lib/suppliers/types';
 
 const CSV_PATH = join(__dirname, 'samples', 'Tiny_Big_sister_AW2627_-_Order.csv');
@@ -19,9 +19,9 @@ const context: ParseContext = {
   },
 };
 
-describe('tinybigsister parse', () => {
+describe('tinycottons parse - order-confirmation export (Product reference + Description)', () => {
   const text = readFileSync(CSV_PATH, 'utf8');
-  const products = tinybigsisterPlugin.parse({ main_csv: text }, context);
+  const products = tinycottonsPlugin.parse({ main_csv: text }, context);
 
   it('groups rows into one product per reference (63 rows -> 17 products)', () => {
     expect(products).toHaveLength(17);
@@ -33,7 +33,7 @@ describe('tinybigsister parse', () => {
     const coat = products.find(p => p.reference === 'AW26-602');
     expect(coat).toBeTruthy();
     expect(coat!.color).toBe('Washed Blue');
-    expect(coat!.name).toBe('Tiny Big Sister - Frills long coat - Washed blue');
+    expect(coat!.name).toBe('Tiny Big sister - Frills long coat - Washed blue');
     expect(coat!.material).toBe('100% Wool');
     expect(coat!.csvCategory).toBe('Outerwear');
     expect(coat!.sizeAttribute).toBe('MAAT Volwassenen');
@@ -48,7 +48,7 @@ describe('tinybigsister parse', () => {
     expect(blue?.originalName).toBe('Frank Striped Polo');
   });
 
-  it('parses variants: size, ean, sku, quantity, price and rrp', () => {
+  it('parses variants: size, ean, sku, quantity, price and a fallback rrp (no RRP column in this export)', () => {
     const coat = products.find(p => p.reference === 'AW26-602')!;
     expect(coat.variants.map(v => v.size)).toEqual(['36', '38', '40', '42']);
     const first = coat.variants[0];
@@ -69,5 +69,25 @@ describe('tinybigsister parse', () => {
   it('suggests the brand via findBrand', () => {
     const coat = products.find(p => p.reference === 'AW26-602')!;
     expect(coat.suggestedBrand).toBe('Tiny Big sister');
+  });
+});
+
+describe('tinycottons parse - older catalog export (no Product reference/Description, has RRP)', () => {
+  const oldFormatCsv = [
+    'Order id;Season;Brand name;Category;Product name;Composition;Size name;EAN13;Quantity;Unit price;RRP',
+    '3117410;SS26;Tinycottons;Shorts;Alma Fruits Short;100% cotton;34;8434525598872;1;47,6;119',
+    '3117410;SS26;Tinycottons;Shorts;Alma Fruits Short;100% cotton;36;8434525598889;1;47,6;119',
+  ].join('\n');
+
+  it('falls back to grouping by product name and uses the real RRP column', () => {
+    const products = tinycottonsPlugin.parse({ main_csv: oldFormatCsv }, context);
+    expect(products).toHaveLength(1);
+    const short = products[0];
+    expect(short.reference).toBe('Alma Fruits Short');
+    expect(short.name).toBe('Tiny Big sister - Alma fruits short');
+    expect(short.color).toBe('');
+    expect(short.variants).toHaveLength(2);
+    expect(short.variants[0].price).toBeCloseTo(47.6);
+    expect(short.variants[0].rrp).toBeCloseTo(119);
   });
 });

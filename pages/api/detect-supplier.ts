@@ -733,25 +733,6 @@ const SUPPLIER_RULES: SupplierRule[] = [
       reason: 'Weekend House Kids RRP / order confirmation PDF',
     }],
   },
-  // ── Tiny Big Sister ──
-  {
-    supplierId: 'tinybigsister',
-    supplierName: 'Tiny Big Sister',
-    csvRules: [{
-      fileInputId: 'main_csv',
-      fileInputLabel: 'Tiny Big Sister CSV',
-      detect: (headers, text) => {
-        // Le New Black order confirmation export: Order id/Brand sales person
-        // are distinctive vs. the plain product catalog exports other
-        // suppliers use, and "Color name" + "Product reference" narrow it
-        // down further (see lib/suppliers/tinybigsister/samples/*).
-        if (h(headers, 'Order id', 'Brand sales person', 'Product reference', 'Color name')) return 0.9;
-        if (h(headers, 'Product reference', 'Color name', 'Composition', 'EAN13') && text.toLowerCase().includes('tiny')) return 0.75;
-        return 0;
-      },
-      reason: 'Order id + Brand sales person + Product reference + Color name (Tiny Big Sister order CSV)',
-    }],
-  },
 ];
 
 function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
