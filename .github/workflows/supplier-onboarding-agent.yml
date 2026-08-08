@@ -9,7 +9,10 @@ name: Supplier Onboarding Agent
 # Enterprise team's privacy settings currently block).
 on:
   pull_request:
-    types: [opened]
+    # No "synchronize": the agent's own commits/pushes would otherwise
+    # re-trigger this workflow on itself (infinite loop / runaway cost).
+    # Use "reopened" (close + reopen the PR) to manually retry a failed run.
+    types: [opened, reopened]
 
 jobs:
   refine-supplier-plugin:
@@ -18,6 +21,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write # required by claude-code-action to mint its OIDC-based GitHub token
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v6
