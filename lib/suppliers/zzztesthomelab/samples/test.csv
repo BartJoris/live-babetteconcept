@@ -1,0 +1,5 @@
+Reference;Name;Color;Size;Quantity;EAN;Price
+TEST001;Test Shirt;Blue;S;10;1234567890123;19.99
+TEST001;Test Shirt;Blue;M;5;1234567890124;19.99
+TEST002;Test Pants;Black;M;3;1234567890125;39.99
+TEST002;Test Pants;Black;L;2;1234567890126;39.99

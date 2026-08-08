@@ -37,6 +37,7 @@ import babeandtess from './babeandtess';
 import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
+import zzztesthomelab from './zzztesthomelab';
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
 const allPlugins = [
@@ -73,6 +74,7 @@ const allPlugins = [
   tinycottons,      // Tiny Big sister
   weekendhousekids, // Weekend House Kids
   wyncken,          // Wyncken
+  zzztesthomelab,   // ZZZ Test Homelab (DUMMY) (auto-onboarding)
 ];
 
 for (const plugin of allPlugins) {

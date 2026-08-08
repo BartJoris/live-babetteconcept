@@ -733,6 +733,22 @@ const SUPPLIER_RULES: SupplierRule[] = [
       reason: 'Weekend House Kids RRP / order confirmation PDF',
     }],
   },
+
+  // ── ZZZ Test Homelab (DUMMY) (auto-onboarding stub — TODO: agent verfijnt dit) ──
+  {
+    supplierId: 'zzztesthomelab',
+    supplierName: 'ZZZ Test Homelab (DUMMY)',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'ZZZ Test Homelab (DUMMY) CSV',
+      detect: (_headers, _text, fileName) => {
+        // TODO(agent): vervang door echte header/inhoud-detectie op basis van
+        // lib/suppliers/zzztesthomelab/samples/*.
+        return fileName.toLowerCase().includes('zzztesthomelab') ? 0.6 : 0;
+      },
+      reason: 'Stub-detectie: bestandsnaam bevat "zzztesthomelab" (TODO: verfijnen)',
+    }],
+  },
 ];
 
 function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
