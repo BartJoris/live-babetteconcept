@@ -37,7 +37,6 @@ import babeandtess from './babeandtess';
 import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
-
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
 const allPlugins = [
