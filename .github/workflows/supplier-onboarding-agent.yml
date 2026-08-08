@@ -76,10 +76,10 @@ jobs:
                `lib/suppliers/tangerine/index.ts` en `lib/suppliers/jellymallow/index.ts`
                voor patronen). Geef `null` terug als er geen duidelijk patroon te herkennen is.
                Commit + push.
-            5. Draai eerst `npm run typecheck` en `npm run test:run` (snel, gebruik dit als
-               iteratieve feedback-loop) en los fouten op. Draai `npm run build` pas als
-               laatste, uitsluitend ter finale controle — herhaal die niet onnodig, hij is traag.
-               Commit + push het eindresultaat.
+            5. Draai `npm run typecheck` en `npm run test:run` en los fouten op. Draai GEEN
+               `npm run build` — dat bouwt de volledige site en is traag/duur; Vercel maakt
+               sowieso automatisch een preview-build van deze PR, dat is voldoende als
+               eindcontrole. Commit + push het eindresultaat.
 
             Belangrijke restricties: raak geen andere leveranciers-bestanden aan, open geen
             nieuwe PR, merge niet, en plaats geen PR-comments. Werk gericht en efficiënt met
