@@ -59,25 +59,32 @@ jobs:
             gegenereerd naar het patroon van `lib/suppliers/create-csv-supplier.ts` /
             bestaande plugins in `lib/suppliers/*/index.ts`.
 
-            Taken:
+            Taken (commit en push na ELKE afgeronde taak hieronder — niet pas op het
+            einde. Zo blijft er bruikbare voortgang staan, zelfs als je een turn-limiet
+            raakt voor je klaar bent):
             1. Verfijn `lib/suppliers/${{ steps.supplier.outputs.id }}/index.ts` zodat het
                correct parsed op basis van de échte sample-data (open en lees de
-               sample-bestanden zelf, ga niet af op aannames).
+               sample-bestanden zelf, ga niet af op aannames). Commit + push.
             2. Voeg een Vitest-test toe die deze sample-bestanden als fixtures gebruikt
-               (zie `lib/**/__tests__/*.test.ts` voor stijl).
+               (zie `lib/**/__tests__/*.test.ts` voor stijl). Commit + push.
             3. Verbeter de stub-detectieregel voor "${{ steps.supplier.outputs.id }}" in
                `pages/api/detect-supplier.ts` (gemarkeerd met `TODO(agent)`) op basis van
-               de echte CSV-headers/inhoud.
+               de echte CSV-headers/inhoud. Commit + push.
             4. Als `lib/suppliers/${{ steps.supplier.outputs.id }}/samples/image-filenames.txt`
                bestaat: analyseer die bestandsnamen samen met de sample-productreferenties en
                implementeer een werkende `imageUpload.extractReference`-functie (zie
                `lib/suppliers/tangerine/index.ts` en `lib/suppliers/jellymallow/index.ts`
                voor patronen). Geef `null` terug als er geen duidelijk patroon te herkennen is.
-            5. Draai `npm run verify` (typecheck + tests + build) en los alle fouten op.
+               Commit + push.
+            5. Draai eerst `npm run typecheck` en `npm run test:run` (snel, gebruik dit als
+               iteratieve feedback-loop) en los fouten op. Draai `npm run build` pas als
+               laatste, uitsluitend ter finale controle — herhaal die niet onnodig, hij is traag.
+               Commit + push het eindresultaat.
 
             Belangrijke restricties: raak geen andere leveranciers-bestanden aan, open geen
-            nieuwe PR, merge niet, en plaats geen PR-comments. Commit en push je wijzigingen
-            rechtstreeks naar deze branch.
+            nieuwe PR, merge niet, en plaats geen PR-comments. Werk gericht en efficiënt met
+            je beperkte aantal turns — commit tussentijdse voortgang liever te vaak dan te
+            weinig.
           claude_args: |
-            --max-turns 40
+            --max-turns 70
             --allowedTools "Bash,Edit,Write,Read,Glob,Grep"
