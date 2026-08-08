@@ -206,7 +206,7 @@ ${fileDescriptions}
 
 Based on ALL these files, provide a JSON configuration for this supplier. The configuration must include:
 
-1. "id": lowercase kebab-case identifier
+1. "id": lowercase identifier using ONLY letters and digits (no spaces, hyphens or underscores), e.g. "tinybigsister" for "Tiny Big Sister" — this becomes a folder name and JS import specifier
 2. "displayName": human-readable name  
 3. "brandName": brand name (detect from data if possible)
 4. "fileInputs": array of objects, one per file type this supplier needs. Each: { "id": string, "label": string (Dutch), "accept": ".csv" or ".pdf", "required": boolean, "type": "csv" or "pdf" }
@@ -247,7 +247,18 @@ Respond with ONLY valid JSON, no markdown.`;
     if (!content) return undefined;
 
     const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned) as AISuggestion;
+
+    // Defensive normalization: even with an explicit instruction, the model
+    // sometimes still returns kebab-case or spaced ids. Supplier ids become a
+    // folder name (lib/suppliers/<id>/) and a JS import specifier, so they must
+    // be plain lowercase alphanumerics (see ID_PATTERN in pages/api/suppliers/onboard.ts).
+    if (parsed?.id) {
+      const normalized = parsed.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+      parsed.id = /^[a-z]/.test(normalized) ? normalized.slice(0, 40) : `s${normalized}`.slice(0, 40);
+    }
+
+    return parsed;
   } catch (error) {
     console.error('AI suggestion error:', error);
     return undefined;

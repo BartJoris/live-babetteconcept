@@ -33,6 +33,16 @@ interface OnboardStatus {
 const SMART_UPLOAD_FILES_KEY = 'smart_upload_onboarding_files';
 const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i;
 
+/**
+ * Supplier ids become a folder name (lib/suppliers/<id>/) and a JS import
+ * specifier, so only plain lowercase letters/digits are allowed — no hyphens,
+ * spaces or underscores (must match ID_PATTERN in pages/api/suppliers/onboard.ts).
+ */
+function normalizeSupplierId(raw: string): string {
+  const normalized = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return /^[a-z]/.test(normalized) ? normalized : `s${normalized}`;
+}
+
 /** Human-readable Dutch label for the "Supplier Onboarding Agent" GitHub Actions run. */
 function describeWorkflowStatus(status: string | null, conclusion: string | null): string {
   if (!status) return 'Wacht tot GitHub Actions de refine-run oppikt...';
@@ -270,7 +280,7 @@ export default function SupplierOnboardingPage() {
         }
 
         if (data.aiSuggestion) {
-          setSupplierConfig(data.aiSuggestion);
+          setSupplierConfig({ ...data.aiSuggestion, id: normalizeSupplierId(data.aiSuggestion.id || '') });
         }
 
         setStep(2);
@@ -703,10 +713,11 @@ export default function SupplierOnboardingPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID (lowercase)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID (lowercase, geen streepjes)</label>
                     <input type="text" value={supplierConfig.id}
-                      onChange={(e) => setSupplierConfig({ ...supplierConfig, id: e.target.value })}
+                      onChange={(e) => setSupplierConfig({ ...supplierConfig, id: normalizeSupplierId(e.target.value) })}
                       className="w-full border dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Alleen letters/cijfers (wordt een mapnaam), bv. &quot;tinybigsister&quot;.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weergavenaam</label>
