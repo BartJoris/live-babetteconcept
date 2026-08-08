@@ -85,3 +85,10 @@ ios-app/**/build/
 
 .cursor/
 scripts/test-xprotect.ps1
+
+# graphify (codebase knowledge graph — graphify-out/ itself IS committed so the
+# whole team/agents start with a warm graph; only local-only bits are excluded)
+graphify-out/cost.json
+# graphify-out/cache/ intentionally NOT ignored: committing it keeps re-labeling fast for everyone
+# dated backup snapshots (made before each overwrite of the curated/labeled graph) are local-only
+graphify-out/????-??-??/
