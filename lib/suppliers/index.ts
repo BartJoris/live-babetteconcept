@@ -37,6 +37,7 @@ import babeandtess from './babeandtess';
 import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
+import tinybigsister from './tinybigsister';
 
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
@@ -74,6 +75,7 @@ const allPlugins = [
   tinycottons,      // Tiny Big sister
   weekendhousekids, // Weekend House Kids
   wyncken,          // Wyncken
+  tinybigsister,   // Tiny Big Sister (auto-onboarding)
 ];
 
 for (const plugin of allPlugins) {

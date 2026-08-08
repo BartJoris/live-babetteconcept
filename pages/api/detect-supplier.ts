@@ -733,6 +733,21 @@ const SUPPLIER_RULES: SupplierRule[] = [
       reason: 'Weekend House Kids RRP / order confirmation PDF',
     }],
   },
+  // ── Tiny Big Sister (auto-onboarding stub — TODO: agent verfijnt dit) ──
+  {
+    supplierId: 'tinybigsister',
+    supplierName: 'Tiny Big Sister',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Tiny Big Sister CSV',
+      detect: (_headers, _text, fileName) => {
+        // TODO(agent): vervang door echte header/inhoud-detectie op basis van
+        // lib/suppliers/tinybigsister/samples/*.
+        return fileName.toLowerCase().includes('tinybigsister') ? 0.6 : 0;
+      },
+      reason: 'Stub-detectie: bestandsnaam bevat "tinybigsister" (TODO: verfijnen)',
+    }],
+  },
 ];
 
 function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
