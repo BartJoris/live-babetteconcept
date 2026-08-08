@@ -260,9 +260,9 @@
     "semantic_hash": "9364f74b9f1a21d92f59f2a7c697c625"
   },
   "lib/github/repoWriter.ts": {
-    "mtime": 1786215348.7341845,
-    "ast_hash": "f68e476348b9d0e6b4e754bc2eb90c98",
-    "semantic_hash": "f68e476348b9d0e6b4e754bc2eb90c98"
+    "mtime": 1786226111.7432961,
+    "ast_hash": "bf294e0fa380df05c082e5a8fdf37f55",
+    "semantic_hash": ""
   },
   "lib/hooks/useAuth.ts": {
     "mtime": 1784883003.869515,
@@ -685,9 +685,9 @@
     "semantic_hash": "55c32574575a08214f01beb13395426d"
   },
   "lib/suppliers/index.ts": {
-    "mtime": 1774047721.9209619,
-    "ast_hash": "eb18fb61cd710204b7117648502d4cf0",
-    "semantic_hash": "eb18fb61cd710204b7117648502d4cf0"
+    "mtime": 1786224793.1416953,
+    "ast_hash": "02227f8a04ed115e4914c0719cbd0e9f",
+    "semantic_hash": ""
   },
   "lib/suppliers/jellymallow/index.ts": {
     "mtime": 1773317853.0249424,
@@ -795,9 +795,9 @@
     "semantic_hash": "969e97eeea7f40228c530793a71ac11a"
   },
   "lib/suppliers/tinycottons/index.ts": {
-    "mtime": 1771953103.7248552,
-    "ast_hash": "a87d0fa67823d7fad97f3576dbbb8688",
-    "semantic_hash": "a87d0fa67823d7fad97f3576dbbb8688"
+    "mtime": 1786224793.142137,
+    "ast_hash": "bfde841a96a3fadcc9ff1592cb55d357",
+    "semantic_hash": ""
   },
   "lib/suppliers/types.ts": {
     "mtime": 1786213210.9534106,
@@ -995,7 +995,7 @@
     "semantic_hash": "f10547cb19b9b94942334874f26c819e"
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1785138498.942978,
+    "mtime": 1786224591.1648695,
     "ast_hash": "65726ee1bd55fd7fd9a4bd96c9caf297",
     "semantic_hash": "65726ee1bd55fd7fd9a4bd96c9caf297"
   },
@@ -1555,9 +1555,9 @@
     "semantic_hash": "858758d03a7ff480a8aab6826b488106"
   },
   "pages/api/suppliers/onboard.ts": {
-    "mtime": 1786215224.6918032,
-    "ast_hash": "2b279d979b1c8f422e8441e2f325884f",
-    "semantic_hash": "2b279d979b1c8f422e8441e2f325884f"
+    "mtime": 1786226132.543923,
+    "ast_hash": "afe02004efa91dde9383278ade722b8a",
+    "semantic_hash": ""
   },
   "pages/api/thenewsociety-upload-images.ts": {
     "mtime": 1784796151.092262,
@@ -2193,5 +2193,120 @@
     "mtime": 1761686125.2171893,
     "ast_hash": "cffe73c66896d34ec60f7547e0805c2c",
     "semantic_hash": "cffe73c66896d34ec60f7547e0805c2c"
+  },
+  ".github/workflows/supplier-onboarding-agent.yml": {
+    "mtime": 1786226160.4090765,
+    "ast_hash": "8bfe99ec2d95413591c6b913b9264e70",
+    "semantic_hash": ""
+  },
+  "IMPORT_STATUS.md": {
+    "mtime": 1761686125.2159965,
+    "ast_hash": "b3f6f3605c614caf583457fa06768321",
+    "semantic_hash": ""
+  },
+  "LOCAL_TESTING.md": {
+    "mtime": 1783725359.4194539,
+    "ast_hash": "e41eab281b27f8b4648e8ef768515d0b",
+    "semantic_hash": ""
+  },
+  "WEBSHOPORDERS_SETUP.md": {
+    "mtime": 1761864082.0411513,
+    "ast_hash": "11615537d3aee0f198f3696692a52b6b",
+    "semantic_hash": ""
+  },
+  "WEBSHOPORDERS_TESTING_GUIDE.md": {
+    "mtime": 1762686320.911402,
+    "ast_hash": "b3646d3538cf8ec3c9ae331e5d33e2ee",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1783725359.4250634,
+    "ast_hash": "5a701fa273b3ffafb1a6444a953cbea7",
+    "semantic_hash": ""
+  },
+  "docs/mcp-chatgpt.md": {
+    "mtime": 1784794003.9244545,
+    "ast_hash": "29312953a2373f42ffe042dd909b30dd",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-23-mcp-stock-snapshot.md": {
+    "mtime": 1784793421.942781,
+    "ast_hash": "db91ecea39f55f7c22ff40c4fe9d3df7",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-25-mipounet-aw26-import.md": {
+    "mtime": 1785138396.6798048,
+    "ast_hash": "7ced4d8ea16d3b293084afc3c0ebfd35",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-25-weekendhousekids-rrp-pdf.md": {
+    "mtime": 1784972306.669003,
+    "ast_hash": "6d0d370a94ac59080a7cc5b16332af55",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-22-mcp-oauth-chatgpt-design.md": {
+    "mtime": 1784704749.8454177,
+    "ast_hash": "7c4dd2f6368fffb83e9e8e09d4188534",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-23-mcp-stock-snapshot-design.md": {
+    "mtime": 1784793524.8797574,
+    "ast_hash": "fbbd6c4743241eb84dae5f732c7ddcbf",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-25-import-partial-results-design.md": {
+    "mtime": 1784983992.103075,
+    "ast_hash": "a575a4bffd66acabcc581ae41d167b85",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-25-mipounet-aw26-import-design.md": {
+    "mtime": 1785138390.9273436,
+    "ast_hash": "d5e927d44122203ab0ac350b09271a52",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-25-unified-image-uploader-design.md": {
+    "mtime": 1784988082.3210285,
+    "ast_hash": "7b598c718d5b200352056572a0a55b7a",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-25-weekendhousekids-rrp-pdf-design.md": {
+    "mtime": 1784972166.8787913,
+    "ast_hash": "f13d87a221c18902e81c6c73e7a825c8",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-25-wyncken-aw26-so-import-design.md": {
+    "mtime": 1784992175.5492105,
+    "ast_hash": "1ccfd4e1aec4fa8d146fa676c42c32d5",
+    "semantic_hash": ""
+  },
+  "public/file.svg": {
+    "mtime": 1761686125.2279947,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": ""
+  },
+  "public/globe.svg": {
+    "mtime": 1761686125.228058,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": ""
+  },
+  "public/next.svg": {
+    "mtime": 1761686125.2281175,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": ""
+  },
+  "public/vercel.svg": {
+    "mtime": 1761686125.2281797,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": ""
+  },
+  "public/window.svg": {
+    "mtime": 1761686125.2282798,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/tinycottons/index.test.ts": {
+    "mtime": 1786224793.1419005,
+    "ast_hash": "c1a1720096b43ae39c491de982d4f0db",
+    "semantic_hash": ""
   }
 }

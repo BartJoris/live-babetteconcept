@@ -192,12 +192,39 @@ export interface WorkflowRunSummary {
  * Returns null if no run has started yet (e.g. GitHub hasn't picked it up yet).
  */
 export async function getLatestWorkflowRunForBranch(branch: string): Promise<WorkflowRunSummary | null> {
-  const data = await githubRequest<{ workflow_runs: Array<{ status: string; conclusion: string | null; html_url: string }> }>(
-    repoPath(`/actions/runs?branch=${encodeURIComponent(branch)}&event=pull_request&per_page=1`)
+  // The run itself executes against the default branch (workflow_dispatch's
+  // `ref`), so we can't filter the /actions/runs list by the PR branch name -
+  // instead fetch the workflow's own recent runs and match on the "branch"
+  // input we passed to dispatchWorkflow().
+  const data = await githubRequest<{
+    workflow_runs: Array<{ status: string; conclusion: string | null; html_url: string; display_title?: string }>;
+  }>(
+    repoPath(`/actions/workflows/supplier-onboarding-agent.yml/runs?event=workflow_dispatch&per_page=10`)
   );
-  const run = data.workflow_runs[0];
+  const run = data.workflow_runs.find(r => r.display_title?.includes(branch));
   if (!run) return null;
   return { status: run.status, conclusion: run.conclusion, htmlUrl: run.html_url };
+}
+
+/**
+ * Trigger a `workflow_dispatch` run for the given workflow file. Used instead
+ * of relying on the `pull_request: opened` event so that the self-hosted
+ * runner (see .github/workflows/supplier-onboarding-agent.yml) can only ever
+ * be started by our own backend's GITHUB_TOKEN - a fork opening a PR against
+ * this (public) repo cannot cause this call, and therefore cannot trigger a
+ * run on our runner. `ref` must be a branch on which the workflow file
+ * exists (the default branch), not the target PR branch; the PR branch is
+ * passed via `inputs.branch` instead.
+ */
+export async function dispatchWorkflow(
+  workflowFile: string,
+  ref: string,
+  inputs: Record<string, string>
+): Promise<void> {
+  await githubRequest(repoPath(`/actions/workflows/${encodeURIComponent(workflowFile)}/dispatches`), {
+    method: 'POST',
+    body: JSON.stringify({ ref, inputs }),
+  });
 }
 
 export function getRepoHttpsUrl(): string {

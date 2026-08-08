@@ -13,6 +13,7 @@ import {
   openPullRequest,
   patchSupplierRegistry,
   patchDetectSupplierStub,
+  dispatchWorkflow,
   type CommitFileInput,
 } from '@/lib/github/repoWriter';
 
@@ -41,6 +42,7 @@ interface OnboardResponse {
 const ID_PATTERN = /^[a-z][a-z0-9]{1,40}$/;
 const SUPPLIERS_INDEX_PATH = 'lib/suppliers/index.ts';
 const DETECT_SUPPLIER_PATH = 'pages/api/detect-supplier.ts';
+const ONBOARDING_WORKFLOW_FILE = 'supplier-onboarding-agent.yml';
 
 /** Sanitize an uploaded filename so it's safe to use as a git path segment. */
 function sanitizeFilename(name: string): string {
@@ -151,9 +153,19 @@ async function handler(req: NextApiRequestWithSession, res: NextApiResponse<Onbo
       body: prBody,
     });
 
-    // Note: no explicit "start agent" call here. Opening this PR fires GitHub's
-    // `pull_request: opened` event, which the repo's onboarding workflow picks
-    // up automatically (see .github/workflows/supplier-onboarding-agent.yml).
+    // Explicitly dispatch the onboarding workflow (workflow_dispatch) instead
+    // of relying on the `pull_request: opened` event. This repo is public, so
+    // that event would also fire for a PR opened from a fork - dispatching
+    // ourselves means only this backend's GITHUB_TOKEN can ever start a run
+    // on the self-hosted runner (see .github/workflows/supplier-onboarding-agent.yml).
+    // A dispatch failure shouldn't fail the whole request - the PR itself
+    // still exists and can be refined manually or re-dispatched later.
+    try {
+      await dispatchWorkflow(ONBOARDING_WORKFLOW_FILE, baseBranch, { supplier_id: id, branch: branchName });
+    } catch (dispatchError) {
+      console.error('Kon supplier-onboarding-agent workflow niet dispatchen:', dispatchError);
+    }
+
     return res.status(200).json({
       success: true,
       prUrl: pr.htmlUrl,

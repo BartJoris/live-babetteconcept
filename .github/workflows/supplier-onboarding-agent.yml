@@ -1,90 +1,112 @@
 name: Supplier Onboarding Agent
 
-# Triggered automatically when pages/api/suppliers/onboard.ts opens a PR from a
-# "supplier/<id>-<timestamp>" branch. Uses Claude Code (via a personal Claude
-# Pro/Max subscription OAuth token, not a paid API key — see CLAUDE_CODE_OAUTH_TOKEN
-# secret) to refine the auto-generated concept parser, add tests, and refine the
-# stub detection rule, entirely on this repo's own infrastructure (no third-party
-# code-storage service involved — unlike Cursor Cloud Agents, which our Cursor
-# Enterprise team's privacy settings currently block).
+# Triggered explicitly (workflow_dispatch) by pages/api/suppliers/onboard.ts
+# right after it opens a "supplier/<id>-<timestamp>" PR. Runs the Cursor CLI
+# (agent) on a self-hosted runner (homelab), authenticated with a Cursor API
+# key. Unlike Cursor Cloud Agents, this never clones the repo to Cursor's
+# infrastructure - it runs locally on our own machine, avoiding the privacy
+# restriction that blocks Cloud Agents for our Cursor Enterprise team, and
+# usage is billed against our own Cursor plan instead of a separate metered API.
+#
+# SECURITY: this repo is public. We deliberately use workflow_dispatch instead
+# of the `pull_request` event: dispatching a run requires a token with
+# `actions: write` on this repo, which only our own backend (GITHUB_TOKEN) has.
+# A PR opened from a fork therefore cannot cause this workflow to run at all -
+# `if: startsWith(github.head_ref, 'supplier/')` alone would NOT have been
+# real protection, since an attacker could just name their fork branch that.
+# The runner is also registered --ephemeral (it deregisters itself after this
+# one job) as a second layer of defense. Do not add a `pull_request` or
+# `pull_request_target` trigger back in, and do not change the checkout step
+# to check out anything other than `inputs.branch` on this repo.
 on:
-  pull_request:
-    # No "synchronize": the agent's own commits/pushes would otherwise
-    # re-trigger this workflow on itself (infinite loop / runaway cost).
-    # Use "reopened" (close + reopen the PR) to manually retry a failed run.
-    types: [opened, reopened]
+  workflow_dispatch:
+    inputs:
+      supplier_id:
+        description: Supplier id (e.g. "acme")
+        required: true
+      branch:
+        description: 'Branch to check out and push commits to (e.g. "supplier/acme-1234567890")'
+        required: true
+
+run-name: "Supplier onboarding: ${{ inputs.supplier_id }} (${{ inputs.branch }})"
 
 jobs:
   refine-supplier-plugin:
-    if: startsWith(github.head_ref, 'supplier/')
-    runs-on: ubuntu-latest
+    if: startsWith(inputs.branch, 'supplier/')
+    runs-on: [self-hosted, supplier-onboarding-homelab]
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
-      id-token: write # required by claude-code-action to mint its OIDC-based GitHub token
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.branch }}
           fetch-depth: 1
-
-      - name: Determine supplier id
-        id: supplier
-        run: |
-          BRANCH="${{ github.head_ref }}"
-          ID="${BRANCH#supplier/}"
-          ID="${ID%-*}"
-          echo "id=$ID" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Claude Code
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Er staat een automatisch gegenereerd concept van een nieuwe leveranciers-parser
-            klaar in deze PR voor leverancier-ID "${{ steps.supplier.outputs.id }}".
+      - name: Write agent prompt
+        id: prompt
+        run: |
+          cat > "$RUNNER_TEMP/agent-prompt.txt" <<'PROMPT'
+          Er staat een automatisch gegenereerd concept van een nieuwe leveranciers-parser
+          klaar in deze PR voor leverancier-ID "SUPPLIER_ID".
 
-            Sample-bestanden staan in `lib/suppliers/${{ steps.supplier.outputs.id }}/samples/`.
-            Het concept staat in `lib/suppliers/${{ steps.supplier.outputs.id }}/index.ts`,
-            gegenereerd naar het patroon van `lib/suppliers/create-csv-supplier.ts` /
-            bestaande plugins in `lib/suppliers/*/index.ts`.
+          Sample-bestanden staan in `lib/suppliers/SUPPLIER_ID/samples/`.
+          Het concept staat in `lib/suppliers/SUPPLIER_ID/index.ts`,
+          gegenereerd naar het patroon van `lib/suppliers/create-csv-supplier.ts` /
+          bestaande plugins in `lib/suppliers/*/index.ts`.
 
-            Taken (commit en push na ELKE afgeronde taak hieronder — niet pas op het
-            einde. Zo blijft er bruikbare voortgang staan, zelfs als je een turn-limiet
-            raakt voor je klaar bent):
-            1. Verfijn `lib/suppliers/${{ steps.supplier.outputs.id }}/index.ts` zodat het
-               correct parsed op basis van de échte sample-data (open en lees de
-               sample-bestanden zelf, ga niet af op aannames). Commit + push.
-            2. Voeg een Vitest-test toe die deze sample-bestanden als fixtures gebruikt
-               (zie `lib/**/__tests__/*.test.ts` voor stijl). Commit + push.
-            3. Verbeter de stub-detectieregel voor "${{ steps.supplier.outputs.id }}" in
-               `pages/api/detect-supplier.ts` (gemarkeerd met `TODO(agent)`) op basis van
-               de echte CSV-headers/inhoud. Commit + push.
-            4. Als `lib/suppliers/${{ steps.supplier.outputs.id }}/samples/image-filenames.txt`
-               bestaat: analyseer die bestandsnamen samen met de sample-productreferenties en
-               implementeer een werkende `imageUpload.extractReference`-functie (zie
-               `lib/suppliers/tangerine/index.ts` en `lib/suppliers/jellymallow/index.ts`
-               voor patronen). Geef `null` terug als er geen duidelijk patroon te herkennen is.
-               Commit + push.
-            5. Draai `npm run typecheck` en `npm run test:run` en los fouten op. Draai GEEN
-               `npm run build` — dat bouwt de volledige site en is traag/duur; Vercel maakt
-               sowieso automatisch een preview-build van deze PR, dat is voldoende als
-               eindcontrole. Commit + push het eindresultaat.
+          Belangrijk: controleer EERST of dit eigenlijk een bestaande leverancier is
+          onder een andere naam/id (zoek in `lib/suppliers/*/index.ts` naar
+          overeenkomstige `displayName`/`brandName`/CSV-kolommen, en check de
+          detectiescore in `pages/api/detect-supplier.ts` voor dit sample-bestand
+          tegenover bestaande regels). Als dat zo is: verwijder de nieuwe duplicate
+          plugin/registratie/detectieregel weer, en verwerk de verbetering in de
+          bestaande plugin in plaats daarvan. Leg dat kort uit in je commit message.
 
-            Belangrijke restricties: raak geen andere leveranciers-bestanden aan, open geen
-            nieuwe PR, merge niet, en plaats geen PR-comments. Werk gericht en efficiënt met
-            je beperkte aantal turns — commit tussentijdse voortgang liever te vaak dan te
-            weinig.
-          claude_args: |
-            --max-turns 70
-            --allowedTools "Bash,Edit,Write,Read,Glob,Grep"
+          Taken (commit en push na ELKE afgeronde taak hieronder - niet pas op het
+          einde. Zo blijft er bruikbare voortgang staan):
+          1. Verfijn de parser zodat die correct parsed op basis van de échte
+             sample-data (open en lees de sample-bestanden zelf, ga niet af op
+             aannames). Commit + push.
+          2. Voeg een Vitest-test toe die deze sample-bestanden als fixtures gebruikt
+             (zie `lib/**/__tests__/*.test.ts` of `lib/suppliers/*/index.test.ts`
+             voor stijl). Commit + push.
+          3. Verbeter de detectieregel voor "SUPPLIER_ID" in
+             `pages/api/detect-supplier.ts` op basis van de echte CSV-headers/inhoud.
+             Commit + push.
+          4. Als `lib/suppliers/SUPPLIER_ID/samples/image-filenames.txt` bestaat:
+             analyseer die bestandsnamen samen met de sample-productreferenties en
+             implementeer een werkende `imageUpload.extractReference`-functie (zie
+             `lib/suppliers/tangerine/index.ts` en `lib/suppliers/jellymallow/index.ts`
+             voor patronen). Geef `null` terug als er geen duidelijk patroon te
+             herkennen is. Commit + push.
+          5. Draai `npm run typecheck` en `npm run test:run` en los fouten op. Draai
+             GEEN `npm run build` - dat bouwt de volledige site en is traag/duur;
+             Vercel maakt sowieso automatisch een preview-build van deze PR, dat is
+             voldoende als eindcontrole. Commit + push het eindresultaat.
+
+          Belangrijke restricties: raak geen andere leveranciers-bestanden aan, open
+          geen nieuwe PR, merge niet, en plaats geen PR-comments. Commit en push je
+          wijzigingen rechtstreeks naar deze branch.
+          PROMPT
+
+      - name: Fill in supplier id
+        env:
+          SUPPLIER_ID: ${{ inputs.supplier_id }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = process.env.RUNNER_TEMP + '/agent-prompt.txt';
+            fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replaceAll('SUPPLIER_ID', process.env.SUPPLIER_ID));
+          "
+
+      - name: Run Cursor Agent
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          agent -p --force --output-format text --model auto --trust "$(cat "$RUNNER_TEMP/agent-prompt.txt")"
