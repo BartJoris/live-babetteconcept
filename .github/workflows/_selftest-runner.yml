@@ -1,0 +1,9 @@
+name: Self-hosted runner selftest (temporary - safe to delete)
+on:
+  workflow_dispatch: {}
+jobs:
+  hello:
+    runs-on: [self-hosted, supplier-onboarding-homelab]
+    timeout-minutes: 2
+    steps:
+      - run: echo "hello from self-hosted runner"
