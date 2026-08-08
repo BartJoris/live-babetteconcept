@@ -46,6 +46,9 @@ function decodeChoice(val: string): { supplierId: string; fileInputId: string } 
 
 let _fid = 0;
 
+/** Must match SMART_UPLOAD_FILES_KEY in pages/supplier-onboarding.tsx */
+const SMART_UPLOAD_ONBOARDING_KEY = 'smart_upload_onboarding_files';
+
 export default function SmartUploadPage() {
   const router = useRouter();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -212,6 +215,22 @@ export default function SmartUploadPage() {
     sessionStorage.setItem('smart_upload_supplier', supplierId);
     sessionStorage.setItem('smart_upload_files', JSON.stringify(fileMap));
     router.push(`/product-import?vendor=${supplierId}&smartUpload=true`);
+  }, [router]);
+
+  /**
+   * Carry the already-uploaded files over to the "Nieuwe leverancier" onboarding
+   * wizard so the user doesn't have to select them again. Only CSV/text content
+   * is carried (PDF binary content isn't read at this stage) — PDFs can be
+   * re-added manually as samples in the onboarding wizard if needed.
+   */
+  const goToOnboarding = useCallback((files: UploadedFile[]) => {
+    const payload = files.map(f => ({
+      fileName: f.file.name,
+      isPdf: f.isPdf,
+      content: f.isPdf ? undefined : f.content,
+    }));
+    sessionStorage.setItem(SMART_UPLOAD_ONBOARDING_KEY, JSON.stringify(payload));
+    router.push('/supplier-onboarding');
   }, [router]);
 
   const runDetection = useCallback(async (files: UploadedFile[]) => {
@@ -496,10 +515,12 @@ export default function SmartUploadPage() {
                   <p className="text-gray-700 dark:text-gray-300 mb-3">
                     De bestanden komen niet overeen met een bekende leverancier.
                   </p>
-                  <Link href="/supplier-onboarding"
-                    className="px-6 py-3 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 inline-block">
+                  <button
+                    onClick={() => goToOnboarding(uploadedFiles)}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 inline-block"
+                  >
                     Nieuwe leverancier toevoegen &rarr;
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>

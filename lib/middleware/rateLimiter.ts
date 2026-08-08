@@ -22,6 +22,16 @@ const importLimiter = new RateLimiterMemory({
   blockDuration: 60 * 60, // block for 1 hour if exceeded
 });
 
+// Rate limiter for automatic supplier onboarding (opens a PR + triggers a
+// GitHub Actions "Supplier Onboarding Agent" run each time) — kept low to
+// avoid accidental double submits or excessive Actions/Claude usage.
+// Best-effort only: each serverless instance has its own in-memory counter.
+const supplierOnboardLimiter = new RateLimiterMemory({
+  points: 5,
+  duration: 60 * 60, // per hour
+  blockDuration: 15 * 60,
+});
+
 /**
  * Get client identifier (IP address or fallback)
  */
@@ -133,6 +143,34 @@ export async function rateLimitImport(
     // Log security event via audit logger
     logRateLimitExceeded(clientId, '/api/import-products');
     
+    return false;
+  }
+}
+
+/**
+ * Rate limit middleware for automatic supplier onboarding (PR + agent run).
+ */
+export async function rateLimitSupplierOnboard(
+  req: NextApiRequest,
+  res: NextApiResponse
+): Promise<boolean> {
+  const clientId = getClientId(req);
+
+  try {
+    await supplierOnboardLimiter.consume(clientId);
+    return true;
+  } catch (rateLimiterRes) {
+    const retryAfter = Math.round(
+      ((rateLimiterRes as { msBeforeNext: number }).msBeforeNext || 0) / 1000
+    );
+
+    res.setHeader('Retry-After', String(retryAfter));
+    res.status(429).json({
+      success: false,
+      error: `Te veel automatische onboarding-pogingen. Probeer opnieuw na ${retryAfter} seconden.`,
+      retryAfter,
+    });
+
     return false;
   }
 }

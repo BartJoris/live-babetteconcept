@@ -176,5 +176,6 @@ export function createCSVSupplier(config: DeclarativeCSVConfig): SupplierPlugin 
     fileDetection: config.fileDetection,
     parse,
     imageMatching: config.imageMatching,
+    imageUpload: config.imageUpload,
   };
 }

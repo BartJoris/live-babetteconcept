@@ -250,4 +250,6 @@ export interface DeclarativeCSVConfig {
   fileDetection?: FileDetectionRule[];
   /** Image matching */
   imageMatching?: ImageMatchingConfig;
+  /** Image upload configuration for post-import image upload */
+  imageUpload?: ImageUploadConfig;
 }

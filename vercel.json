@@ -3,6 +3,9 @@
     "pages/api/import-products.ts": {
       "maxDuration": 60
     },
+    "pages/api/suppliers/onboard.ts": {
+      "maxDuration": 60
+    },
     "pages/api/**/*.ts": {
       "maxDuration": 30
     },
