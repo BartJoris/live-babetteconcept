@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-import type { ParsedProduct } from '@/lib/suppliers/types';
+import type { ParsedProduct, Brand } from '@/lib/suppliers/types';
 import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 
 import FuzzySearchSelect from './FuzzySearchSelect';
@@ -15,7 +15,7 @@ interface CategoryOption {
 interface BulkCategoryAssignProps {
   products: ParsedProduct[];
   selectedProductRefs: Set<string>;
-  brands: Array<{ id: number; name: string }>;
+  brands: Brand[];
   internalCategories: CategoryOption[];
   publicCategories: CategoryOption[];
   productTags: CategoryOption[];
@@ -111,7 +111,11 @@ export default function BulkCategoryAssign({
 
   if (selectedCount === 0) return null;
 
-  const brandOptions = brands.map((b) => ({ id: b.id, label: b.name }));
+  const brandOptions = brands.map((b) => ({
+    id: b.id,
+    label: `${b.name} (${b.source})`,
+    group: b.source,
+  }));
   const categoryOptions = internalCategories.map((c) => ({
     id: c.id,
     label: c.display_name || c.name,

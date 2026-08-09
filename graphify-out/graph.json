@@ -1037,7 +1037,7 @@
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "bulkcategoryassign.tsx"
     },
     {
@@ -1050,7 +1050,7 @@
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_categoryoption",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categoryoption"
     },
     {
@@ -1063,7 +1063,7 @@
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_bulkcategoryassignprops",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "bulkcategoryassignprops"
     },
     {
@@ -1075,7 +1075,7 @@
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_bulkcategoryassign",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "bulkcategoryassign()"
     },
     {
@@ -1120,7 +1120,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categorytreeselect.tsx"
     },
     {
@@ -1133,7 +1133,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_categoryitem",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categoryitem"
     },
     {
@@ -1146,7 +1146,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_categorytreeselectprops",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categorytreeselectprops"
     },
     {
@@ -1159,7 +1159,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_treenode",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "treenode"
     },
     {
@@ -1171,7 +1171,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_buildtree",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "buildtree()"
     },
     {
@@ -1183,7 +1183,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_treenodeview",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "treenodeview()"
     },
     {
@@ -1195,7 +1195,7 @@
       "_origin": "ast",
       "id": "components_import_shared_categorytreeselect_categorytreeselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categorytreeselect()"
     },
     {
@@ -1206,7 +1206,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "documentpreview.tsx"
     },
     {
@@ -1219,7 +1219,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_tabledata",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "tabledata"
     },
     {
@@ -1232,7 +1232,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_extractedimage",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "extractedimage"
     },
     {
@@ -1245,7 +1245,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_documentpreviewprops",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "documentpreviewprops"
     },
     {
@@ -1258,7 +1258,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_tabid",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "tabid"
     },
     {
@@ -1269,7 +1269,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_tabs",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "tabs"
     },
     {
@@ -1280,7 +1280,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_column_options",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "column_options"
     },
     {
@@ -1292,7 +1292,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_rendermarkdown",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "rendermarkdown()"
     },
     {
@@ -1304,7 +1304,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_renderinline",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "renderinline()"
     },
     {
@@ -1316,7 +1316,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_tablepreview",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "tablepreview()"
     },
     {
@@ -1328,7 +1328,7 @@
       "_origin": "ast",
       "id": "components_import_shared_documentpreview_documentpreview",
       "community": 36,
-      "community_name": "DocumentPreview.tsx",
+      "community_name": "UploadStep.tsx",
       "norm_label": "documentpreview()"
     },
     {
@@ -1399,7 +1399,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_test",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzysearchselect.test.tsx"
     },
     {
@@ -1411,7 +1411,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_test_controlledselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "controlledselect()"
     },
     {
@@ -1422,7 +1422,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzysearchselect.tsx"
     },
     {
@@ -1435,7 +1435,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzyoption",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzyoption"
     },
     {
@@ -1448,7 +1448,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzysearchselectprops",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzysearchselectprops"
     },
     {
@@ -1461,7 +1461,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_scoredoption",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "scoredoption"
     },
     {
@@ -1473,7 +1473,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzyscore",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzyscore()"
     },
     {
@@ -1485,7 +1485,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_mergeranges",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "mergeranges()"
     },
     {
@@ -1497,7 +1497,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_highlightedtext",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "highlightedtext()"
     },
     {
@@ -1509,7 +1509,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzysearchselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "fuzzysearchselect()"
     },
     {
@@ -1592,7 +1592,7 @@
       "_origin": "ast",
       "id": "components_import_shared_multitagselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "multitagselect.tsx"
     },
     {
@@ -1605,7 +1605,7 @@
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_tagoption",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "tagoption"
     },
     {
@@ -1618,7 +1618,7 @@
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_multitagselectprops",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "multitagselectprops"
     },
     {
@@ -1630,7 +1630,7 @@
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_multitagselect",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "multitagselect()"
     },
     {
@@ -1676,8 +1676,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_shared_product_utils",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "product-utils.ts"
     },
     {
@@ -1688,8 +1688,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_product_utils_isunitonlyproduct",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isunitonlyproduct()"
     },
     {
@@ -1700,8 +1700,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_product_utils_transformproductforupload",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "transformproductforupload()"
     },
     {
@@ -1840,7 +1840,7 @@
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categoriesstep.tsx"
     },
     {
@@ -1853,7 +1853,7 @@
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep_categoriesstepprops",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categoriesstepprops"
     },
     {
@@ -1865,7 +1865,7 @@
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep_categoriesstep",
       "community": 16,
-      "community_name": "CategoriesStep.tsx",
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "categoriesstep()"
     },
     {
@@ -2138,8 +2138,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_steps_uploadstep",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "uploadstep.tsx"
     },
     {
@@ -2163,8 +2163,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_uploadstep_vendorformatpreview",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "vendorformatpreview()"
     },
     {
@@ -2175,8 +2175,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_uploadstep_doclingsection",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "doclingsection()"
     },
     {
@@ -2187,8 +2187,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_uploadstep_getvendorformatlabel",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "getvendorformatlabel()"
     },
     {
@@ -2199,8 +2199,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_uploadstep_uploadstep",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "uploadstep()"
     },
     {
@@ -4746,8 +4746,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "browser-utils.ts"
     },
     {
@@ -4758,8 +4758,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_supportsdirectorypicker",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "supportsdirectorypicker()"
     },
     {
@@ -4770,8 +4770,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_isios",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "isios()"
     },
     {
@@ -4782,8 +4782,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_issafari",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 36,
+      "community_name": "UploadStep.tsx",
       "norm_label": "issafari()"
     },
     {
@@ -4793,7 +4793,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_test",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "csv-utils.test.ts"
     },
@@ -4804,7 +4804,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "csv-utils.ts"
     },
@@ -4817,7 +4817,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_csvparseoptions",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "csvparseoptions"
     },
@@ -4830,7 +4830,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_csvparseresult",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "csvparseresult"
     },
@@ -4842,7 +4842,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_detectdelimiter",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "detectdelimiter()"
     },
@@ -4854,7 +4854,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsecsv",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "parsecsv()"
     },
@@ -4866,7 +4866,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsewithmultilinequotes",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "parsewithmultilinequotes()"
     },
@@ -4878,7 +4878,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsesimple",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "parsesimple()"
     },
@@ -4890,7 +4890,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_rowtoobject",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "rowtoobject()"
     },
@@ -4913,8 +4913,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils_test",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "ean-utils.test.ts"
     },
     {
@@ -4924,8 +4924,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "ean-utils.ts"
     },
     {
@@ -4936,8 +4936,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils_calculateean13checkdigit",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "calculateean13checkdigit()"
     },
     {
@@ -4948,8 +4948,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils_generateean13",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "generateean13()"
     },
     {
@@ -4960,8 +4960,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils_generateuniqueean13batch",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "generateuniqueean13batch()"
     },
     {
@@ -4972,8 +4972,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_ean_utils_isvalidean13",
-      "community": 26,
-      "community_name": "useImportWizard.ts",
+      "community": 49,
+      "community_name": "ean-utils.ts",
       "norm_label": "isvalidean13()"
     },
     {
@@ -4983,8 +4983,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_image_utils",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "image-utils.ts"
     },
     {
@@ -4995,8 +4995,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_image_utils_compressimage",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "compressimage()"
     },
     {
@@ -5006,7 +5006,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_index",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "shared/index.ts"
     },
@@ -5148,8 +5148,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_price_utils_test",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "price-utils.test.ts"
     },
     {
@@ -5159,8 +5159,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_price_utils",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "price-utils.ts"
     },
     {
@@ -5182,8 +5182,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_test",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "size-utils.test.ts"
     },
     {
@@ -5193,8 +5193,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_size_utils",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "size-utils.ts"
     },
     {
@@ -5206,8 +5206,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_sizeattribute",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "sizeattribute"
     },
     {
@@ -5217,8 +5217,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_eu_size_to_age",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "eu_size_to_age"
     },
     {
@@ -5228,8 +5228,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_adult_size_mapping",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "adult_size_mapping"
     },
     {
@@ -5252,8 +5252,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_mapsizetoodooformat",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "mapsizetoodooformat()"
     },
     {
@@ -5276,8 +5276,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_isunitsize",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isunitsize()"
     },
     {
@@ -7719,8 +7719,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_retail_belgianretailcalendar_daterange",
-      "community": 58,
-      "community_name": "soldenDiscountAnalysis.ts",
+      "community": 35,
+      "community_name": "sellThrough.ts",
       "norm_label": "daterange"
     },
     {
@@ -8194,8 +8194,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_retail_sellthrough_collectcategorytreeids",
-      "community": 22,
-      "community_name": "stockSnapshot.ts",
+      "community": 58,
+      "community_name": "soldenDiscountAnalysis.ts",
       "norm_label": "collectcategorytreeids()"
     },
     {
@@ -9067,8 +9067,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "americanvintage/index.ts"
     },
     {
@@ -9080,8 +9080,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_orderline",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "orderline"
     },
     {
@@ -9092,8 +9092,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_isordercsv",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isordercsv()"
     },
     {
@@ -9104,8 +9104,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_isrrpcsv",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isrrpcsv()"
     },
     {
@@ -9116,8 +9116,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parserrpcsv",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parserrpcsv()"
     },
     {
@@ -9128,8 +9128,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_convertamvsize",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "convertamvsize()"
     },
     {
@@ -9140,8 +9140,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parseordercsv",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parseordercsv()"
     },
     {
@@ -9152,8 +9152,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_buildproducts",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -9164,8 +9164,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parse",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -9175,8 +9175,8 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_americanvintageplugin",
-      "community": 100,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "americanvintageplugin"
     },
     {
@@ -9197,8 +9197,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "armedangels/index.ts"
     },
     {
@@ -9209,8 +9209,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_parsequotedcsvline",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "parsequotedcsvline()"
     },
     {
@@ -9221,8 +9221,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_parsecatalogcsv",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "parsecatalogcsv()"
     },
     {
@@ -9233,8 +9233,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_parseinvoicecsv",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "parseinvoicecsv()"
     },
     {
@@ -9245,8 +9245,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_enrichcatalogwithinvoice",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "enrichcatalogwithinvoice()"
     },
     {
@@ -9257,8 +9257,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_iscatalogcsv",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "iscatalogcsv()"
     },
     {
@@ -9269,8 +9269,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_isinvoicecsv",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "isinvoicecsv()"
     },
     {
@@ -9281,8 +9281,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_parse",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "parse()"
     },
     {
@@ -9293,8 +9293,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_processpdfresults",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "processpdfresults()"
     },
     {
@@ -9304,8 +9304,8 @@
       "source_location": "L307",
       "_origin": "ast",
       "id": "lib_suppliers_armedangels_index_armedangelsplugin",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 45,
+      "community_name": "parseEuroPrice",
       "norm_label": "armedangelsplugin"
     },
     {
@@ -9315,7 +9315,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "babeandtess/index.ts"
     },
@@ -9328,7 +9328,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_babeandtesspdfproduct",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "babeandtesspdfproduct"
     },
@@ -9340,7 +9340,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_normalizecolorname",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "normalizecolorname()"
     },
@@ -9352,7 +9352,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_extractcolorcode",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "extractcolorcode()"
     },
@@ -9364,7 +9364,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_convertbabeandtesssize",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "convertbabeandtesssize()"
     },
@@ -9376,7 +9376,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_parsebabeandtesscsv",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "parsebabeandtesscsv()"
     },
@@ -9388,7 +9388,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_processbabeandtesspdfresults",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "processbabeandtesspdfresults()"
     },
@@ -9399,7 +9399,7 @@
       "source_location": "L208",
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_babeandtess",
-      "community": 49,
+      "community": 115,
       "community_name": "shared/index.ts",
       "norm_label": "babeandtess"
     },
@@ -9410,8 +9410,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "bayiri/index.ts"
     },
     {
@@ -9423,8 +9423,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_bayiripdfproduct",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "bayiripdfproduct"
     },
     {
@@ -9435,8 +9435,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_convertbayirisize",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "convertbayirisize()"
     },
     {
@@ -9447,8 +9447,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_buildproducts",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -9459,8 +9459,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_parse",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -9471,8 +9471,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_processpdfresults",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -9483,8 +9483,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_extractstyleref",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "extractstyleref()"
     },
     {
@@ -9494,8 +9494,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_bayiriplugin",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "bayiriplugin"
     },
     {
@@ -9945,7 +9945,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "drbloom/index.ts"
     },
     {
@@ -9956,7 +9956,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_size_suffixes",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "size_suffixes"
     },
     {
@@ -9968,7 +9968,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_extractnameandsize",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "extractnameandsize()"
     },
     {
@@ -9980,7 +9980,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_buildproducts",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -9992,7 +9992,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_parse",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -10004,7 +10004,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_processpdfresults",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -10015,7 +10015,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_drbloomplugin",
       "community": 2,
-      "community_name": "SupplierFiles",
+      "community_name": "bayiri/index.ts",
       "norm_label": "drbloomplugin"
     },
     {
@@ -10401,8 +10401,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "favoritepeople/index.ts"
     },
     {
@@ -10412,8 +10412,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_known_suffixes",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "known_suffixes"
     },
     {
@@ -10424,8 +10424,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_splitproductname",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "splitproductname()"
     },
     {
@@ -10436,8 +10436,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_parsesku",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "parsesku()"
     },
     {
@@ -10448,8 +10448,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_parse",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -10459,8 +10459,8 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_favoritepeopleplugin",
-      "community": 2,
-      "community_name": "SupplierFiles",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "favoritepeopleplugin"
     },
     {
@@ -10841,8 +10841,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_indee_index",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "indee/index.ts"
     },
     {
@@ -10853,8 +10853,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_indee_index_parse",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -10864,8 +10864,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "lib_suppliers_indee_index_indeeplugin",
-      "community": 20,
-      "community_name": "determineSizeAttribute",
+      "community": 115,
+      "community_name": "shared/index.ts",
       "norm_label": "indeeplugin"
     },
     {
@@ -10908,8 +10908,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "jellymallow/index.ts"
     },
     {
@@ -10920,8 +10920,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_normalizefield",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "normalizefield()"
     },
     {
@@ -10932,8 +10932,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_convertjellymallowsize",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "convertjellymallowsize()"
     },
     {
@@ -10944,8 +10944,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_parse",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "parse()"
     },
     {
@@ -10956,8 +10956,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_extractimagereference",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "extractimagereference()"
     },
     {
@@ -10967,8 +10967,8 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_jellymallow",
-      "community": 49,
-      "community_name": "shared/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "jellymallow"
     },
     {
@@ -12031,8 +12031,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_sundaycollective_index",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "sundaycollective/index.ts"
     },
     {
@@ -12044,8 +12044,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_sundaycollective_index_sundaycollectivepdfitem",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "sundaycollectivepdfitem"
     },
     {
@@ -12056,8 +12056,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_sundaycollective_index_formatsundaycollectivename",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "formatsundaycollectivename()"
     },
     {
@@ -12068,8 +12068,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_sundaycollective_index_processsundaycollectivepdfresults",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "processsundaycollectivepdfresults()"
     },
     {
@@ -12079,8 +12079,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "lib_suppliers_sundaycollective_index_sundaycollectiveplugin",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 216,
+      "community_name": "SupplierFiles",
       "norm_label": "sundaycollectiveplugin"
     },
     {
@@ -12327,8 +12327,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "thinkingmu/index.ts"
     },
     {
@@ -12340,8 +12340,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_thinkingmupdfitem",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "thinkingmupdfitem"
     },
     {
@@ -12353,8 +12353,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_csvenrichment",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "csvenrichment"
     },
     {
@@ -12365,8 +12365,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_isjoorordercsv",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isjoorordercsv()"
     },
     {
@@ -12377,8 +12377,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_parsejoorcsv",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parsejoorcsv()"
     },
     {
@@ -12389,8 +12389,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_buildproducts",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -12401,8 +12401,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_parse",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -12413,8 +12413,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_processpdfresults",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -12424,8 +12424,8 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "lib_suppliers_thinkingmu_index_thinkingmuplugin",
-      "community": 115,
-      "community_name": "thinkingmu/index.ts",
+      "community": 17,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "thinkingmuplugin"
     },
     {
@@ -12656,8 +12656,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_brand",
-      "community": 79,
-      "community_name": "suppliers/index.ts",
+      "community": 16,
+      "community_name": "BulkCategoryAssign.tsx",
       "norm_label": "brand"
     },
     {
@@ -12695,7 +12695,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_supplierfiles",
-      "community": 2,
+      "community": 216,
       "community_name": "SupplierFiles",
       "norm_label": "supplierfiles"
     },
@@ -12747,8 +12747,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_enrichmentresult",
-      "community": 17,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "bayiri/index.ts",
       "norm_label": "enrichmentresult"
     },
     {
@@ -12849,8 +12849,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index",
-      "community": 79,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "determineSizeAttribute",
       "norm_label": "weekendhousekids/index.ts"
     },
     {
@@ -12861,8 +12861,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_convertweekendhousekidssize",
-      "community": 79,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "determineSizeAttribute",
       "norm_label": "convertweekendhousekidssize()"
     },
     {
@@ -12873,8 +12873,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_parse",
-      "community": 79,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "determineSizeAttribute",
       "norm_label": "parse()"
     },
     {
@@ -12896,8 +12896,8 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_weekendhousekidsplugin",
-      "community": 79,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "determineSizeAttribute",
       "norm_label": "weekendhousekidsplugin"
     },
     {
@@ -13764,8 +13764,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "package_dependencies_ai_sdk_react",
-      "community": 21,
-      "community_name": "dependencies",
+      "community": 218,
+      "community_name": "@ai-sdk/react",
       "norm_label": "@ai-sdk/react"
     },
     {
@@ -13775,8 +13775,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "ai_sdk_react",
-      "community": 21,
-      "community_name": "dependencies",
+      "community": 218,
+      "community_name": "@ai-sdk/react",
       "norm_label": "@ai-sdk/react"
     },
     {
@@ -13808,8 +13808,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "package_dependencies_types_xml2js",
-      "community": 216,
-      "community_name": "@types/xml2js",
+      "community": 21,
+      "community_name": "dependencies",
       "norm_label": "@types/xml2js"
     },
     {
@@ -13819,8 +13819,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "types_xml2js",
-      "community": 216,
-      "community_name": "@types/xml2js",
+      "community": 21,
+      "community_name": "dependencies",
       "norm_label": "@types/xml2js"
     },
     {
@@ -14281,8 +14281,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "package_devdependencies_types_formidable",
-      "community": 217,
-      "community_name": "@types/formidable",
+      "community": 19,
+      "community_name": "devDependencies",
       "norm_label": "@types/formidable"
     },
     {
@@ -14292,8 +14292,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "types_formidable",
-      "community": 217,
-      "community_name": "@types/formidable",
+      "community": 19,
+      "community_name": "devDependencies",
       "norm_label": "@types/formidable"
     },
     {
@@ -14347,8 +14347,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "package_devdependencies_types_react_dom",
-      "community": 19,
-      "community_name": "devDependencies",
+      "community": 217,
+      "community_name": "@types/react-dom",
       "norm_label": "@types/react-dom"
     },
     {
@@ -14358,8 +14358,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "types_react_dom",
-      "community": 19,
-      "community_name": "devDependencies",
+      "community": 217,
+      "community_name": "@types/react-dom",
       "norm_label": "@types/react-dom"
     },
     {
@@ -35545,6 +35545,18 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_import_shared_bulkcategoryassign",
+      "target": "lib_suppliers_types_brand",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/import/shared/BulkCategoryAssign.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "components_import_shared_bulkcategoryassign",
       "target": "lib_suppliers_types_parsedproduct",
       "confidence_score": 1.0
     },
@@ -35558,6 +35570,18 @@
       "_origin": "ast",
       "source": "components_import_steps_categoriesstep",
       "target": "components_import_shared_bulkcategoryassign",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "components/import/shared/BulkCategoryAssign.tsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "components_import_shared_bulkcategoryassign_bulkcategoryassignprops",
+      "target": "lib_suppliers_types_brand",
       "confidence_score": 1.0
     },
     {
@@ -95565,5 +95589,5 @@
       "source_file": "TINYCOTTONS_IMPLEMENTATION.md"
     }
   ],
-  "built_at_commit": "a52429f2851ec7b70e50ffb31bef7fa6f176b2ca"
+  "built_at_commit": "c16586d579cba042fb2ceae7e39a879ee2563dd0"
 }

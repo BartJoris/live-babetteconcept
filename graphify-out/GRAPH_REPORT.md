@@ -1,23 +1,23 @@
 # Graph Report - live-babetteconcept  (2026-08-09)
 
 ## Corpus Check
-- 458 files · ~374,954 words
+- 458 files · ~374,953 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2740 nodes · 5410 edges · 220 communities (179 shown, 41 thin omitted)
+- 2740 nodes · 5412 edges · 221 communities (180 shown, 41 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 170 edges (avg confidence: 0.52)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a52429f2`
+- Built from commit: `c16586d5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - OdooClient
 - onboard.ts
-- SupplierFiles
+- bayiri/index.ts
 - useAuth
 - rateLimiter.ts
 - tools.ts
@@ -31,8 +31,8 @@
 - Webshoporders - Testing Guide voor Nieuwe Orders
 - Sales Vacation Comparison
 - mollieSettlementShared.ts
-- CategoriesStep.tsx
-- armedangels/index.ts
+- BulkCategoryAssign.tsx
+- americanvintage/index.ts
 - TypeScript and Next.js Types
 - devDependencies
 - determineSizeAttribute
@@ -51,7 +51,7 @@
 - app/api/mcp/route.ts
 - ImportWizard.tsx
 - sellThrough.ts
-- DocumentPreview.tsx
+- UploadStep.tsx
 - ParsedProduct
 - Belgian School Vacations
 - authorize/route.ts
@@ -64,7 +64,7 @@
 - suppliers/types.ts
 - Weekend House Kids — RRP PDF + smart-upload — design
 - import-products.ts
-- shared/index.ts
+- ean-utils.ts
 - OdooImageService
 - Fub Product Parsing
 - Ecommerce Insights Dashboard
@@ -130,7 +130,7 @@
 - Floss Image Upload
 - Jenest Image Upload
 - Transaction Processing
-- thinkingmu/index.ts
+- shared/index.ts
 - Product Variant Archiving
 - search-emileetida-products.ts
 - lookup-product-for-stock.ts
@@ -224,8 +224,9 @@
 - update-product-category.ts
 - products.ts
 - update-stock.ts
-- @types/xml2js
-- @types/formidable
+- SupplierFiles
+- @types/react-dom
+- @ai-sdk/react
 - product-description-details.ts
 - withAuth
 
@@ -242,8 +243,6 @@
 10. `extractPdfText()` - 45 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `BulkCategoryAssignProps` --references--> `ParsedProduct`  [EXTRACTED]
-  components/import/shared/BulkCategoryAssign.tsx → lib/suppliers/types.ts
 - `useImportWizard()` --indirect_call--> `isUnitOnlyProduct()`  [INFERRED]
   hooks/useImportWizard.ts → components/import/shared/product-utils.ts
 - `useImportWizard()` --indirect_call--> `transformProductForUpload()`  [INFERRED]
@@ -251,6 +250,8 @@
 - `CategoriesStepProps` --references--> `UseImportWizardReturn`  [EXTRACTED]
   components/import/steps/CategoriesStep.tsx → hooks/useImportWizard.ts
 - `useImportWizard()` --indirect_call--> `determineSizeAttribute()`  [INFERRED]
+  hooks/useImportWizard.ts → lib/import/shared/size-utils.ts
+- `useImportWizard()` --indirect_call--> `isUnitSize()`  [INFERRED]
   hooks/useImportWizard.ts → lib/import/shared/size-utils.ts
 
 ## Import Cycles
@@ -263,7 +264,7 @@
 - **Product Import System and Updates** — product_import_guide, product_import_updates, ux_improvements_product_import, setup_import_instructions [EXTRACTED 1.00]
 - **Tiny Big sister Import Workflow** — tinycottons_implementation, tinycottons_import_guide [EXTRACTED 1.00]
 
-## Communities (220 total, 41 thin omitted)
+## Communities (221 total, 41 thin omitted)
 
 ### Community 0 - "OdooClient"
 Cohesion: 0.03
@@ -273,9 +274,9 @@ Nodes (48): isRetryableHttpStatus(), OdooCallParams, OdooClient, OdooResponse, R
 Cohesion: 0.07
 Nodes (48): CommitFileInput, commitFiles(), createBlob(), createBranch(), dispatchWorkflow(), getCommitTreeSha(), getDefaultBranchRef(), getFileContent() (+40 more)
 
-### Community 2 - "SupplierFiles"
-Cohesion: 0.19
-Nodes (11): buildProducts(), drbloomPlugin, extractNameAndSize(), processPdfResults(), SIZE_SUFFIXES, favoritePeoplePlugin, KNOWN_SUFFIXES, parse() (+3 more)
+### Community 2 - "bayiri/index.ts"
+Cohesion: 0.16
+Nodes (11): BayiriPdfProduct, bayiriPlugin, buildProducts(), convertBayiriSize(), processPdfResults(), buildProducts(), drbloomPlugin, extractNameAndSize() (+3 more)
 
 ### Community 3 - "useAuth"
 Cohesion: 0.06
@@ -298,8 +299,8 @@ Cohesion: 0.10
 Nodes (22): ensureMathSumPrecisePolyfill(), extractPdfText(), normalizeTextResult(), ArmedAngelsProduct, config, handler(), BobochosesPrice, config (+14 more)
 
 ### Community 8 - "ProductImageUploader.tsx"
-Cohesion: 0.10
-Nodes (29): FilterMode, formatDate(), isRecent(), OdooProduct, ProductImageUploader(), ProductImageUploaderProps, ImageUploadProgressBar(), ImageUploadProgressBarProps (+21 more)
+Cohesion: 0.12
+Nodes (26): FilterMode, formatDate(), isRecent(), OdooProduct, ProductImageUploader(), ProductImageUploaderProps, ImageUploadProgressBar(), ImageUploadProgressBarProps (+18 more)
 
 ### Community 9 - "NextApiRequestWithSession"
 Cohesion: 0.05
@@ -329,13 +330,13 @@ Nodes (36): arithmeticMean(), avgPerDayLabel(), collectConsecutiveYoYPctMarge(),
 Cohesion: 0.13
 Nodes (30): bookingDateFromIso(), buildCSVOdoo(), buildCSVOdooBank(), buildOdooDescription(), collectSettlementOdooRows(), costToOdooRow(), escapeCSV(), fetchAllPaidPayments() (+22 more)
 
-### Community 16 - "CategoriesStep.tsx"
-Cohesion: 0.11
-Nodes (20): BulkCategoryAssign(), BulkCategoryAssignProps, CategoryOption, buildTree(), CategoryItem, CategoryTreeSelect(), CategoryTreeSelectProps, TreeNode (+12 more)
+### Community 16 - "BulkCategoryAssign.tsx"
+Cohesion: 0.10
+Nodes (21): BulkCategoryAssign(), BulkCategoryAssignProps, CategoryOption, buildTree(), CategoryItem, CategoryTreeSelect(), CategoryTreeSelectProps, TreeNode (+13 more)
 
-### Community 17 - "armedangels/index.ts"
-Cohesion: 0.18
-Nodes (13): armedangelsPlugin, enrichCatalogWithInvoice(), isCatalogCSV(), isInvoiceCSV(), parse(), parseCatalogCSV(), parseInvoiceCSV(), parseQuotedCSVLine() (+5 more)
+### Community 17 - "americanvintage/index.ts"
+Cohesion: 0.11
+Nodes (21): isUnitOnlyProduct(), transformProductForUpload(), ADULT_SIZE_MAPPING, EU_SIZE_TO_AGE, isUnitSize(), mapSizeToOdooFormat(), SizeAttribute, americanVintagePlugin (+13 more)
 
 ### Community 18 - "TypeScript and Next.js Types"
 Cohesion: 0.06
@@ -346,16 +347,16 @@ Cohesion: 0.06
 Nodes (31): baseline-browser-mapping, eslint, gh-pages, jsdom, devDependencies, baseline-browser-mapping, eslint, gh-pages (+23 more)
 
 ### Community 20 - "determineSizeAttribute"
-Cohesion: 0.09
-Nodes (41): toSentenceCase(), convertSize(), determineSizeAttribute(), BayiriPdfProduct, bayiriPlugin, buildProducts(), convertBayiriSize(), processPdfResults() (+33 more)
+Cohesion: 0.11
+Nodes (37): toSentenceCase(), convertSize(), determineSizeAttribute(), FlossPdfProduct, parseFlossCSV(), parseFlossOrderRows(), parseFlossRows(), processFlossPdfResults() (+29 more)
 
 ### Community 21 - "dependencies"
 Cohesion: 0.07
-Nodes (29): ai, @ai-sdk/openai, @ai-sdk/react, chart.js, iron-session, isomorphic-dompurify, @modelcontextprotocol/sdk, next (+21 more)
+Nodes (29): ai, @ai-sdk/openai, chart.js, iron-session, isomorphic-dompurify, @modelcontextprotocol/sdk, next, node-fetch (+21 more)
 
 ### Community 22 - "stockSnapshot.ts"
-Cohesion: 0.16
-Nodes (27): listCategoriesTool(), collectCategoryTreeIds(), searchCategories(), sizeAttributeNamesForAudience(), buildTemplateBrandMap(), categorySearchAliases(), collectionAgeYears(), countAssortment() (+19 more)
+Cohesion: 0.17
+Nodes (26): listCategoriesTool(), searchCategories(), sizeAttributeNamesForAudience(), buildTemplateBrandMap(), categorySearchAliases(), collectionAgeYears(), countAssortment(), euro() (+18 more)
 
 ### Community 23 - "belgianRetailCalendar.ts"
 Cohesion: 0.25
@@ -370,8 +371,8 @@ Cohesion: 0.18
 Nodes (19): extractResponsesText(), getPromptCategory(), getSystemPrompt(), getUserPrompt(), handler(), PromptCategory, RequestBody, BABETTE_SYSTEM_PROMPT (+11 more)
 
 ### Community 26 - "useImportWizard.ts"
-Cohesion: 0.13
-Nodes (23): CSV_CATEGORY_TO_DUTCH, findMatchingPublicCategories(), EnhancedImageManager(), EnhancedImageManagerProps, poolImageToPoolItem(), poolItemToPoolImage(), ImageManagerProps, Category (+15 more)
+Cohesion: 0.15
+Nodes (20): CSV_CATEGORY_TO_DUTCH, findMatchingPublicCategories(), EnhancedImageManager(), EnhancedImageManagerProps, poolImageToPoolItem(), poolItemToPoolImage(), ImageManagerProps, Category (+12 more)
 
 ### Community 27 - "wyncken/index.ts"
 Cohesion: 0.11
@@ -402,16 +403,16 @@ Cohesion: 0.12
 Nodes (24): dynamic, maxDuration, openai, POST(), runtime, DELETE(), dynamic, GET() (+16 more)
 
 ### Community 34 - "ImportWizard.tsx"
-Cohesion: 0.11
-Nodes (16): ImportWizard(), ImageStep(), ImageStepProps, ImportStepProps, MappingStep(), MappingStepProps, PlayUpImageStepProps, PreviewStep() (+8 more)
+Cohesion: 0.13
+Nodes (14): ImportWizard(), ImageStep(), ImageStepProps, ImportStepProps, MappingStep(), MappingStepProps, PlayUpImageStepProps, PreviewStep() (+6 more)
 
 ### Community 35 - "sellThrough.ts"
-Cohesion: 0.17
-Nodes (19): aggregatePosForProducts(), analyzeAssortment(), AssortmentDimension, AssortmentPerformance, AudienceFilter, BrandRankRow, buildBrandTemplateMap(), computeSellThroughPct() (+11 more)
+Cohesion: 0.16
+Nodes (20): DateRange, aggregatePosForProducts(), analyzeAssortment(), AssortmentDimension, AssortmentPerformance, AudienceFilter, BrandRankRow, buildBrandTemplateMap() (+12 more)
 
-### Community 36 - "DocumentPreview.tsx"
-Cohesion: 0.22
-Nodes (9): COLUMN_OPTIONS, DocumentPreview(), DocumentPreviewProps, ExtractedImage, renderInline(), renderMarkdown(), TabId, TableData (+1 more)
+### Community 36 - "UploadStep.tsx"
+Cohesion: 0.14
+Nodes (13): COLUMN_OPTIONS, DocumentPreview(), DocumentPreviewProps, ExtractedImage, renderInline(), renderMarkdown(), TabId, TableData (+5 more)
 
 ### Community 37 - "ParsedProduct"
 Cohesion: 0.16
@@ -446,8 +447,8 @@ Cohesion: 0.19
 Nodes (18): ensureDomMatrixPolyfill(), ensurePdfWorker(), pdf-parse, config, extractProductsFromPdfTables(), extractTextFromPdf(), extractTextWithRotations(), handler() (+10 more)
 
 ### Community 45 - "parseEuroPrice"
-Cohesion: 0.24
-Nodes (13): parseEuroPrice(), extractColor(), parse(), context, CSV_PATH, RRP_PATH, tinycottonsPlugin, buildTinycottonsRrpMap() (+5 more)
+Cohesion: 0.13
+Nodes (21): parseEuroPrice(), armedangelsPlugin, enrichCatalogWithInvoice(), isCatalogCSV(), isInvoiceCSV(), parse(), parseCatalogCSV(), parseInvoiceCSV() (+13 more)
 
 ### Community 46 - "suppliers/types.ts"
 Cohesion: 0.11
@@ -461,9 +462,9 @@ Nodes (17): 1. `lib/suppliers/weekendhousekids/index.ts`, 2. `pages/api/parse-we
 Cohesion: 0.31
 Nodes (12): ImportStep(), useImportWizard(), buildImportLogPayload(), buildPartialVariantMessage(), ImportProductStatus, ImportResultLike, isImportFullSuccess(), isImportRecoverable() (+4 more)
 
-### Community 49 - "shared/index.ts"
-Cohesion: 0.15
-Nodes (18): CSVParseOptions, CSVParseResult, detectDelimiter(), parseCSV(), parseSimple(), parseWithMultilineQuotes(), rowToObject(), babeandtess (+10 more)
+### Community 49 - "ean-utils.ts"
+Cohesion: 0.73
+Nodes (4): calculateEAN13CheckDigit(), generateEAN13(), generateUniqueEAN13Batch(), isValidEAN13()
 
 ### Community 50 - "OdooImageService"
 Cohesion: 0.23
@@ -498,8 +499,8 @@ Cohesion: 0.13
 Nodes (14): Attribute Lines:, ✅ Created Missing `callOdooMethod` Function, ✅ Enhanced UI, ✅ Fixed All API Call Formats, ✅ Fixed CSV Decimal Parsing, Per Variant:, ✅ Product Import System - Status Update, 🎯 Ready to Import! (+6 more)
 
 ### Community 58 - "soldenDiscountAnalysis.ts"
-Cohesion: 0.24
-Nodes (12): DateRange, analyzeSoldenDiscounts(), classifyDiscountManner(), DayDiscountStats, discountBucket, DiscountManner, emptyManner(), getMerkMap() (+4 more)
+Cohesion: 0.25
+Nodes (12): collectCategoryTreeIds(), analyzeSoldenDiscounts(), classifyDiscountManner(), DayDiscountStats, discountBucket, DiscountManner, emptyManner(), getMerkMap() (+4 more)
 
 ### Community 59 - "name-utils.ts"
 Cohesion: 0.36
@@ -582,8 +583,8 @@ Cohesion: 0.24
 Nodes (9): DEFAULT_LINE_FIELDS, DEFAULT_ORDER_FIELDS, fetchPosLinesForOrderIds(), FetchPosOrdersAndLinesOptions, fetchPosOrdersInDateRange(), PosOrderLineRow, PosOrderRow, toEndDateTime() (+1 more)
 
 ### Community 79 - "suppliers/index.ts"
-Cohesion: 0.12
-Nodes (22): flossPlugin, allPlugins, brunobruno, minirodiniPlugin, createParseContext(), getAllSuppliers(), getSupplier(), getSupplierIds() (+14 more)
+Cohesion: 0.15
+Nodes (18): flossPlugin, allPlugins, brunobruno, minirodiniPlugin, createParseContext(), getAllSuppliers(), getSupplier(), getSupplierIds() (+10 more)
 
 ### Community 80 - "Camera Monitoring UI"
 Cohesion: 0.31
@@ -662,8 +663,8 @@ Cohesion: 0.38
 Nodes (6): BrandInventoryMetrics, BrandInventoryResponse, getPeriodAndSeason(), getSeasonDateRanges(), handler(), SeasonData
 
 ### Community 100 - "sistersdepartment/index.ts"
-Cohesion: 0.10
-Nodes (24): isUnitOnlyProduct(), transformProductForUpload(), ADULT_SIZE_MAPPING, EU_SIZE_TO_AGE, isUnitSize(), mapSizeToOdooFormat(), SizeAttribute, americanVintagePlugin (+16 more)
+Cohesion: 0.26
+Nodes (10): buildProducts(), InvoiceItem, isProductRow(), isSizeRow(), parse(), parseCatalogCSV(), parseCSVLine(), processPdfResults() (+2 more)
 
 ### Community 101 - "Image Upload Handling"
 Cohesion: 0.33
@@ -721,9 +722,9 @@ Nodes (5): callOdoo(), config, handler(), JenestImageUploadRequest, UploadResult
 Cohesion: 0.40
 Nodes (4): escapeCSV(), formatPaymentsAsCSV(), MollieListResponse, MolliePayment
 
-### Community 115 - "thinkingmu/index.ts"
-Cohesion: 0.31
-Nodes (7): buildProducts(), CsvEnrichment, parse(), parseJoorCSV(), processPdfResults(), ThinkingMuPdfItem, thinkingMuPlugin
+### Community 115 - "shared/index.ts"
+Cohesion: 0.14
+Nodes (21): CSVParseOptions, CSVParseResult, detectDelimiter(), parseCSV(), parseSimple(), parseWithMultilineQuotes(), rowToObject(), babeandtess (+13 more)
 
 ### Community 116 - "Product Variant Archiving"
 Cohesion: 0.33
@@ -944,6 +945,10 @@ Nodes (5): Approach, Endpoints, Env, Goal, MCP OAuth for ChatGPT (design)
 ### Community 215 - "update-stock.ts"
 Cohesion: 0.67
 Nodes (3): callOdoo(), handler(), UpdateStockRequest
+
+### Community 216 - "SupplierFiles"
+Cohesion: 0.21
+Nodes (9): convertJellyMallowSize(), jellymallow, normalizeField(), parse(), formatSundayCollectiveName(), processSundayCollectivePdfResults(), SundayCollectivePdfItem, sundayCollectivePlugin (+1 more)
 
 ### Community 221 - "product-description-details.ts"
 Cohesion: 0.67

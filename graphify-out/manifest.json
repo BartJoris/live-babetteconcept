@@ -80,9 +80,9 @@
     "semantic_hash": "7ace108e6bc7fd9d345d37455d4110d4"
   },
   "components/import/shared/BulkCategoryAssign.tsx": {
-    "mtime": 1786258663.6919103,
-    "ast_hash": "e67929c338e3c742e0eced49287da20c",
-    "semantic_hash": "e67929c338e3c742e0eced49287da20c"
+    "mtime": 1786265797.7467,
+    "ast_hash": "b2236daeed5ae6a038db945b252b37e9",
+    "semantic_hash": ""
   },
   "components/import/shared/CategoryMatcher.tsx": {
     "mtime": 1783725359.4206135,
