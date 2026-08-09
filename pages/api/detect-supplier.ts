@@ -199,8 +199,11 @@ const SUPPLIER_RULES: SupplierRule[] = [
         detect: (headers, text) => {
           if (h(headers, 'Gencod', 'RRP EUR')) return 0.95;
           if (h(headers, 'Gencod', 'WHLS EUR')) return 0.9;
-          // DRNMODE order confirmation: STYLE;REFERENCE;VARIANT;SRP
+          // DRNMODE order confirmation: STYLE;REFERENCE;VARIANT;SRP.
+          // Other suppliers (e.g. Tinycottons) use this same generic
+          // export format, so exclude it here when it's clearly theirs.
           const sample = (text || '').slice(0, 12_000).toUpperCase();
+          if (sample.includes('TINYCOTTONS') || sample.includes('TINY BIG SISTER')) return 0;
           if (
             sample.includes('REFERENCE') &&
             sample.includes('VARIANT') &&
@@ -589,19 +592,39 @@ const SUPPLIER_RULES: SupplierRule[] = [
   {
     supplierId: 'tinycottons',
     supplierName: 'Tiny Big sister',
-    csvRules: [{
-      fileInputId: 'main_csv',
-      fileInputLabel: 'Tinycottons CSV',
-      detect: (headers, text) => {
-        const brand = extractBrandFromData(headers, text, ';');
-        if (brandMatches(brand, 'tiny')) {
-          if (h(headers, 'Product name', 'EAN13')) return 0.95;
-        }
-        if (h(headers, 'Product name', 'EAN13', 'RRP') && text.toLowerCase().includes('tiny')) return 0.85;
-        return 0;
+    csvRules: [
+      {
+        fileInputId: 'main_csv',
+        fileInputLabel: 'Tinycottons CSV',
+        detect: (headers, text) => {
+          const brand = extractBrandFromData(headers, text, ';');
+          if (brandMatches(brand, 'tiny')) {
+            if (h(headers, 'Product name', 'EAN13')) return 0.95;
+          }
+          if (h(headers, 'Product name', 'EAN13', 'RRP') && text.toLowerCase().includes('tiny')) return 0.85;
+          return 0;
+        },
+        reason: 'Le New Black format met "Tiny" als merknaam',
       },
-      reason: 'Le New Black format met "Tiny" als merknaam',
-    }],
+      {
+        fileInputId: 'rrp_csv',
+        fileInputLabel: 'Tiny RRP export (optioneel)',
+        detect: (_headers, text) => {
+          // Print-style order-confirmation sheet: STYLE;REFERENCE;VARIANT;SRP.
+          const sample = (text || '').slice(0, 20_000).toUpperCase();
+          if (
+            sample.includes('REFERENCE') &&
+            sample.includes('VARIANT') &&
+            sample.includes('SRP') &&
+            (sample.includes('TINYCOTTONS') || sample.includes('TINY BIG SISTER'))
+          ) {
+            return 0.93;
+          }
+          return 0;
+        },
+        reason: 'Orderbevestiging-lay-out (REFERENCE+VARIANT+SRP) met "Tiny(cottons)" als merk',
+      },
+    ],
   },
 
   // ── Indee ──

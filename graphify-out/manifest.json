@@ -795,8 +795,8 @@
     "semantic_hash": "969e97eeea7f40228c530793a71ac11a"
   },
   "lib/suppliers/tinycottons/index.ts": {
-    "mtime": 1786224793.142137,
-    "ast_hash": "bfde841a96a3fadcc9ff1592cb55d357",
+    "mtime": 1786264310.9060175,
+    "ast_hash": "d71c1a613c3db72d2973b1b1780a137e",
     "semantic_hash": ""
   },
   "lib/suppliers/types.ts": {
@@ -995,9 +995,9 @@
     "semantic_hash": "f10547cb19b9b94942334874f26c819e"
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1786227414.7426276,
-    "ast_hash": "65726ee1bd55fd7fd9a4bd96c9caf297",
-    "semantic_hash": "65726ee1bd55fd7fd9a4bd96c9caf297"
+    "mtime": 1786264376.1816165,
+    "ast_hash": "a14a4e31c664d0fc0670f24f71e97026",
+    "semantic_hash": ""
   },
   "pages/api/download-order-invoice.ts": {
     "mtime": 1784796151.0625193,
@@ -2305,13 +2305,23 @@
     "semantic_hash": ""
   },
   "lib/suppliers/tinycottons/index.test.ts": {
-    "mtime": 1786224793.1419005,
-    "ast_hash": "c1a1720096b43ae39c491de982d4f0db",
+    "mtime": 1786264363.3138473,
+    "ast_hash": "48abd00fc2bd3f5a5b7d57f68b479ba6",
     "semantic_hash": ""
   },
   "scripts/homelab-runner/relaunch-loop.sh": {
     "mtime": 1786226287.0668888,
     "ast_hash": "2e9092189cf9a33c0ac34624e2575eed",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/tinycottons/prices.test.ts": {
+    "mtime": 1786264351.027819,
+    "ast_hash": "441f3b55dbd5b1bf0122952b674d5fb3",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/tinycottons/prices.ts": {
+    "mtime": 1786264284.2465465,
+    "ast_hash": "82c458df5188d0297ca0edf27d5a0b6c",
     "semantic_hash": ""
   }
 }

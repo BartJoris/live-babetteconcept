@@ -5,6 +5,7 @@ import tinycottonsPlugin from './index';
 import type { ParseContext } from '@/lib/suppliers/types';
 
 const CSV_PATH = join(__dirname, 'samples', 'Tiny_Big_sister_AW2627_-_Order.csv');
+const RRP_PATH = join(__dirname, 'samples', 'Tiny_RRP.csv');
 
 const context: ParseContext = {
   brands: [{ id: 1, name: 'Tiny Big sister', source: 'odoo' }],
@@ -69,6 +70,27 @@ describe('tinycottons parse - order-confirmation export (Product reference + Des
   it('suggests the brand via findBrand', () => {
     const coat = products.find(p => p.reference === 'AW26-602')!;
     expect(coat.suggestedBrand).toBe('Tiny Big sister');
+  });
+});
+
+describe('tinycottons parse - with separate RRP export (order-confirmation SRP file)', () => {
+  const orderText = readFileSync(CSV_PATH, 'utf8');
+  const rrpText = readFileSync(RRP_PATH, 'utf8');
+  const products = tinycottonsPlugin.parse({ main_csv: orderText, rrp_csv: rrpText }, context);
+
+  it('uses the real SRP from the RRP file instead of the 1.2x fallback', () => {
+    const coat = products.find(p => p.reference === 'AW26-602')!;
+    expect(coat.variants[0].price).toBeCloseTo(110.7);
+    expect(coat.variants[0].rrp).toBe(299);
+  });
+
+  it('falls back to the 1.2x markup for the one style missing an SRP in the export', () => {
+    const cardigan = products.find(p => p.reference === 'AW26-678')!;
+    expect(cardigan.variants[0].rrp).toBeCloseTo(cardigan.variants[0].price * 1.2);
+  });
+
+  it('does not change grouping/variants compared to parsing without the RRP file', () => {
+    expect(products).toHaveLength(17);
   });
 });
 

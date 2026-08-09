@@ -1,8 +1,6 @@
 import { parseCSV, parseEuroPrice, rowToObject, toSentenceCase } from '@/lib/import/shared';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
-
-/** Fallback markup when the export has no RRP column (order-confirmation format). */
-const RRP_MULTIPLIER = 1.2;
+import { buildTinycottonsRrpMap, isTinycottonsRrpCsv, lookupTinycottonsRrp } from './prices';
 
 /**
  * On the order-confirmation export, "Description" repeats the reference and
@@ -28,6 +26,11 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
   const { headers, rows } = parseCSV(text, { delimiter: ';' });
   if (headers.length === 0 || rows.length === 0) return [];
 
+  // Optional separate RRP export (print-style order-confirmation sheet with
+  // real SRP per reference+variant) - see ./prices.ts. When absent, falls
+  // back to the inline "RRP" column (older catalog exports) or a markup.
+  const rrpMap = buildTinycottonsRrpMap((files['rrp_csv'] as string) || '');
+
   const brand = context.findBrand('tiny big sister', 'tinycottons', 'tiny cottons');
   const products: Record<string, ParsedProduct> = {};
 
@@ -50,9 +53,11 @@ function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
     const sku = row['SKU'] || '';
     const quantity = parseInt(row['Quantity'] || '0') || 0;
     const price = parseEuroPrice(row['Unit price'] || '');
-    // Older catalog exports have a real "RRP" column; the newer
-    // order-confirmation export doesn't, so fall back to a markup.
-    const rrp = row['RRP'] ? parseEuroPrice(row['RRP']) : price * RRP_MULTIPLIER;
+    // "Color name" doubles as the RRP export's VARIANT key (see ./prices.ts).
+    const variantCode = row['Color name'] || '';
+    const rrp = row['RRP']
+      ? parseEuroPrice(row['RRP'])
+      : lookupTinycottonsRrp(rrpMap, reference, variantCode, price);
     const color = description ? extractColor(description, reference, productName) : '';
 
     if (!products[reference]) {
@@ -98,6 +103,26 @@ const tinycottonsPlugin: SupplierPlugin = {
   brandName: 'Tiny Big sister',
   fileInputs: [
     { id: 'main_csv', label: 'Tiny Big sister CSV', accept: '.csv', required: true, type: 'csv' },
+    {
+      id: 'rrp_csv',
+      label: 'Tiny RRP export (optioneel)',
+      accept: '.csv',
+      required: false,
+      type: 'csv',
+    },
+  ],
+  fileDetection: [
+    {
+      fileInputId: 'main_csv',
+      detect: (text: string) => {
+        const firstLine = text.split('\n')[0]?.toLowerCase() || '';
+        return firstLine.includes('product name') && firstLine.includes('ean13');
+      },
+    },
+    {
+      fileInputId: 'rrp_csv',
+      detect: (text: string) => isTinycottonsRrpCsv(text),
+    },
   ],
   defaultSizeAttribute: 'MAAT Volwassenen',
   parse,
