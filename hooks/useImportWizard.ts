@@ -9,9 +9,17 @@ import type {
   ProductVariant,
   Brand,
   SupplierFiles,
+  SupplierPlugin,
 } from '@/lib/suppliers/types';
 import { generateUniqueEAN13Batch } from '@/lib/import/shared/ean-utils';
-import { determineSizeAttribute, mapSizeToOdooFormat, isUnitSize } from '@/lib/import/shared';
+import {
+  determineSizeAttribute,
+  mapSizeToOdooFormat,
+  isUnitSize,
+  parseSpreadsheetFile,
+  suggestColumnMapping,
+  tableToDelimitedText,
+} from '@/lib/import/shared';
 import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 import { findMatchingPublicCategories } from '@/components/import/shared/CategoryMatcher';
 import { transformProductForUpload, isUnitOnlyProduct } from '@/components/import/shared/product-utils';
@@ -77,6 +85,11 @@ export default function useImportWizard() {
 
   // ─── Categories & brands ──────────────────────────────────────────────
   const [brands, setBrands] = useState<Brand[]>([]);
+  // Negative, decrementing ids for brands typed in by the user that don't
+  // exist in Odoo yet. addBrandAttribute() looks up/creates by name on MERK, so
+  // this placeholder id is never sent to Odoo — it just keeps the local
+  // dropdown state unique until the real MERK attribute value is created.
+  const nextCustomBrandIdRef = useRef(-1);
   const [internalCategories, setInternalCategories] = useState<Category[]>([]);
   const [publicCategories, setPublicCategories] = useState<Category[]>([]);
   const [productTags, setProductTags] = useState<Category[]>([]);
@@ -128,24 +141,16 @@ export default function useImportWizard() {
   const imageIdCounter = useRef(0);
   const importAbortRef = useRef<AbortController | null>(null);
 
-  // ─── Docling document import ─────────────────────────────────────────
-  const [doclingResult, setDoclingResult] = useState<{
-    markdown: string;
+  // ─── Spreadsheet document import (Excel / Numbers / ODS) ─────────────
+  const [spreadsheetResult, setSpreadsheetResult] = useState<{
     tables: Array<{
+      sheetName: string;
       headers: string[];
       rows: string[][];
-      pageNo: number;
       suggestedMapping: Record<string, string | null>;
     }>;
-    images: Array<{
-      base64?: string;
-      uri?: string;
-      classification?: string;
-      description?: string;
-      pageNo: number;
-    }>;
   } | null>(null);
-  const [doclingProcessing, setDoclingProcessing] = useState(false);
+  const [spreadsheetProcessing, setSpreadsheetProcessing] = useState(false);
 
   // ─── Supplier files ───────────────────────────────────────────────────
   const [supplierFiles, setSupplierFiles] = useState<Record<string, string>>(
@@ -400,6 +405,66 @@ export default function useImportWizard() {
   };
 
   // ─── File handling ────────────────────────────────────────────────────
+
+  /** Route parsed file text (CSV or CSV-ified spreadsheet) into the supplier plugin. */
+  const applySupplierFileText = (
+    text: string,
+    filename: string,
+    fileInputId: string | undefined,
+    plugin: SupplierPlugin,
+  ) => {
+    if (!selectedVendor) return;
+    const context = createParseContext(brands, selectedVendor);
+
+    let targetFileInputId = fileInputId || 'main_csv';
+
+    if (!fileInputId && plugin.fileDetection) {
+      for (const rule of plugin.fileDetection) {
+        if (rule.detect(text, filename)) {
+          if (rule.requiresExistingProducts && parsedProducts.length === 0) {
+            alert(rule.orderError || 'Upload eerst de vereiste bestanden.');
+            return;
+          }
+          targetFileInputId = rule.fileInputId;
+          break;
+        }
+      }
+    }
+
+    const updatedFiles = {
+      ...supplierFilesRef.current,
+      [targetFileInputId]: text,
+    };
+    supplierFilesRef.current = updatedFiles;
+    setSupplierFiles(updatedFiles);
+    setSupplierFileStatus((prev) => ({
+      ...prev,
+      [targetFileInputId]: true,
+    }));
+
+    try {
+      const products = plugin.parse(updatedFiles as SupplierFiles, context);
+      if (products.length > 0) {
+        setParsedProducts(products);
+        setSelectedProducts(new Set(products.map((p) => p.reference)));
+        checkExistingBarcodes(products);
+        if (plugin.fileInputs.length <= 1) {
+          setCurrentStep(2);
+        }
+      } else if (targetFileInputId !== 'main_csv') {
+        const reparse = plugin.parse(updatedFiles as SupplierFiles, context);
+        if (reparse.length > 0) {
+          setParsedProducts(reparse);
+          setSelectedProducts(new Set(reparse.map((p) => p.reference)));
+          checkExistingBarcodes(reparse);
+        }
+      }
+    } catch (err) {
+      console.error('Parse error:', err);
+      alert(`Fout bij parsen: ${(err as Error).message}`);
+    }
+  };
+
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     fileInputId?: string,
@@ -411,6 +476,35 @@ export default function useImportWizard() {
       e.target.value = '';
     }
 
+    if (!selectedVendor) return;
+    const plugin = getSupplier(selectedVendor);
+    if (!plugin) {
+      console.warn(`No plugin found for vendor: ${selectedVendor}`);
+      return;
+    }
+
+    // Binary spreadsheet inputs (Excel/Numbers/ODS) need array-buffer reading
+    // through SheetJS instead of readAsText — CSV-ify the first table so the
+    // rest of the pipeline (fileDetection, plugin.parse) works unmodified.
+    const inputConfig = fileInputId
+      ? plugin.fileInputs.find((fi) => fi.id === fileInputId)
+      : undefined;
+
+    if (inputConfig?.type === 'xlsx') {
+      file
+        .arrayBuffer()
+        .then(async (buffer) => {
+          const tables = await parseSpreadsheetFile(buffer);
+          const text = tables.length > 0 ? tableToDelimitedText(tables[0]) : '';
+          applySupplierFileText(text, file.name, fileInputId, plugin);
+        })
+        .catch((err) => {
+          console.error(`Kon spreadsheet niet lezen: ${file.name}`, err);
+          alert(`Kon bestand niet verwerken: ${(err as Error).message}`);
+        });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onerror = () => {
       console.error(`Kon bestand niet lezen: ${file.name}`);
@@ -418,76 +512,7 @@ export default function useImportWizard() {
     };
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      if (!selectedVendor) return;
-
-      const plugin = getSupplier(selectedVendor);
-      if (!plugin) {
-        console.warn(`No plugin found for vendor: ${selectedVendor}`);
-        return;
-      }
-
-      const context = createParseContext(brands, selectedVendor);
-
-      let targetFileInputId = fileInputId || 'main_csv';
-
-      if (!fileInputId && plugin.fileDetection) {
-        for (const rule of plugin.fileDetection) {
-          if (rule.detect(text, file.name)) {
-            if (
-              rule.requiresExistingProducts &&
-              parsedProducts.length === 0
-            ) {
-              alert(
-                rule.orderError || 'Upload eerst de vereiste bestanden.',
-              );
-              return;
-            }
-            targetFileInputId = rule.fileInputId;
-            break;
-          }
-        }
-      }
-
-      const updatedFiles = {
-        ...supplierFilesRef.current,
-        [targetFileInputId]: text,
-      };
-      supplierFilesRef.current = updatedFiles;
-      setSupplierFiles(updatedFiles);
-      setSupplierFileStatus((prev) => ({
-        ...prev,
-        [targetFileInputId]: true,
-      }));
-
-      try {
-        const products = plugin.parse(
-          updatedFiles as SupplierFiles,
-          context,
-        );
-        if (products.length > 0) {
-          setParsedProducts(products);
-          setSelectedProducts(new Set(products.map((p) => p.reference)));
-          checkExistingBarcodes(products);
-          if (plugin.fileInputs.length <= 1) {
-            setCurrentStep(2);
-          }
-        } else if (targetFileInputId !== 'main_csv') {
-          const reparse = plugin.parse(
-            updatedFiles as SupplierFiles,
-            context,
-          );
-          if (reparse.length > 0) {
-            setParsedProducts(reparse);
-            setSelectedProducts(
-              new Set(reparse.map((p) => p.reference)),
-            );
-            checkExistingBarcodes(reparse);
-          }
-        }
-      } catch (err) {
-        console.error('Parse error:', err);
-        alert(`Fout bij parsen: ${(err as Error).message}`);
-      }
+      applySupplierFileText(text, file.name, fileInputId, plugin);
     };
     reader.readAsText(file);
   };
@@ -1148,11 +1173,38 @@ export default function useImportWizard() {
     void ensureSizeValuesLoaded(value);
   };
 
+  /**
+   * Look up a brand by name (case-insensitive) in the currently loaded Odoo
+   * brands, or register a new placeholder brand if it doesn't exist yet.
+   * The placeholder is only local state — addBrandAttribute() on the Odoo
+   * import step creates the real MERK attribute value from the name at
+   * import time, so a brand missing from Odoo no longer blocks a smart
+   * upload (e.g. a first order from a brand-new supplier).
+   */
+  const resolveOrCreateBrand = (rawName: string): Brand => {
+    const name = rawName.trim();
+    const existing = brands.find(
+      (b) => b.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) return existing;
+
+    const newBrand: Brand = {
+      id: nextCustomBrandIdRef.current--,
+      name,
+      source: 'Nieuw (wordt aangemaakt)',
+    };
+    setBrands((prev) => [...prev, newBrand]);
+    return newBrand;
+  };
+
   const updateProductBrand = (
     productRef: string,
-    brand: Brand | null,
+    brand: Brand | string | null,
     color?: string,
   ) => {
+    const resolvedBrand: Brand | null =
+      typeof brand === 'string' ? (brand.trim() ? resolveOrCreateBrand(brand) : null) : brand;
+
     setParsedProducts((products) =>
       products.map((p) => {
         const matchesRef = p.reference === productRef;
@@ -1160,19 +1212,19 @@ export default function useImportWizard() {
           color === undefined || (p.color || '') === (color || '');
         if (!matchesRef || !matchesColor) return p;
 
-        if (!brand) {
+        if (!resolvedBrand) {
           return { ...p, selectedBrand: undefined };
         }
 
         return {
           ...p,
-          selectedBrand: brand,
-          suggestedBrand: brand.name,
+          selectedBrand: resolvedBrand,
+          suggestedBrand: resolvedBrand.name,
           name: rebuildNameWithBrand(
             p.name,
             p.originalName,
             p.color,
-            brand.name,
+            resolvedBrand.name,
           ),
         };
       }),
@@ -1995,39 +2047,35 @@ export default function useImportWizard() {
     }
   };
 
-  // ─── Docling document processing ─────────────────────────────────────
-  const processDocument = async (file: File) => {
-    setDoclingProcessing(true);
+  // ─── Spreadsheet document processing (Excel / Numbers / ODS) ─────────
+  const processSpreadsheetFile = async (file: File) => {
+    setSpreadsheetProcessing(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const buffer = await file.arrayBuffer();
+      const tables = await parseSpreadsheetFile(buffer);
 
-      const response = await fetch('/api/parse-document', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setDoclingResult({
-          markdown: data.markdown,
-          tables: data.tables,
-          images: data.images,
-        });
-      } else {
-        alert(data.error || 'Document verwerking mislukt');
+      if (tables.length === 0) {
+        alert('Geen tabellen gevonden in dit bestand.');
+        return;
       }
+
+      setSpreadsheetResult({
+        tables: tables.map((table) => ({
+          ...table,
+          suggestedMapping: suggestColumnMapping(table.headers),
+        })),
+      });
     } catch (error) {
-      console.error('Docling error:', error);
-      alert('Kon document niet verwerken. Is Docling gestart? (npm run docling:start)');
+      console.error('Spreadsheet parse error:', error);
+      alert(`Kon bestand niet verwerken: ${(error as Error).message}`);
     } finally {
-      setDoclingProcessing(false);
+      setSpreadsheetProcessing(false);
     }
   };
 
-  const applyDoclingTable = (tableIndex: number, columnMapping: Record<string, string>) => {
-    if (!doclingResult) return;
-    const table = doclingResult.tables[tableIndex];
+  const applySpreadsheetTable = (tableIndex: number, columnMapping: Record<string, string>) => {
+    if (!spreadsheetResult) return;
+    const table = spreadsheetResult.tables[tableIndex];
     if (!table) return;
 
     const grouped: Record<string, ParsedProduct> = {};
@@ -2084,8 +2132,8 @@ export default function useImportWizard() {
     setSupplierFiles({});
     setSupplierFileStatus({});
     setImagePool([]);
-    setDoclingResult(null);
-    setDoclingProcessing(false);
+    setSpreadsheetResult(null);
+    setSpreadsheetProcessing(false);
   };
 
   // ─── Effects ──────────────────────────────────────────────────────────
@@ -2379,6 +2427,7 @@ export default function useImportWizard() {
     updateProductSizeAttribute,
     setAllSizeAttribute,
     updateProductBrand,
+    resolveOrCreateBrand,
     ensureSizeValuesLoaded,
     sizeValuesByAttribute,
     loadingSizeAttribute,
@@ -2436,11 +2485,11 @@ export default function useImportWizard() {
     setCustomPromptVolwassenen,
     defaultPrompts,
 
-    // Docling document import
-    doclingResult,
-    doclingProcessing,
-    processDocument,
-    applyDoclingTable,
+    // Spreadsheet document import (Excel / Numbers / ODS)
+    spreadsheetResult,
+    spreadsheetProcessing,
+    processSpreadsheetFile,
+    applySpreadsheetTable,
 
     // Image pool
     imagePool,

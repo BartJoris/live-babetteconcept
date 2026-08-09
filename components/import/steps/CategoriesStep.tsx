@@ -61,6 +61,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
         publicCategories={wizard.publicCategories}
         productTags={wizard.productTags}
         onProductsChange={(updated) => wizard.setParsedProducts(updated)}
+        resolveOrCreateBrand={wizard.resolveOrCreateBrand}
       />
 
       {/* Per Product Categorieën */}
@@ -111,21 +112,27 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                       const brand = wizard.brands.find(
                         (b) => b.id.toString() === value,
                       );
-                      if (brand) {
-                        wizard.updateProductBrand(
-                          product.reference,
-                          brand,
-                          product.color,
-                        );
-                      }
+                      // No existing Odoo brand matched — treat the typed
+                      // text as a brand new merk (e.g. a first-time supplier).
+                      wizard.updateProductBrand(
+                        product.reference,
+                        brand ?? value,
+                        product.color,
+                      );
                     }}
-                    placeholder="Selecteer merk..."
+                    placeholder="Selecteer of typ een nieuw merk..."
                     className="min-w-[180px]"
                     showGroupHeaders
+                    allowCustom
                   />
                   {product.suggestedBrand && !product.selectedBrand && (
                     <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                       Suggestie: {product.suggestedBrand}
+                    </div>
+                  )}
+                  {product.selectedBrand && product.selectedBrand.id < 0 && (
+                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      🆕 Nieuw merk — wordt aangemaakt in Odoo bij import
                     </div>
                   )}
                 </td>

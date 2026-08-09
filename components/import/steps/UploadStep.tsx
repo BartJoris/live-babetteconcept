@@ -246,15 +246,15 @@ F10625;Apple Knit Cardigan;Flöss Aps;Cardigan;;100% Cotton;Red Apple;68/6M;1;57
   }
 }
 
-const DOCLING_ACCEPT = '.pdf,.docx,.pptx,.xlsx';
+const SPREADSHEET_ACCEPT = '.numbers,.xlsx,.xls,.ods,.csv';
 
-function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
+function SpreadsheetImportSection({ wizard }: { wizard: UseImportWizardReturn }) {
   const [expanded, setExpanded] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
-    wizard.processDocument(file);
+    wizard.processSpreadsheetFile(file);
     setExpanded(true);
   };
 
@@ -271,13 +271,6 @@ function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
     if (e.target) e.target.value = '';
   };
 
-  const doclingImages = wizard.doclingResult?.images.map((img) => ({
-    url: img.base64
-      ? `data:image/png;base64,${img.base64}`
-      : img.uri || '',
-    alt: img.description || img.classification || undefined,
-  })) ?? [];
-
   return (
     <div className="mt-8">
       <div className="border-t border-gray-300 dark:border-gray-600 pt-6">
@@ -288,10 +281,10 @@ function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
         >
           <div>
             <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-              Of importeer vanuit een document:
+              Of importeer vanuit een spreadsheet:
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Upload een PDF, DOCX, PPTX of XLSX — tabellen en afbeeldingen worden automatisch herkend
+              Upload een Excel-, Numbers- of ODS-bestand — tabellen worden automatisch herkend
             </p>
           </div>
           <span className="text-2xl text-gray-400 ml-4 flex-shrink-0">
@@ -312,11 +305,11 @@ function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
               }`}
             >
-              {wizard.doclingProcessing ? (
+              {wizard.spreadsheetProcessing ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   <p className="text-gray-700 dark:text-gray-300 font-medium">
-                    Document wordt verwerkt...
+                    Bestand wordt verwerkt...
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Dit kan even duren afhankelijk van de grootte
@@ -324,23 +317,23 @@ function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
                 </div>
               ) : (
                 <>
-                  <div className="text-4xl mb-3">📄</div>
+                  <div className="text-4xl mb-3">📊</div>
                   <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">
                     Sleep een bestand hierheen of klik om te selecteren
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    PDF, DOCX, PPTX, XLSX (max 50MB)
+                    Numbers, Excel (.xlsx/.xls), ODS of CSV
                   </p>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept={DOCLING_ACCEPT}
+                    accept={SPREADSHEET_ACCEPT}
                     onChange={handleFileChange}
                     className="hidden"
-                    id="docling-file-upload"
+                    id="spreadsheet-file-upload"
                   />
                   <label
-                    htmlFor="docling-file-upload"
+                    htmlFor="spreadsheet-file-upload"
                     className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg font-medium cursor-pointer hover:bg-blue-700 transition-colors"
                   >
                     Selecteer bestand
@@ -350,28 +343,26 @@ function DoclingSection({ wizard }: { wizard: UseImportWizardReturn }) {
             </div>
 
             {/* Results */}
-            {wizard.doclingResult && (
+            {wizard.spreadsheetResult && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-gray-900 dark:text-gray-100">
                     Resultaat
                   </h4>
                   <div className="flex gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span>{wizard.doclingResult.tables.length} tabel(len)</span>
-                    <span>·</span>
-                    <span>{wizard.doclingResult.images.length} afbeelding(en)</span>
+                    <span>{wizard.spreadsheetResult.tables.length} tabel(len)</span>
                   </div>
                 </div>
                 <DocumentPreview
-                  markdown={wizard.doclingResult.markdown}
-                  tables={wizard.doclingResult.tables}
-                  images={doclingImages}
+                  markdown=""
+                  tables={wizard.spreadsheetResult.tables}
+                  images={[]}
                   onTableSelect={(tableIndex, columnMapping) => {
                     const reverseMapping: Record<string, string> = {};
                     for (const [header, field] of Object.entries(columnMapping)) {
                       reverseMapping[field] = header;
                     }
-                    wizard.applyDoclingTable(tableIndex, reverseMapping);
+                    wizard.applySpreadsheetTable(tableIndex, reverseMapping);
                   }}
                 />
               </div>
@@ -725,13 +716,13 @@ export default function UploadStep({ wizard }: UploadStepProps) {
         </>
       )}
 
-      {/* ─── Document Import (Docling) ─────────────────────────────── */}
-      <DoclingSection wizard={wizard} />
+      {/* ─── Spreadsheet import (Excel / Numbers / ODS) ────────────── */}
+      <SpreadsheetImportSection wizard={wizard} />
 
-      {!wizard.selectedVendor && !wizard.doclingResult && (
+      {!wizard.selectedVendor && !wizard.spreadsheetResult && (
         <div className="bg-gray-50 border border-gray-300 rounded-lg p-8 text-center">
           <p className="text-gray-800">
-            👆 Selecteer een leverancier of importeer vanuit een document
+            👆 Selecteer een leverancier of importeer vanuit een spreadsheet
           </p>
         </div>
       )}

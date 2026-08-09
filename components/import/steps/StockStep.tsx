@@ -76,8 +76,10 @@ export default function StockStep({ wizard }: StockStepProps) {
 
   const applyBulkBrand = () => {
     if (!bulkBrandId) return;
-    const brand = wizard.brands.find((b) => b.id.toString() === bulkBrandId);
-    if (!brand) return;
+    const existingBrand = wizard.brands.find((b) => b.id.toString() === bulkBrandId);
+    // No existing Odoo brand matched the id — the field held typed-in
+    // text instead, so register it as a new merk (created in Odoo on import).
+    const brand = existingBrand ?? wizard.resolveOrCreateBrand(bulkBrandId);
     wizard.setParsedProducts((products) =>
       products.map((p) => {
         if (!wizard.selectedProducts.has(p.reference)) return p;
@@ -94,6 +96,7 @@ export default function StockStep({ wizard }: StockStepProps) {
         };
       }),
     );
+    setBulkBrandId('');
   };
 
   const firstSelected = wizard.parsedProducts.find((p) =>
@@ -147,10 +150,11 @@ export default function StockStep({ wizard }: StockStepProps) {
             placeholder={
               wizard.brands.length === 0
                 ? 'Merken laden...'
-                : 'Zoek merk voor geselecteerde producten...'
+                : 'Zoek of typ een nieuw merk...'
             }
             label="Merk (bulk)"
             showGroupHeaders
+            allowCustom
           />
         </div>
         <button
@@ -412,15 +416,14 @@ export default function StockStep({ wizard }: StockStepProps) {
                           const brand = wizard.brands.find(
                             (b) => b.id.toString() === value,
                           );
-                          if (brand) {
-                            wizard.updateProductBrand(
-                              product.reference,
-                              brand,
-                              product.color,
-                            );
-                          }
+                          wizard.updateProductBrand(
+                            product.reference,
+                            brand ?? value,
+                            product.color,
+                          );
                         }}
-                        placeholder="Selecteer merk..."
+                        placeholder="Selecteer of typ een nieuw merk..."
+                        allowCustom
                       />
                     </div>
                     <div className="min-w-[160px]">

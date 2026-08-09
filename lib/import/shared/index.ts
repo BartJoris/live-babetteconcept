@@ -25,3 +25,11 @@ export {
   generateUniqueEAN13Batch,
   isValidEAN13,
 } from './ean-utils';
+
+export {
+  parseSpreadsheetFile,
+  suggestColumnMapping,
+  tableToProducts,
+  tableToDelimitedText,
+} from './spreadsheet-utils';
+export type { ExtractedTable } from './spreadsheet-utils';

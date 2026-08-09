@@ -572,6 +572,26 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Nixnut ──
+  {
+    supplierId: 'nixnut',
+    supplierName: 'Nixnut',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Nixnut Verkooporder CSV',
+      detect: (_headers, text) => {
+        const blob = text.toLowerCase();
+        const hasColumns =
+          blob.includes('artikelnummer') && blob.includes('kleurnummer') && blob.includes('adviesprijs');
+        if (!hasColumns) return 0;
+        if (blob.includes('nixnut')) return 0.97;
+        if (blob.includes('goederencode')) return 0.85;
+        return 0;
+      },
+      reason: 'Artikelnummer/Kleurnummer/Adviesprijs kolommen met "Nixnut" als leverancier',
+    }],
+  },
+
   // ── Ao76 ──
   {
     supplierId: 'ao76',

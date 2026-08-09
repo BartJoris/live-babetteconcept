@@ -149,6 +149,8 @@ export class OdooImportService {
   // -----------------------------------------------------------------------
 
   async addBrandAttribute(templateId: number, brandName: string): Promise<void> {
+    // Always prefer MERK over the legacy Merk 1 attribute so newly created
+    // brands land on the modern attribute (new suppliers like Nixnut).
     const merkAttrs = await odooClient.searchRead<{ id: number; name: string }>(
       this.uid,
       this.password,
@@ -164,7 +166,9 @@ export class OdooImportService {
       );
     }
 
-    const merkAttributeId = merkAttrs[0].id;
+    const preferred =
+      merkAttrs.find((attr) => attr.name === 'MERK') ?? merkAttrs[0];
+    const merkAttributeId = preferred.id;
 
     const existingBrand = await odooClient.searchRead<{ id: number }>(
       this.uid,

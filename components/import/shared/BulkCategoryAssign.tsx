@@ -20,6 +20,8 @@ interface BulkCategoryAssignProps {
   publicCategories: CategoryOption[];
   productTags: CategoryOption[];
   onProductsChange: (products: ParsedProduct[]) => void;
+  /** Registers a typed-in brand name that isn't in Odoo yet (e.g. a brand-new supplier). */
+  resolveOrCreateBrand: (name: string) => Brand;
 }
 
 export default function BulkCategoryAssign({
@@ -30,6 +32,7 @@ export default function BulkCategoryAssign({
   publicCategories,
   productTags,
   onProductsChange,
+  resolveOrCreateBrand,
 }: BulkCategoryAssignProps) {
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -49,17 +52,19 @@ export default function BulkCategoryAssign({
       const changes: Partial<ParsedProduct> = {};
 
       if (selectedBrand) {
-        const brand = brands.find((b) => b.id.toString() === selectedBrand);
-        if (brand) {
-          changes.selectedBrand = { id: brand.id, name: brand.name };
-          changes.suggestedBrand = brand.name;
-          changes.name = rebuildNameWithBrand(
-            p.name,
-            p.originalName,
-            p.color,
-            brand.name,
-          );
-        }
+        // No existing Odoo brand matched the id — the field held typed-in
+        // text instead, so register it as a new merk (created in Odoo on import).
+        const brand =
+          brands.find((b) => b.id.toString() === selectedBrand) ??
+          resolveOrCreateBrand(selectedBrand);
+        changes.selectedBrand = { id: brand.id, name: brand.name };
+        changes.suggestedBrand = brand.name;
+        changes.name = rebuildNameWithBrand(
+          p.name,
+          p.originalName,
+          p.color,
+          brand.name,
+        );
       }
 
       if (selectedCategory) {
@@ -107,6 +112,7 @@ export default function BulkCategoryAssign({
     publicCategories,
     productTags,
     onProductsChange,
+    resolveOrCreateBrand,
   ]);
 
   if (selectedCount === 0) return null;
@@ -137,8 +143,9 @@ export default function BulkCategoryAssign({
           options={brandOptions}
           value={selectedBrand || null}
           onChange={setSelectedBrand}
-          placeholder="Selecteer merk..."
+          placeholder="Selecteer of typ een nieuw merk..."
           label="Merk"
+          allowCustom
         />
 
         <FuzzySearchSelect

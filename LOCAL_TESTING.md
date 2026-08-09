@@ -3,7 +3,6 @@
 ## Vereisten
 
 - Node.js 20+ (`nvm use`)
-- Docker Desktop (voor Docling document processing)
 - `.env.local` met Odoo credentials (kopieer `env.example`)
 
 ## Snel starten
@@ -49,72 +48,13 @@ npm run verify
 | `lib/validation/product.test.ts` | Zod schema validatie |
 | `components/import/ValidationReport.test.tsx` | Validatie rapport UI |
 
-## Docling (Document Processing)
+## Spreadsheet-import (Excel / Numbers / ODS)
 
-Docling verwerkt PDF/DOCX documenten en extraheert tabellen en afbeeldingen.
-
-### Vereiste: Podman Desktop
-
-Zorg dat Podman Desktop draait en de machine gestart is:
-
-1. Open **Podman Desktop** app
-2. Controleer dat de machine status "Running" is (linksonder)
-3. Als de machine gestopt is, klik op "Start" in Podman Desktop
-
-### Starten
-
-```bash
-# Via npm script (gebruikt podman run)
-npm run docling:start
-
-# Of handmatig:
-podman run -d --name docling --replace \
-  -p 5001:5001 \
-  -e DOCLING_SERVE_ENABLE_UI=1 \
-  ghcr.io/docling-project/docling-serve-cpu:latest
-```
-
-De eerste keer wordt de image gedownload (~4.4 GB). Dit duurt een paar minuten.
-
-Docling UI: http://localhost:5001/ui
-API docs: http://localhost:5001/docs
-
-### Stoppen
-
-```bash
-npm run docling:stop
-```
-
-### Testen
-
-```bash
-# Check of Docling draait
-curl http://localhost:5001/health
-
-# Test document verwerking via de app API
-curl -X POST http://localhost:3000/api/parse-document \
-  -F "file=@test-document.pdf"
-```
-
-### Podman troubleshooting
-
-Als `podman` geen verbinding kan maken:
-
-```bash
-# Check machine status
-podman machine inspect --format '{{.State}}'
-
-# Herstart de machine via Podman Desktop UI, of:
-podman machine stop
-podman machine start
-
-# Controleer connectie
-podman ps
-```
-
-### Zonder Podman
-
-Docling is optioneel. De import wizard werkt volledig zonder Docling - het is een extra feature voor document-gebaseerde imports. De API geeft een duidelijke foutmelding als Docling niet draait.
+De import wizard kan naast de leverancier-specifieke CSV/PDF-parsers ook een
+generieke spreadsheet importeren (`.xlsx`, `.xls`, `.numbers`, `.ods`, `.csv`)
+via de "Of importeer vanuit een spreadsheet" sectie. Dit gebeurt volledig
+client-side met SheetJS (`xlsx`-pakket) — geen losse service nodig, werkt
+identiek lokaal en op Vercel.
 
 ## Pagina's testen
 
@@ -129,10 +69,10 @@ Docling is optioneel. De import wizard werkt volledig zonder Docling - het is ee
 2. Voer template IDs in (komma-gescheiden)
 3. Klik "Valideer" om producten te controleren in Odoo
 
-### Document Import (vereist Docling)
-1. Start Docling: `npm run docling:start`
-2. Upload een PDF via `/api/parse-document`
-3. De DocumentPreview component toont tabellen en afbeeldingen
+### Spreadsheet-import (Excel / Numbers / ODS)
+1. Ga naar http://localhost:3000/product-import
+2. Open de "Of importeer vanuit een spreadsheet" sectie op stap 1
+3. Upload een `.xlsx`, `.numbers` of `.ods` bestand — de DocumentPreview component toont de gevonden tabellen
 
 ## Project structuur (nieuw)
 
@@ -148,7 +88,7 @@ components/import/
     BulkCategoryAssign.tsx      # Bulk categorie toewijzing
     ImageManager.tsx            # Afbeeldingen beheer
     EnhancedImageManager.tsx    # Verbeterde afbeeldingen beheer
-    DocumentPreview.tsx         # Document preview (Docling)
+    DocumentPreview.tsx         # Tabel-preview + kolom-mapping (spreadsheet-import)
     CategoryMatcher.tsx         # CSV-naar-Odoo matching
   steps/
     UploadStep.tsx              # Stap 1: Leverancier + upload
@@ -163,10 +103,6 @@ hooks/
   useImportWizard.ts            # Wizard state management
 
 lib/
-  docling/                      # Docling integratie
-    client.ts                   # REST API client
-    types.ts                    # TypeScript types
-    extractors.ts               # Data extractie
   import/
     services/                   # Geconsolideerde Odoo services
       odoo-import.service.ts    # Product creatie
@@ -178,4 +114,5 @@ lib/
       size-utils.ts             # Maat conversies
       name-utils.ts             # Naam formatting
       ean-utils.ts              # EAN-13 barcodes
+      spreadsheet-utils.ts       # Excel/Numbers/ODS parsing (SheetJS)
 ```

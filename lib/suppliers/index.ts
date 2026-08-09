@@ -37,6 +37,7 @@ import babeandtess from './babeandtess';
 import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
+import nixnut from './nixnut';
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
 const allPlugins = [
@@ -61,6 +62,7 @@ const allPlugins = [
   lenewblack,       // Le New Black
   minirodini,       // Mini Rodini
   mipounet,         // Mipounet
+  nixnut,           // Nixnut
   petitblush,       // Petit Blush
   playup,           // Play UP
   babeandtess,      // Babe & Tess

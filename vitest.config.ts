@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    exclude: ['**/node_modules/**', '**/.git/**', '**/.next/**'],
     env: {
       // iron-session requires SESSION_SECRET at module load (fail-closed in lib/session.ts)
       SESSION_SECRET:

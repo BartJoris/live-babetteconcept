@@ -80,8 +80,8 @@
     "semantic_hash": "7ace108e6bc7fd9d345d37455d4110d4"
   },
   "components/import/shared/BulkCategoryAssign.tsx": {
-    "mtime": 1786265797.7467,
-    "ast_hash": "b2236daeed5ae6a038db945b252b37e9",
+    "mtime": 1786268185.386101,
+    "ast_hash": "e20f2527cc0eeaf5de4e7469f8668282",
     "semantic_hash": ""
   },
   "components/import/shared/CategoryMatcher.tsx": {
@@ -145,9 +145,9 @@
     "semantic_hash": "1c2b3296607c57fa315793a08ea05a9a"
   },
   "components/import/steps/CategoriesStep.tsx": {
-    "mtime": 1784750806.5129817,
-    "ast_hash": "598096c3f9a0cf9f05b68497f31e5917",
-    "semantic_hash": "598096c3f9a0cf9f05b68497f31e5917"
+    "mtime": 1786268190.0520658,
+    "ast_hash": "79d7c7be434a670dd3bc06e20d45ce45",
+    "semantic_hash": ""
   },
   "components/import/steps/ImageStep.tsx": {
     "mtime": 1784987437.5709438,
@@ -175,9 +175,9 @@
     "semantic_hash": "624269e12d285d525854e3cb0b88e330"
   },
   "components/import/steps/StockStep.tsx": {
-    "mtime": 1786258663.82682,
-    "ast_hash": "2389584b715f76da2e3861653ed9c262",
-    "semantic_hash": "2389584b715f76da2e3861653ed9c262"
+    "mtime": 1786268161.8136733,
+    "ast_hash": "0518ddd627a7f1bf3433cdfad252cb05",
+    "semantic_hash": ""
   },
   "components/import/steps/TestStep.tsx": {
     "mtime": 1784750805.491905,
@@ -185,9 +185,9 @@
     "semantic_hash": "7ec3664e8fa5980c7c831169e3fbffa0"
   },
   "components/import/steps/UploadStep.tsx": {
-    "mtime": 1785138460.5458899,
-    "ast_hash": "cb9052f8049a4d94de4f5233cf51367a",
-    "semantic_hash": "cb9052f8049a4d94de4f5233cf51367a"
+    "mtime": 1786267707.8508108,
+    "ast_hash": "c17dd1d3eda4406f1e6b35d96bac0c3e",
+    "semantic_hash": ""
   },
   "eslint.config.mjs": {
     "mtime": 1775591742.409527,
@@ -195,9 +195,9 @@
     "semantic_hash": "1137fe8004e49b31ef45804c4bed6caf"
   },
   "hooks/useImportWizard.ts": {
-    "mtime": 1786258663.8268275,
-    "ast_hash": "6996637f55e55b37ede91484891f0560",
-    "semantic_hash": "6996637f55e55b37ede91484891f0560"
+    "mtime": 1786269123.55547,
+    "ast_hash": "adb2a6cdb8e6c3d2d4a5e540140d1bab",
+    "semantic_hash": ""
   },
   "lib/__tests__/mcp-auth.test.ts": {
     "mtime": 1784702894.518922,
@@ -233,26 +233,6 @@
     "mtime": 1773845142.22099,
     "ast_hash": "0b0214b542f955940d3032b23ab64a88",
     "semantic_hash": "0b0214b542f955940d3032b23ab64a88"
-  },
-  "lib/docling/client.ts": {
-    "mtime": 1783725359.4257374,
-    "ast_hash": "612beab309e62a5bfd959fa70d8b7930",
-    "semantic_hash": "612beab309e62a5bfd959fa70d8b7930"
-  },
-  "lib/docling/extractors.ts": {
-    "mtime": 1783725359.4258747,
-    "ast_hash": "382f2ab6c243d73296f9a743d1401df1",
-    "semantic_hash": "382f2ab6c243d73296f9a743d1401df1"
-  },
-  "lib/docling/index.ts": {
-    "mtime": 1783725359.425997,
-    "ast_hash": "16a3b43ec4342ef03538f2c86a501f83",
-    "semantic_hash": "16a3b43ec4342ef03538f2c86a501f83"
-  },
-  "lib/docling/types.ts": {
-    "mtime": 1783725359.4261994,
-    "ast_hash": "9e644d027c116a5f878598cdd0968b69",
-    "semantic_hash": "9e644d027c116a5f878598cdd0968b69"
   },
   "lib/excelIo.ts": {
     "mtime": 1775592433.493366,
@@ -310,9 +290,9 @@
     "semantic_hash": "313b0a0c83a05bdd80d5f24cc3ad681b"
   },
   "lib/import/services/odoo-import.service.ts": {
-    "mtime": 1784983391.2602592,
-    "ast_hash": "5261c16e8b690ba762eec8719c03a66b",
-    "semantic_hash": "5261c16e8b690ba762eec8719c03a66b"
+    "mtime": 1786269119.442313,
+    "ast_hash": "9f37f441a2df8fb7c8835c675abc8386",
+    "semantic_hash": ""
   },
   "lib/import/services/odoo-validation.service.ts": {
     "mtime": 1783725359.4269419,
@@ -350,9 +330,9 @@
     "semantic_hash": "2c449313d86ac63ca1ffd59398984579"
   },
   "lib/import/shared/index.ts": {
-    "mtime": 1784886213.8741746,
-    "ast_hash": "a0a14dc125a6968a99821f52e5797d42",
-    "semantic_hash": "a0a14dc125a6968a99821f52e5797d42"
+    "mtime": 1786267631.4259534,
+    "ast_hash": "331300414f87c5e45375f2552ac145e7",
+    "semantic_hash": ""
   },
   "lib/import/shared/name-utils.test.ts": {
     "mtime": 1784886206.4023674,
@@ -685,8 +665,8 @@
     "semantic_hash": "55c32574575a08214f01beb13395426d"
   },
   "lib/suppliers/index.ts": {
-    "mtime": 1786227414.7422624,
-    "ast_hash": "02227f8a04ed115e4914c0719cbd0e9f",
+    "mtime": 1786268268.8126805,
+    "ast_hash": "cd3548ff0b95803bf60522b865d38868",
     "semantic_hash": ""
   },
   "lib/suppliers/jellymallow/index.ts": {
@@ -865,9 +845,9 @@
     "semantic_hash": "215d5aa31a87dfea2040fbe297ee134b"
   },
   "package.json": {
-    "mtime": 1786258663.6918962,
-    "ast_hash": "698ba3a7ea7c3b002db33db900e10ad8",
-    "semantic_hash": "698ba3a7ea7c3b002db33db900e10ad8"
+    "mtime": 1786267424.4213862,
+    "ast_hash": "55d7d25aa8e8dde72b412481f0c3292c",
+    "semantic_hash": ""
   },
   "pages/_app.tsx": {
     "mtime": 1784884939.3490934,
@@ -995,8 +975,8 @@
     "semantic_hash": "f10547cb19b9b94942334874f26c819e"
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1786264376.1816165,
-    "ast_hash": "a14a4e31c664d0fc0670f24f71e97026",
+    "mtime": 1786268276.6307287,
+    "ast_hash": "653f5a9a5a9ad0bcf9200f569fc87e8d",
     "semantic_hash": ""
   },
   "pages/api/download-order-invoice.ts": {
@@ -1293,11 +1273,6 @@
     "mtime": 1784993808.8267171,
     "ast_hash": "2847a8e6e49dbe4b1df88864bc585c3e",
     "semantic_hash": "2847a8e6e49dbe4b1df88864bc585c3e"
-  },
-  "pages/api/parse-document.ts": {
-    "mtime": 1784796206.9165907,
-    "ast_hash": "fef4551893530718deeb049ec8b3d02a",
-    "semantic_hash": "fef4551893530718deeb049ec8b3d02a"
   },
   "pages/api/parse-drbloom-pdf.ts": {
     "mtime": 1784993808.8268967,
@@ -2035,9 +2010,9 @@
     "semantic_hash": "6be50cdb0fd77ad0753d5484080dd999"
   },
   "vitest.config.ts": {
-    "mtime": 1784796265.7485576,
-    "ast_hash": "02d19f151f1f93ecb233c4f1f834f1f5",
-    "semantic_hash": "02d19f151f1f93ecb233c4f1f834f1f5"
+    "mtime": 1786268062.2709086,
+    "ast_hash": "f768ae5a6ab1eb3795a424c0d92e0f1a",
+    "semantic_hash": ""
   },
   "ARMEDANGELS_COMPLETE_WORKFLOW.md": {
     "mtime": 1764618148.9980853,
@@ -2205,8 +2180,8 @@
     "semantic_hash": ""
   },
   "LOCAL_TESTING.md": {
-    "mtime": 1783725359.4194539,
-    "ast_hash": "e41eab281b27f8b4648e8ef768515d0b",
+    "mtime": 1786267505.97177,
+    "ast_hash": "0cf78eba6501ea8b8c29a4ba58c25234",
     "semantic_hash": ""
   },
   "WEBSHOPORDERS_SETUP.md": {
@@ -2217,11 +2192,6 @@
   "WEBSHOPORDERS_TESTING_GUIDE.md": {
     "mtime": 1762686320.911402,
     "ast_hash": "b3646d3538cf8ec3c9ae331e5d33e2ee",
-    "semantic_hash": ""
-  },
-  "docker-compose.yml": {
-    "mtime": 1783725359.4250634,
-    "ast_hash": "5a701fa273b3ffafb1a6444a953cbea7",
     "semantic_hash": ""
   },
   "docs/mcp-chatgpt.md": {
@@ -2322,6 +2292,31 @@
   "lib/suppliers/tinycottons/prices.ts": {
     "mtime": 1786264284.2465465,
     "ast_hash": "82c458df5188d0297ca0edf27d5a0b6c",
+    "semantic_hash": ""
+  },
+  "lib/import/shared/spreadsheet-utils.test.ts": {
+    "mtime": 1786267976.4491467,
+    "ast_hash": "176283cbe9623dfa8c3b26c579d77ca4",
+    "semantic_hash": ""
+  },
+  "lib/import/shared/spreadsheet-utils.ts": {
+    "mtime": 1786267916.0975077,
+    "ast_hash": "1df605c8a4a00ee2f823746d3a09c778",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/nixnut/index.ts": {
+    "mtime": 1786268260.4678116,
+    "ast_hash": "9d447f8fbb1ae548571ffe74dc6ea336",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/nixnut/samples/image-filenames.txt": {
+    "mtime": 1786268234.4280162,
+    "ast_hash": "ebb450eaa758fc889810d91f2ff71993",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/nixnut/index.test.ts": {
+    "mtime": 1786268314.1965942,
+    "ast_hash": "1d3c27aa3c713e4b5b13abb1b133284a",
     "semantic_hash": ""
   }
 }
