@@ -79,7 +79,7 @@ export default function AppNavigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/offerte-excel', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
   };
 
   return (
@@ -312,6 +312,9 @@ export default function AppNavigation() {
                     </Link>
                     <Link href="/stock-verkopen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stock-verkopen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       💰 Stock verkopen
+                    </Link>
+                    <Link href="/offerte-excel" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/offerte-excel') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      📊 Offerte naar Excel
                     </Link>
                     <Link href="/stocksale" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/stocksale') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🏷️ Stocksale Labels
@@ -971,6 +974,17 @@ export default function AppNavigation() {
                   }`}
                 >
                   💰 Stock verkopen
+                </Link>
+                <Link
+                  href="/offerte-excel"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/offerte-excel')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📊 Offerte naar Excel
                 </Link>
                 <Link
                   href="/stocksale"

@@ -51,6 +51,7 @@ export default function StockVerkopenPage() {
   const { isLoading, isLoggedIn } = useAuth(true);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [excelExportHref, setExcelExportHref] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
   // Not-found modal
@@ -802,6 +803,7 @@ export default function StockVerkopenPage() {
       const data = await res.json();
       if (data.success) {
         setAlert(`Offerte ${data.orderName} aangemaakt in Odoo!`);
+        setExcelExportHref(`/offerte-excel?ref=${encodeURIComponent(String(data.orderId))}`);
         setIsQuotationOpen(false);
         setSelectedPartner(null);
         setPartnerSearch('');
@@ -838,6 +840,23 @@ export default function StockVerkopenPage() {
         {alertMessage && (
           <div style={{ background: '#fff3cd', color: '#664d03', padding: 8, borderRadius: 4, marginBottom: 12 }}>
             {alertMessage}
+          </div>
+        )}
+
+        {excelExportHref && (
+          <div style={{ background: '#ecfdf5', color: '#065f46', padding: 8, borderRadius: 4, marginBottom: 12 }}>
+            Offerte klaar —{' '}
+            <a href={excelExportHref} style={{ color: '#047857', fontWeight: 600 }}>
+              download Excel (gesorteerd op merk)
+            </a>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => setExcelExportHref(null)}
+              style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+            >
+              sluiten
+            </button>
           </div>
         )}
 
