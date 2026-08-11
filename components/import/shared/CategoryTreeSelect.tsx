@@ -1,5 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
+import {
+  resolveTypedCategoryPath,
+  categoryPathExists,
+} from '@/lib/import/shared';
+import type { CategorySuggestion } from '@/lib/import/shared';
+
 interface CategoryItem {
   id: number;
   name: string;
@@ -11,6 +17,11 @@ interface CategoryTreeSelectProps {
   categories: CategoryItem[];
   selectedId: number | null;
   onChange: (id: number | null) => void;
+  /** When set, user can create a new path (typed or from suggestions). */
+  onCreatePath?: (path: string) => void;
+  allowCreate?: boolean;
+  /** Brand-based proposals shown above the tree. */
+  suggestions?: CategorySuggestion[];
   placeholder?: string;
   label?: string;
 }
@@ -137,6 +148,9 @@ export default function CategoryTreeSelect({
   categories,
   selectedId,
   onChange,
+  onCreatePath,
+  allowCreate = false,
+  suggestions = [],
   placeholder = 'Selecteer categorie...',
   label,
 }: CategoryTreeSelectProps) {
@@ -157,6 +171,14 @@ export default function CategoryTreeSelect({
     const path = selectedCategory.complete_name || selectedCategory.display_name || selectedCategory.name;
     return path.split(' / ').map((p) => p.trim());
   }, [selectedCategory]);
+
+  const createPathFromSearch = useMemo(() => {
+    if (!allowCreate || !search.trim()) return null;
+    const path = resolveTypedCategoryPath(search, categories);
+    if (!path) return null;
+    if (categoryPathExists(path, categories)) return null;
+    return path;
+  }, [allowCreate, search, categories]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -187,6 +209,29 @@ export default function CategoryTreeSelect({
     [onChange],
   );
 
+  const handleCreate = useCallback(
+    (path: string) => {
+      if (!onCreatePath) return;
+      onCreatePath(path);
+      setIsOpen(false);
+      setSearch('');
+    },
+    [onCreatePath],
+  );
+
+  const handlePickSuggestion = useCallback(
+    (suggestion: CategorySuggestion) => {
+      if (suggestion.existing) {
+        onChange(suggestion.existing.id);
+      } else if (onCreatePath) {
+        onCreatePath(suggestion.path);
+      }
+      setIsOpen(false);
+      setSearch('');
+    },
+    [onChange, onCreatePath],
+  );
+
   const handleClear = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -194,6 +239,8 @@ export default function CategoryTreeSelect({
     },
     [onChange],
   );
+
+  const isNewSelection = selectedCategory != null && selectedCategory.id < 0;
 
   return (
     <div>
@@ -210,13 +257,18 @@ export default function CategoryTreeSelect({
         >
           {breadcrumb ? (
             <span className="flex items-center gap-1 flex-wrap">
+              {isNewSelection && (
+                <span className="text-green-600 dark:text-green-400 text-xs mr-0.5">🆕</span>
+              )}
               {breadcrumb.map((part, i) => (
                 <span key={i} className="flex items-center">
                   {i > 0 && <span className="text-gray-400 dark:text-gray-500 mx-0.5">/</span>}
                   <span
                     className={
                       i === breadcrumb.length - 1
-                        ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                        ? isNewSelection
+                          ? 'text-green-600 dark:text-green-400 font-semibold'
+                          : 'text-blue-600 dark:text-blue-400 font-semibold'
                         : 'text-gray-500 dark:text-gray-400'
                     }
                   >
@@ -238,17 +290,65 @@ export default function CategoryTreeSelect({
         </button>
 
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-blue-500 dark:border-blue-600 rounded-lg shadow-xl max-h-80 overflow-hidden flex flex-col">
+          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-blue-500 dark:border-blue-600 rounded-lg shadow-xl max-h-80 overflow-hidden flex flex-col min-w-[280px]">
             <div className="p-2 border-b dark:border-gray-700">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter categorieën..."
+                placeholder={
+                  allowCreate
+                    ? 'Filter of typ nieuwe categorie...'
+                    : 'Filter categorieën...'
+                }
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                 autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && createPathFromSearch) {
+                    e.preventDefault();
+                    handleCreate(createPathFromSearch);
+                  }
+                }}
               />
             </div>
+
+            {suggestions.length > 0 && (
+              <div className="p-2 border-b dark:border-gray-700 space-y-1">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide px-1">
+                  Suggesties
+                </div>
+                {suggestions.slice(0, 5).map((s) => (
+                  <button
+                    key={s.path}
+                    type="button"
+                    onClick={() => handlePickSuggestion(s)}
+                    className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-800 dark:text-gray-200"
+                  >
+                    <span className="font-medium">
+                      {s.isNew ? '🆕 ' : '✓ '}
+                      {s.path}
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      {s.reason}
+                      {s.isNew ? ' — wordt aangemaakt bij import' : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {createPathFromSearch && (
+              <div className="p-2 border-b dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => handleCreate(createPathFromSearch)}
+                  className="w-full text-left px-2 py-1.5 rounded text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 font-medium"
+                >
+                  🆕 Maak aan: {createPathFromSearch}
+                </button>
+              </div>
+            )}
+
             <div className="overflow-y-auto flex-1 py-1">
               {Array.from(tree.children.values()).map((node) => (
                 <TreeNodeView
@@ -266,6 +366,11 @@ export default function CategoryTreeSelect({
           </div>
         )}
       </div>
+      {isNewSelection && (
+        <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+          🆕 Nieuwe categorie — wordt aangemaakt in Odoo bij import
+        </div>
+      )}
     </div>
   );
 }

@@ -54,6 +54,8 @@ async function handler(
     const imageService = new OdooImageService(uid, password);
 
     const results: ImportResultLike[] = [];
+    // Placeholder category ids (< 0) share a path string — create once per path.
+    const categoryPathCache = new Map<string, number>();
 
     for (const product of products) {
       try {
@@ -80,12 +82,27 @@ async function handler(
         const isNoVariantProduct =
           uniqueSizes.length === 1 || product.sizeAttribute === 'Eén Maat';
 
+        // Resolve newly proposed categories (negative local ids) to real Odoo ids.
+        let categoryId = product.category.id;
+        if (categoryId < 0) {
+          const path = product.category.name.trim();
+          const cached = categoryPathCache.get(path.toLowerCase());
+          if (cached != null) {
+            categoryId = cached;
+          } else {
+            console.log(`Step 0: Ensuring category path "${path}"...`);
+            categoryId = await importService.ensureCategoryPath(path);
+            categoryPathCache.set(path.toLowerCase(), categoryId);
+            console.log(`✅ Category ready: ID ${categoryId}`);
+          }
+        }
+
         // Step 1: Create product template
         console.log('Step 1: Creating product template...');
         const templateData: ImportProductData = {
           name: product.name,
           reference: product.reference,
-          categoryId: product.category.id,
+          categoryId,
           listPrice: maxRrp || maxPrice || 0,
           standardPrice: maxPrice || maxRrp || 0,
           isPublished: product.isPublished,

@@ -62,6 +62,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
         productTags={wizard.productTags}
         onProductsChange={(updated) => wizard.setParsedProducts(updated)}
         resolveOrCreateBrand={wizard.resolveOrCreateBrand}
+        resolveOrCreateCategory={wizard.resolveOrCreateCategory}
       />
 
       {/* Per Product Categorieën */}
@@ -142,29 +143,41 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                   <CategoryTreeSelect
                     categories={wizard.internalCategories}
                     selectedId={product.category?.id ?? null}
+                    allowCreate
+                    suggestions={
+                      product.selectedBrand
+                        ? wizard.getCategorySuggestions(
+                            product.selectedBrand.name,
+                            product.sizeAttribute,
+                          )
+                        : []
+                    }
+                    onCreatePath={(path) => {
+                      wizard.updateProductCategory(
+                        product.reference,
+                        path,
+                        product.color,
+                      );
+                    }}
                     onChange={(id) => {
                       if (id != null) {
                         const category = wizard.internalCategories.find((c) => c.id === id);
                         if (category) {
-                          wizard.setParsedProducts((products) =>
-                            products.map((p) =>
-                              p.reference === product.reference
-                                ? { ...p, category: { id: category.id, name: category.display_name || category.name } }
-                                : p,
-                            ),
+                          wizard.updateProductCategory(
+                            product.reference,
+                            category,
+                            product.color,
                           );
                         }
                       } else {
-                        wizard.setParsedProducts((products) =>
-                          products.map((p) =>
-                            p.reference === product.reference
-                              ? { ...p, category: undefined }
-                              : p,
-                          ),
+                        wizard.updateProductCategory(
+                          product.reference,
+                          null,
+                          product.color,
                         );
                       }
                     }}
-                    placeholder="Selecteer categorie..."
+                    placeholder="Selecteer of maak categorie..."
                   />
                 </td>
 

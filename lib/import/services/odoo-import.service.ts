@@ -145,6 +145,83 @@ export class OdooImportService {
   }
 
   // -----------------------------------------------------------------------
+  // Internal category (product.category) path ensure
+  // -----------------------------------------------------------------------
+
+  /**
+   * Ensure a full internal category path exists (e.g. "All / Kleding / Baje").
+   * Creates missing segments under their parent. Returns the leaf category id.
+   */
+  async ensureCategoryPath(completeName: string): Promise<number> {
+    const parts = completeName
+      .split('/')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      throw new OdooImportError(
+        'Category path is empty',
+        'CATEGORY_PATH_EMPTY',
+      );
+    }
+
+    let parentId: number | false = false;
+    let leafId: number | null = null;
+
+    for (const part of parts) {
+      const domain: Array<[string, string, string | number | boolean]> =
+        parentId === false
+          ? [
+              ['name', '=', part],
+              ['parent_id', '=', false],
+            ]
+          : [
+              ['name', '=', part],
+              ['parent_id', '=', parentId],
+            ];
+
+      const existing = await odooClient.searchRead<{ id: number }>(
+        this.uid,
+        this.password,
+        'product.category',
+        domain,
+        ['id'],
+        1,
+      );
+
+      if (existing && existing.length > 0) {
+        leafId = existing[0].id;
+      } else {
+        const values: Record<string, unknown> = { name: part };
+        if (parentId !== false) {
+          values.parent_id = parentId;
+        }
+        leafId = await odooClient.create(
+          this.uid,
+          this.password,
+          'product.category',
+          values,
+        );
+        console.log(
+          `🆕 Created product.category "${part}" (id ${leafId}) under parent ${parentId === false ? 'root' : parentId}`,
+        );
+      }
+
+      parentId = leafId;
+    }
+
+    if (leafId == null) {
+      throw new OdooImportError(
+        `Failed to resolve category path "${completeName}"`,
+        'CATEGORY_PATH_FAILED',
+        { completeName },
+      );
+    }
+
+    return leafId;
+  }
+
+  // -----------------------------------------------------------------------
   // Brand (MERK) attribute
   // -----------------------------------------------------------------------
 

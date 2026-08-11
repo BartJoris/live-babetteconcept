@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 
 import type { ParsedProduct, Brand } from '@/lib/suppliers/types';
 import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
+import type { Category } from '@/components/import/shared/types';
 
 import FuzzySearchSelect from './FuzzySearchSelect';
 import MultiTagSelect from './MultiTagSelect';
@@ -10,6 +11,7 @@ interface CategoryOption {
   id: number;
   name: string;
   display_name?: string;
+  complete_name?: string;
 }
 
 interface BulkCategoryAssignProps {
@@ -22,6 +24,8 @@ interface BulkCategoryAssignProps {
   onProductsChange: (products: ParsedProduct[]) => void;
   /** Registers a typed-in brand name that isn't in Odoo yet (e.g. a brand-new supplier). */
   resolveOrCreateBrand: (name: string) => Brand;
+  /** Registers a typed-in category path that isn't in Odoo yet. */
+  resolveOrCreateCategory: (path: string) => Category;
 }
 
 export default function BulkCategoryAssign({
@@ -33,6 +37,7 @@ export default function BulkCategoryAssign({
   productTags,
   onProductsChange,
   resolveOrCreateBrand,
+  resolveOrCreateCategory,
 }: BulkCategoryAssignProps) {
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -68,8 +73,13 @@ export default function BulkCategoryAssign({
       }
 
       if (selectedCategory) {
-        const cat = internalCategories.find((c) => c.id.toString() === selectedCategory);
-        if (cat) changes.category = { id: cat.id, name: cat.display_name || cat.name };
+        const cat =
+          internalCategories.find((c) => c.id.toString() === selectedCategory) ??
+          resolveOrCreateCategory(selectedCategory);
+        changes.category = {
+          id: cat.id,
+          name: cat.complete_name || cat.display_name || cat.name,
+        };
       }
 
       if (selectedPublicCats.length > 0) {
@@ -113,6 +123,7 @@ export default function BulkCategoryAssign({
     productTags,
     onProductsChange,
     resolveOrCreateBrand,
+    resolveOrCreateCategory,
   ]);
 
   if (selectedCount === 0) return null;
@@ -124,7 +135,7 @@ export default function BulkCategoryAssign({
   }));
   const categoryOptions = internalCategories.map((c) => ({
     id: c.id,
-    label: c.display_name || c.name,
+    label: c.complete_name || c.display_name || c.name,
   }));
 
   return (
@@ -152,8 +163,9 @@ export default function BulkCategoryAssign({
           options={categoryOptions}
           value={selectedCategory || null}
           onChange={setSelectedCategory}
-          placeholder="Selecteer interne categorie..."
+          placeholder="Selecteer of typ een nieuwe categorie..."
           label="Interne categorie"
+          allowCustom
         />
 
         <MultiTagSelect

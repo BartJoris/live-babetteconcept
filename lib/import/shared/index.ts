@@ -33,3 +33,15 @@ export {
   tableToDelimitedText,
 } from './spreadsheet-utils';
 export type { ExtractedTable } from './spreadsheet-utils';
+
+export {
+  normalizeCategoryPath,
+  categoryPathExists,
+  findCategoriesMatchingBrand,
+  suggestCategoriesForBrand,
+  resolveTypedCategoryPath,
+} from './category-suggest';
+export type {
+  CategoryLike,
+  CategorySuggestion,
+} from './category-suggest';

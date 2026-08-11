@@ -38,6 +38,8 @@ import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
 import nixnut from './nixnut';
+import baje from './baje';
+import petitbateau from './petitbateau';
 const brunobruno = { ...floss, id: 'brunobruno', displayName: 'Brunobruno', brandName: 'Brunobruno' };
 
 const allPlugins = [
@@ -45,6 +47,7 @@ const allPlugins = [
   americanvintage,  // American Vintage
   ao76,             // Ao76
   armedangels,      // Armed Angels
+  baje,             // Baje
   bayiri,           // Bayiri
   bobochoses,       // Bobo Choses
   brunobruno,       // Brunobruno (shared parser with Flöss)
@@ -63,6 +66,7 @@ const allPlugins = [
   minirodini,       // Mini Rodini
   mipounet,         // Mipounet
   nixnut,           // Nixnut
+  petitbateau,      // Petit Bateau
   petitblush,       // Petit Blush
   playup,           // Play UP
   babeandtess,      // Babe & Tess

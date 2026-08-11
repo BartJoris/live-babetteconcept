@@ -42,7 +42,7 @@ async function handler(
       'product.category',
       'search_read',
       [[]],
-      { fields: ['id', 'name', 'display_name', 'parent_id'], limit: false }
+      { fields: ['id', 'name', 'display_name', 'complete_name', 'parent_id'], limit: false }
     );
     console.log(`✅ Found ${internalCategories.length} internal categories`);
 

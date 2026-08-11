@@ -584,11 +584,54 @@ const SUPPLIER_RULES: SupplierRule[] = [
         const hasColumns =
           blob.includes('artikelnummer') && blob.includes('kleurnummer') && blob.includes('adviesprijs');
         if (!hasColumns) return 0;
+        // Shared Verkooporder layout with Baje — require brand text / Nixnut-only columns.
+        if (blob.includes('baje')) return 0;
         if (blob.includes('nixnut')) return 0.97;
         if (blob.includes('goederencode')) return 0.85;
         return 0;
       },
       reason: 'Artikelnummer/Kleurnummer/Adviesprijs kolommen met "Nixnut" als leverancier',
+    }],
+  },
+
+  // ── Baje ──
+  {
+    supplierId: 'baje',
+    supplierName: 'Baje',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Baje Verkooporder CSV',
+      detect: (_headers, text) => {
+        const blob = text.toLowerCase();
+        const hasColumns =
+          blob.includes('artikelnummer') && blob.includes('kleurnummer') && blob.includes('adviesprijs');
+        if (!hasColumns) return 0;
+        if (blob.includes('baje')) return 0.97;
+        // Baje article codes (BAAW…) without needing the brand name in the file
+        if (/\nbaaw\d+/i.test(text) || /;baaw\d+/i.test(text)) return 0.9;
+        return 0;
+      },
+      reason: 'Artikelnummer/Kleurnummer/Adviesprijs kolommen met "Baje" / BAAW-codes',
+    }],
+  },
+
+  // ── Petit Bateau ──
+  {
+    supplierId: 'petitbateau',
+    supplierName: 'Petit Bateau',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Petit Bateau Order CSV',
+      detect: (headers, text, fileName) => {
+        if (h(headers, 'Style Number', 'Color Code', 'Wholesale Price', 'UPC/EAN')) {
+          const blob = `${fileName} ${text}`.toLowerCase();
+          if (blob.includes('petit bateau') || blob.includes('petitbateau')) return 0.98;
+          if (h(headers, 'Style Name', 'Quantity Requested', 'Retail Price')) return 0.92;
+          return 0.85;
+        }
+        return 0;
+      },
+      reason: 'Style Number + Color Code + Wholesale Price + UPC/EAN (Petit Bateau)',
     }],
   },
 

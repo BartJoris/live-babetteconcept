@@ -19,7 +19,11 @@ import {
   parseSpreadsheetFile,
   suggestColumnMapping,
   tableToDelimitedText,
+  suggestCategoriesForBrand,
+  resolveTypedCategoryPath,
+  categoryPathExists,
 } from '@/lib/import/shared';
+import type { CategorySuggestion } from '@/lib/import/shared';
 import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
 import { findMatchingPublicCategories } from '@/components/import/shared/CategoryMatcher';
 import { transformProductForUpload, isUnitOnlyProduct } from '@/components/import/shared/product-utils';
@@ -90,6 +94,10 @@ export default function useImportWizard() {
   // this placeholder id is never sent to Odoo — it just keeps the local
   // dropdown state unique until the real MERK attribute value is created.
   const nextCustomBrandIdRef = useRef(-1);
+  // Same pattern for internal product.category paths proposed during smart
+  // import. Negative ids stay local; import-products resolves the path via
+  // ensureCategoryPath() before creating the product template.
+  const nextCustomCategoryIdRef = useRef(-1);
   const [internalCategories, setInternalCategories] = useState<Category[]>([]);
   const [publicCategories, setPublicCategories] = useState<Category[]>([]);
   const [productTags, setProductTags] = useState<Category[]>([]);
@@ -1197,6 +1205,76 @@ export default function useImportWizard() {
     return newBrand;
   };
 
+  /**
+   * Look up an internal category by full path, or register a local placeholder
+   * that import-products will create in Odoo via ensureCategoryPath().
+   * Accepts bare brand names ("Baje") or full paths ("All / Kleding / Baje").
+   */
+  const resolveOrCreateCategory = (rawPath: string): Category => {
+    const path = resolveTypedCategoryPath(rawPath, internalCategories);
+    if (!path) {
+      throw new Error('Category path is empty');
+    }
+
+    const existing =
+      categoryPathExists(path, internalCategories) ||
+      internalCategories.find(
+        (c) =>
+          (c.complete_name || c.display_name || c.name || '')
+            .trim()
+            .toLowerCase() === path.toLowerCase(),
+      );
+    if (existing) return existing;
+
+    const newCategory: Category = {
+      id: nextCustomCategoryIdRef.current--,
+      name: path,
+      display_name: path,
+      complete_name: path,
+    };
+    setInternalCategories((prev) => [...prev, newCategory]);
+    return newCategory;
+  };
+
+  const getCategorySuggestions = (
+    brandName: string,
+    sizeAttribute?: string,
+  ): CategorySuggestion[] =>
+    suggestCategoriesForBrand(brandName, internalCategories, {
+      sizeAttribute,
+    });
+
+  const updateProductCategory = (
+    productRef: string,
+    category: Category | string | null,
+    color?: string,
+  ) => {
+    const resolved: Category | null =
+      typeof category === 'string'
+        ? category.trim()
+          ? resolveOrCreateCategory(category)
+          : null
+        : category;
+
+    const nextCategory = resolved
+      ? {
+          id: resolved.id,
+          name: resolved.complete_name || resolved.display_name || resolved.name,
+          display_name: resolved.display_name || resolved.complete_name || resolved.name,
+        }
+      : undefined;
+
+    setParsedProducts((products) =>
+      products.map((p) => {
+        const matchesRef = p.reference === productRef;
+        const matchesColor =
+          color === undefined || (p.color || '') === (color || '');
+        if (!matchesRef || !matchesColor) return p;
+        return { ...p, category: nextCategory };
+      }),
+    );
+  };
+
   const updateProductBrand = (
     productRef: string,
     brand: Brand | string | null,
@@ -1216,10 +1294,31 @@ export default function useImportWizard() {
           return { ...p, selectedBrand: undefined };
         }
 
+        // When brand is set and no category yet, auto-pick the first existing
+        // Odoo match (e.g. All / Nixnut). New-path proposals stay as UI chips.
+        let nextCategory = p.category;
+        if (!nextCategory) {
+          const suggestions = suggestCategoriesForBrand(
+            resolvedBrand.name,
+            internalCategories,
+            { sizeAttribute: p.sizeAttribute },
+          );
+          const existingMatch = suggestions.find((s) => s.existing);
+          if (existingMatch?.existing) {
+            const ex = existingMatch.existing;
+            nextCategory = {
+              id: ex.id,
+              name: ex.complete_name || ex.display_name || ex.name,
+              display_name: ex.display_name || ex.complete_name || ex.name,
+            };
+          }
+        }
+
         return {
           ...p,
           selectedBrand: resolvedBrand,
           suggestedBrand: resolvedBrand.name,
+          category: nextCategory,
           name: rebuildNameWithBrand(
             p.name,
             p.originalName,
@@ -1258,10 +1357,9 @@ export default function useImportWizard() {
 
   const applyBatchCategory = () => {
     if (!batchCategory) return;
-    const category = internalCategories.find(
-      (c) => c.id.toString() === batchCategory,
-    );
-    if (!category) return;
+    const category =
+      internalCategories.find((c) => c.id.toString() === batchCategory) ??
+      resolveOrCreateCategory(batchCategory);
 
     setParsedProducts((products) =>
       products.map((p) =>
@@ -2427,7 +2525,10 @@ export default function useImportWizard() {
     updateProductSizeAttribute,
     setAllSizeAttribute,
     updateProductBrand,
+    updateProductCategory,
     resolveOrCreateBrand,
+    resolveOrCreateCategory,
+    getCategorySuggestions,
     ensureSizeValuesLoaded,
     sizeValuesByAttribute,
     loadingSizeAttribute,
