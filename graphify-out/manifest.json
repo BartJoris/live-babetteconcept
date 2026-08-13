@@ -175,8 +175,8 @@
     "semantic_hash": "624269e12d285d525854e3cb0b88e330"
   },
   "components/import/steps/StockStep.tsx": {
-    "mtime": 1786480550.5109205,
-    "ast_hash": "0518ddd627a7f1bf3433cdfad252cb05",
+    "mtime": 1786618715.3308332,
+    "ast_hash": "44a93d39dafa674296a065e1ff76af39",
     "semantic_hash": ""
   },
   "components/import/steps/TestStep.tsx": {
@@ -290,8 +290,8 @@
     "semantic_hash": "313b0a0c83a05bdd80d5f24cc3ad681b"
   },
   "lib/import/services/odoo-import.service.ts": {
-    "mtime": 1786485179.6992178,
-    "ast_hash": "74bceb3933939be10824707817c8036b",
+    "mtime": 1786618715.1133142,
+    "ast_hash": "fe54ce4397be1f814d1baca17ee3122d",
     "semantic_hash": ""
   },
   "lib/import/services/odoo-validation.service.ts": {
@@ -330,8 +330,8 @@
     "semantic_hash": "2c449313d86ac63ca1ffd59398984579"
   },
   "lib/import/shared/index.ts": {
-    "mtime": 1786485179.282211,
-    "ast_hash": "e65b93b1687f09ec7e1188d78d6ae630",
+    "mtime": 1786618706.920597,
+    "ast_hash": "8f267494e00fdbba4437e1f271bcafb6",
     "semantic_hash": ""
   },
   "lib/import/shared/name-utils.test.ts": {
@@ -1075,9 +1075,9 @@
     "semantic_hash": "2a7519c8fda308c6b557eb2866f782a0"
   },
   "pages/api/generate-description.ts": {
-    "mtime": 1784796151.0684454,
-    "ast_hash": "65799d1529ab3345c78976ddc5c9d922",
-    "semantic_hash": "65799d1529ab3345c78976ddc5c9d922"
+    "mtime": 1786618711.0830014,
+    "ast_hash": "777f9a8709eb0dc6bcc62825344f5ed2",
+    "semantic_hash": ""
   },
   "pages/api/get-hvid-products.ts": {
     "mtime": 1761686125.221882,
@@ -1955,8 +1955,8 @@
     "semantic_hash": "675899342e765a4d16acd75a53389101"
   },
   "prompts/babette.ts": {
-    "mtime": 1786618059.3512142,
-    "ast_hash": "32a913be2150241956cf56277781f8a9",
+    "mtime": 1786618695.9043496,
+    "ast_hash": "b5183775d77a6a3f1e404120125cae2f",
     "semantic_hash": ""
   },
   "prompts/index.ts": {
@@ -2387,6 +2387,16 @@
   "lib/suppliers/playup/samples/image-filenames.txt": {
     "mtime": 1786617295.6032355,
     "ast_hash": "1eeaeade7fa8196bbeffda62367430b3",
+    "semantic_hash": ""
+  },
+  "lib/import/shared/ecommerce-html.test.ts": {
+    "mtime": 1786618695.9046657,
+    "ast_hash": "2c50094b50856ffa0cc1185aaeff6a1a",
+    "semantic_hash": ""
+  },
+  "lib/import/shared/ecommerce-html.ts": {
+    "mtime": 1786618720.677407,
+    "ast_hash": "d9270015e9c165a9cfdbd81f396cb353",
     "semantic_hash": ""
   }
 }

@@ -1,5 +1,6 @@
 import { odooClient } from '@/lib/odooClient';
 import { determineSizeAttribute } from '@/lib/import/shared/size-utils';
+import { toEcommerceHtml } from '@/lib/import/shared/ecommerce-html';
 import type { SizeAttribute } from '@/lib/import/shared/size-utils';
 
 // ---------------------------------------------------------------------------
@@ -101,7 +102,9 @@ export class OdooImportService {
     }
 
     if (data.ecommerceDescription) {
-      templateData.description_ecommerce = data.ecommerceDescription;
+      templateData.description_ecommerce = toEcommerceHtml(
+        data.ecommerceDescription,
+      );
     }
 
     if (data.publicCategoryIds && data.publicCategoryIds.length > 0) {

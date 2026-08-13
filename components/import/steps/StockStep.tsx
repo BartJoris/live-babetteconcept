@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import FuzzySearchSelect from '@/components/import/shared/FuzzySearchSelect';
 import {
   DEFAULT_PRODUCT_NAME_TEMPLATE,
@@ -617,10 +618,20 @@ export default function StockStep({ wizard }: StockStepProps) {
                 <textarea
                   value={product.ecommerceDescription || ''}
                   onChange={(e) => wizard.updateProductDescription(product.reference, e.target.value)}
-                  rows={3}
-                  className="w-full border rounded px-3 py-2 text-sm resize-y"
-                  placeholder="E-commerce beschrijving..."
+                  rows={8}
+                  className="w-full border rounded px-3 py-2 text-sm resize-y font-mono"
+                  placeholder="E-commerce beschrijving (HTML voor de webshop)..."
                 />
+                {product.ecommerceDescription?.includes('<') && (
+                  <div className="mt-2 border rounded bg-white p-3 text-sm prose prose-sm max-w-none">
+                    <div className="text-xs text-gray-400 mb-1">Voorbeeld op de webshop:</div>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(product.ecommerceDescription),
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );

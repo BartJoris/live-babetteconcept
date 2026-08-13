@@ -45,3 +45,5 @@ export type {
   CategoryLike,
   CategorySuggestion,
 } from './category-suggest';
+
+export { toEcommerceHtml } from './ecommerce-html';

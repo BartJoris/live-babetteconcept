@@ -4,6 +4,7 @@ import { KINDEREN_SYSTEM_PROMPT, KINDEREN_USER_PROMPT_TEMPLATE } from '../../pro
 import { VOLWASSENEN_SYSTEM_PROMPT, VOLWASSENEN_USER_PROMPT_TEMPLATE } from '../../prompts/volwassenen';
 import type { BabetteProductPromptInput } from '../../prompts/babette';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { toEcommerceHtml } from '@/lib/import/shared/ecommerce-html';
 
 type PromptCategory = 'kinderen' | 'volwassenen';
 
@@ -146,13 +147,16 @@ async function handler(
       return res.status(500).json({ error: 'No description generated' });
     }
 
+    // Odoo website renders description_ecommerce as HTML; convert Markdown if needed.
+    const htmlDescription = toEcommerceHtml(generatedDescription);
+
     console.log(
       '✅ Generated description:',
-      generatedDescription.substring(0, 100) + '...',
+      htmlDescription.substring(0, 100) + '...',
     );
 
     return res.status(200).json({
-      description: generatedDescription,
+      description: htmlDescription,
       product: product.name,
       promptCategory,
       model,
