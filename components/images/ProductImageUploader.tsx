@@ -6,7 +6,11 @@ import type { ImageUploadProgress } from '@/lib/import/image-upload-client';
 import { matchFilenameToTarget } from '@/lib/images/match-images';
 import { uploadPoolByTemplate } from '@/lib/images/upload-pool';
 import { compressImage } from '@/lib/import/shared/image-utils';
-import { supportsDirectoryPicker, isIOS } from '@/lib/import/shared/browser-utils';
+import {
+  collectFilesFromDataTransfer,
+  supportsDirectoryPicker,
+  isIOS,
+} from '@/lib/import/shared/browser-utils';
 import ImageUploadProgressBar from '@/components/import/shared/ImageUploadProgressBar';
 import { getSupplier, getAllSuppliers } from '@/lib/suppliers';
 
@@ -325,10 +329,11 @@ export default function ProductImageUploader({
 
   // ─── Drop handler ─────────────────────────────────────────────────────
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+      const files = await collectFilesFromDataTransfer(e.dataTransfer);
+      if (files.length > 0) await processFiles(files);
     },
     [processFiles],
   );
@@ -554,10 +559,12 @@ export default function ProductImageUploader({
       />
       <div className={`transition-transform duration-200 ${isDragOver ? 'scale-110' : ''}`}>
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {isDragOver ? 'Laat los om te uploaden' : 'Sleep afbeeldingen hierheen of klik om te selecteren'}
+          {isDragOver
+            ? 'Laat los om te uploaden'
+            : 'Sleep foto’s of een hele map hierheen, of klik om te selecteren'}
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          JPG, PNG, WebP — meerdere bestanden tegelijk mogelijk
+          JPG, PNG, WebP — losse bestanden of map (niet-afbeeldingen worden genegeerd)
         </p>
       </div>
     </div>

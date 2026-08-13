@@ -1,41 +1,41 @@
 # Graph Report - live-babetteconcept  (2026-08-13)
 
 ## Corpus Check
-- 470 files · ~384,060 words
+- 471 files · ~384,716 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2780 nodes · 5576 edges · 208 communities (170 shown, 38 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 179 edges (avg confidence: 0.52)
+- 2785 nodes · 5588 edges · 231 communities (185 shown, 46 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 180 edges (avg confidence: 0.52)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0b6c5063`
+- Built from commit: `2778134d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- NextApiRequestWithSession
+- OdooClient
 - onboard.ts
-- sistersdepartment/index.ts
+- claudeandco/index.ts
 - useAuth
 - auditLog.ts
 - tools.ts
-- repair-emileetida-barcodes.ts
+- UploadStep.tsx
 - extractPdfText
 - ProductImageUploader.tsx
 - withAuth.ts
-- withAuth
+- NextApiRequestWithSession
 - rateLimiter.ts
 - ValidationReport.tsx
 - Webshoporders - Testing Guide voor Nieuwe Orders
 - Sales Vacation Comparison
 - mollieSettlementShared.ts
-- cozmo/index.ts
+- parseEuroPrice
 - CategoryTreeSelect.tsx
 - TypeScript and Next.js Types
 - devDependencies
-- SupplierFiles
+- ParseContext
 - dependencies
 - stockSnapshot.ts
 - belgianRetailCalendar.ts
@@ -46,7 +46,7 @@
 - salesPosAggregates.ts
 - Inventory Analysis UI
 - Cellar Inventory Analysis
-- count.ts
+- ecommerce-insights.ts
 - parse-weekendhousekids-pdf.ts
 - chatTools.ts
 - ImportWizard.tsx
@@ -57,18 +57,18 @@
 - playup/index.ts
 - Webshoporders Feature - Setup Guide
 - Delivery Confirmation UI
-- downloadRowsAsXlsx
+- inventaris-maken.tsx
 - services/index.ts
 - parse-tangerine-pdf.ts
-- parseEuroPrice
-- baje/index.ts
+- tinycottons/index.ts
+- parse-wyncken-pdf.ts
 - Weekend House Kids — RRP PDF + smart-upload — design
-- useImportWizard
+- ImportStep.tsx
 - ean-utils.ts
 - OdooImageService
 - Fub Product Parsing
 - Ecommerce Insights Dashboard
-- Inventory Creation UI
+- posSalesForRange.ts
 - Cellar Inventory UI
 - Emileetida Barcode Repair
 - Lokaal Testen - Import System
@@ -81,29 +81,29 @@
 - Mollie Export Utilities
 - quotation-export.ts
 - suppliers/types.ts
-- spreadsheet-utils.ts
+- useImportWizard
 - OdooImportService
-- claudeandco/index.ts
+- petitbateau/index.ts
 - OdooValidationService
 - Inventory Management UI
 - Vercel Deployment Config
 - token/route.ts
-- convertSize
-- sales-products.ts
+- determineSizeAttribute
+- cameraConfig.ts
 - Inventory Merge UI
 - Product Check UI
 - Inventory Merge UI
 - image-filename.ts
-- suppliers/index.ts
+- smart-upload.tsx
 - Camera Monitoring UI
 - Sales Best Days Analysis
 - ChatGPT → Babette MCP (OAuth)
-- UploadStep.tsx
+- pos-verkopen-ophalen.tsx
 - import-products.ts
 - Webshop Daily Sales
 - Monthly Sales Comparison
 - MCP stock snapshot & aged stock — design
-- template-images.ts
+- parse-bayiri-pdf.ts
 - AO76 Image Upload
 - Architecture
 - BabeAndTess PDF Parsing
@@ -117,7 +117,7 @@
 - Brand Inventory Metrics
 - search-minirodini-products.ts
 - Image Upload Handling
-- weekendhousekids-price-update.tsx
+- inventaris-pos-match.tsx
 - analyze-supplier-file.ts
 - Armed Angels Image Upload
 - Brand Inventory Management
@@ -125,14 +125,14 @@
 - thinkingmu/index.ts
 - Label Printing Interface
 - clients.ts
-- Image Matching System
+- jellymallow/index.ts
 - Brand Performance Data
 - Floss Image Upload
 - Jenest Image Upload
-- create-stock-quotation.ts
+- transactions.ts
 - shared/index.ts
-- ParseContext
-- ecommerce-insights.ts
+- suppliers/index.ts
+- search-emileetida-products.ts
 - lookup-product-for-stock.ts
 - Onemore Image Upload
 - update-stock.ts
@@ -141,6 +141,7 @@
 - WeekendHouseKids Image Upload
 - Wyncken Image Upload
 - mcp-auth.ts
+- analyse-barcodes.ts
 - Floss Images Import
 - MiniRodini Images Import
 - Mipounet Images Import
@@ -151,27 +152,35 @@
 - authorize/route.ts
 - archive-variants.ts
 - Image Directory Listing
+- parse-drbloom-pdf.ts
 - Mipounet AW26 Import Implementation Plan
 - search-products-by-reference-batch.ts
 - File map
+- archiveer-varianten.tsx
+- analyze-armedangels-images.ts
 - tokens.ts
-- dashboard.tsx
+- brand-diagnostics.ts
 - Bobochoses Product Search
 - relaunch-loop.sh
 - Mipounet Product Search
-- Product Price Updates
-- webshop-verkopen-ophalen.tsx
+- archived-lookup.ts
+- update-product-quantities.ts
+- parse-claudeandco-pdf.ts
+- parse-floss-pdf.ts
+- parse-fub-pdf.ts
 - getProtectedResourceMetadata
 - PlayUp Barcode Update Guides
 - DrBloom Size Fixes
 - Application Navigation
 - Floss CSV Import Guides
-- pos-sales-by-date-range.ts
+- withAuth
 - Project Metadata
+- parse-playup-invoice.ts
 - Import partial results + downloadable log
 - Mipounet AW26 — Order + I26 EAN + RRP PDF — design
 - Wyncken AW26 sales-order import — design
-- rename-size-values.ts
+- parse-sistersdepartment-pdf.ts
+- pos-sales-by-date-range.ts
 - ArmedAngels Images Import
 - jwt.ts
 - Ecommerce Depublication
@@ -183,7 +192,7 @@
 - Image Fetch Debugging
 - PlayUp Data Scraper
 - Proxy Configuration
-- inventaris-pos-match.tsx
+- webshop-sales-by-date-range.ts
 - ESLint Configuration
 - Next.js ESLint Config
 - ExcelJS Library
@@ -191,6 +200,8 @@
 - Odoo API Parameters
 - Next.js Configuration
 - Global Constraints
+- product-cleanup.tsx
+- weekendhousekids-price-update.tsx
 - PostCSS Configuration
 - POS Security Hardening
 - Tiny Big Sister Vendor Guide
@@ -203,14 +214,26 @@
 - Implementation Next Steps
 - Play Up Import Tasks
 - Armed Angels Image Upload
+- import-odoo.ts
 - floss-search-products.ts
 - lookup-by-barcode.ts
 - MCP OAuth for ChatGPT (design)
 - rate-limiter-flexible
 - odoo-call.ts
+- create-product-variant.ts
 - search-product-by-reference.ts
 - get-picking-details.ts
+- bulk-unpublish.ts
+- fetch-product-images.ts
+- search-products.ts
+- parse-playup-pdf.ts
 - @types/xml2js
+- pos-sales.ts
+- update-product-barcode.ts
+- assistant.tsx
+- search-partners.ts
+- products.ts
+- search-products-by-brand.ts
 - react-dom
 - unpdf
 - zod
@@ -218,28 +241,28 @@
 - @types/react
 
 ## God Nodes (most connected - your core abstractions)
-1. `withAuth()` - 143 edges
-2. `NextApiRequestWithSession` - 138 edges
+1. `withAuth()` - 144 edges
+2. `NextApiRequestWithSession` - 139 edges
 3. `useAuth()` - 91 edges
 4. `ParseContext` - 81 edges
 5. `determineSizeAttribute()` - 79 edges
-6. `parseEuroPrice()` - 73 edges
-7. `OdooClient` - 73 edges
+6. `OdooClient` - 74 edges
+7. `parseEuroPrice()` - 73 edges
 8. `toSentenceCase()` - 55 edges
 9. `ParsedProduct` - 49 edges
 10. `extractPdfText()` - 45 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `ImageUploadProgressBarProps` --references--> `ImageUploadProgress`  [EXTRACTED]
-  components/import/shared/ImageUploadProgressBar.tsx → lib/import/image-upload-client.ts
-- `useImportWizard()` --indirect_call--> `transformProductForUpload()`  [INFERRED]
-  hooks/useImportWizard.ts → components/import/shared/product-utils.ts
 - `CategoriesStepProps` --references--> `UseImportWizardReturn`  [EXTRACTED]
   components/import/steps/CategoriesStep.tsx → hooks/useImportWizard.ts
-- `StockStepProps` --references--> `UseImportWizardReturn`  [EXTRACTED]
-  components/import/steps/StockStep.tsx → hooks/useImportWizard.ts
+- `UploadStepProps` --references--> `UseImportWizardReturn`  [EXTRACTED]
+  components/import/steps/UploadStep.tsx → hooks/useImportWizard.ts
 - `useImportWizard()` --indirect_call--> `determineSizeAttribute()`  [INFERRED]
   hooks/useImportWizard.ts → lib/import/shared/size-utils.ts
+- `useImportWizard()` --indirect_call--> `mapSizeToOdooFormat()`  [INFERRED]
+  hooks/useImportWizard.ts → lib/import/shared/size-utils.ts
+- `useImportWizard()` --indirect_call--> `createParseContext()`  [INFERRED]
+  hooks/useImportWizard.ts → lib/suppliers/registry.ts
 
 ## Import Cycles
 - 3-file cycle: `lib/import/shared/index.ts -> lib/import/shared/spreadsheet-utils.ts -> lib/suppliers/types.ts -> lib/import/shared/index.ts`
@@ -251,51 +274,51 @@
 - **Product Import System and Updates** — product_import_guide, product_import_updates, ux_improvements_product_import, setup_import_instructions [EXTRACTED 1.00]
 - **Tiny Big sister Import Workflow** — tinycottons_implementation, tinycottons_import_guide [EXTRACTED 1.00]
 
-## Communities (208 total, 38 thin omitted)
+## Communities (231 total, 46 thin omitted)
 
-### Community 0 - "NextApiRequestWithSession"
+### Community 0 - "OdooClient"
 Cohesion: 0.03
-Nodes (46): NextApiRequestWithSession, isRetryableHttpStatus(), OdooCallParams, OdooClient, OdooResponse, RETRYABLE_HTTP_STATUSES, rpcRetryDelayMs(), BulkUnpublishRequest (+38 more)
+Nodes (44): isRetryableHttpStatus(), OdooCallParams, OdooClient, OdooResponse, RETRYABLE_HTTP_STATUSES, rpcRetryDelayMs(), BulkUpdateWeightRequest, UpdateResult (+36 more)
 
 ### Community 1 - "onboard.ts"
 Cohesion: 0.07
 Nodes (47): CommitFileInput, commitFiles(), createBlob(), createBranch(), dispatchWorkflow(), getCommitTreeSha(), getDefaultBranchRef(), getFileContent() (+39 more)
 
-### Community 2 - "sistersdepartment/index.ts"
-Cohesion: 0.10
-Nodes (24): transformProductForUpload(), ADULT_SIZE_MAPPING, EU_SIZE_TO_AGE, isUnitSize(), mapSizeToOdooFormat(), SizeAttribute, americanVintagePlugin, buildProducts() (+16 more)
+### Community 2 - "claudeandco/index.ts"
+Cohesion: 0.09
+Nodes (26): ADULT_SIZE_MAPPING, EU_SIZE_TO_AGE, mapSizeToOdooFormat(), SizeAttribute, buildProducts(), claudeAndCoPlugin, convertCCSize(), CsvVariant (+18 more)
 
 ### Community 3 - "useAuth"
-Cohesion: 0.05
-Nodes (47): AuthState, useAuth(), User, ArchiveerVarianten(), OdooCategory, ProductWithVariants, VariantInfo, AssistantPage() (+39 more)
+Cohesion: 0.04
+Nodes (51): AuthState, useAuth(), User, Ao76ImageMatcher(), CSVProduct, getColorCode(), getImageReference(), MatchedProduct (+43 more)
 
 ### Community 4 - "auditLog.ts"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (17): AuditEvent, AuditLogEntry, AuditLogger, logLoginFailure(), logLoginSuccess(), logLogout(), logProductImport(), logUnauthorizedAccess() (+9 more)
 
 ### Community 5 - "tools.ts"
 Cohesion: 0.07
-Nodes (43): getMcpOdooCredentials(), McpOdooCredentials, agedStockSchema, analyzeAssortmentSchema, analyzeSoldenDiscountsSchema, analyzeSoldenDiscountsTool(), BrandValue, countAssortmentSchema (+35 more)
+Nodes (43): getMcpOdooCredentials(), McpOdooCredentials, agedStockSchema, analyzeAssortmentSchema, analyzeAssortmentTool(), analyzeSoldenDiscountsSchema, BrandValue, countAssortmentSchema (+35 more)
 
-### Community 6 - "repair-emileetida-barcodes.ts"
-Cohesion: 0.19
-Nodes (17): buildEmileetidaPriceLookup(), buildOrderConfirmationSrpMap(), emileetidaPriceKey(), EmileetidaPriceLookup, isEmileetidaOrderConfirmationCsv(), isEmileetidaTarifCsv(), lookupEmileetidaRrp(), CONFIRMATION_SNIPPET (+9 more)
+### Community 6 - "UploadStep.tsx"
+Cohesion: 0.26
+Nodes (7): getVendorFormatLabel(), UploadStep(), UploadStepProps, collectFilesFromDataTransfer(), FileSystemEntryLike, isIOS(), supportsDirectoryPicker()
 
 ### Community 7 - "extractPdfText"
-Cohesion: 0.04
-Nodes (58): ensureMathSumPrecisePolyfill(), extractPdfText(), normalizeTextResult(), ArmedAngelsProduct, config, handler(), BayiriProduct, config (+50 more)
+Cohesion: 0.09
+Nodes (25): ensureDomMatrixPolyfill(), ensureMathSumPrecisePolyfill(), extractPdfText(), normalizeTextResult(), ArmedAngelsProduct, config, handler(), BobochosesPrice (+17 more)
 
 ### Community 8 - "ProductImageUploader.tsx"
-Cohesion: 0.12
-Nodes (26): FilterMode, formatDate(), isRecent(), OdooProduct, ProductImageUploader(), ProductImageUploaderProps, resolveCatalogReference(), matchFilenameToTarget() (+18 more)
+Cohesion: 0.11
+Nodes (28): FilterMode, formatDate(), isRecent(), OdooProduct, ProductImageUploader(), ProductImageUploaderProps, resolveCatalogReference(), ImageUploadProgressBar() (+20 more)
 
 ### Community 9 - "withAuth.ts"
-Cohesion: 0.04
-Nodes (27): AuthenticatedApiHandler, WithAuthOptions, defaultSession, SessionData, sessionOptions, AnalysisResult, ImageGroup, ImageInfo (+19 more)
+Cohesion: 0.07
+Nodes (13): AuthenticatedApiHandler, WithAuthOptions, defaultSession, SessionData, sessionOptions, callOdoo(), handler(), callOdoo() (+5 more)
 
-### Community 10 - "withAuth"
-Cohesion: 0.04
-Nodes (23): withAuth(), BrandDiagnosticsResponse, BrandSuggestionGroup, ProductWithIssue, ProductAvailability, callOdoo(), CreateVariantRequest, handler() (+15 more)
+### Community 10 - "NextApiRequestWithSession"
+Cohesion: 0.05
+Nodes (16): NextApiRequestWithSession, AssignBrandRequest, AssignBrandResponse, Data, RawLine, config, ProductLine, ProductInfo (+8 more)
 
 ### Community 11 - "rateLimiter.ts"
 Cohesion: 0.21
@@ -314,12 +337,12 @@ Cohesion: 0.11
 Nodes (36): arithmeticMean(), avgPerDayLabel(), collectConsecutiveYoYPctMarge(), collectConsecutiveYoYPctOmzet(), collectCrossVacationOmzetRatios(), comparableTotalsYoYMarge(), comparableTotalsYoYOmzet(), comparableYoYMarge() (+28 more)
 
 ### Community 15 - "mollieSettlementShared.ts"
-Cohesion: 0.11
-Nodes (32): bookingDateFromIso(), buildCSVOdoo(), buildCSVOdooBank(), buildOdooDescription(), collectSettlementOdooRows(), costToOdooRow(), escapeCSV(), fetchAllPaidPayments() (+24 more)
+Cohesion: 0.13
+Nodes (30): bookingDateFromIso(), buildCSVOdoo(), buildCSVOdooBank(), buildOdooDescription(), collectSettlementOdooRows(), costToOdooRow(), escapeCSV(), fetchAllPaidPayments() (+22 more)
 
-### Community 16 - "cozmo/index.ts"
-Cohesion: 0.26
-Nodes (9): buildEcommerceDescription(), cozmo, getRrp(), OrderRow, parse(), parseOrderCSV(), parsePriceCSV(), productKey() (+1 more)
+### Community 16 - "parseEuroPrice"
+Cohesion: 0.11
+Nodes (22): parseEuroPrice(), buildProducts(), convertAmvSize(), OrderLine, parse(), parseOrderCSV(), parseRrpCSV(), bajePlugin (+14 more)
 
 ### Community 17 - "CategoryTreeSelect.tsx"
 Cohesion: 0.23
@@ -333,9 +356,9 @@ Nodes (31): dom, dom.iterable, esnext, .next/dev/types/**/*.ts, next-env.d.ts, .
 Cohesion: 0.07
 Nodes (29): baseline-browser-mapping, eslint, gh-pages, jsdom, devDependencies, baseline-browser-mapping, eslint, gh-pages (+21 more)
 
-### Community 20 - "SupplierFiles"
-Cohesion: 0.09
-Nodes (24): armedangelsPlugin, enrichCatalogWithInvoice(), isCatalogCSV(), isInvoiceCSV(), parse(), parseCatalogCSV(), parseInvoiceCSV(), parseQuotedCSVLine() (+16 more)
+### Community 20 - "ParseContext"
+Cohesion: 0.12
+Nodes (21): armedangelsPlugin, enrichCatalogWithInvoice(), isCatalogCSV(), isInvoiceCSV(), parse(), parseCatalogCSV(), parseInvoiceCSV(), parseQuotedCSVLine() (+13 more)
 
 ### Community 21 - "dependencies"
 Cohesion: 0.07
@@ -343,7 +366,7 @@ Nodes (27): ai, @ai-sdk/openai, @ai-sdk/react, chart.js, iron-session, isomorphi
 
 ### Community 22 - "stockSnapshot.ts"
 Cohesion: 0.17
-Nodes (25): searchCategories(), sizeAttributeNamesForAudience(), buildTemplateBrandMap(), categorySearchAliases(), collectionAgeYears(), countAssortment(), euro(), fetchInStockVariants() (+17 more)
+Nodes (26): listCategoriesTool(), collectCategoryTreeIds(), searchCategories(), buildTemplateBrandMap(), categorySearchAliases(), collectionAgeYears(), countAssortment(), euro() (+18 more)
 
 ### Community 23 - "belgianRetailCalendar.ts"
 Cohesion: 0.25
@@ -362,12 +385,12 @@ Cohesion: 0.16
 Nodes (18): CSV_CATEGORY_TO_DUTCH, findMatchingPublicCategories(), EnhancedImageManager(), EnhancedImageManagerProps, poolImageToPoolItem(), poolItemToPoolImage(), ImageManagerProps, ImageImportResult (+10 more)
 
 ### Community 27 - "wyncken/index.ts"
-Cohesion: 0.11
-Nodes (30): detectDelimiter(), extractWynckenBarcode(), isWynckenBarcodesCSV(), isWynckenMasterDataCSV(), parseWynckenBarcodesCSV(), WynckenBarcode, cachedBarcodes, cachedDescriptions (+22 more)
+Cohesion: 0.16
+Nodes (22): detectDelimiter(), extractWynckenBarcode(), isWynckenBarcodesCSV(), isWynckenMasterDataCSV(), parseWynckenBarcodesCSV(), WynckenBarcode, cachedBarcodes, cachedDescriptions (+14 more)
 
 ### Community 28 - "salesPosAggregates.ts"
-Cohesion: 0.12
-Nodes (22): fetchPosOrdersAndLinesForDateRange(), PosOrderLineRow, PosOrderRow, aggregateMonthlyDaily(), aggregateYearlyCompare(), buildDailyTotalsMap(), buildMonthlyInsights(), computeVacationPrefixTotals() (+14 more)
+Cohesion: 0.13
+Nodes (20): fetchPosOrdersAndLinesForDateRange(), aggregateMonthlyDaily(), aggregateYearlyCompare(), buildDailyTotalsMap(), buildMonthlyInsights(), computeVacationPrefixTotals(), DailyBucket, DailySalesRow (+12 more)
 
 ### Community 29 - "Inventory Analysis UI"
 Cohesion: 0.12
@@ -377,9 +400,9 @@ Nodes (22): AnalyseApiItem, AnalyseRow, computeCategory(), computeDiff(), comput
 Cohesion: 0.12
 Nodes (22): AnalyseApiItem, AnalyseRow, computeCategory(), computeDiff(), computeMerk(), computeName(), computeOdooQty(), computeVariant() (+14 more)
 
-### Community 31 - "count.ts"
-Cohesion: 0.09
-Nodes (19): AnalysisResult, analyzeImage(), analyzeImageOpenAI(), analyzeImageYolo(), CameraConfig, getAnalysisProvider(), getCameras(), CameraStatus (+11 more)
+### Community 31 - "ecommerce-insights.ts"
+Cohesion: 0.07
+Nodes (26): AnalysisResult, analyzeImage(), analyzeImageOpenAI(), analyzeImageYolo(), getAnalysisProvider(), CameraStatus, CameraStore, CountEntry (+18 more)
 
 ### Community 32 - "parse-weekendhousekids-pdf.ts"
 Cohesion: 0.31
@@ -390,12 +413,12 @@ Cohesion: 0.18
 Nodes (16): dynamic, maxDuration, openai, POST(), runtime, requireAssistantSession(), buildAssistantSystemPrompt(), createMcpAiTools() (+8 more)
 
 ### Community 34 - "ImportWizard.tsx"
-Cohesion: 0.13
-Nodes (16): ImportWizard(), ImageUploadProgressBar(), ImageUploadProgressBarProps, ImageStep(), ImageStepProps, ImportStep(), ImportStepProps, MappingStep() (+8 more)
+Cohesion: 0.14
+Nodes (13): ImportWizard(), ImageStep(), ImageStepProps, ImportStepProps, MappingStep(), MappingStepProps, PlayUpImageStepProps, PreviewStep() (+5 more)
 
 ### Community 35 - "sellThrough.ts"
-Cohesion: 0.14
-Nodes (22): analyzeAssortmentTool(), resolveToolPeriod(), DateRange, aggregatePosForProducts(), analyzeAssortment(), AssortmentDimension, AssortmentPerformance, AudienceFilter (+14 more)
+Cohesion: 0.17
+Nodes (20): aggregatePosForProducts(), analyzeAssortment(), AssortmentDimension, AssortmentPerformance, AudienceFilter, BrandRankRow, buildBrandTemplateMap(), computeSellThroughPct() (+12 more)
 
 ### Community 36 - "DocumentPreview.tsx"
 Cohesion: 0.22
@@ -421,33 +444,33 @@ Nodes (26): API Endpoints (8), 🎯 Complete Workflow, Components (2), 📚 Docu
 Cohesion: 0.12
 Nodes (12): DeliveryConfirmationDialog(), DeliveryConfirmationDialogProps, MoveLine, Picking, Product, ProductAvailabilityDialog(), ProductAvailabilityDialogProps, ImageModalProps (+4 more)
 
-### Community 42 - "downloadRowsAsXlsx"
-Cohesion: 0.07
-Nodes (32): cellToPlain(), downloadRowsAsXlsx(), readXlsxFirstSheetAsJsonRecords(), triggerXlsxDownload(), trimSheetName(), ExportLine, OfferteExcelPage(), OrderMeta (+24 more)
+### Community 42 - "inventaris-maken.tsx"
+Cohesion: 0.05
+Nodes (47): cellToPlain(), downloadRowsAsXlsx(), readXlsxFirstSheetAsJsonRecords(), triggerXlsxDownload(), trimSheetName(), CachedProduct, cellInputStyle, defaultSettings (+39 more)
 
 ### Community 43 - "services/index.ts"
 Cohesion: 0.18
 Nodes (11): FetchedImage, IMAGE_EXTENSIONS, OdooImageError, ImportProductData, ImportVariantData, OdooImportError, SizeAttributeResult, VariantUpdateResult (+3 more)
 
 ### Community 44 - "parse-tangerine-pdf.ts"
-Cohesion: 0.19
-Nodes (18): ensureDomMatrixPolyfill(), ensurePdfWorker(), pdf-parse, config, extractProductsFromPdfTables(), extractTextFromPdf(), extractTextWithRotations(), handler() (+10 more)
+Cohesion: 0.20
+Nodes (17): ensurePdfWorker(), pdf-parse, config, extractProductsFromPdfTables(), extractTextFromPdf(), extractTextWithRotations(), handler(), isOrderProformaFormat() (+9 more)
 
-### Community 45 - "parseEuroPrice"
-Cohesion: 0.18
-Nodes (18): rowToObject(), parseEuroPrice(), FlossPdfProduct, parseFlossCSV(), parseFlossOrderRows(), parseFlossRows(), extractColor(), parse() (+10 more)
+### Community 45 - "tinycottons/index.ts"
+Cohesion: 0.23
+Nodes (12): extractColor(), parse(), context, CSV_PATH, RRP_PATH, tinycottonsPlugin, buildTinycottonsRrpMap(), isTinycottonsRrpCsv() (+4 more)
 
-### Community 46 - "baje/index.ts"
-Cohesion: 0.36
-Nodes (6): bajePlugin, buildReference(), extractBajeImageReference(), parse(), context, CSV_PATH
+### Community 46 - "parse-wyncken-pdf.ts"
+Cohesion: 0.35
+Nodes (8): isWynckenSalesOrderText(), parseSizeGrid(), parseWynckenSalesOrderText(), WynckenPdfProduct, WynckenSizeQty, config, handler(), parseProformaText()
 
 ### Community 47 - "Weekend House Kids — RRP PDF + smart-upload — design"
 Cohesion: 0.11
 Nodes (17): 1. `lib/suppliers/weekendhousekids/index.ts`, 2. `pages/api/parse-weekendhousekids-pdf.ts`, 3. Detection — `pages/api/detect-supplier.ts`, 4. Smart-upload — `pages/smart-upload.tsx`, 5. Import UI — RRP / EAN visibility, Architecture, Components, Data flow details (+9 more)
 
-### Community 48 - "useImportWizard"
-Cohesion: 0.51
-Nodes (8): isUnitOnlyProduct(), useImportWizard(), buildImportLogPayload(), buildPartialVariantMessage(), isImportFullSuccess(), isImportRecoverable(), resolveImportStatus(), summarizeImportResults()
+### Community 48 - "ImportStep.tsx"
+Cohesion: 0.53
+Nodes (7): ImportStep(), buildImportLogPayload(), buildPartialVariantMessage(), isImportFullSuccess(), isImportRecoverable(), resolveImportStatus(), summarizeImportResults()
 
 ### Community 49 - "ean-utils.ts"
 Cohesion: 0.73
@@ -465,9 +488,9 @@ Nodes (14): buildProducts(), extractColor(), extractMaterial(), FubCsvProduct, F
 Cohesion: 0.14
 Nodes (15): CancelledOrder, CustomerInsight, EcommerceData, EcommerceInsightsPage(), formatEuro(), formatNumber(), InsightsData, MONTH_LABELS (+7 more)
 
-### Community 53 - "Inventory Creation UI"
-Cohesion: 0.14
-Nodes (15): CachedProduct, cellInputStyle, defaultSettings, getCache(), inputStyle, KelderInventarisPage(), labelStyle, LoadMode (+7 more)
+### Community 53 - "posSalesForRange.ts"
+Cohesion: 0.24
+Nodes (9): DEFAULT_LINE_FIELDS, DEFAULT_ORDER_FIELDS, fetchPosLinesForOrderIds(), FetchPosOrdersAndLinesOptions, fetchPosOrdersInDateRange(), PosOrderLineRow, PosOrderRow, toEndDateTime() (+1 more)
 
 ### Community 54 - "Cellar Inventory UI"
 Cohesion: 0.14
@@ -486,12 +509,12 @@ Cohesion: 0.13
 Nodes (14): Attribute Lines:, ✅ Created Missing `callOdooMethod` Function, ✅ Enhanced UI, ✅ Fixed All API Call Formats, ✅ Fixed CSV Decimal Parsing, Per Variant:, ✅ Product Import System - Status Update, 🎯 Ready to Import! (+6 more)
 
 ### Community 58 - "soldenDiscountAnalysis.ts"
-Cohesion: 0.15
-Nodes (19): DEFAULT_LINE_FIELDS, DEFAULT_ORDER_FIELDS, fetchPosLinesForOrderIds(), FetchPosOrdersAndLinesOptions, fetchPosOrdersInDateRange(), toEndDateTime(), toStartDateTime(), collectCategoryTreeIds() (+11 more)
+Cohesion: 0.22
+Nodes (13): analyzeSoldenDiscountsTool(), DateRange, analyzeSoldenDiscounts(), classifyDiscountManner(), DayDiscountStats, discountBucket, DiscountManner, emptyManner() (+5 more)
 
 ### Community 59 - "BulkCategoryAssign.tsx"
 Cohesion: 0.11
-Nodes (23): BulkCategoryAssign(), BulkCategoryAssignProps, CategoryOption, FuzzyOption, fuzzyScore(), FuzzySearchSelect(), FuzzySearchSelectProps, HighlightedText() (+15 more)
+Nodes (22): BulkCategoryAssign(), BulkCategoryAssignProps, CategoryOption, FuzzyOption, fuzzyScore(), FuzzySearchSelect(), FuzzySearchSelectProps, HighlightedText() (+14 more)
 
 ### Community 60 - "nixnut/index.ts"
 Cohesion: 0.36
@@ -514,20 +537,20 @@ Cohesion: 0.21
 Nodes (14): compareQuotationLines(), extractBrandFromProductName(), parseQuotationRef(), productNameWithoutBrand(), QuotationRef, SortableQuotationLine, sortQuotationLines(), ApiResponse (+6 more)
 
 ### Community 65 - "suppliers/types.ts"
-Cohesion: 0.16
-Nodes (15): applyNameCasing(), applySizeConversion(), createCSVSupplier(), getColumnValue(), parsePrice(), resolveColumn(), ColumnMapping, DeclarativeCSVConfig (+7 more)
+Cohesion: 0.11
+Nodes (22): toTitleCase(), bobochosesPlugin, COLOR_MAP, getColorName(), parse(), parsePackingListCSV(), applyNameCasing(), applySizeConversion() (+14 more)
 
-### Community 66 - "spreadsheet-utils.ts"
-Cohesion: 0.27
-Nodes (8): ExtractedTable, parsePrice(), parseSpreadsheetFile(), PRODUCT_FIELD_PATTERNS, suggestColumnMapping(), tableToDelimitedText(), tableToProducts(), NUMBERS_FIXTURE
+### Community 66 - "useImportWizard"
+Cohesion: 0.21
+Nodes (13): isUnitOnlyProduct(), transformProductForUpload(), useImportWizard(), isUnitSize(), ExtractedTable, parsePrice(), parseSpreadsheetFile(), PRODUCT_FIELD_PATTERNS (+5 more)
 
 ### Community 67 - "OdooImportService"
 Cohesion: 0.27
 Nodes (3): OdooImportService, getClientIp(), handler()
 
-### Community 68 - "claudeandco/index.ts"
-Cohesion: 0.25
-Nodes (8): buildProducts(), claudeAndCoPlugin, convertCCSize(), CsvVariant, InvoiceItem, parse(), parseCatalogCSV(), processPdfResults()
+### Community 68 - "petitbateau/index.ts"
+Cohesion: 0.33
+Nodes (7): buildReference(), convertPetitBateauSize(), extractPetitBateauImageReference(), parse(), petitbateauPlugin, context, CSV_PATH
 
 ### Community 69 - "OdooValidationService"
 Cohesion: 0.27
@@ -545,13 +568,13 @@ Nodes (11): maxDuration, maxDuration, functions, app/api/assistant/chat/route.ts
 Cohesion: 0.20
 Nodes (14): dynamic, oauthError(), POST(), readBody(), runtime, dynamic, GET(), runtime (+6 more)
 
-### Community 73 - "convertSize"
-Cohesion: 0.21
-Nodes (15): convertSize(), babeandtess, BabeAndTessPdfProduct, convertBabeAndTessSize(), extractColorCode(), normalizeColorName(), parseBabeAndTessCsv(), processBabeAndTessPdfResults() (+7 more)
+### Community 73 - "determineSizeAttribute"
+Cohesion: 0.14
+Nodes (27): rowToObject(), convertSize(), determineSizeAttribute(), babeandtess, BabeAndTessPdfProduct, convertBabeAndTessSize(), extractColorCode(), normalizeColorName() (+19 more)
 
-### Community 74 - "sales-products.ts"
-Cohesion: 0.33
-Nodes (5): Category, DailySalesProduct, OrderLine, Product, SalesProductData
+### Community 74 - "cameraConfig.ts"
+Cohesion: 0.38
+Nodes (3): CameraConfig, getCameras(), config
 
 ### Community 75 - "Inventory Merge UI"
 Cohesion: 0.18
@@ -569,9 +592,9 @@ Nodes (10): inputStyle, InventoryRow, labelStyle, LoadedFile, modalBackdropStyle
 Cohesion: 0.23
 Nodes (13): aliasEmileetidaColor(), COLOR_ALIASES, colorsMatchEmileetida(), EmileetidaImageInfo, extractEmileetidaImageInfo(), extractEmileetidaReferences(), extractLifestyleInfo(), normalizeEmileetidaColor() (+5 more)
 
-### Community 79 - "suppliers/index.ts"
-Cohesion: 0.11
-Nodes (23): buildProducts(), drbloomPlugin, extractNameAndSize(), processPdfResults(), SIZE_SUFFIXES, emileetidaPlugin, flossPlugin, allPlugins (+15 more)
+### Community 79 - "smart-upload.tsx"
+Cohesion: 0.29
+Nodes (9): createParseContext(), getSupplier(), decodeChoice(), DetectionMatch, DetectionState, encodeChoice(), FileDetectionResult, SmartUploadPage() (+1 more)
 
 ### Community 80 - "Camera Monitoring UI"
 Cohesion: 0.31
@@ -585,9 +608,9 @@ Nodes (9): buildYearList(), ChannelTotals, DayRow, emptyChannel(), formatBE(), M
 Cohesion: 0.15
 Nodes (12): Belgian trading calendar, ChatGPT → Babette MCP (OAuth), ChatGPT web (Developer mode), Cursor (unchanged), Discount manners (`analyze_solden_discounts`), Discovery endpoints, Example prompts, Metric (+4 more)
 
-### Community 83 - "UploadStep.tsx"
-Cohesion: 0.36
-Nodes (4): getVendorFormatLabel(), UploadStep(), isIOS(), supportsDirectoryPicker()
+### Community 83 - "pos-verkopen-ophalen.tsx"
+Cohesion: 0.15
+Nodes (12): cellInputStyle, defaultSettings, inputStyle, labelStyle, LoadMode, modalBackdropStyle, modalStyle, PosVerkopenOphalenPage() (+4 more)
 
 ### Community 84 - "import-products.ts"
 Cohesion: 0.19
@@ -605,9 +628,9 @@ Nodes (8): DailyComparePage(), formatBE(), getDaysInMonth(), getWeekday(), isBel
 Cohesion: 0.15
 Nodes (12): Architecture, Assistant prompt additions, Decisions (locked), Goal, MCP stock snapshot & aged stock — design, Non-goals, Out of scope follow-ups, Performance & pitfalls (+4 more)
 
-### Community 88 - "template-images.ts"
-Cohesion: 0.40
-Nodes (3): config, GalleryImage, TemplateImagesResponse
+### Community 88 - "parse-bayiri-pdf.ts"
+Cohesion: 0.43
+Nodes (6): BayiriProduct, config, extractProducts(), handler(), SIZE_TOKEN_RE, SIZE_TOKENS
 
 ### Community 89 - "AO76 Image Upload"
 Cohesion: 0.39
@@ -661,13 +684,13 @@ Nodes (4): callOdoo(), handler(), ProductResult, SearchRequest
 Cohesion: 0.33
 Nodes (6): callOdoo(), config, handler(), ImageUpload, UploadRequest, UploadResult
 
-### Community 102 - "weekendhousekids-price-update.tsx"
-Cohesion: 0.40
-Nodes (4): MatchedProduct, OrderCSVProduct, UpdateResult, WeekendHouseKidsPriceUpdate()
+### Community 102 - "inventaris-pos-match.tsx"
+Cohesion: 0.29
+Nodes (6): InventarisPosMatchPage(), InventoryRow, ScannedRow, tdStyle, thStyle, UploadShape
 
 ### Community 103 - "analyze-supplier-file.ts"
-Cohesion: 0.16
-Nodes (16): AISuggestion, AnalysisResponse, analyzeColumn(), analyzeCSV(), ColumnAnalysis, detectDelimiter(), FileAnalysis, generateAISuggestion() (+8 more)
+Cohesion: 0.29
+Nodes (10): AISuggestion, AnalysisResponse, analyzeColumn(), analyzeCSV(), ColumnAnalysis, detectDelimiter(), FileAnalysis, generateAISuggestion() (+2 more)
 
 ### Community 104 - "Armed Angels Image Upload"
 Cohesion: 0.33
@@ -693,9 +716,9 @@ Nodes (6): btnStyle, escapeHtml(), LabelPrintenPage(), LabelRow, tdStyle, thStyl
 Cohesion: 0.15
 Nodes (16): dynamic, POST(), runtime, RFC-8252, CimdDocument, clientFromJwt(), fetchCimdClient(), isHttpsUrl() (+8 more)
 
-### Community 110 - "Image Matching System"
+### Community 110 - "jellymallow/index.ts"
 Cohesion: 0.47
-Nodes (5): Ao76ImageMatcher(), CSVProduct, getColorCode(), getImageReference(), MatchedProduct
+Nodes (4): convertJellyMallowSize(), jellymallow, normalizeField(), parse()
 
 ### Community 111 - "Brand Performance Data"
 Cohesion: 0.40
@@ -709,21 +732,21 @@ Nodes (5): callOdoo(), config, FlossImageUploadRequest, handler(), UploadResult
 Cohesion: 0.40
 Nodes (5): callOdoo(), config, handler(), JenestImageUploadRequest, UploadResult
 
-### Community 114 - "create-stock-quotation.ts"
-Cohesion: 0.50
-Nodes (3): ApiResponse, OrderLine, RequestBody
+### Community 114 - "transactions.ts"
+Cohesion: 0.40
+Nodes (4): escapeCSV(), formatPaymentsAsCSV(), MollieListResponse, MolliePayment
 
 ### Community 115 - "shared/index.ts"
-Cohesion: 0.10
-Nodes (30): CSVParseOptions, CSVParseResult, detectDelimiter(), findHeader(), parseCSV(), parseSimple(), parseWithMultilineQuotes(), DEFAULT_PRODUCT_NAME_TEMPLATE (+22 more)
+Cohesion: 0.11
+Nodes (36): CSVParseOptions, CSVParseResult, detectDelimiter(), findHeader(), parseCSV(), parseSimple(), parseWithMultilineQuotes(), DEFAULT_PRODUCT_NAME_TEMPLATE (+28 more)
 
-### Community 116 - "ParseContext"
-Cohesion: 0.10
-Nodes (40): toSentenceCase(), determineSizeAttribute(), buildProductsFromCsvOnly(), convertGoldieSize(), CsvRow, goldieAndAcePlugin, InvoiceProduct, processGoldieAndAcePdfResults() (+32 more)
+### Community 116 - "suppliers/index.ts"
+Cohesion: 0.08
+Nodes (40): toSentenceCase(), americanVintagePlugin, buildProducts(), drbloomPlugin, extractNameAndSize(), processPdfResults(), SIZE_SUFFIXES, flossPlugin (+32 more)
 
-### Community 117 - "ecommerce-insights.ts"
-Cohesion: 0.17
-Nodes (10): CancelledOrder, CustomerInsight, EcommerceData, InsightsData, MonthData, PaymentMethod, ReturnInsight, TopProduct (+2 more)
+### Community 117 - "search-emileetida-products.ts"
+Cohesion: 0.43
+Nodes (6): callOdoo(), handler(), normalizeColorToken(), ProductResult, SearchRequest, stripHtml()
 
 ### Community 118 - "lookup-product-for-stock.ts"
 Cohesion: 0.25
@@ -753,6 +776,10 @@ Nodes (5): callOdoo(), config, handler(), UploadResult, WynckenImageUploadReques
 Cohesion: 0.22
 Nodes (13): DELETE(), dynamic, GET(), handle(), maxDuration, POST(), runtime, authorizeMcpRequest() (+5 more)
 
+### Community 126 - "analyse-barcodes.ts"
+Cohesion: 0.33
+Nodes (3): AnalyseApiItem, OdooMatch, OdooRawProduct
+
 ### Community 127 - "Floss Images Import"
 Cohesion: 0.33
 Nodes (4): FlossImage, OdooProduct, ProductGroup, UploadResult
@@ -778,20 +805,24 @@ Cohesion: 0.70
 Nodes (5): Armed Angels Complete Workflow Guide, Armed Angels Image Import System, Armed Angels Image Upload Quick Start, Armed Angels Import System Guide, Armed Angels Image Upload Implementation Summary
 
 ### Community 133 - "check-duplicate-barcodes.ts"
-Cohesion: 0.19
-Nodes (10): callOdoo(), CategorizedProduct, findBaseProduct(), handler(), parseProductInfo(), ProductMatch, escapeCSV(), formatPaymentsAsCSV() (+2 more)
+Cohesion: 0.43
+Nodes (6): callOdoo(), CategorizedProduct, findBaseProduct(), handler(), parseProductInfo(), ProductMatch
 
 ### Community 134 - "authorize/route.ts"
 Cohesion: 0.25
 Nodes (13): AuthzParams, dynamic, GET(), html(), oauthErrorRedirect(), POST(), prepareAuthorize(), readParams() (+5 more)
 
 ### Community 135 - "archive-variants.ts"
-Cohesion: 0.12
-Nodes (8): OdooVariant, ProductWithVariants, VariantInfo, OdooMatch, OdooRawProduct, handler(), MAAT_ATTRIBUTES, ProductDescriptionDetail
+Cohesion: 0.33
+Nodes (3): OdooVariant, ProductWithVariants, VariantInfo
 
 ### Community 136 - "Image Directory Listing"
 Cohesion: 0.60
 Nodes (4): getAllowedRoots(), handler(), isPathAllowed(), ListDirectoryResponse
+
+### Community 137 - "parse-drbloom-pdf.ts"
+Cohesion: 0.47
+Nodes (5): config, DrBloomItem, extractItems(), handler(), parseEuro()
 
 ### Community 138 - "Mipounet AW26 Import Implementation Plan"
 Cohesion: 0.29
@@ -805,13 +836,21 @@ Nodes (4): BatchSearchRequest, callOdoo(), handler(), ProductSearchResult
 Cohesion: 0.29
 Nodes (6): File map, Global Constraints, Task 1: SRP parser + enrichment (TDD), Task 2: Wire plugin + API + detection, Task 3: Smart-upload multi-file + StockStep UI, Weekend House Kids RRP PDF Implementation Plan
 
+### Community 141 - "archiveer-varianten.tsx"
+Cohesion: 0.33
+Nodes (4): ArchiveerVarianten(), OdooCategory, ProductWithVariants, VariantInfo
+
+### Community 142 - "analyze-armedangels-images.ts"
+Cohesion: 0.40
+Nodes (3): AnalysisResult, ImageGroup, ImageInfo
+
 ### Community 143 - "tokens.ts"
 Cohesion: 0.27
 Nodes (10): verifyPkceS256(), exchangeAuthorizationCode(), issueTokenPair(), ACCESS_TOKEN_TTL_SEC, AccessTokenPayload, AUTH_CODE_TTL_SEC, AuthCodePayload, OAUTH_SCOPE (+2 more)
 
-### Community 144 - "dashboard.tsx"
-Cohesion: 0.33
-Nodes (5): DashboardPage(), LastSessionData, OrderLine, Sale, SessionData
+### Community 144 - "brand-diagnostics.ts"
+Cohesion: 0.40
+Nodes (3): BrandDiagnosticsResponse, BrandSuggestionGroup, ProductWithIssue
 
 ### Community 145 - "Bobochoses Product Search"
 Cohesion: 0.50
@@ -825,13 +864,21 @@ Nodes (4): cleanup(), deregister_if_configured(), log(), relaunch-loop.sh script
 Cohesion: 0.50
 Nodes (4): callOdoo(), handler(), ProductResult, SearchRequest
 
-### Community 149 - "Product Price Updates"
-Cohesion: 0.40
-Nodes (3): UpdateProductPriceRequest, UpdateRequest, UpdateResult
+### Community 149 - "update-product-quantities.ts"
+Cohesion: 0.50
+Nodes (4): callOdoo(), handler(), UpdateQuantitiesRequest, UpdateQuantity
 
-### Community 152 - "webshop-verkopen-ophalen.tsx"
-Cohesion: 0.15
-Nodes (12): cellInputStyle, defaultSettings, inputStyle, labelStyle, LoadMode, modalBackdropStyle, modalStyle, ScannedRow (+4 more)
+### Community 150 - "parse-claudeandco-pdf.ts"
+Cohesion: 0.50
+Nodes (4): ClaudeCoInvoiceItem, config, extractInvoiceItems(), handler()
+
+### Community 151 - "parse-floss-pdf.ts"
+Cohesion: 0.40
+Nodes (4): config, FlossColor, FlossProduct, handler()
+
+### Community 152 - "parse-fub-pdf.ts"
+Cohesion: 0.50
+Nodes (4): config, extractProducts(), FubPdfProduct, handler()
 
 ### Community 153 - "getProtectedResourceMetadata"
 Cohesion: 0.28
@@ -849,13 +896,17 @@ Nodes (4): authenticate(), CONFIG, main(), rpc()
 Cohesion: 0.50
 Nodes (4): Flöss CSV Parser Fix, Flöss Import Guide, Flöss Vendor Quick Start, Flöss Vendor Implementation
 
-### Community 158 - "pos-sales-by-date-range.ts"
-Cohesion: 0.14
-Nodes (11): callOdoo(), CreateHvidProductRequest, handler(), callOdoo(), handler(), UpdateQuantitiesRequest, UpdateQuantity, PosOrder (+3 more)
+### Community 158 - "withAuth"
+Cohesion: 0.06
+Nodes (14): withAuth(), ProductAvailability, callOdoo(), CreateHvidProductRequest, handler(), OrderLine, callOdoo(), FetchPlayUpImagesRequest (+6 more)
 
 ### Community 159 - "Project Metadata"
 Cohesion: 0.50
 Nodes (3): name, private, version
+
+### Community 160 - "parse-playup-invoice.ts"
+Cohesion: 0.50
+Nodes (4): config, extractInvoiceItems(), handler(), PlayUpInvoiceItem
 
 ### Community 161 - "Import partial results + downloadable log"
 Cohesion: 0.29
@@ -869,9 +920,13 @@ Nodes (6): Architecture, Decisions (locked), Goal, Mipounet AW26 — Order + I26
 Cohesion: 0.29
 Nodes (6): Architecture, Decisions, Gaps fixed, Goal, Success criteria, Wyncken AW26 sales-order import — design
 
-### Community 165 - "rename-size-values.ts"
+### Community 164 - "parse-sistersdepartment-pdf.ts"
 Cohesion: 0.50
-Nodes (3): ApiResponse, RenameMapping, RenameResult
+Nodes (4): config, extractInvoiceItems(), handler(), SistersInvoiceItem
+
+### Community 165 - "pos-sales-by-date-range.ts"
+Cohesion: 0.40
+Nodes (4): PosOrder, PosOrderLine, Product, SalesRow
 
 ### Community 167 - "jwt.ts"
 Cohesion: 0.50
@@ -881,13 +936,21 @@ Nodes (7): base64url(), base64urlJson(), getSigningSecret(), JwtPayload, signHs2
 Cohesion: 0.50
 Nodes (4): Product Import System Guide, Product Import Updates, Product Import Setup Instructions, Product Import UX Improvements
 
-### Community 177 - "inventaris-pos-match.tsx"
-Cohesion: 0.14
-Nodes (11): ArmedAngelsImageMatcher(), CatalogProduct, ImageInventory, MatchedProduct, ProductFromCSV, InventarisPosMatchPage(), InventoryRow, ScannedRow (+3 more)
+### Community 177 - "webshop-sales-by-date-range.ts"
+Cohesion: 0.40
+Nodes (4): Product, SaleOrder, SaleOrderLine, SalesRow
 
 ### Community 184 - "Global Constraints"
 Cohesion: 0.33
 Nodes (5): Global Constraints, MCP Stock Snapshot Implementation Plan, Task 1: Pure helpers + unit tests, Task 2: MCP wiring, Task 3: Smoke
+
+### Community 185 - "product-cleanup.tsx"
+Cohesion: 0.40
+Nodes (4): ArchiveResult, Product, ProductCleanup(), Step
+
+### Community 186 - "weekendhousekids-price-update.tsx"
+Cohesion: 0.40
+Nodes (4): MatchedProduct, OrderCSVProduct, UpdateResult, WeekendHouseKidsPriceUpdate()
 
 ### Community 207 - "floss-search-products.ts"
 Cohesion: 0.50
@@ -901,29 +964,49 @@ Nodes (4): ApiResponse, OdooRawProduct, SuccessFound, SuccessNotFound
 Cohesion: 0.33
 Nodes (5): Approach, Endpoints, Env, Goal, MCP OAuth for ChatGPT (design)
 
+### Community 212 - "create-product-variant.ts"
+Cohesion: 0.67
+Nodes (3): callOdoo(), CreateVariantRequest, handler()
+
 ### Community 213 - "search-product-by-reference.ts"
 Cohesion: 0.67
 Nodes (3): callOdoo(), handler(), SearchRequest
 
+### Community 216 - "fetch-product-images.ts"
+Cohesion: 0.67
+Nodes (3): callOdoo(), FetchImagesRequest, handler()
+
+### Community 218 - "parse-playup-pdf.ts"
+Cohesion: 0.50
+Nodes (3): config, handler(), PlayUpProduct
+
+### Community 221 - "update-product-barcode.ts"
+Cohesion: 0.67
+Nodes (3): callOdoo(), handler(), UpdateBarcodeRequest
+
+### Community 222 - "assistant.tsx"
+Cohesion: 0.83
+Nodes (3): AssistantPage(), partText(), toolLabel()
+
 ## Knowledge Gaps
-- **994 isolated node(s):** `runtime`, `dynamic`, `runtime`, `dynamic`, `runtime` (+989 more)
+- **995 isolated node(s):** `runtime`, `dynamic`, `runtime`, `dynamic`, `runtime` (+990 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **38 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **46 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `withAuth()` connect `withAuth` to `NextApiRequestWithSession`, `onboard.ts`, `auditLog.ts`, `check-duplicate-barcodes.ts`, `repair-emileetida-barcodes.ts`, `archive-variants.ts`, `Image Directory Listing`, `withAuth.ts`, `extractPdfText`, `rateLimiter.ts`, `search-products-by-reference-batch.ts`, `mollieSettlementShared.ts`, `Bobochoses Product Search`, `Mipounet Product Search`, `Product Price Updates`, `generate-description.ts`, `wyncken/index.ts`, `salesPosAggregates.ts`, `pos-sales-by-date-range.ts`, `count.ts`, `parse-weekendhousekids-pdf.ts`, `rename-size-values.ts`, `Belgian School Vacations`, `parse-tangerine-pdf.ts`, `Supplier File Detection`, `quotation-export.ts`, `OdooValidationService`, `sales-products.ts`, `image-filename.ts`, `floss-search-products.ts`, `lookup-by-barcode.ts`, `odoo-call.ts`, `import-products.ts`, `search-product-by-reference.ts`, `get-picking-details.ts`, `Webshop Daily Sales`, `template-images.ts`, `AO76 Image Upload`, `BabeAndTess PDF Parsing`, `AO76 Image Scanning`, `Brand Inventory Metrics`, `search-minirodini-products.ts`, `Image Upload Handling`, `analyze-supplier-file.ts`, `Armed Angels Image Upload`, `Brand Performance Data`, `Floss Image Upload`, `Jenest Image Upload`, `create-stock-quotation.ts`, `ecommerce-insights.ts`, `lookup-product-for-stock.ts`, `Onemore Image Upload`, `update-stock.ts`, `fetch-size-values.ts`, `TheNewSociety Image Upload`, `WeekendHouseKids Image Upload`, `Wyncken Image Upload`?**
-  _High betweenness centrality (0.144) - this node is a cross-community bridge._
-- **Why does `NextApiRequestWithSession` connect `NextApiRequestWithSession` to `onboard.ts`, `auditLog.ts`, `check-duplicate-barcodes.ts`, `repair-emileetida-barcodes.ts`, `archive-variants.ts`, `Image Directory Listing`, `withAuth.ts`, `withAuth`, `extractPdfText`, `search-products-by-reference-batch.ts`, `mollieSettlementShared.ts`, `Bobochoses Product Search`, `Mipounet Product Search`, `Product Price Updates`, `generate-description.ts`, `wyncken/index.ts`, `salesPosAggregates.ts`, `pos-sales-by-date-range.ts`, `parse-weekendhousekids-pdf.ts`, `rename-size-values.ts`, `Belgian School Vacations`, `parse-tangerine-pdf.ts`, `Supplier File Detection`, `quotation-export.ts`, `OdooValidationService`, `sales-products.ts`, `image-filename.ts`, `floss-search-products.ts`, `lookup-by-barcode.ts`, `odoo-call.ts`, `import-products.ts`, `search-product-by-reference.ts`, `get-picking-details.ts`, `Webshop Daily Sales`, `template-images.ts`, `AO76 Image Upload`, `BabeAndTess PDF Parsing`, `AO76 Image Scanning`, `Brand Inventory Metrics`, `search-minirodini-products.ts`, `Image Upload Handling`, `analyze-supplier-file.ts`, `Armed Angels Image Upload`, `Brand Performance Data`, `Floss Image Upload`, `Jenest Image Upload`, `create-stock-quotation.ts`, `ecommerce-insights.ts`, `lookup-product-for-stock.ts`, `Onemore Image Upload`, `update-stock.ts`, `fetch-size-values.ts`, `TheNewSociety Image Upload`, `WeekendHouseKids Image Upload`, `Wyncken Image Upload`?**
-  _High betweenness centrality (0.130) - this node is a cross-community bridge._
-- **Why does `useAuth()` connect `useAuth` to `Sales Vacation Comparison`, `dashboard.tsx`, `Inventory Analysis`, `webshop-verkopen-ophalen.tsx`, `Inventory Analysis UI`, `Cellar Inventory Analysis`, `Delivery Confirmation UI`, `downloadRowsAsXlsx`, `inventaris-pos-match.tsx`, `Ecommerce Insights Dashboard`, `Inventory Creation UI`, `Cellar Inventory UI`, `Mollie Export Utilities`, `Inventory Management UI`, `Inventory Merge UI`, `Inventory Merge UI`, `Camera Monitoring UI`, `Sales Best Days Analysis`, `Monthly Sales Comparison`, `Yearly Sales Comparison`, `Stock Sale UI`, `weekendhousekids-price-update.tsx`, `Brand Inventory Management`, `Brand Performance Metrics`, `Label Printing Interface`, `Image Matching System`?**
-  _High betweenness centrality (0.114) - this node is a cross-community bridge._
+- **Why does `withAuth()` connect `withAuth` to `OdooClient`, `onboard.ts`, `extractPdfText`, `withAuth.ts`, `NextApiRequestWithSession`, `rateLimiter.ts`, `mollieSettlementShared.ts`, `generate-description.ts`, `salesPosAggregates.ts`, `ecommerce-insights.ts`, `parse-weekendhousekids-pdf.ts`, `Belgian School Vacations`, `parse-tangerine-pdf.ts`, `parse-wyncken-pdf.ts`, `Supplier File Detection`, `quotation-export.ts`, `OdooValidationService`, `cameraConfig.ts`, `image-filename.ts`, `import-products.ts`, `Webshop Daily Sales`, `parse-bayiri-pdf.ts`, `AO76 Image Upload`, `BabeAndTess PDF Parsing`, `AO76 Image Scanning`, `Brand Inventory Metrics`, `search-minirodini-products.ts`, `Image Upload Handling`, `analyze-supplier-file.ts`, `Armed Angels Image Upload`, `Brand Performance Data`, `Floss Image Upload`, `Jenest Image Upload`, `transactions.ts`, `shared/index.ts`, `search-emileetida-products.ts`, `lookup-product-for-stock.ts`, `Onemore Image Upload`, `update-stock.ts`, `fetch-size-values.ts`, `TheNewSociety Image Upload`, `WeekendHouseKids Image Upload`, `Wyncken Image Upload`, `analyse-barcodes.ts`, `check-duplicate-barcodes.ts`, `archive-variants.ts`, `Image Directory Listing`, `parse-drbloom-pdf.ts`, `search-products-by-reference-batch.ts`, `analyze-armedangels-images.ts`, `brand-diagnostics.ts`, `Bobochoses Product Search`, `Mipounet Product Search`, `archived-lookup.ts`, `update-product-quantities.ts`, `parse-claudeandco-pdf.ts`, `parse-floss-pdf.ts`, `parse-fub-pdf.ts`, `parse-playup-invoice.ts`, `parse-sistersdepartment-pdf.ts`, `pos-sales-by-date-range.ts`, `webshop-sales-by-date-range.ts`, `import-odoo.ts`, `floss-search-products.ts`, `lookup-by-barcode.ts`, `odoo-call.ts`, `create-product-variant.ts`, `search-product-by-reference.ts`, `get-picking-details.ts`, `bulk-unpublish.ts`, `fetch-product-images.ts`, `search-products.ts`, `parse-playup-pdf.ts`, `pos-sales.ts`, `update-product-barcode.ts`, `search-partners.ts`, `products.ts`, `search-products-by-brand.ts`?**
+  _High betweenness centrality (0.145) - this node is a cross-community bridge._
+- **Why does `NextApiRequestWithSession` connect `NextApiRequestWithSession` to `OdooClient`, `onboard.ts`, `check-duplicate-barcodes.ts`, `archive-variants.ts`, `Image Directory Listing`, `withAuth.ts`, `extractPdfText`, `parse-drbloom-pdf.ts`, `search-products-by-reference-batch.ts`, `analyze-armedangels-images.ts`, `brand-diagnostics.ts`, `Bobochoses Product Search`, `Mipounet Product Search`, `archived-lookup.ts`, `update-product-quantities.ts`, `parse-claudeandco-pdf.ts`, `parse-floss-pdf.ts`, `parse-fub-pdf.ts`, `generate-description.ts`, `salesPosAggregates.ts`, `withAuth`, `ecommerce-insights.ts`, `parse-playup-invoice.ts`, `parse-weekendhousekids-pdf.ts`, `parse-sistersdepartment-pdf.ts`, `pos-sales-by-date-range.ts`, `Belgian School Vacations`, `parse-tangerine-pdf.ts`, `Webshop Daily Sales`, `parse-wyncken-pdf.ts`, `search-product-by-reference.ts`, `webshop-sales-by-date-range.ts`, `Supplier File Detection`, `quotation-export.ts`, `OdooValidationService`, `image-filename.ts`, `floss-search-products.ts`, `import-odoo.ts`, `lookup-by-barcode.ts`, `odoo-call.ts`, `create-product-variant.ts`, `import-products.ts`, `get-picking-details.ts`, `bulk-unpublish.ts`, `fetch-product-images.ts`, `AO76 Image Upload`, `search-products.ts`, `BabeAndTess PDF Parsing`, `parse-bayiri-pdf.ts`, `parse-playup-pdf.ts`, `pos-sales.ts`, `search-partners.ts`, `products.ts`, `search-products-by-brand.ts`, `AO76 Image Scanning`, `Brand Inventory Metrics`, `search-minirodini-products.ts`, `Image Upload Handling`, `update-product-barcode.ts`, `analyze-supplier-file.ts`, `Armed Angels Image Upload`, `Brand Performance Data`, `Floss Image Upload`, `Jenest Image Upload`, `shared/index.ts`, `search-emileetida-products.ts`, `lookup-product-for-stock.ts`, `Onemore Image Upload`, `update-stock.ts`, `fetch-size-values.ts`, `TheNewSociety Image Upload`, `WeekendHouseKids Image Upload`, `Wyncken Image Upload`, `analyse-barcodes.ts`?**
+  _High betweenness centrality (0.129) - this node is a cross-community bridge._
+- **Why does `useAuth()` connect `useAuth` to `archiveer-varianten.tsx`, `Sales Vacation Comparison`, `Inventory Analysis`, `Inventory Analysis UI`, `Cellar Inventory Analysis`, `Delivery Confirmation UI`, `inventaris-maken.tsx`, `Ecommerce Insights Dashboard`, `Cellar Inventory UI`, `product-cleanup.tsx`, `weekendhousekids-price-update.tsx`, `Mollie Export Utilities`, `Inventory Management UI`, `Inventory Merge UI`, `Inventory Merge UI`, `Camera Monitoring UI`, `Sales Best Days Analysis`, `pos-verkopen-ophalen.tsx`, `Monthly Sales Comparison`, `assistant.tsx`, `Yearly Sales Comparison`, `Stock Sale UI`, `inventaris-pos-match.tsx`, `Brand Inventory Management`, `Brand Performance Metrics`, `Label Printing Interface`?**
+  _High betweenness centrality (0.123) - this node is a cross-community bridge._
 - **What connects `runtime`, `dynamic`, `runtime` to the rest of the system?**
-  _994 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `NextApiRequestWithSession` be split into smaller, more focused modules?**
-  _Cohesion score 0.029601029601029602 - nodes in this community are weakly interconnected._
+  _995 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `OdooClient` be split into smaller, more focused modules?**
+  _Cohesion score 0.028780068728522335 - nodes in this community are weakly interconnected._
 - **Should `onboard.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.07474747474747474 - nodes in this community are weakly interconnected._
-- **Should `sistersdepartment/index.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.10080645161290322 - nodes in this community are weakly interconnected._
+- **Should `claudeandco/index.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.08912655971479501 - nodes in this community are weakly interconnected._
