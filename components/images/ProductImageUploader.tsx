@@ -40,6 +40,17 @@ function isRecent(dateStr: string, days = 7): boolean {
   return new Date(dateStr) >= cutoff;
 }
 
+/** Prefer Play Up-style Artikel_Kleur from description or trailing (REF) in the name. */
+function resolveCatalogReference(internalRef: string, name: string): string {
+  const fromDesc = (internalRef || '').split('|')[0].trim();
+  if (/^\d[A-Za-z0-9]+_[A-Za-z][A-Za-z0-9]*$/.test(fromDesc)) {
+    return fromDesc;
+  }
+  const fromName = name.match(/\(([0-9A-Za-z]+_[0-9A-Za-z]+)\)\s*$/);
+  if (fromName) return fromName[1];
+  return fromDesc || '';
+}
+
 // ─── Props ───────────────────────────────────────────────────────────────
 
 export interface ProductImageUploaderProps {
@@ -187,15 +198,19 @@ export default function ProductImageUploader({
     if (mode !== 'catalog') return [];
     return products
       .filter((p) => selectedTemplateIds.has(p.templateId))
-      .map((p) => ({
-        key: String(p.templateId),
-        label: p.name,
-        templateId: p.templateId,
-        reference: p.internalRef,
-        hasExistingImages: p.hasImage || p.galleryImages.length > 0,
-        mainThumbnail: p.mainThumbnail,
-        galleryThumbnails: p.galleryImages,
-      }));
+      .map((p) => {
+        const reference = resolveCatalogReference(p.internalRef, p.name);
+        return {
+          // Prefer reference as key so extractReference("0AT…_1.jpg") matches exactly.
+          key: reference || String(p.templateId),
+          label: p.name,
+          templateId: p.templateId,
+          reference,
+          hasExistingImages: p.hasImage || p.galleryImages.length > 0,
+          mainThumbnail: p.mainThumbnail,
+          galleryThumbnails: p.galleryImages,
+        };
+      });
   }, [mode, products, selectedTemplateIds]);
 
   const targets = externalTargets ?? catalogTargets;
@@ -994,7 +1009,9 @@ export default function ProductImageUploader({
           ) : (
             filteredProducts.map((p) => {
               const isSelected = selectedTemplateIds.has(p.templateId);
-              const imgCount = imagesByKey.get(String(p.templateId))?.length || 0;
+              const imgCount = imagesByKey.get(String(p.templateId))?.length
+                || imagesByKey.get(resolveCatalogReference(p.internalRef, p.name))?.length
+                || 0;
               return (
                 <div
                   key={p.templateId}
