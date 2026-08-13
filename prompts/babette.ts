@@ -28,7 +28,7 @@ export const BRAND_DESCRIPTIONS: Record<string, string> = {
   'Tiny Cottons':
     'Tiny Cottons is een Spaans merk dat moderne, minimalistische kinderkleding ontwerpt.',
   'Play Up':
-    'Play Up is een Portugees merk dat duurzame kinderkleding maakt met oog voor comfort.',
+    'Play Up is een Portugees kinderkledingmerk dat comfortabele basics en speelse prints combineert met zachte materialen. De collecties zijn gemaakt om in te spelen en tegelijk stijlvol uit te zien, met oog voor kwaliteit en een tijdloze uitstraling.',
   'Petit Blush':
     'Petit Blush is een duurzaam kindermodemerk dat feminine, speelse stukken ontwerpt met organisch katoen en gerecyclede materialen.',
   'The Sunday Collective':
@@ -72,15 +72,25 @@ STIJL
 - Vermijd Engelse termen wanneer een natuurlijk Nederlands alternatief bestaat. Bekende modetermen zoals cardigan, jeans, hoodie, sweater, knit of wide leg mogen wel gebruikt worden wanneer dit natuurlijk klinkt.
 - Noem het materiaal niet “duurzaam” tenzij daarvoor expliciet bewijs of een certificering wordt gegeven.
 - Noem een jas alleen waterdicht als dit expliciet vermeld staat. Vertaal “water-resistant” als “waterafstotend”.
-- Verander kleuren nooit. Gebruik exact de opgegeven kleur of een natuurlijke Nederlandse schrijfwijze daarvan.
+- Verander echte kleurnamen nooit. Gebruik exact de opgegeven kleur of een natuurlijke Nederlandse schrijfwijze daarvan.
 - Voeg geen onderhoudsinstructies toe tenzij deze worden meegegeven.
+
+PRODUCTNAAM
+- Vertaal Engelse productnamen naar natuurlijk Nederlands in de titel én in de vetgedrukte productnaam.
+- Gebruik geen ALL CAPS. Schrijf Title Case of zinshoofdletter, bijvoorbeeld “Gestreepte jersey sweater” i.p.v. “STRIPED JERSEY SWEATER”.
+- Houd herkenbare modetermen (sweater, hoodie, jeans, cardigan, wide leg) wanneer die natuurlijk klinken; vertaal beschrijvende woorden wel (striped → gestreept, printed → met print, trousers → broek, dress → jurk, leggings → legging).
+
+KLEUR VS PRINT
+- Gebruik “in de kleur …” alleen bij een echte draagkleur (bijv. navy, ecru, black denim).
+- Staat er onder Stof/print een print-, motief- of themanaam (bijv. DRAWING, SKETCHES, EMBROIDERY, CAT, DINO, CLOUDS): beschrijf dat als print, dessin of detail — nooit als kleur.
+- Is er geen echte kleur meegegeven: noem geen verzonnen kleur en forceer geen “in de kleur …”-zin.
 
 VASTE OPBOUW
 Gebruik exact deze structuur:
 
-## [Merk] – [Productnaam]
+## [Merk] – [Nederlandse productnaam]
 
-[Eerste alinea van ongeveer 2 zinnen. Beschrijf het type kledingstuk, de belangrijkste materialen, pasvorm, kleur, print of bijzondere details.]
+[Eerste alinea van ongeveer 2 zinnen. Beschrijf het type kledingstuk, de belangrijkste materialen, pasvorm, kleur of print/motief, en bijzondere details.]
 
 [Tweede alinea van ongeveer 2 zinnen. Beschrijf draagcomfort, combinatiemogelijkheden of geschikte momenten, zonder onbewezen eigenschappen toe te voegen.]
 
@@ -91,9 +101,9 @@ Gebruik exact deze structuur:
 **Materiaal:** [materiaal in natuurlijk Nederlands].
 
 OPMAAK
-- Zet de merknaam en productnaam in de titel.
-- Zet de productnaam in de eerste alinea vet (**productnaam**).
-- Zet een opgegeven kleur vet wanneer die in de beschrijving wordt genoemd.
+- Zet de merknaam en de vertaalde productnaam in de titel.
+- Zet de vertaalde productnaam in de eerste alinea vet (**productnaam**).
+- Zet een opgegeven echte kleur vet wanneer die in de beschrijving wordt genoemd.
 - Gebruik “### Over [Merk]” als tussentitel.
 - Zet “Materiaal:” vet.
 - Sluit de materiaalregel af met een punt.
@@ -131,20 +141,22 @@ export function BABETTE_USER_PROMPT_TEMPLATE(
     'Originele productbeschrijving:',
     product.description?.trim() || '',
     '',
-    'Kleur:',
+    'Kleur (alleen echte draagkleur; leeg laten als onbekend):',
     product.color?.trim() || '',
     '',
     'Materiaal:',
     product.material?.trim() || '',
     '',
     'Extra productdetails:',
-    extraDetails,
+    extraDetails || '(geen)',
     '',
     'Vaste merkbeschrijving:',
     brandDescription,
     '',
     'Controleer vóór je antwoord:',
     '',
+    'Is de productnaam vertaald naar natuurlijk Nederlands (geen ALL CAPS)?',
+    'Heb je een Stof/print-waarde als print/motief beschreven en niet als kleur?',
     'Kloppen kleur, materiaal en productdetails exact?',
     'Heb je niets toegevoegd dat niet in de bron staat?',
     'Is de tekst natuurlijk Nederlands en geen letterlijke vertaling?',

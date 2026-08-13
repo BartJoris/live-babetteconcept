@@ -268,16 +268,22 @@ function buildProductsFromEAN(
 
     if (!products[reference]) {
       const formattedDescription = formatDescription(ean.description);
-      const colourName = ean.colourDescription || colourCode;
-      const formattedName = `Play Up - ${formattedDescription} (${colourName.toLowerCase()})`;
+      // Play Up "Description Color" is almost always a print/motif name
+      // (DRAWING, SKETCHES, EMBROIDERY…), not a wear colour — feed it as
+      // fabricPrint so the AI doesn't write "in de kleur DRAWING".
+      const printOrTheme = ean.colourDescription.trim();
+      const formattedName = printOrTheme
+        ? `Play Up - ${formattedDescription} (${printOrTheme.toLowerCase()})`
+        : `Play Up - ${formattedDescription}`;
 
       products[reference] = {
         reference,
         name: formattedName,
         originalName: ean.description,
         material: ean.composition,
-        color: colourName,
-        ecommerceDescription: `${ean.description}\n\n${ean.composition}`,
+        color: '',
+        fabricPrint: printOrTheme || undefined,
+        ecommerceDescription: ean.description,
         variants: [],
         suggestedBrand: brand?.name,
         selectedBrand: brand,
@@ -417,21 +423,24 @@ const playup: SupplierPlugin = {
         });
 
         const productDescription = eanSample ? eanSample.description : description;
-        const colorDescription = eanSample
-          ? eanSample.colourDescription.toLowerCase()
-          : color;
+        const printOrTheme = (
+          eanSample?.colourDescription ||
+          color ||
+          ''
+        ).trim();
         const formattedDescription = formatDescription(productDescription);
-        const formattedName = `Play Up - ${formattedDescription} (${colorDescription})`;
+        const formattedName = printOrTheme
+          ? `Play Up - ${formattedDescription} (${printOrTheme.toLowerCase()})`
+          : `Play Up - ${formattedDescription}`;
 
         products[reference] = {
           reference,
           name: formattedName,
           originalName: productDescription,
-          material: eanSample?.composition || color,
-          color: colorDescription,
-          ecommerceDescription: eanSample
-            ? `${productDescription}\n\n${eanSample.composition}`
-            : productDescription,
+          material: eanSample?.composition || '',
+          color: '',
+          fabricPrint: printOrTheme || undefined,
+          ecommerceDescription: productDescription,
           variants: [],
           suggestedBrand: brand?.name,
           selectedBrand: brand,
@@ -466,8 +475,8 @@ const playup: SupplierPlugin = {
 
       products[reference].variants.push(variant);
 
-      if (eanMatch && !products[reference].color.includes(' ')) {
-        products[reference].color = eanMatch.colourDescription;
+      if (eanMatch?.colourDescription && !products[reference].fabricPrint) {
+        products[reference].fabricPrint = eanMatch.colourDescription;
       }
     }
 

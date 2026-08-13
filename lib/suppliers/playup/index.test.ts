@@ -30,8 +30,10 @@ describe('playup parse - order CSV (SKU / model reference / PVPR)', () => {
     const sweater = products.find((p) => p.reference === '0AT11352_R373B');
     expect(sweater).toBeTruthy();
     expect(sweater!.name).toBe('Play Up - Striped jersey sweater (drawing)');
-    expect(sweater!.color).toBe('DRAWING');
+    expect(sweater!.color).toBe('');
+    expect(sweater!.fabricPrint).toBe('DRAWING');
     expect(sweater!.material).toContain('Cotton');
+    expect(sweater!.ecommerceDescription).toBe('STRIPED JERSEY SWEATER');
     expect(sweater!.selectedBrand?.name).toBe('Play Up');
   });
 
