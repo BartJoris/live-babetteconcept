@@ -494,11 +494,22 @@ export default function ProductImageUploader({
         images: assigned,
         targets,
         onProgress: setInternalUploadProgress,
-        concurrency: 2,
+        concurrency: 1,
       });
       setUploadResults(results);
+      const failed = results.filter((r) => !r.success || r.failed > 0);
+      if (failed.length > 0) {
+        const sample = failed
+          .flatMap((r) => r.errors || [])
+          .slice(0, 5)
+          .join('\n');
+        const ok = results.reduce((s, r) => s + r.uploaded, 0);
+        alert(
+          `Upload deels mislukt: ${ok} ok, ${failed.length} product(en) met fouten.\n\n${sample}`,
+        );
+      }
     } catch (err) {
-      alert(`Fout: ${err}`);
+      alert(`Fout: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setInternalUploadProgress(null);
       setInternalUploading(false);

@@ -20,8 +20,32 @@ export type UploadProductImagesResult = {
   errors: string[];
 };
 
+async function parseJsonResponse(
+  response: Response,
+): Promise<{ data: Record<string, unknown>; raw: string }> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return { data: {}, raw };
+  }
+  try {
+    return { data: JSON.parse(raw) as Record<string, unknown>, raw };
+  } catch {
+    const snippet = raw.replace(/\s+/g, ' ').slice(0, 160);
+    const hint =
+      response.status === 413
+        ? 'Upload te groot (server limiet). Probeer minder/kleinere foto’s of compressie.'
+        : response.status >= 500
+          ? 'Serverfout tijdens upload.'
+          : 'Server gaf geen JSON terug.';
+    throw new Error(
+      `${hint} (HTTP ${response.status}${snippet ? `: ${snippet}` : ''})`,
+    );
+  }
+}
+
 /**
  * Upload multiple images for one product template in a single API call.
+ * Prefer small batches (ideally 1 image) — Vercel request body max is ~4.5MB.
  */
 export async function uploadProductImagesBatch(input: {
   templateId: number;
@@ -33,26 +57,27 @@ export async function uploadProductImagesBatch(input: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  const data = (await response.json()) as {
-    success?: boolean;
-    uploaded?: number;
-    failed?: number;
-    errors?: string[];
-    error?: string;
-  };
+
+  const { data } = await parseJsonResponse(response);
+
   if (!response.ok) {
     return {
       success: false,
-      uploaded: data.uploaded || 0,
+      uploaded: Number(data.uploaded) || 0,
       failed: input.images.length,
-      errors: [data.error || `HTTP ${response.status}`],
+      errors: [
+        String(data.error || `HTTP ${response.status}`),
+      ],
     };
   }
+
   return {
     success: Boolean(data.success),
-    uploaded: data.uploaded || 0,
-    failed: data.failed || 0,
-    errors: data.errors || [],
+    uploaded: Number(data.uploaded) || 0,
+    failed: Number(data.failed) || 0,
+    errors: Array.isArray(data.errors)
+      ? data.errors.map(String)
+      : [],
   };
 }
 

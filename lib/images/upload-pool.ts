@@ -4,6 +4,7 @@ import {
   fileToBase64,
 } from '@/lib/import/image-upload-client';
 import type { ImageUploadProgress } from '@/lib/import/image-upload-client';
+import { compressImage } from '@/lib/import/shared/image-utils';
 
 interface UploadPoolByTemplateOpts {
   images: PoolImage[];
@@ -12,9 +13,33 @@ interface UploadPoolByTemplateOpts {
   concurrency?: number;
 }
 
+async function toBase64Payload(img: PoolImage): Promise<string> {
+  let dataUrl = img.dataUrl;
+  if (!dataUrl.startsWith('data:') && img.file?.size > 0) {
+    dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+      reader.readAsDataURL(img.file);
+    });
+  }
+
+  if (dataUrl.startsWith('data:')) {
+    // Ensure studio shots fit under Vercel ~4.5MB body limit.
+    const compressed = await compressImage(dataUrl);
+    const part = compressed.split(',')[1];
+    if (part) return part;
+  }
+
+  if (img.file?.size > 0) {
+    return fileToBase64(img.file);
+  }
+  return img.dataUrl.includes(',') ? img.dataUrl.split(',')[1] : img.dataUrl;
+}
+
 /**
- * Groups pool images by assignedKey → templateId and uploads each group
- * as a single batch via uploadProductImagesBatch.
+ * Groups pool images by assignedKey → templateId and uploads each image
+ * in its own request (avoids Vercel ~4.5MB body limit / Safari JSON errors).
  */
 export async function uploadPoolByTemplate({
   images,
@@ -39,6 +64,8 @@ export async function uploadPoolByTemplate({
 
   const results: UploadPoolResult[] = [];
 
+  // Serialize per product (images in order: main first), but allow a few
+  // products in parallel via concurrency.
   for (let i = 0; i < entries.length; i += concurrency) {
     const chunk = entries.slice(i, i + concurrency);
     const chunkResults = await Promise.all(
@@ -62,50 +89,82 @@ export async function uploadPoolByTemplate({
         }
 
         const sorted = [...imgs].sort((a, b) => a.order - b.order);
+        let ok = 0;
+        const errors: string[] = [];
 
-        onProgress?.({
-          current: uploaded,
-          total: totalImages,
-          currentProduct: target.label || key,
-          currentFile: sorted[0]?.filename,
-        });
+        for (let idx = 0; idx < sorted.length; idx++) {
+          const img = sorted[idx];
+          onProgress?.({
+            current: uploaded,
+            total: totalImages,
+            currentProduct: target.label || key,
+            currentFile: img.filename,
+            phase: 'uploading',
+          });
 
-        const payload = await Promise.all(
-          sorted.map(async (img, idx) => {
-            const base64 = img.dataUrl.startsWith('data:')
-              ? img.dataUrl.split(',')[1]
-              : img.file.size > 0
-                ? await fileToBase64(img.file)
-                : img.dataUrl;
-            return {
-              base64,
-              imageName: img.filename,
-              sequence: idx + 1,
-              isMainImage: idx === 0,
-            };
-          }),
-        );
+          try {
+            const base64 = await toBase64Payload(img);
+            if (!base64?.trim()) {
+              errors.push(`${img.filename}: lege afbeelding`);
+              uploaded += 1;
+              continue;
+            }
 
-        const result = await uploadProductImagesBatch({
-          templateId: target.templateId,
-          images: payload,
-        });
+            // Stay under ~4.5MB serverless body: one image per request.
+            const approxBytes = Math.floor((base64.length * 3) / 4);
+            if (approxBytes > 3_500_000) {
+              errors.push(
+                `${img.filename}: te groot na compressie (${Math.round(approxBytes / 1024)} KB). Verklein de foto en probeer opnieuw.`,
+              );
+              uploaded += 1;
+              continue;
+            }
 
-        uploaded += sorted.length;
-        onProgress?.({
-          current: uploaded,
-          total: totalImages,
-          currentProduct: target.label || key,
-          phase: 'uploading' as const,
-        });
+            const result = await uploadProductImagesBatch({
+              templateId: target.templateId,
+              images: [
+                {
+                  base64,
+                  imageName: img.filename,
+                  sequence: idx + 1,
+                  isMainImage: idx === 0,
+                },
+              ],
+            });
+
+            if (result.success || result.uploaded > 0) {
+              ok += result.uploaded;
+              if (result.errors?.length) errors.push(...result.errors);
+            } else {
+              errors.push(
+                ...(result.errors?.length
+                  ? result.errors
+                  : [`${img.filename}: upload mislukt`]),
+              );
+            }
+          } catch (err) {
+            errors.push(
+              `${img.filename}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+
+          uploaded += 1;
+          onProgress?.({
+            current: uploaded,
+            total: totalImages,
+            currentProduct: target.label || key,
+            currentFile: img.filename,
+            phase: 'uploading',
+          });
+        }
 
         return {
           key,
           templateId: target.templateId,
-          success: result.success,
-          uploaded: result.uploaded,
-          failed: result.failed,
-          errors: result.errors,
+          success: ok > 0 && errors.length === 0,
+          uploaded: ok,
+          failed: sorted.length - ok,
+          errors,
         } satisfies UploadPoolResult;
       }),
     );
