@@ -1036,8 +1036,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "bulkcategoryassign.tsx"
     },
     {
@@ -1049,8 +1049,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_categoryoption",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "categoryoption"
     },
     {
@@ -1062,8 +1062,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_bulkcategoryassignprops",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "bulkcategoryassignprops"
     },
     {
@@ -1075,7 +1075,7 @@
       "_origin": "ast",
       "id": "components_import_shared_bulkcategoryassign_bulkcategoryassign",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "bulkcategoryassign()"
     },
     {
@@ -1338,8 +1338,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_shared_enhancedimagemanager",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "enhancedimagemanager.tsx"
     },
     {
@@ -1351,8 +1351,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_shared_enhancedimagemanager_enhancedimagemanagerprops",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "enhancedimagemanagerprops"
     },
     {
@@ -1363,8 +1363,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_enhancedimagemanager_poolitemtopoolimage",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "poolitemtopoolimage()"
     },
     {
@@ -1375,8 +1375,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_enhancedimagemanager_poolimagetopoolitem",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "poolimagetopoolitem()"
     },
     {
@@ -1387,8 +1387,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_enhancedimagemanager_enhancedimagemanager",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "enhancedimagemanager()"
     },
     {
@@ -1399,7 +1399,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_test",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzysearchselect.test.tsx"
     },
     {
@@ -1411,7 +1411,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_test_controlledselect",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "controlledselect()"
     },
     {
@@ -1422,7 +1422,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzysearchselect.tsx"
     },
     {
@@ -1435,7 +1435,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzyoption",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzyoption"
     },
     {
@@ -1448,7 +1448,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzysearchselectprops",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzysearchselectprops"
     },
     {
@@ -1461,7 +1461,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_scoredoption",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "scoredoption"
     },
     {
@@ -1473,7 +1473,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzyscore",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzyscore()"
     },
     {
@@ -1485,7 +1485,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_mergeranges",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "mergeranges()"
     },
     {
@@ -1497,7 +1497,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_highlightedtext",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "highlightedtext()"
     },
     {
@@ -1509,7 +1509,7 @@
       "_origin": "ast",
       "id": "components_import_shared_fuzzysearchselect_fuzzysearchselect",
       "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community_name": "StockStep.tsx",
       "norm_label": "fuzzysearchselect()"
     },
     {
@@ -1591,8 +1591,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_shared_multitagselect",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "multitagselect.tsx"
     },
     {
@@ -1604,8 +1604,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_tagoption",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "tagoption"
     },
     {
@@ -1617,8 +1617,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_multitagselectprops",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "multitagselectprops"
     },
     {
@@ -1629,8 +1629,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_shared_multitagselect_multitagselect",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "multitagselect()"
     },
     {
@@ -1677,7 +1677,7 @@
       "_origin": "ast",
       "id": "components_import_shared_product_utils",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "product-utils.ts"
     },
     {
@@ -1689,7 +1689,7 @@
       "_origin": "ast",
       "id": "components_import_shared_product_utils_isunitonlyproduct",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "isunitonlyproduct()"
     },
     {
@@ -1701,7 +1701,7 @@
       "_origin": "ast",
       "id": "components_import_shared_product_utils_transformproductforupload",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "transformproductforupload()"
     },
     {
@@ -1839,8 +1839,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "categoriesstep.tsx"
     },
     {
@@ -1852,8 +1852,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep_categoriesstepprops",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "categoriesstepprops"
     },
     {
@@ -1864,8 +1864,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_categoriesstep_categoriesstep",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 34,
+      "community_name": "ImportWizard.tsx",
       "norm_label": "categoriesstep()"
     },
     {
@@ -1912,7 +1912,7 @@
       "_origin": "ast",
       "id": "components_import_steps_importstep",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "importstep.tsx"
     },
     {
@@ -1937,7 +1937,7 @@
       "_origin": "ast",
       "id": "components_import_steps_importstep_importstep",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "importstep()"
     },
     {
@@ -2055,8 +2055,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_import_steps_stockstep",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "stockstep.tsx"
     },
     {
@@ -2066,8 +2066,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "components_import_steps_stockstep_size_attribute_options",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "size_attribute_options"
     },
     {
@@ -2079,8 +2079,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "components_import_steps_stockstep_stockstepprops",
-      "community": 34,
-      "community_name": "ImportWizard.tsx",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "stockstepprops"
     },
     {
@@ -2091,8 +2091,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "components_import_steps_stockstep_stockstep",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "stockstep()"
     },
     {
@@ -2268,7 +2268,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "hooks_useimportwizard_useimportwizard",
-      "community": 48,
+      "community": 66,
       "community_name": "useImportWizard",
       "norm_label": "useimportwizard()"
     },
@@ -2807,7 +2807,7 @@
       "_origin": "ast",
       "id": "lib_cameraconfig",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "cameraconfig.ts"
     },
     {
@@ -2820,7 +2820,7 @@
       "_origin": "ast",
       "id": "lib_cameraconfig_cameraconfig",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "cameraconfig"
     },
     {
@@ -2832,7 +2832,7 @@
       "_origin": "ast",
       "id": "lib_cameraconfig_getcameras",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "getcameras()"
     },
     {
@@ -2856,7 +2856,7 @@
       "_origin": "ast",
       "id": "lib_cameraconfig_getanalysisinterval",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "getanalysisinterval()"
     },
     {
@@ -3609,7 +3609,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_test",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "import-result-status.test.ts"
     },
     {
@@ -3620,7 +3620,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "import-result-status.ts"
     },
     {
@@ -3633,7 +3633,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_importproductstatus",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "importproductstatus"
     },
     {
@@ -3646,7 +3646,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_importresultlike",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "importresultlike"
     },
     {
@@ -3658,7 +3658,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_resolveimportstatus",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "resolveimportstatus()"
     },
     {
@@ -3670,7 +3670,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_isimportfullsuccess",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "isimportfullsuccess()"
     },
     {
@@ -3682,7 +3682,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_isimportrecoverable",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "isimportrecoverable()"
     },
     {
@@ -3694,7 +3694,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_summarizeimportresults",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "summarizeimportresults()"
     },
     {
@@ -3706,7 +3706,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_buildpartialvariantmessage",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "buildpartialvariantmessage()"
     },
     {
@@ -3718,7 +3718,7 @@
       "_origin": "ast",
       "id": "lib_import_import_result_status_buildimportlogpayload",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "buildimportlogpayload()"
     },
     {
@@ -4301,8 +4301,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils",
-      "community": 36,
-      "community_name": "UploadStep.tsx",
+      "community": 8,
+      "community_name": "ProductImageUploader.tsx",
       "norm_label": "browser-utils.ts"
     },
     {
@@ -4313,8 +4313,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_supportsdirectorypicker",
-      "community": 36,
-      "community_name": "UploadStep.tsx",
+      "community": 8,
+      "community_name": "ProductImageUploader.tsx",
       "norm_label": "supportsdirectorypicker()"
     },
     {
@@ -4325,8 +4325,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_isios",
-      "community": 36,
-      "community_name": "UploadStep.tsx",
+      "community": 8,
+      "community_name": "ProductImageUploader.tsx",
       "norm_label": "isios()"
     },
     {
@@ -4337,8 +4337,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_browser_utils_issafari",
-      "community": 36,
-      "community_name": "UploadStep.tsx",
+      "community": 8,
+      "community_name": "ProductImageUploader.tsx",
       "norm_label": "issafari()"
     },
     {
@@ -4492,7 +4492,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_test",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "csv-utils.test.ts"
     },
     {
@@ -4503,7 +4503,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "csv-utils.ts"
     },
     {
@@ -4516,7 +4516,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_csvparseoptions",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "csvparseoptions"
     },
     {
@@ -4529,7 +4529,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_csvparseresult",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "csvparseresult"
     },
     {
@@ -4541,7 +4541,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_detectdelimiter",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "detectdelimiter()"
     },
     {
@@ -4553,7 +4553,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsecsv",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parsecsv()"
     },
     {
@@ -4565,7 +4565,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsewithmultilinequotes",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parsewithmultilinequotes()"
     },
     {
@@ -4577,7 +4577,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_parsesimple",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parsesimple()"
     },
     {
@@ -4588,8 +4588,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_rowtoobject",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "rowtoobject()"
     },
     {
@@ -4601,7 +4601,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_csv_utils_findheader",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "findheader()"
     },
     {
@@ -4704,7 +4704,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_index",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "shared/index.ts"
     },
@@ -4715,8 +4715,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_test",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "name-utils.test.ts"
     },
     {
@@ -4726,7 +4726,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_name_utils",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "name-utils.ts"
     },
@@ -4738,7 +4738,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_totitlecase",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "totitlecase()"
     },
@@ -4750,7 +4750,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_tosentencecase",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "tosentencecase()"
     },
@@ -4763,7 +4763,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_namecasingmode",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "namecasingmode"
     },
@@ -4776,7 +4776,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_nametemplatecasing",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "nametemplatecasing"
     },
@@ -4787,7 +4787,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_default_product_name_template",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "default_product_name_template"
     },
@@ -4799,7 +4799,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_formatproductname",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "formatproductname()"
     },
@@ -4811,8 +4811,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_productnametemplatedata",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "productnametemplatedata()"
     },
     {
@@ -4823,8 +4823,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_extractproductbasename",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "extractproductbasename()"
     },
     {
@@ -4835,8 +4835,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_name_utils_rebuildnamewithbrand",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 59,
+      "community_name": "StockStep.tsx",
       "norm_label": "rebuildnamewithbrand()"
     },
     {
@@ -4846,7 +4846,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_price_utils_test",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "price-utils.test.ts"
     },
@@ -4857,7 +4857,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_import_shared_price_utils",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "price-utils.ts"
     },
@@ -4869,7 +4869,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_price_utils_parseeuroprice",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "parseeuroprice()"
     },
@@ -4881,7 +4881,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_test",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "size-utils.test.ts"
     },
     {
@@ -4892,7 +4892,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "size-utils.ts"
     },
     {
@@ -4905,7 +4905,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_sizeattribute",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "sizeattribute"
     },
     {
@@ -4916,7 +4916,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_eu_size_to_age",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "eu_size_to_age"
     },
     {
@@ -4927,7 +4927,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_adult_size_mapping",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "adult_size_mapping"
     },
     {
@@ -4939,7 +4939,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_convertsize",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "convertsize()"
     },
     {
@@ -4951,7 +4951,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_mapsizetoodooformat",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "mapsizetoodooformat()"
     },
     {
@@ -4962,8 +4962,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_determinesizeattribute",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "determinesizeattribute()"
     },
     {
@@ -4975,7 +4975,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_size_utils_isunitsize",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "isunitsize()"
     },
     {
@@ -4986,7 +4986,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_test",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "spreadsheet-utils.test.ts"
     },
     {
@@ -4997,7 +4997,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_test_numbers_fixture",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "numbers_fixture"
     },
     {
@@ -5009,7 +5009,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_test_buildxlsxbuffer",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "buildxlsxbuffer()"
     },
     {
@@ -5020,7 +5020,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "spreadsheet-utils.ts"
     },
     {
@@ -5033,7 +5033,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_extractedtable",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "extractedtable"
     },
     {
@@ -5045,7 +5045,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_parsespreadsheetfile",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "parsespreadsheetfile()"
     },
     {
@@ -5057,7 +5057,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_tabletodelimitedtext",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "tabletodelimitedtext()"
     },
     {
@@ -5068,7 +5068,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_product_field_patterns",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "product_field_patterns"
     },
     {
@@ -5080,7 +5080,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_suggestcolumnmapping",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "suggestcolumnmapping()"
     },
     {
@@ -5092,7 +5092,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_parseprice",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "parseprice()"
     },
     {
@@ -5104,7 +5104,7 @@
       "_origin": "ast",
       "id": "lib_import_shared_spreadsheet_utils_tabletoproducts",
       "community": 66,
-      "community_name": "spreadsheet-utils.ts",
+      "community_name": "useImportWizard",
       "norm_label": "tabletoproducts()"
     },
     {
@@ -5243,7 +5243,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_mcp_assistantauth",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "assistantauth.ts"
     },
@@ -6654,7 +6654,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_middleware_withauth",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "withauth.ts"
     },
@@ -6667,7 +6667,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_middleware_withauth_nextapirequestwithsession",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "nextapirequestwithsession"
     },
@@ -6680,7 +6680,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_middleware_withauth_authenticatedapihandler",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "authenticatedapihandler"
     },
@@ -6693,7 +6693,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_middleware_withauth_withauthoptions",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "withauthoptions"
     },
@@ -6705,7 +6705,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_middleware_withauth_withauth",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "withauth()"
     },
@@ -7035,8 +7035,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_molliesettlementshared_settlementodoorowtobanklinevals",
-      "community": 144,
-      "community_name": "import-odoo.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "settlementodoorowtobanklinevals()"
     },
     {
@@ -8944,7 +8944,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_session",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "lib/session.ts"
     },
@@ -8957,7 +8957,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_session_sessiondata",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "sessiondata"
     },
@@ -8969,7 +8969,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_session_requiresessionsecret",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "requiresessionsecret()"
     },
@@ -8980,7 +8980,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "lib_session_sessionoptions",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "sessionoptions"
     },
@@ -8991,7 +8991,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "lib_session_defaultsession",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "defaultsession"
     },
@@ -9002,8 +9002,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "americanvintage/index.ts"
     },
     {
@@ -9015,8 +9015,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_orderline",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "orderline"
     },
     {
@@ -9027,8 +9027,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_isordercsv",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isordercsv()"
     },
     {
@@ -9039,8 +9039,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_isrrpcsv",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "isrrpcsv()"
     },
     {
@@ -9051,8 +9051,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parserrpcsv",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parserrpcsv()"
     },
     {
@@ -9063,8 +9063,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_convertamvsize",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "convertamvsize()"
     },
     {
@@ -9075,8 +9075,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parseordercsv",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parseordercsv()"
     },
     {
@@ -9087,8 +9087,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_buildproducts",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -9099,8 +9099,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_parse",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -9110,8 +9110,8 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "lib_suppliers_americanvintage_index_americanvintageplugin",
-      "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community": 60,
+      "community_name": "americanvintage/index.ts",
       "norm_label": "americanvintageplugin"
     },
     {
@@ -9121,8 +9121,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_ao76_index",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "ao76/index.ts"
     },
     {
@@ -9251,7 +9251,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "babeandtess/index.ts"
     },
     {
@@ -9264,7 +9264,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_babeandtesspdfproduct",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "babeandtesspdfproduct"
     },
     {
@@ -9276,7 +9276,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_normalizecolorname",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "normalizecolorname()"
     },
     {
@@ -9288,7 +9288,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_extractcolorcode",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "extractcolorcode()"
     },
     {
@@ -9300,7 +9300,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_convertbabeandtesssize",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "convertbabeandtesssize()"
     },
     {
@@ -9312,7 +9312,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_parsebabeandtesscsv",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "parsebabeandtesscsv()"
     },
     {
@@ -9324,7 +9324,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_processbabeandtesspdfresults",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "processbabeandtesspdfresults()"
     },
     {
@@ -9335,7 +9335,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_babeandtess_index_babeandtess",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "babeandtess"
     },
     {
@@ -9345,8 +9345,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_test",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "baje/index.test.ts"
     },
     {
@@ -9356,8 +9356,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_test_csv_path",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "csv_path"
     },
     {
@@ -9367,8 +9367,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_test_context",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "context"
     },
     {
@@ -9378,8 +9378,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_baje_index",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "baje/index.ts"
     },
     {
@@ -9390,8 +9390,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_buildreference",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "buildreference()"
     },
     {
@@ -9402,8 +9402,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_parse",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "parse()"
     },
     {
@@ -9414,8 +9414,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_extractbajeimagereference",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "extractbajeimagereference()"
     },
     {
@@ -9425,8 +9425,8 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "lib_suppliers_baje_index_bajeplugin",
-      "community": 46,
-      "community_name": "parseEuroPrice",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "bajeplugin"
     },
     {
@@ -9436,8 +9436,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "bayiri/index.ts"
     },
     {
@@ -9449,8 +9449,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_bayiripdfproduct",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "bayiripdfproduct"
     },
     {
@@ -9461,8 +9461,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_convertbayirisize",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "convertbayirisize()"
     },
     {
@@ -9473,8 +9473,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_buildproducts",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -9485,8 +9485,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_parse",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -9497,8 +9497,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_processpdfresults",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -9509,8 +9509,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_extractstyleref",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "extractstyleref()"
     },
     {
@@ -9520,8 +9520,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "lib_suppliers_bayiri_index_bayiriplugin",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "bayiriplugin"
     },
     {
@@ -9531,8 +9531,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "bobochoses/index.ts"
     },
     {
@@ -9542,8 +9542,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_color_map",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "color_map"
     },
     {
@@ -9554,8 +9554,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_getcolorname",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "getcolorname()"
     },
     {
@@ -9566,8 +9566,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_parsepackinglistcsv",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "parsepackinglistcsv()"
     },
     {
@@ -9578,8 +9578,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_parse",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -9590,8 +9590,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_processpdfresults",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -9601,8 +9601,8 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "lib_suppliers_bobochoses_index_bobochosesplugin",
-      "community": 16,
-      "community_name": "shared/index.ts",
+      "community": 11,
+      "community_name": "armedangels/index.ts",
       "norm_label": "bobochosesplugin"
     },
     {
@@ -9612,7 +9612,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "claudeandco/index.ts"
     },
@@ -9625,7 +9625,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_csvvariant",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "csvvariant"
     },
@@ -9638,7 +9638,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_invoiceitem",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "invoiceitem"
     },
@@ -9650,7 +9650,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_convertccsize",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "convertccsize()"
     },
@@ -9662,7 +9662,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_parsecatalogcsv",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "parsecatalogcsv()"
     },
@@ -9674,7 +9674,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_buildproducts",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "buildproducts()"
     },
@@ -9686,7 +9686,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_isclaudecocsv",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "isclaudecocsv()"
     },
@@ -9698,7 +9698,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_parse",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "parse()"
     },
@@ -9710,7 +9710,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_processpdfresults",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "processpdfresults()"
     },
@@ -9722,7 +9722,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_extractproductcode",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "extractproductcode()"
     },
@@ -9733,7 +9733,7 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "lib_suppliers_claudeandco_index_claudeandcoplugin",
-      "community": 65,
+      "community": 68,
       "community_name": "claudeandco/index.ts",
       "norm_label": "claudeandcoplugin"
     },
@@ -9744,8 +9744,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "cozmo/index.ts"
     },
     {
@@ -9757,8 +9757,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_orderrow",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "orderrow"
     },
     {
@@ -9769,8 +9769,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_isordercsv",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "isordercsv()"
     },
     {
@@ -9781,8 +9781,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_ispricecsv",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "ispricecsv()"
     },
     {
@@ -9793,8 +9793,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_parsepricecsv",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "parsepricecsv()"
     },
     {
@@ -9805,8 +9805,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_getrrp",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "getrrp()"
     },
     {
@@ -9817,8 +9817,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_parseordercsv",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "parseordercsv()"
     },
     {
@@ -9829,8 +9829,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_productkey",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "productkey()"
     },
     {
@@ -9841,8 +9841,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_shortcolorfordisplay",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "shortcolorfordisplay()"
     },
     {
@@ -9853,8 +9853,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_buildecommercedescription",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "buildecommercedescription()"
     },
     {
@@ -9865,8 +9865,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_parse",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 72,
+      "community_name": "parseEuroPrice",
       "norm_label": "parse()"
     },
     {
@@ -9876,8 +9876,8 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "lib_suppliers_cozmo_index_cozmo",
-      "community": 60,
-      "community_name": "cozmo/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "cozmo"
     },
     {
@@ -9887,8 +9887,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "create-csv-supplier.ts"
     },
     {
@@ -9899,8 +9899,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_resolvecolumn",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "resolvecolumn()"
     },
     {
@@ -9911,8 +9911,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_getcolumnvalue",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "getcolumnvalue()"
     },
     {
@@ -9923,8 +9923,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_parseprice",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "parseprice()"
     },
     {
@@ -9935,8 +9935,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_applynamecasing",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "applynamecasing()"
     },
     {
@@ -9947,8 +9947,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_applysizeconversion",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "applysizeconversion()"
     },
     {
@@ -9959,8 +9959,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_create_csv_supplier_createcsvsupplier",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "createcsvsupplier()"
     },
     {
@@ -9970,8 +9970,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "drbloom/index.ts"
     },
     {
@@ -9981,8 +9981,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_size_suffixes",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "size_suffixes"
     },
     {
@@ -9993,8 +9993,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_extractnameandsize",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "extractnameandsize()"
     },
     {
@@ -10005,8 +10005,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_buildproducts",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -10017,8 +10017,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_parse",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -10029,8 +10029,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_processpdfresults",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -10040,8 +10040,8 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "lib_suppliers_drbloom_index_drbloomplugin",
-      "community": 11,
-      "community_name": "armedangels/index.ts",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "drbloomplugin"
     },
     {
@@ -10169,7 +10169,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_emileetida_index",
-      "community": 16,
+      "community": 46,
       "community_name": "shared/index.ts",
       "norm_label": "emileetida/index.ts"
     },
@@ -10182,7 +10182,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_emileetida_index_parseemileetidaorder",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parseemileetidaorder()"
     },
     {
@@ -10250,7 +10250,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_emileetida_prices_buildtarifeanpricemap",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "buildtarifeanpricemap()"
     },
     {
@@ -10428,7 +10428,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "favoritepeople/index.ts"
     },
     {
@@ -10439,7 +10439,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_known_suffixes",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "known_suffixes"
     },
     {
@@ -10451,7 +10451,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_splitproductname",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "splitproductname()"
     },
     {
@@ -10463,7 +10463,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_parsesku",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parsesku()"
     },
     {
@@ -10475,7 +10475,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_parse",
       "community": 46,
-      "community_name": "parseEuroPrice",
+      "community_name": "shared/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -10485,8 +10485,8 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "lib_suppliers_favoritepeople_index_favoritepeopleplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "favoritepeopleplugin"
     },
     {
@@ -10496,8 +10496,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_floss_index",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "floss/index.ts"
     },
     {
@@ -10509,8 +10509,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_flosspdfproduct",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "flosspdfproduct"
     },
     {
@@ -10521,8 +10521,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_parseflosscsv",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parseflosscsv()"
     },
     {
@@ -10533,8 +10533,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_parseflossorderrows",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parseflossorderrows()"
     },
     {
@@ -10545,8 +10545,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_parseflossrows",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parseflossrows()"
     },
     {
@@ -10557,8 +10557,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_processflosspdfresults",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "processflosspdfresults()"
     },
     {
@@ -10568,8 +10568,8 @@
       "source_location": "L303",
       "_origin": "ast",
       "id": "lib_suppliers_floss_index_flossplugin",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "flossplugin"
     },
     {
@@ -10771,7 +10771,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "goldieandace/index.ts"
     },
@@ -10784,7 +10784,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_csvrow",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "csvrow"
     },
@@ -10797,7 +10797,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_invoiceproduct",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "invoiceproduct"
     },
@@ -10809,7 +10809,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_convertgoldiesize",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "convertgoldiesize()"
     },
@@ -10821,7 +10821,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_parsegoldieandacecsvdata",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "parsegoldieandacecsvdata()"
     },
@@ -10833,7 +10833,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_buildproductsfromcsvonly",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "buildproductsfromcsvonly()"
     },
@@ -10845,7 +10845,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_processgoldieandacepdfresults",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "processgoldieandacepdfresults()"
     },
@@ -10856,8 +10856,8 @@
       "source_location": "L325",
       "_origin": "ast",
       "id": "lib_suppliers_goldieandace_index_goldieandaceplugin",
-      "community": 186,
-      "community_name": "ParseContext",
+      "community": 2,
+      "community_name": "suppliers/index.ts",
       "norm_label": "goldieandaceplugin"
     },
     {
@@ -10867,8 +10867,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_indee_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "indee/index.ts"
     },
     {
@@ -10879,8 +10879,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_indee_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -10890,8 +10890,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "lib_suppliers_indee_index_indeeplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "indeeplugin"
     },
     {
@@ -10934,7 +10934,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "jellymallow/index.ts"
     },
@@ -10946,7 +10946,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_normalizefield",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "normalizefield()"
     },
@@ -10958,7 +10958,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_convertjellymallowsize",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "convertjellymallowsize()"
     },
@@ -10970,7 +10970,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_parse",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "parse()"
     },
@@ -10982,7 +10982,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_extractimagereference",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "extractimagereference()"
     },
@@ -10993,7 +10993,7 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "lib_suppliers_jellymallow_index_jellymallow",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "jellymallow"
     },
@@ -11004,8 +11004,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_jenest_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "jenest/index.ts"
     },
     {
@@ -11016,8 +11016,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jenest_index_convertjenestsize",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "convertjenestsize()"
     },
     {
@@ -11028,8 +11028,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_jenest_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -11039,8 +11039,8 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "lib_suppliers_jenest_index_jenestplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "jenestplugin"
     },
     {
@@ -11050,8 +11050,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_lenewblack_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "lenewblack/index.ts"
     },
     {
@@ -11062,8 +11062,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_lenewblack_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -11073,8 +11073,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "lib_suppliers_lenewblack_index_lenewblackplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "lenewblackplugin"
     },
     {
@@ -11084,8 +11084,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_minirodini_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "minirodini/index.ts"
     },
     {
@@ -11096,8 +11096,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_minirodini_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -11107,8 +11107,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "lib_suppliers_minirodini_index_minirodiniplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "minirodiniplugin"
     },
     {
@@ -11388,7 +11388,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_test",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "nixnut/index.test.ts"
     },
@@ -11399,7 +11399,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_test_csv_path",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "csv_path"
     },
@@ -11410,7 +11410,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_test_context",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "context"
     },
@@ -11421,7 +11421,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "nixnut/index.ts"
     },
@@ -11433,7 +11433,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_buildreference",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "buildreference()"
     },
@@ -11445,7 +11445,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_parse",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "parse()"
     },
@@ -11457,7 +11457,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_extractnixnutimagereference",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "extractnixnutimagereference()"
     },
@@ -11468,7 +11468,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "lib_suppliers_nixnut_index_nixnutplugin",
-      "community": 46,
+      "community": 72,
       "community_name": "parseEuroPrice",
       "norm_label": "nixnutplugin"
     },
@@ -11627,8 +11627,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_onemore_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "onemore/index.ts"
     },
     {
@@ -11639,8 +11639,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_onemore_index_convertonemoresize",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "convertonemoresize()"
     },
     {
@@ -11651,8 +11651,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_onemore_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -11662,8 +11662,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "lib_suppliers_onemore_index_onemoreplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "onemoreplugin"
     },
     {
@@ -11673,7 +11673,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_test",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "petitbateau/index.test.ts"
     },
@@ -11684,7 +11684,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_test_csv_path",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "csv_path"
     },
@@ -11695,7 +11695,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_test_context",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "context"
     },
@@ -11706,7 +11706,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "petitbateau/index.ts"
     },
@@ -11718,7 +11718,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_buildreference",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "buildreference()"
     },
@@ -11730,7 +11730,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_convertpetitbateausize",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "convertpetitbateausize()"
     },
@@ -11742,7 +11742,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_parse",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "parse()"
     },
@@ -11754,7 +11754,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_extractpetitbateauimagereference",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "extractpetitbateauimagereference()"
     },
@@ -11765,7 +11765,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "lib_suppliers_petitbateau_index_petitbateauplugin",
-      "community": 20,
+      "community": 125,
       "community_name": "petitbateau/index.ts",
       "norm_label": "petitbateauplugin"
     },
@@ -11777,7 +11777,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "petitblush/index.ts"
     },
     {
@@ -11789,7 +11789,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_parseordersheet",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "parseordersheet()"
     },
     {
@@ -11801,7 +11801,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_parseeanlist",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "parseeanlist()"
     },
     {
@@ -11813,7 +11813,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_isordersheet",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "isordersheet()"
     },
     {
@@ -11825,7 +11825,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_iseanlist",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "iseanlist()"
     },
     {
@@ -11837,7 +11837,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_parse",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "parse()"
     },
     {
@@ -11848,8 +11848,52 @@
       "_origin": "ast",
       "id": "lib_suppliers_petitblush_index_petitblushplugin",
       "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community_name": "convertSize",
       "norm_label": "petitblushplugin"
+    },
+    {
+      "label": "playup/index.test.ts",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_test",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "playup/index.test.ts"
+    },
+    {
+      "label": "CSV_PATH",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_test_csv_path",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "csv_path"
+    },
+    {
+      "label": "IMAGE_LIST_PATH",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_test_image_list_path",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "image_list_path"
+    },
+    {
+      "label": "context",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_test_context",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "context"
     },
     {
       "label": "playup/index.ts",
@@ -11866,7 +11910,7 @@
       "label": "formatDescription()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L4",
+      "source_location": "L11",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_formatdescription",
@@ -11878,7 +11922,7 @@
       "label": "formatSizeForOdoo()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L13",
+      "source_location": "L22",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_formatsizeforodoo",
@@ -11890,7 +11934,7 @@
       "label": "EANProduct",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L24",
+      "source_location": "L38",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -11903,7 +11947,7 @@
       "label": "InvoiceItem",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L36",
+      "source_location": "L52",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -11916,7 +11960,7 @@
       "label": "parseQuotedCSVLine()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L48",
+      "source_location": "L64",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_parsequotedcsvline",
@@ -11928,7 +11972,7 @@
       "label": "detectDelimiter()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L66",
+      "source_location": "L82",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_detectdelimiter",
@@ -11937,34 +11981,58 @@
       "norm_label": "detectdelimiter()"
     },
     {
-      "label": "parseEANCSV()",
+      "label": "normalizeHeader()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L73",
+      "source_location": "L88",
       "_callable": true,
       "_origin": "ast",
-      "id": "lib_suppliers_playup_index_parseeancsv",
+      "id": "lib_suppliers_playup_index_normalizeheader",
       "community": 39,
       "community_name": "playup/index.ts",
-      "norm_label": "parseeancsv()"
+      "norm_label": "normalizeheader()"
     },
     {
-      "label": "buildProductsFromEAN()",
+      "label": "findHeaderRow()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L117",
+      "source_location": "L95",
       "_callable": true,
       "_origin": "ast",
-      "id": "lib_suppliers_playup_index_buildproductsfromean",
+      "id": "lib_suppliers_playup_index_findheaderrow",
       "community": 39,
       "community_name": "playup/index.ts",
-      "norm_label": "buildproductsfromean()"
+      "norm_label": "findheaderrow()"
+    },
+    {
+      "label": "headerIndex()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L125",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_headerindex",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "headerindex()"
+    },
+    {
+      "label": "isPlayUpOrderCSV()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L137",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_isplayupordercsv",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "isplayupordercsv()"
     },
     {
       "label": "isPlayUpEANCSV()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L193",
+      "source_location": "L146",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_isplayupeancsv",
@@ -11976,7 +12044,7 @@
       "label": "isPlayUpDeliveryCSV()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L198",
+      "source_location": "L156",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_isplayupdeliverycsv",
@@ -11985,10 +12053,46 @@
       "norm_label": "isplayupdeliverycsv()"
     },
     {
+      "label": "articleFromModelReference()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L165",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_articlefrommodelreference",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "articlefrommodelreference()"
+    },
+    {
+      "label": "parseEANCSV()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L172",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_parseeancsv",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "parseeancsv()"
+    },
+    {
+      "label": "buildProductsFromEAN()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L241",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_buildproductsfromean",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "buildproductsfromean()"
+    },
+    {
       "label": "normalizeDeliverySize()",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L203",
+      "source_location": "L316",
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_normalizedeliverysize",
@@ -11997,10 +12101,22 @@
       "norm_label": "normalizedeliverysize()"
     },
     {
+      "label": "extractPlayUpImageReference()",
+      "file_type": "code",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L326",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_suppliers_playup_index_extractplayupimagereference",
+      "community": 39,
+      "community_name": "playup/index.ts",
+      "norm_label": "extractplayupimagereference()"
+    },
+    {
       "label": "playup",
       "file_type": "code",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L209",
+      "source_location": "L335",
       "_origin": "ast",
       "id": "lib_suppliers_playup_index_playup",
       "community": 39,
@@ -12096,8 +12212,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_senger_index",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "senger/index.ts"
     },
     {
@@ -12108,7 +12224,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "sistersdepartment/index.ts"
     },
     {
@@ -12121,7 +12237,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_rawproduct",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "rawproduct"
     },
     {
@@ -12134,7 +12250,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_invoiceitem",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "invoiceitem"
     },
     {
@@ -12146,7 +12262,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_isproductrow",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "isproductrow()"
     },
     {
@@ -12158,7 +12274,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_issizerow",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "issizerow()"
     },
     {
@@ -12170,7 +12286,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_parsecsvline",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "parsecsvline()"
     },
     {
@@ -12182,7 +12298,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_parsecatalogcsv",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "parsecatalogcsv()"
     },
     {
@@ -12194,7 +12310,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_buildproducts",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "buildproducts()"
     },
     {
@@ -12206,7 +12322,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_issistersdepartmentcsv",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "issistersdepartmentcsv()"
     },
     {
@@ -12218,7 +12334,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_parse",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -12230,7 +12346,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_processpdfresults",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "processpdfresults()"
     },
     {
@@ -12241,7 +12357,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_sistersdepartment_index_sistersdepartmentplugin",
       "community": 68,
-      "community_name": "sistersdepartment/index.ts",
+      "community_name": "claudeandco/index.ts",
       "norm_label": "sistersdepartmentplugin"
     },
     {
@@ -12310,8 +12426,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "tangerine/index.ts"
     },
     {
@@ -12322,8 +12438,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_converttangerinesize",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "converttangerinesize()"
     },
     {
@@ -12334,8 +12450,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_formattangerinename",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "formattangerinename()"
     },
     {
@@ -12347,8 +12463,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_tangerinepdfproduct",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "tangerinepdfproduct"
     },
     {
@@ -12359,8 +12475,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_extractreferencefromfilename",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "extractreferencefromfilename()"
     },
     {
@@ -12371,8 +12487,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_extractreferencefrompath",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "extractreferencefrompath()"
     },
     {
@@ -12383,8 +12499,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_parsepackingcsv",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parsepackingcsv()"
     },
     {
@@ -12395,8 +12511,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_parsepackingpastedtext",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parsepackingpastedtext()"
     },
     {
@@ -12407,8 +12523,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_tangerine_index_processtangerinepdfresults",
-      "community": 115,
-      "community_name": "determineSizeAttribute",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "processtangerinepdfresults()"
     },
     {
@@ -12430,7 +12546,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "thenewsociety/index.ts"
     },
     {
@@ -12442,7 +12558,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_convertsizetodutch",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "convertsizetodutch()"
     },
     {
@@ -12454,7 +12570,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_parseordercsv",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "parseordercsv()"
     },
     {
@@ -12466,7 +12582,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_parseorderconfirmationcsv",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "parseorderconfirmationcsv()"
     },
     {
@@ -12478,7 +12594,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_isordercsv",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "isordercsv()"
     },
     {
@@ -12490,7 +12606,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_isorderconfirmationcsv",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "isorderconfirmationcsv()"
     },
     {
@@ -12502,7 +12618,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_normalizesizeformatching",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "normalizesizeformatching()"
     },
     {
@@ -12514,7 +12630,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_enrichwithsrp",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "enrichwithsrp()"
     },
     {
@@ -12526,7 +12642,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_parse",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "parse()"
     },
     {
@@ -12537,7 +12653,7 @@
       "_origin": "ast",
       "id": "lib_suppliers_thenewsociety_index_thenewsocietyplugin",
       "community": 186,
-      "community_name": "ParseContext",
+      "community_name": "thenewsociety/index.ts",
       "norm_label": "thenewsocietyplugin"
     },
     {
@@ -12837,8 +12953,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_types",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "suppliers/types.ts"
     },
     {
@@ -12850,8 +12966,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_parsedproduct",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "parsedproduct"
     },
     {
@@ -12876,8 +12992,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_brand",
-      "community": 59,
-      "community_name": "BulkCategoryAssign.tsx",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "brand"
     },
     {
@@ -12889,8 +13005,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_fileinputtype",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "fileinputtype"
     },
     {
@@ -12902,8 +13018,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_fileinputconfig",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "fileinputconfig"
     },
     {
@@ -12915,8 +13031,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_supplierfiles",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "supplierfiles"
     },
     {
@@ -12928,8 +13044,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_imagematchingconfig",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "imagematchingconfig"
     },
     {
@@ -12941,8 +13057,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_imageuploadconfig",
-      "community": 8,
-      "community_name": "ProductImageUploader.tsx",
+      "community": 26,
+      "community_name": "useImportWizard.ts",
       "norm_label": "imageuploadconfig"
     },
     {
@@ -12954,7 +13070,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_parsecontext",
-      "community": 186,
+      "community": 20,
       "community_name": "ParseContext",
       "norm_label": "parsecontext"
     },
@@ -12980,8 +13096,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_filedetectionrule",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "filedetectionrule"
     },
     {
@@ -13006,8 +13122,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_priceformat",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "priceformat"
     },
     {
@@ -13019,8 +13135,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_sizeformat",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "sizeformat"
     },
     {
@@ -13032,8 +13148,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_namecasing",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 65,
+      "community_name": "suppliers/types.ts",
       "norm_label": "namecasing"
     },
     {
@@ -13045,8 +13161,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_columnmapping",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "columnmapping"
     },
     {
@@ -13058,8 +13174,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_types_declarativecsvconfig",
-      "community": 72,
-      "community_name": "create-csv-supplier.ts",
+      "community": 46,
+      "community_name": "shared/index.ts",
       "norm_label": "declarativecsvconfig"
     },
     {
@@ -13069,8 +13185,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "weekendhousekids/index.ts"
     },
     {
@@ -13081,8 +13197,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_convertweekendhousekidssize",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "convertweekendhousekidssize()"
     },
     {
@@ -13093,8 +13209,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_parse",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "parse()"
     },
     {
@@ -13116,8 +13232,8 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "lib_suppliers_weekendhousekids_index_weekendhousekidsplugin",
-      "community": 2,
-      "community_name": "suppliers/index.ts",
+      "community": 20,
+      "community_name": "ParseContext",
       "norm_label": "weekendhousekidsplugin"
     },
     {
@@ -13198,8 +13314,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_test",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "barcodes.test.ts"
     },
     {
@@ -13209,8 +13325,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "barcodes.ts"
     },
     {
@@ -13222,8 +13338,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_wynckenbarcode",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "wynckenbarcode"
     },
     {
@@ -13234,8 +13350,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_detectdelimiter",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "detectdelimiter()"
     },
     {
@@ -13246,8 +13362,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_extractwynckenbarcode",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "extractwynckenbarcode()"
     },
     {
@@ -13258,8 +13374,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_parsewynckenbarcodescsv",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "parsewynckenbarcodescsv()"
     },
     {
@@ -13270,8 +13386,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_iswynckenbarcodescsv",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "iswynckenbarcodescsv()"
     },
     {
@@ -13282,8 +13398,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_barcodes_iswynckenmasterdatacsv",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 126,
+      "community_name": "barcodes.ts",
       "norm_label": "iswynckenmasterdatacsv()"
     },
     {
@@ -13494,8 +13610,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_test",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "sales-order.test.ts"
     },
     {
@@ -13505,8 +13621,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "sales-order.ts"
     },
     {
@@ -13518,8 +13634,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_wynckensizeqty",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "wynckensizeqty"
     },
     {
@@ -13531,8 +13647,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_wynckenpdfproduct",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "wynckenpdfproduct"
     },
     {
@@ -13543,8 +13659,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_parsewynckensalesordertext",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "parsewynckensalesordertext()"
     },
     {
@@ -13555,8 +13671,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_parsesizegrid",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "parsesizegrid()"
     },
     {
@@ -13567,8 +13683,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "lib_suppliers_wyncken_sales_order_iswynckensalesordertext",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "iswynckensalesordertext()"
     },
     {
@@ -13668,8 +13784,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "lib_validation_product_odoocallschema",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 152,
+      "community_name": "odoo-call.ts",
       "norm_label": "odoocallschema"
     },
     {
@@ -14981,8 +15097,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_analyze_armedangels_images",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "analyze-armedangels-images.ts"
     },
     {
@@ -14994,8 +15110,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_analyze_armedangels_images_imageinfo",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "imageinfo"
     },
     {
@@ -15007,8 +15123,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_analyze_armedangels_images_imagegroup",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "imagegroup"
     },
     {
@@ -15020,8 +15136,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_analyze_armedangels_images_analysisresult",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "analysisresult"
     },
     {
@@ -15032,8 +15148,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_analyze_armedangels_images_handler",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "handler()"
     },
     {
@@ -15379,7 +15495,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_assign_brand",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "assign-brand.ts"
     },
@@ -15392,7 +15508,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_assign_brand_assignbrandrequest",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "assignbrandrequest"
     },
@@ -15405,7 +15521,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_assign_brand_assignbrandresponse",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "assignbrandresponse"
     },
@@ -15417,7 +15533,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_assign_brand_handler",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
@@ -15428,7 +15544,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_audit_logs",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "audit-logs.ts"
     },
@@ -15440,7 +15556,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_audit_logs_handler",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
@@ -15709,7 +15825,7 @@
       "_origin": "ast",
       "id": "pages_api_camera_snapshot",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "snapshot.ts"
     },
     {
@@ -15720,7 +15836,7 @@
       "_origin": "ast",
       "id": "pages_api_camera_status",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "status.ts"
     },
     {
@@ -15731,7 +15847,7 @@
       "_origin": "ast",
       "id": "pages_api_camera_status_config",
       "community": 207,
-      "community_name": "cameraConfig.ts",
+      "community_name": "withAuth",
       "norm_label": "config"
     },
     {
@@ -15826,8 +15942,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_check_product_availability",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "check-product-availability.ts"
     },
     {
@@ -15838,8 +15954,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_check_product_availability_odoocall",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "odoocall()"
     },
     {
@@ -15851,8 +15967,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_check_product_availability_productavailability",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "productavailability"
     },
     {
@@ -15863,8 +15979,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_check_product_availability_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -15874,7 +15990,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_confirm_delivery",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "confirm-delivery.ts"
     },
@@ -15886,7 +16002,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_confirm_delivery_odoocall",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "odoocall()"
     },
@@ -15898,7 +16014,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_confirm_delivery_handler",
-      "community": 222,
+      "community": 9,
       "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
@@ -15909,8 +16025,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_confirm_order",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "confirm-order.ts"
     },
     {
@@ -15921,8 +16037,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_confirm_order_odoocall",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "odoocall()"
     },
     {
@@ -15933,8 +16049,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_confirm_order_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "handler()"
     },
     {
@@ -15944,8 +16060,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_create_hvid_product",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 153,
+      "community_name": "create-hvid-product.ts",
       "norm_label": "create-hvid-product.ts"
     },
     {
@@ -15956,8 +16072,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_create_hvid_product_callodoo",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 153,
+      "community_name": "create-hvid-product.ts",
       "norm_label": "callodoo()"
     },
     {
@@ -15969,8 +16085,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_create_hvid_product_createhvidproductrequest",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 153,
+      "community_name": "create-hvid-product.ts",
       "norm_label": "createhvidproductrequest"
     },
     {
@@ -15981,8 +16097,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_create_hvid_product_handler",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 153,
+      "community_name": "create-hvid-product.ts",
       "norm_label": "handler()"
     },
     {
@@ -16041,7 +16157,7 @@
       "_origin": "ast",
       "id": "pages_api_day_products",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "day-products.ts"
     },
     {
@@ -16054,7 +16170,7 @@
       "_origin": "ast",
       "id": "pages_api_day_products_orderline",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "orderline"
     },
     {
@@ -16066,7 +16182,7 @@
       "_origin": "ast",
       "id": "pages_api_day_products_handler",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -16076,8 +16192,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_debug_categories",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 211,
+      "community_name": "debug-categories.ts",
       "norm_label": "debug-categories.ts"
     },
     {
@@ -16088,8 +16204,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_debug_categories_callodoo",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 211,
+      "community_name": "debug-categories.ts",
       "norm_label": "callodoo()"
     },
     {
@@ -16100,8 +16216,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_debug_categories_handler",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 211,
+      "community_name": "debug-categories.ts",
       "norm_label": "handler()"
     },
     {
@@ -16231,7 +16347,7 @@
       "label": "detectCSV()",
       "file_type": "code",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L824",
+      "source_location": "L852",
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_detect_supplier_detectcsv",
@@ -16243,7 +16359,7 @@
       "label": "detectPDF()",
       "file_type": "code",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L894",
+      "source_location": "L922",
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_detect_supplier_detectpdf",
@@ -16255,7 +16371,7 @@
       "label": "handler()",
       "file_type": "code",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L918",
+      "source_location": "L946",
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_detect_supplier_handler",
@@ -16271,7 +16387,7 @@
       "_origin": "ast",
       "id": "pages_api_download_order_invoice",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "download-order-invoice.ts"
     },
     {
@@ -16283,7 +16399,7 @@
       "_origin": "ast",
       "id": "pages_api_download_order_invoice_odoocall",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "odoocall()"
     },
     {
@@ -16295,7 +16411,7 @@
       "_origin": "ast",
       "id": "pages_api_download_order_invoice_handler",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -16305,8 +16421,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_download_shipping_label",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "download-shipping-label.ts"
     },
     {
@@ -16317,8 +16433,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_download_shipping_label_odoocall",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "odoocall()"
     },
     {
@@ -16329,8 +16445,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_download_shipping_label_handler",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "handler()"
     },
     {
@@ -16591,8 +16707,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_ecommerce_products_missing_weight",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 212,
+      "community_name": "products-missing-weight.ts",
       "norm_label": "products-missing-weight.ts"
     },
     {
@@ -16604,8 +16720,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_products_missing_weight_productmissingweight",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 212,
+      "community_name": "products-missing-weight.ts",
       "norm_label": "productmissingweight"
     },
     {
@@ -16616,8 +16732,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_products_missing_weight_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 212,
+      "community_name": "products-missing-weight.ts",
       "norm_label": "handler()"
     },
     {
@@ -16627,8 +16743,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_ecommerce_published_products_no_images",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 213,
+      "community_name": "published-products-no-images.ts",
       "norm_label": "published-products-no-images.ts"
     },
     {
@@ -16640,8 +16756,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_published_products_no_images_productnoimage",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 213,
+      "community_name": "published-products-no-images.ts",
       "norm_label": "productnoimage"
     },
     {
@@ -16652,8 +16768,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_published_products_no_images_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 213,
+      "community_name": "published-products-no-images.ts",
       "norm_label": "handler()"
     },
     {
@@ -16699,8 +16815,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_ecommerce_template_variants",
-      "community": 165,
-      "community_name": "template-variants.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "template-variants.ts"
     },
     {
@@ -16712,8 +16828,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_template_variants_productvariant",
-      "community": 165,
-      "community_name": "template-variants.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "productvariant"
     },
     {
@@ -16724,8 +16840,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_ecommerce_template_variants_handler",
-      "community": 165,
-      "community_name": "template-variants.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -16928,8 +17044,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_fetch_playup_images",
-      "community": 152,
-      "community_name": "fetch-playup-images.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "fetch-playup-images.ts"
     },
     {
@@ -16940,8 +17056,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_fetch_playup_images_callodoo",
-      "community": 152,
-      "community_name": "fetch-playup-images.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "callodoo()"
     },
     {
@@ -16953,8 +17069,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_fetch_playup_images_fetchplayupimagesrequest",
-      "community": 152,
-      "community_name": "fetch-playup-images.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "fetchplayupimagesrequest"
     },
     {
@@ -16965,8 +17081,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_fetch_playup_images_handler",
-      "community": 152,
-      "community_name": "fetch-playup-images.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -17058,8 +17174,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_fix_minirodini_names",
-      "community": 167,
-      "community_name": "fix-minirodini-names.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "fix-minirodini-names.ts"
     },
     {
@@ -17071,8 +17187,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_fix_minirodini_names_product",
-      "community": 167,
-      "community_name": "fix-minirodini-names.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "product"
     },
     {
@@ -17083,8 +17199,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_fix_minirodini_names_handler",
-      "community": 167,
-      "community_name": "fix-minirodini-names.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -17094,8 +17210,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_floss_search_products",
-      "community": 148,
-      "community_name": "floss-search-products.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "floss-search-products.ts"
     },
     {
@@ -17106,8 +17222,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_floss_search_products_callodoo",
-      "community": 148,
-      "community_name": "floss-search-products.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "callodoo()"
     },
     {
@@ -17119,8 +17235,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_floss_search_products_searchrequest",
-      "community": 148,
-      "community_name": "floss-search-products.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "searchrequest"
     },
     {
@@ -17132,8 +17248,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_floss_search_products_productresult",
-      "community": 148,
-      "community_name": "floss-search-products.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "productresult"
     },
     {
@@ -17144,8 +17260,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_floss_search_products_handler",
-      "community": 148,
-      "community_name": "floss-search-products.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "handler()"
     },
     {
@@ -17408,8 +17524,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_hello",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "hello.ts"
     },
     {
@@ -17421,8 +17537,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_hello_data",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "data"
     },
     {
@@ -17433,8 +17549,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_hello_handler",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -17445,7 +17561,7 @@
       "_origin": "ast",
       "id": "pages_api_import_products",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "import-products.ts"
     },
     {
@@ -17480,7 +17596,7 @@
       "_origin": "ast",
       "id": "pages_api_import_products_maxduration",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "maxduration"
     },
     {
@@ -17491,7 +17607,7 @@
       "_origin": "ast",
       "id": "pages_api_import_products_config",
       "community": 48,
-      "community_name": "useImportWizard",
+      "community_name": "import-products.ts",
       "norm_label": "config"
     },
     {
@@ -17668,8 +17784,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_mollie_import_odoo",
-      "community": 144,
-      "community_name": "import-odoo.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "import-odoo.ts"
     },
     {
@@ -17681,8 +17797,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_mollie_import_odoo_importbody",
-      "community": 144,
-      "community_name": "import-odoo.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "importbody"
     },
     {
@@ -17693,8 +17809,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_mollie_import_odoo_parsejournalid",
-      "community": 144,
-      "community_name": "import-odoo.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "parsejournalid()"
     },
     {
@@ -17872,8 +17988,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_call",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 152,
+      "community_name": "odoo-call.ts",
       "norm_label": "odoo-call.ts"
     },
     {
@@ -17883,8 +17999,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "pages_api_odoo_call_config",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 152,
+      "community_name": "odoo-call.ts",
       "norm_label": "config"
     },
     {
@@ -17895,8 +18011,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_call_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 152,
+      "community_name": "odoo-call.ts",
       "norm_label": "handler()"
     },
     {
@@ -17953,8 +18069,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "analyse-barcodes.ts"
     },
     {
@@ -17966,8 +18082,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes_odoorawproduct",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "odoorawproduct"
     },
     {
@@ -17979,8 +18095,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes_odoomatch",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "odoomatch"
     },
     {
@@ -17992,8 +18108,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes_analyseapiitem",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "analyseapiitem"
     },
     {
@@ -18004,8 +18120,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes_tomatch",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "tomatch()"
     },
     {
@@ -18016,8 +18132,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_analyse_barcodes_searchreadwithcontext",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 116,
+      "community_name": "analyse-barcodes.ts",
       "norm_label": "searchreadwithcontext()"
     },
     {
@@ -18027,8 +18143,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "archive-variants.ts"
     },
     {
@@ -18040,8 +18156,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants_odoovariant",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "odoovariant"
     },
     {
@@ -18053,8 +18169,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants_variantinfo",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "variantinfo"
     },
     {
@@ -18066,8 +18182,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants_productwithvariants",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "productwithvariants"
     },
     {
@@ -18078,8 +18194,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants_handleget",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "handleget()"
     },
     {
@@ -18090,8 +18206,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_archive_variants_handlepost",
-      "community": 116,
-      "community_name": "Product Variant Archiving",
+      "community": 135,
+      "community_name": "archive-variants.ts",
       "norm_label": "handlepost()"
     },
     {
@@ -18274,7 +18390,7 @@
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_categories",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "fetch-categories.ts"
     },
     {
@@ -18286,7 +18402,7 @@
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_categories_callodoo",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "callodoo()"
     },
     {
@@ -18298,7 +18414,7 @@
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_categories_handler",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -18332,7 +18448,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_template_labels",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "fetch-template-labels.ts"
     },
@@ -18344,7 +18460,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_template_labels_callodoo",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "callodoo()"
     },
@@ -18356,7 +18472,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_fetch_template_labels_handler",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "handler()"
     },
@@ -18639,7 +18755,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_rename_size_values",
-      "community": 177,
+      "community": 165,
       "community_name": "rename-size-values.ts",
       "norm_label": "rename-size-values.ts"
     },
@@ -18652,7 +18768,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_rename_size_values_renamemapping",
-      "community": 177,
+      "community": 165,
       "community_name": "rename-size-values.ts",
       "norm_label": "renamemapping"
     },
@@ -18665,7 +18781,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_rename_size_values_renameresult",
-      "community": 177,
+      "community": 165,
       "community_name": "rename-size-values.ts",
       "norm_label": "renameresult"
     },
@@ -18678,7 +18794,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_rename_size_values_apiresponse",
-      "community": 177,
+      "community": 165,
       "community_name": "rename-size-values.ts",
       "norm_label": "apiresponse"
     },
@@ -18823,8 +18939,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_odoo_update_product_category",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 215,
+      "community_name": "update-product-category.ts",
       "norm_label": "update-product-category.ts"
     },
     {
@@ -18836,8 +18952,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_odoo_update_product_category_updatecategoryrequest",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 215,
+      "community_name": "update-product-category.ts",
       "norm_label": "updatecategoryrequest"
     },
     {
@@ -18848,8 +18964,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_odoo_update_product_category_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 215,
+      "community_name": "update-product-category.ts",
       "norm_label": "handler()"
     },
     {
@@ -19078,8 +19194,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_order_lines",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "order-lines.ts"
     },
     {
@@ -19091,8 +19207,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_order_lines_rawline",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "rawline"
     },
     {
@@ -19103,8 +19219,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_order_lines_handler",
-      "community": 10,
-      "community_name": "withAuth",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -19114,8 +19230,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_parse_armedangels_pdf",
-      "community": 153,
-      "community_name": "parse-armedangels-pdf.ts",
+      "community": 7,
+      "community_name": "extractPdfText",
       "norm_label": "parse-armedangels-pdf.ts"
     },
     {
@@ -19125,8 +19241,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "pages_api_parse_armedangels_pdf_config",
-      "community": 153,
-      "community_name": "parse-armedangels-pdf.ts",
+      "community": 7,
+      "community_name": "extractPdfText",
       "norm_label": "config"
     },
     {
@@ -19138,8 +19254,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_parse_armedangels_pdf_armedangelsproduct",
-      "community": 153,
-      "community_name": "parse-armedangels-pdf.ts",
+      "community": 7,
+      "community_name": "extractPdfText",
       "norm_label": "armedangelsproduct"
     },
     {
@@ -19150,8 +19266,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_parse_armedangels_pdf_handler",
-      "community": 153,
-      "community_name": "parse-armedangels-pdf.ts",
+      "community": 7,
+      "community_name": "extractPdfText",
       "norm_label": "handler()"
     },
     {
@@ -19680,7 +19796,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_parse_hvid_invoice",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "parse-hvid-invoice.ts"
     },
@@ -19691,7 +19807,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "pages_api_parse_hvid_invoice_config",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "config"
     },
@@ -19704,7 +19820,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_parse_hvid_invoice_productline",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "productline"
     },
@@ -19716,7 +19832,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_parse_hvid_invoice_handler",
-      "community": 9,
+      "community": 10,
       "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
@@ -20303,8 +20419,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_parse_wyncken_pdf",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "parse-wyncken-pdf.ts"
     },
     {
@@ -20314,8 +20430,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "pages_api_parse_wyncken_pdf_config",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "config"
     },
     {
@@ -20326,8 +20442,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_parse_wyncken_pdf_parseproformatext",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "parseproformatext()"
     },
     {
@@ -20338,8 +20454,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_parse_wyncken_pdf_handler",
-      "community": 27,
-      "community_name": "wyncken/index.ts",
+      "community": 121,
+      "community_name": "parse-wyncken-pdf.ts",
       "norm_label": "handler()"
     },
     {
@@ -20349,8 +20465,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_pending_orders",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "pending-orders.ts"
     },
     {
@@ -20362,8 +20478,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pending_orders_pendingorder",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "pendingorder"
     },
     {
@@ -20374,8 +20490,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_pending_orders_odoocall",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "odoocall()"
     },
     {
@@ -20386,8 +20502,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_pending_orders_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 207,
+      "community_name": "withAuth",
       "norm_label": "handler()"
     },
     {
@@ -20397,7 +20513,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_playup_debug_scraper",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "playup-debug-scraper.ts"
     },
@@ -20409,7 +20525,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_playup_debug_scraper_handler",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "handler()"
     },
@@ -20421,7 +20537,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_fetch_prices",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "playup-fetch-prices.ts"
     },
     {
@@ -20434,7 +20550,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_fetch_prices_productinfo",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "productinfo"
     },
     {
@@ -20446,7 +20562,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_fetch_prices_handler",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -20457,7 +20573,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_find_images",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "playup-find-images.ts"
     },
     {
@@ -20470,7 +20586,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_find_images_productinfo",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "productinfo"
     },
     {
@@ -20483,7 +20599,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_find_images_imageresult",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "imageresult"
     },
     {
@@ -20495,7 +20611,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_find_images_handler",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -20506,7 +20622,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_scrape_products",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "playup-scrape-products.ts"
     },
     {
@@ -20519,7 +20635,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_scrape_products_scrapedproduct",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "scrapedproduct"
     },
     {
@@ -20531,7 +20647,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_scrape_products_handler",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -20542,7 +20658,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_test_html",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "playup-test-html.ts"
     },
     {
@@ -20554,7 +20670,7 @@
       "_origin": "ast",
       "id": "pages_api_playup_test_html_handler",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -20564,7 +20680,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_pos_sales_by_date_range",
-      "community": 135,
+      "community": 222,
       "community_name": "pos-sales-by-date-range.ts",
       "norm_label": "pos-sales-by-date-range.ts"
     },
@@ -20577,7 +20693,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_by_date_range_posorderline",
-      "community": 135,
+      "community": 222,
       "community_name": "pos-sales-by-date-range.ts",
       "norm_label": "posorderline"
     },
@@ -20590,7 +20706,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_by_date_range_posorder",
-      "community": 135,
+      "community": 222,
       "community_name": "pos-sales-by-date-range.ts",
       "norm_label": "posorder"
     },
@@ -20603,7 +20719,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_by_date_range_product",
-      "community": 135,
+      "community": 222,
       "community_name": "pos-sales-by-date-range.ts",
       "norm_label": "product"
     },
@@ -20616,7 +20732,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_by_date_range_salesrow",
-      "community": 135,
+      "community": 222,
       "community_name": "pos-sales-by-date-range.ts",
       "norm_label": "salesrow"
     },
@@ -20688,8 +20804,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_pos_sales",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 167,
+      "community_name": "pos-sales.ts",
       "norm_label": "pos-sales.ts"
     },
     {
@@ -20701,8 +20817,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_possession",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 167,
+      "community_name": "pos-sales.ts",
       "norm_label": "possession"
     },
     {
@@ -20714,8 +20830,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_posorder",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 167,
+      "community_name": "pos-sales.ts",
       "norm_label": "posorder"
     },
     {
@@ -20726,8 +20842,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_pos_sales_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 167,
+      "community_name": "pos-sales.ts",
       "norm_label": "handler()"
     },
     {
@@ -20786,8 +20902,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_check_delete_image",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "delete-image.ts"
     },
     {
@@ -20798,8 +20914,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_check_delete_image_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -20809,8 +20925,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_check_products",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 216,
+      "community_name": "products.ts",
       "norm_label": "products.ts"
     },
     {
@@ -20822,8 +20938,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_product_check_products_productcheckitem",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 216,
+      "community_name": "products.ts",
       "norm_label": "productcheckitem"
     },
     {
@@ -20834,8 +20950,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_check_products_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 216,
+      "community_name": "products.ts",
       "norm_label": "handler()"
     },
     {
@@ -20881,8 +20997,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_check_set_main_image",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 217,
+      "community_name": "set-main-image.ts",
       "norm_label": "set-main-image.ts"
     },
     {
@@ -20894,8 +21010,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_product_check_set_main_image_setmainimagerequest",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 217,
+      "community_name": "set-main-image.ts",
       "norm_label": "setmainimagerequest"
     },
     {
@@ -20906,8 +21022,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_check_set_main_image_handler",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 217,
+      "community_name": "set-main-image.ts",
       "norm_label": "handler()"
     },
     {
@@ -20917,8 +21033,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_check_template_images",
-      "community": 121,
-      "community_name": "template-images.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "template-images.ts"
     },
     {
@@ -20930,8 +21046,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_product_check_template_images_galleryimage",
-      "community": 121,
-      "community_name": "template-images.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "galleryimage"
     },
     {
@@ -20943,8 +21059,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_product_check_template_images_templateimagesresponse",
-      "community": 121,
-      "community_name": "template-images.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "templateimagesresponse"
     },
     {
@@ -20955,8 +21071,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_check_template_images_handler",
-      "community": 121,
-      "community_name": "template-images.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -20966,8 +21082,8 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "pages_api_product_check_template_images_config",
-      "community": 121,
-      "community_name": "template-images.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "config"
     },
     {
@@ -21000,7 +21116,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_debug",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "product-debug.ts"
     },
@@ -21012,7 +21128,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_debug_callodoo",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "callodoo()"
     },
@@ -21024,7 +21140,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_debug_handler",
-      "community": 10,
+      "community": 207,
       "community_name": "withAuth",
       "norm_label": "handler()"
     },
@@ -21035,8 +21151,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_product_description_details",
-      "community": 221,
-      "community_name": "product-description-details.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "product-description-details.ts"
     },
     {
@@ -21048,8 +21164,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_product_description_details_productdescriptiondetail",
-      "community": 221,
-      "community_name": "product-description-details.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "productdescriptiondetail"
     },
     {
@@ -21059,8 +21175,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "pages_api_product_description_details_maat_attributes",
-      "community": 221,
-      "community_name": "product-description-details.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "maat_attributes"
     },
     {
@@ -21071,8 +21187,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_product_description_details_handler",
-      "community": 221,
-      "community_name": "product-description-details.ts",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "handler()"
     },
     {
@@ -21083,7 +21199,7 @@
       "_origin": "ast",
       "id": "pages_api_product_images",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "product-images.ts"
     },
     {
@@ -21095,7 +21211,7 @@
       "_origin": "ast",
       "id": "pages_api_product_images_odoocall",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "odoocall()"
     },
     {
@@ -21107,7 +21223,7 @@
       "_origin": "ast",
       "id": "pages_api_product_images_handler",
       "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -21497,8 +21613,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_search_minirodini_products",
-      "community": 137,
-      "community_name": "search-minirodini-products.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "search-minirodini-products.ts"
     },
     {
@@ -21509,8 +21625,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_minirodini_products_callodoo",
-      "community": 137,
-      "community_name": "search-minirodini-products.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "callodoo()"
     },
     {
@@ -21522,8 +21638,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_search_minirodini_products_searchrequest",
-      "community": 137,
-      "community_name": "search-minirodini-products.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "searchrequest"
     },
     {
@@ -21535,8 +21651,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_search_minirodini_products_productresult",
-      "community": 137,
-      "community_name": "search-minirodini-products.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "productresult"
     },
     {
@@ -21547,8 +21663,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_minirodini_products_handler",
-      "community": 137,
-      "community_name": "search-minirodini-products.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -21619,8 +21735,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_search_product_by_reference",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 177,
+      "community_name": "search-product-by-reference.ts",
       "norm_label": "search-product-by-reference.ts"
     },
     {
@@ -21631,8 +21747,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_product_by_reference_callodoo",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 177,
+      "community_name": "search-product-by-reference.ts",
       "norm_label": "callodoo()"
     },
     {
@@ -21644,8 +21760,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_search_product_by_reference_searchrequest",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 177,
+      "community_name": "search-product-by-reference.ts",
       "norm_label": "searchrequest"
     },
     {
@@ -21656,8 +21772,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_product_by_reference_handler",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 177,
+      "community_name": "search-product-by-reference.ts",
       "norm_label": "handler()"
     },
     {
@@ -21667,8 +21783,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_search_products_by_brand",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 220,
+      "community_name": "search-products-by-brand.ts",
       "norm_label": "search-products-by-brand.ts"
     },
     {
@@ -21679,8 +21795,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_products_by_brand_callodoo",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 220,
+      "community_name": "search-products-by-brand.ts",
       "norm_label": "callodoo()"
     },
     {
@@ -21691,8 +21807,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_search_products_by_brand_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 220,
+      "community_name": "search-products-by-brand.ts",
       "norm_label": "handler()"
     },
     {
@@ -21763,8 +21879,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_send_to_shipper",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "send-to-shipper.ts"
     },
     {
@@ -21775,8 +21891,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_send_to_shipper_odoocall",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "odoocall()"
     },
     {
@@ -21787,8 +21903,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_send_to_shipper_handler",
-      "community": 222,
-      "community_name": "withAuth.ts",
+      "community": 10,
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -22148,8 +22264,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_update_stock",
-      "community": 223,
-      "community_name": "update-stock.ts",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "update-stock.ts"
     },
     {
@@ -22160,8 +22276,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_update_stock_callodoo",
-      "community": 223,
-      "community_name": "update-stock.ts",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "callodoo()"
     },
     {
@@ -22173,8 +22289,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_update_stock_updatestockrequest",
-      "community": 223,
-      "community_name": "update-stock.ts",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "updatestockrequest"
     },
     {
@@ -22185,8 +22301,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_api_update_stock_handler",
-      "community": 223,
-      "community_name": "update-stock.ts",
+      "community": 9,
+      "community_name": "withAuth.ts",
       "norm_label": "handler()"
     },
     {
@@ -22282,7 +22398,7 @@
       "_origin": "ast",
       "id": "pages_api_upload_image_from_url",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "upload-image-from-url.ts"
     },
     {
@@ -22294,7 +22410,7 @@
       "_origin": "ast",
       "id": "pages_api_upload_image_from_url_handler",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "handler()"
     },
     {
@@ -22305,7 +22421,7 @@
       "_origin": "ast",
       "id": "pages_api_upload_image_from_url_config",
       "community": 10,
-      "community_name": "withAuth",
+      "community_name": "NextApiRequestWithSession",
       "norm_label": "config"
     },
     {
@@ -22315,8 +22431,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_upload_product_images",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 206,
+      "community_name": "upload-product-images.ts",
       "norm_label": "upload-product-images.ts"
     },
     {
@@ -22328,8 +22444,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_upload_product_images_imageitem",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 206,
+      "community_name": "upload-product-images.ts",
       "norm_label": "imageitem"
     },
     {
@@ -22341,8 +22457,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_upload_product_images_uploadrequest",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 206,
+      "community_name": "upload-product-images.ts",
       "norm_label": "uploadrequest"
     },
     {
@@ -22364,8 +22480,8 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "pages_api_upload_product_images_config",
-      "community": 0,
-      "community_name": "OdooClient",
+      "community": 206,
+      "community_name": "upload-product-images.ts",
       "norm_label": "config"
     },
     {
@@ -22375,8 +22491,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_upload_single_image",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "upload-single-image.ts"
     },
     {
@@ -22388,8 +22504,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_upload_single_image_uploadrequest",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "uploadrequest"
     },
     {
@@ -22411,8 +22527,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "pages_api_upload_single_image_config",
-      "community": 9,
-      "community_name": "NextApiRequestWithSession",
+      "community": 0,
+      "community_name": "OdooClient",
       "norm_label": "config"
     },
     {
@@ -22456,7 +22572,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_api_webshop_sales_by_date_range",
-      "community": 217,
+      "community": 148,
       "community_name": "webshop-sales-by-date-range.ts",
       "norm_label": "webshop-sales-by-date-range.ts"
     },
@@ -22469,7 +22585,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_webshop_sales_by_date_range_saleorderline",
-      "community": 217,
+      "community": 148,
       "community_name": "webshop-sales-by-date-range.ts",
       "norm_label": "saleorderline"
     },
@@ -22482,7 +22598,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_webshop_sales_by_date_range_saleorder",
-      "community": 217,
+      "community": 148,
       "community_name": "webshop-sales-by-date-range.ts",
       "norm_label": "saleorder"
     },
@@ -22495,7 +22611,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_webshop_sales_by_date_range_product",
-      "community": 217,
+      "community": 148,
       "community_name": "webshop-sales-by-date-range.ts",
       "norm_label": "product"
     },
@@ -22508,7 +22624,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_api_webshop_sales_by_date_range_salesrow",
-      "community": 217,
+      "community": 148,
       "community_name": "webshop-sales-by-date-range.ts",
       "norm_label": "salesrow"
     },
@@ -22846,7 +22962,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "armedangels-image-matcher.tsx"
     },
@@ -22859,7 +22975,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher_imageinventory",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "imageinventory"
     },
@@ -22872,7 +22988,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher_productfromcsv",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "productfromcsv"
     },
@@ -22885,7 +23001,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher_catalogproduct",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "catalogproduct"
     },
@@ -22898,7 +23014,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher_matchedproduct",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "matchedproduct"
     },
@@ -22910,7 +23026,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_armedangels_image_matcher_armedangelsimagematcher",
-      "community": 224,
+      "community": 137,
       "community_name": "armedangels-image-matcher.tsx",
       "norm_label": "armedangelsimagematcher()"
     },
@@ -23513,8 +23629,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_dashboard",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "dashboard.tsx"
     },
     {
@@ -23526,8 +23642,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_dashboard_orderline",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "orderline"
     },
     {
@@ -23539,8 +23655,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_dashboard_sale",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "sale"
     },
     {
@@ -23552,8 +23668,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_dashboard_sessiondata",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "sessiondata"
     },
     {
@@ -23565,8 +23681,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_dashboard_lastsessiondata",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "lastsessiondata"
     },
     {
@@ -23577,8 +23693,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_dashboard_dashboardpage",
-      "community": 126,
-      "community_name": "Dashboard and Session Data",
+      "community": 144,
+      "community_name": "dashboard.tsx",
       "norm_label": "dashboardpage()"
     },
     {
@@ -26261,7 +26377,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "pos-verkopen-ophalen.tsx"
     },
@@ -26274,7 +26390,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_scannedrow",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "scannedrow"
     },
@@ -26287,7 +26403,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_loadmode",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "loadmode"
     },
@@ -26300,7 +26416,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_settings",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "settings"
     },
@@ -26311,7 +26427,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_defaultsettings",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "defaultsettings"
     },
@@ -26323,7 +26439,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_posverkopenophalenpage",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "posverkopenophalenpage()"
     },
@@ -26334,7 +26450,7 @@
       "source_location": "L702",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_thstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "thstyle"
     },
@@ -26345,7 +26461,7 @@
       "source_location": "L711",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_tdstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "tdstyle"
     },
@@ -26356,7 +26472,7 @@
       "source_location": "L718",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_cellinputstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "cellinputstyle"
     },
@@ -26367,7 +26483,7 @@
       "source_location": "L725",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_modalbackdropstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "modalbackdropstyle"
     },
@@ -26378,7 +26494,7 @@
       "source_location": "L739",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_modalstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "modalstyle"
     },
@@ -26389,7 +26505,7 @@
       "source_location": "L748",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_labelstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "labelstyle"
     },
@@ -26400,7 +26516,7 @@
       "source_location": "L754",
       "_origin": "ast",
       "id": "pages_pos_verkopen_ophalen_inputstyle",
-      "community": 125,
+      "community": 16,
       "community_name": "pos-verkopen-ophalen.tsx",
       "norm_label": "inputstyle"
     },
@@ -49280,7 +49396,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L178",
+      "source_location": "L301",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_buildproductsfromean",
@@ -51037,7 +51153,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L187",
+      "source_location": "L310",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_buildproductsfromean",
@@ -75184,10 +75300,114 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index_extractplayupimagereference",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index_playup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index_test_context",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index_test_csv_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_playup_index_test_image_list_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.test.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_test",
+      "target": "lib_suppliers_types_parsecontext",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L117",
+      "source_location": "L165",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_articlefrommodelreference",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L241",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75198,7 +75418,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L66",
+      "source_location": "L82",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75209,7 +75429,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L24",
+      "source_location": "L38",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75217,10 +75437,33 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "confidence": "INFERRED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L520",
+      "weight": 1.0,
+      "_origin": "ast",
+      "context": "collection",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_extractplayupimagereference",
+      "confidence_score": 0.5
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L4",
+      "source_location": "L95",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_findheaderrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L11",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75231,7 +75474,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L13",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75242,7 +75485,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L36",
+      "source_location": "L125",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_headerindex",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L52",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75253,7 +75507,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L198",
+      "source_location": "L156",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75264,7 +75518,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L193",
+      "source_location": "L146",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75275,7 +75529,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L203",
+      "source_location": "L137",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_isplayupordercsv",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L316",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75286,7 +75551,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L73",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index",
+      "target": "lib_suppliers_playup_index_normalizeheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L172",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75297,7 +75573,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L48",
+      "source_location": "L64",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75308,7 +75584,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L209",
+      "source_location": "L335",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index",
@@ -75404,7 +75680,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L148",
+      "source_location": "L270",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_buildproductsfromean",
@@ -75416,7 +75692,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L174",
+      "source_location": "L297",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_buildproductsfromean",
@@ -75428,7 +75704,19 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L97",
+      "source_location": "L102",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_findheaderrow",
+      "target": "lib_suppliers_playup_index_parsequotedcsvline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L211",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_parseeancsv",
@@ -75440,11 +75728,71 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L77",
+      "source_location": "L101",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_findheaderrow",
+      "target": "lib_suppliers_playup_index_detectdelimiter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L102",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_findheaderrow",
+      "target": "lib_suppliers_playup_index_normalizeheader",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L176",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_parseeancsv",
-      "target": "lib_suppliers_playup_index_detectdelimiter",
+      "target": "lib_suppliers_playup_index_findheaderrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L182",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_parseeancsv",
+      "target": "lib_suppliers_playup_index_headerindex",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L147",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_isplayupeancsv",
+      "target": "lib_suppliers_playup_index_isplayupordercsv",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/suppliers/playup/index.ts",
+      "source_location": "L217",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "lib_suppliers_playup_index_parseeancsv",
+      "target": "lib_suppliers_playup_index_articlefrommodelreference",
       "confidence_score": 1.0
     },
     {
@@ -75453,7 +75801,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "lib/suppliers/playup/index.ts",
-      "source_location": "L122",
+      "source_location": "L246",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_suppliers_playup_index_buildproductsfromean",
@@ -81218,7 +81566,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L824",
+      "source_location": "L852",
       "weight": 1.0,
       "_origin": "ast",
       "source": "pages_api_detect_supplier",
@@ -81251,7 +81599,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L894",
+      "source_location": "L922",
       "weight": 1.0,
       "_origin": "ast",
       "source": "pages_api_detect_supplier",
@@ -81306,7 +81654,7 @@
       "relation": "indirect_call",
       "confidence": "INFERRED",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L979",
+      "source_location": "L1007",
       "weight": 1.0,
       "_origin": "ast",
       "context": "argument",
@@ -81341,7 +81689,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L931",
+      "source_location": "L959",
       "weight": 1.0,
       "_origin": "ast",
       "source": "pages_api_detect_supplier_handler",
@@ -81353,7 +81701,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "pages/api/detect-supplier.ts",
-      "source_location": "L931",
+      "source_location": "L959",
       "weight": 1.0,
       "_origin": "ast",
       "source": "pages_api_detect_supplier_handler",
@@ -97340,5 +97688,5 @@
       "source_file": "TINYCOTTONS_IMPLEMENTATION.md"
     }
   ],
-  "built_at_commit": "f85601df67c8c65897dc41a775436c42fbca856d"
+  "built_at_commit": "b6f78a0bd4fee890c0b268e9eb740ba82f6c12af"
 }

@@ -421,6 +421,34 @@ const SUPPLIER_RULES: SupplierRule[] = [
     csvRules: [
       {
         fileInputId: 'main_csv',
+        fileInputLabel: 'Order CSV (pro.playupstore)',
+        detect: (headers, text, fileName) => {
+          // Winter/order exports: SKU;model reference;…;PVPR;EAN;Amount (+ optional "Tabel 1" preamble)
+          if (
+            h(headers, 'SKU', 'model reference', 'Description Color', 'PVPR', 'EAN') ||
+            h(headers, 'SKU', 'model reference', 'Color', 'EAN', 'Amount')
+          ) {
+            return 0.96;
+          }
+          if (
+            text.toLowerCase().includes('playupstore.com') &&
+            h(headers, 'SKU', 'model reference')
+          ) {
+            return 0.94;
+          }
+          const fn = fileName.toLowerCase();
+          if (
+            (fn.includes('play up') || fn.includes('playup')) &&
+            h(headers, 'model reference', 'EAN')
+          ) {
+            return 0.9;
+          }
+          return 0;
+        },
+        reason: 'SKU + model reference + Color/PVPR/EAN (Play UP order export)',
+      },
+      {
+        fileInputId: 'main_csv',
         fileInputLabel: 'Delivery CSV',
         detect: (headers) => {
           if (h(headers, 'Article', 'Color', 'Description', 'Size', 'Quantity', 'Price') && !headers.some(hd => hd.toLowerCase().includes('ean'))) return 0.9;

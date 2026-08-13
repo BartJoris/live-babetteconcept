@@ -735,9 +735,9 @@
     "semantic_hash": "bbd1e2eedbbcbb4dbb7f6d1b50b94f82"
   },
   "lib/suppliers/playup/index.ts": {
-    "mtime": 1772916910.8739603,
-    "ast_hash": "d412e288cf9b8ec84482d145ba281abb",
-    "semantic_hash": "d412e288cf9b8ec84482d145ba281abb"
+    "mtime": 1786617342.19207,
+    "ast_hash": "79e54228006e37526e0a89e26996f893",
+    "semantic_hash": ""
   },
   "lib/suppliers/registry.ts": {
     "mtime": 1771952945.4477022,
@@ -975,8 +975,8 @@
     "semantic_hash": ""
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1786484471.132475,
-    "ast_hash": "5e9550fc083d3e4bb10c5f9d31f5d98e",
+    "mtime": 1786617326.8533273,
+    "ast_hash": "6c5ffbfa36e4776eab72bacb6680268e",
     "semantic_hash": ""
   },
   "pages/api/download-order-invoice.ts": {
@@ -2377,6 +2377,16 @@
   "lib/import/shared/category-suggest.ts": {
     "mtime": 1786485121.082709,
     "ast_hash": "c6d7112b06db47d1ec12e46f5d370b7d",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/playup/index.test.ts": {
+    "mtime": 1786617355.1878858,
+    "ast_hash": "5e433ca93f35452081607657681e6382",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/playup/samples/image-filenames.txt": {
+    "mtime": 1786617295.6032355,
+    "ast_hash": "1eeaeade7fa8196bbeffda62367430b3",
     "semantic_hash": ""
   }
 }
