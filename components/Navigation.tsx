@@ -71,7 +71,7 @@ export default function AppNavigation() {
   };
   
   const isImporterenActive = () => {
-    return ['/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names', '/afbeeldingen'].includes(router.pathname);
+    return ['/smart-upload', '/smart-images-upload', '/product-import', '/product-cleanup', '/product-ai-descriptions', '/playup-image-matcher', '/playup-images-import', '/hvid-levering', '/armedangels-images-import', '/armedangels-image-matcher', '/product-images-import', '/ao76-image-matcher', '/onemore-images-import', '/wyncken-images-import', '/thenewsociety-images-import', '/weekendhousekids-images-import', '/emileetida-images-import', '/minirodini-images-import', '/mipounet-images-import', '/fix-minirodini-names', '/afbeeldingen', '/image-upload'].includes(router.pathname);
   };
   
   const isBoekhoudingActive = () => {
@@ -199,8 +199,14 @@ export default function AppNavigation() {
               {isImporterenOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
-                    <Link href="/product-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Import
+                    <Link href="/smart-upload" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/smart-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Slim uploaden
+                    </Link>
+                    <Link href="/smart-images-upload" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/smart-images-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Slimme afbeeldingen
+                    </Link>
+                    <Link href="/product-import?manual=1" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Handmatige wizard
                     </Link>
                     <Link href="/product-cleanup" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-cleanup') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Opschonen
@@ -211,52 +217,26 @@ export default function AppNavigation() {
                     <Link href="/hvid-levering" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/hvid-levering') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Hvid Levering
                     </Link>
-                    <Link href="/playup-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/playup-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Match
-                    </Link>
-                    <Link href="/playup-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/playup-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Playup Images
-                    </Link>
-                    <Link href="/armedangels-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/armedangels-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Armedangels Images
-                    </Link>
-                    <Link href="/armedangels-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/armedangels-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Armedangels Image Matcher
-                    </Link>
-                    <Link href="/ao76-image-matcher" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ao76-image-matcher') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Ao76 Image Matcher
-                    </Link>
-                    <Link href="/onemore-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/onemore-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      👶 1+ in the family Images
-                    </Link>
-                    <Link href="/wyncken-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/wyncken-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🌻 Wynken Images
-                    </Link>
-                    <Link href="/product-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Ao76 Images Upload
-                    </Link>
-                    <Link href="/thenewsociety-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/thenewsociety-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🌿 The New Society Images
-                    </Link>
-                    <Link href="/weekendhousekids-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/weekendhousekids-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🏠 Weekend House Kids Images
-                    </Link>
-                    <Link href="/emileetida-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/emileetida-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🌸 Emile et Ida Images
-                    </Link>
-                    <Link href="/minirodini-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/minirodini-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🐼 Mini Rodini Images
-                    </Link>
-                    <Link href="/mipounet-images-import" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mipounet-images-import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🇪🇸 Mipounet Images
-                    </Link>
-                    <Link href="/fix-minirodini-names" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/fix-minirodini-names') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🔧 Mini Rodini Fix Names
-                    </Link>
                     <div className="border-t border-gray-100 my-1"></div>
                     <Link href="/afbeeldingen" onClick={() => setIsImporterenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/afbeeldingen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      Afbeeldingen
+                      Afbeeldingen (overzicht)
                     </Link>
+                    <details className="px-2 py-1">
+                      <summary className="px-2 py-1 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                        Merk-specifieke tools
+                      </summary>
+                      <div className="py-1">
+                        <Link href="/playup-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Play UP images</Link>
+                        <Link href="/armedangels-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Armedangels Images</Link>
+                        <Link href="/onemore-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">1+ in the family Images</Link>
+                        <Link href="/wyncken-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Wynken Images</Link>
+                        <Link href="/thenewsociety-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">The New Society Images</Link>
+                        <Link href="/weekendhousekids-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Weekend House Kids Images</Link>
+                        <Link href="/emileetida-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Emile et Ida Images</Link>
+                        <Link href="/minirodini-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Mini Rodini Images</Link>
+                        <Link href="/mipounet-images-import" onClick={() => setIsImporterenOpen(false)} className="block px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100">Mipounet Images</Link>
+                      </div>
+                    </details>
                   </div>
                 </div>
               )}
@@ -607,16 +587,38 @@ export default function AppNavigation() {
             </button>
             {mobileImporterenOpen && (
               <div className="pl-4 space-y-1 mt-1">
-                <Link
-                  href="/product-import"
+                <Link 
+                  href="/smart-upload" 
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/product-import')
-                      ? 'bg-blue-50 text-blue-700'
+                    isActive('/smart-upload') 
+                      ? 'bg-blue-50 text-blue-700' 
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                 >
-                  Import
+                  Slim uploaden
+                </Link>
+                <Link 
+                  href="/smart-images-upload" 
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/smart-images-upload') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Slimme afbeeldingen
+                </Link>
+                <Link 
+                  href="/product-import?manual=1" 
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/product-import') 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Handmatige wizard
                 </Link>
                 <Link 
                   href="/product-cleanup" 

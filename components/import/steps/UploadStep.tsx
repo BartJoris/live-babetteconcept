@@ -398,52 +398,81 @@ export default function UploadStep({ wizard }: UploadStepProps) {
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
         📤 Productgegevens uploaden
       </h2>
-      <p className="text-gray-800 dark:text-gray-300 mb-6 font-medium">
-        Selecteer eerst de leverancier en upload dan de productgegevens.
-      </p>
 
-      {/* Vendor Selection */}
-      <div className="mb-8">
-        <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">
-          1️⃣ Leverancier selecteren
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {wizard.getAllSuppliers().map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                wizard.setSelectedVendor(p.id);
-                wizard.setSupplierFiles({});
-                wizard.setSupplierFileStatus({});
-              }}
-              className={`border-2 rounded-lg p-6 text-center transition-all ${
-                wizard.selectedVendor === p.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-              }`}
+      {!wizard.selectedVendor ? (
+        <div className="space-y-6">
+          <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-2xl p-10 text-center bg-blue-50/50 dark:bg-blue-900/10">
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Slim uploaden is de standaard
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-lg mx-auto">
+              Sleep je CSV/PDF — we herkennen de leverancier automatisch. Geen
+              merkenlijst meer nodig.
+            </p>
+            <a
+              href="/smart-upload"
+              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
             >
-              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">
-                {p.displayName}
-              </h3>
-              <p className="text-sm text-gray-800 dark:text-gray-300">
-                {p.fileInputs.map((fi) => fi.label).join(' + ')}
-              </p>
-              {wizard.selectedVendor === p.id && (
-                <div className="mt-3 text-green-600 font-bold">
-                  ✓ Geselecteerd
-                </div>
-              )}
-            </button>
-          ))}
+              Ga naar slim uploaden
+            </a>
+          </div>
+
+          <details className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4">
+            <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
+              Handmatig leverancier kiezen (uitzondering)
+            </summary>
+            <div className="mt-4">
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Leverancier
+              </label>
+              <select
+                className="w-full max-w-md border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                defaultValue=""
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) return;
+                  wizard.setSelectedVendor(id);
+                  wizard.setSupplierFiles({});
+                  wizard.setSupplierFileStatus({});
+                }}
+              >
+                <option value="">— Kies —</option>
+                {wizard.getAllSuppliers().map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </details>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4">
+            <div className="text-sm text-gray-800 dark:text-gray-200">
+              Leverancier:{' '}
+              <strong>{plugin?.displayName || wizard.selectedVendor}</strong>
+            </div>
+            <a
+              href="/smart-upload"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Andere leverancier via slim uploaden
+            </a>
+          </div>
+
+          <p className="text-gray-800 dark:text-gray-300 mb-6 font-medium">
+            Upload de productbestanden voor {plugin?.displayName}.
+          </p>
+        </>
+      )}
 
       {/* File Upload */}
       {wizard.selectedVendor && plugin && (
         <>
           <div className="mb-6">
             <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">
-              2️⃣ Bestand uploaden
+              Bestand uploaden
             </h3>
 
             {/* Automatic Defaults Info */}
@@ -720,9 +749,13 @@ export default function UploadStep({ wizard }: UploadStepProps) {
       <SpreadsheetImportSection wizard={wizard} />
 
       {!wizard.selectedVendor && !wizard.spreadsheetResult && (
-        <div className="bg-gray-50 border border-gray-300 rounded-lg p-8 text-center">
-          <p className="text-gray-800">
-            👆 Selecteer een leverancier of importeer vanuit een spreadsheet
+        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center mt-6">
+          <p className="text-gray-700 dark:text-gray-300 text-sm">
+            Tip: gebruik{' '}
+            <a href="/smart-upload" className="text-blue-600 dark:text-blue-400 underline">
+              slim uploaden
+            </a>{' '}
+            — of kies hierboven handmatig een leverancier / spreadsheet.
           </p>
         </div>
       )}

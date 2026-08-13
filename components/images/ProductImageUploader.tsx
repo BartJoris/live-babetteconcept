@@ -75,6 +75,15 @@ export interface ProductImageUploaderProps {
   onUpload?: (images: PoolImage[]) => Promise<void>;
   isUploading?: boolean;
   uploadProgress?: ImageUploadProgress | null;
+  /** Called after the built-in Odoo upload finishes (not used when onUpload is set). */
+  onUploadComplete?: (results: UploadPoolResult[]) => void;
+  /** Live log lines during built-in upload. */
+  onUploadEvent?: (event: {
+    level: 'info' | 'warn' | 'error';
+    message: string;
+    reference?: string;
+    filename?: string;
+  }) => void;
 
   onSkip?: () => void;
 
@@ -100,6 +109,8 @@ export default function ProductImageUploader({
   onUpload,
   isUploading = false,
   uploadProgress: externalUploadProgress,
+  onUploadComplete,
+  onUploadEvent,
   onSkip,
   vendorId: initialVendorId,
   onVendorChange,
@@ -494,9 +505,11 @@ export default function ProductImageUploader({
         images: assigned,
         targets,
         onProgress: setInternalUploadProgress,
+        onEvent: onUploadEvent,
         concurrency: 1,
       });
       setUploadResults(results);
+      onUploadComplete?.(results);
       const failed = results.filter((r) => !r.success || r.failed > 0);
       if (failed.length > 0) {
         const sample = failed
@@ -514,7 +527,7 @@ export default function ProductImageUploader({
       setInternalUploadProgress(null);
       setInternalUploading(false);
     }
-  }, [images, targets, onUpload]);
+  }, [images, targets, onUpload, onUploadComplete, onUploadEvent]);
 
   // ─── Catalog: vendor selection ────────────────────────────────────────
   const handleVendorSelect = (vid: string) => {
@@ -928,19 +941,39 @@ export default function ProductImageUploader({
 
     if (!selectedVendor) {
       return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Kies leverancier</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {allSuppliers.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleVendorSelect(s.id)}
-                className="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
-              >
-                <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">{s.displayName}</div>
-              </button>
-            ))}
-          </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 space-y-4">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">
+            Kies leverancier
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Liever automatisch? Gebruik{' '}
+            <a
+              href="/smart-images-upload"
+              className="text-blue-600 dark:text-blue-400 underline"
+            >
+              slimme afbeeldingen
+            </a>{' '}
+            (CSV/import-log → foto&apos;s).
+          </p>
+          <label className="block text-sm text-gray-600 dark:text-gray-400">
+            Of kies handmatig:
+            <select
+              className="mt-2 w-full max-w-md border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) handleVendorSelect(e.target.value);
+              }}
+            >
+              <option value="">— Leverancier —</option>
+              {allSuppliers
+                .filter((s) => s.imageUpload?.enabled)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.displayName}
+                  </option>
+                ))}
+            </select>
+          </label>
         </div>
       );
     }

@@ -35,10 +35,16 @@ export default function ImportWizard() {
                 Slim uploaden
               </a>
               <a
-                href="/image-upload"
+                href="/smart-images-upload"
                 className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 text-sm whitespace-nowrap"
               >
-                Afbeeldingen
+                Slimme afbeeldingen
+              </a>
+              <a
+                href="/product-import?manual=1"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                Handmatige wizard
               </a>
               <a
                 href="/supplier-onboarding"

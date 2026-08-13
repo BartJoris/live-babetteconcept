@@ -35,4 +35,6 @@ export interface UploadPoolResult {
   uploaded: number;
   failed: number;
   errors: string[];
+  filenamesUploaded?: string[];
+  filenamesFailed?: string[];
 }

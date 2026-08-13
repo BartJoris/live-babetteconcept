@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { getSupplier, createParseContext } from '@/lib/suppliers';
+import { getSupplier, getAllSuppliers, createParseContext } from '@/lib/suppliers';
 
 interface DetectionMatch {
   supplierId: string;
@@ -337,6 +337,14 @@ export default function SmartUploadPage() {
     return 'Onzeker';
   };
 
+  const existingBrands = useMemo(
+    () =>
+      getAllSuppliers()
+        .map((s) => s.displayName)
+        .sort((a, b) => a.localeCompare(b, 'nl')),
+    [],
+  );
+
   return (
     <>
       <Head><title>Slim uploaden - Babette</title></Head>
@@ -352,7 +360,11 @@ export default function SmartUploadPage() {
             </h1>
             <p className="text-gray-700 dark:text-gray-300">
               Sleep één of meer bestanden hierheen (CSV + optionele RRP-PDF). Het systeem herkent de leverancier;
-              jij klikt daarna op Start import.
+              jij klikt daarna op Start import. Voor foto&apos;s achteraf:{' '}
+              <Link href="/smart-images-upload" className="text-blue-600 dark:text-blue-400 underline">
+                slimme afbeeldingen
+              </Link>
+              .
             </p>
           </div>
 
@@ -493,6 +505,22 @@ export default function SmartUploadPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              Bestaande merken ({existingBrands.length})
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {existingBrands.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Action area */}
