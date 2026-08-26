@@ -1,5 +1,5 @@
 import { parseEuroPrice } from '@/lib/import/shared/price-utils';
-import { determineSizeAttribute } from '@/lib/import/shared/size-utils';
+import { convertSize, determineSizeAttribute } from '@/lib/import/shared/size-utils';
 import type {
   SupplierPlugin,
   ParsedProduct,
@@ -7,6 +7,11 @@ import type {
   SupplierFiles,
   ParseContext,
 } from '@/lib/suppliers/types';
+import {
+  matchArticleColor,
+  type FubInvoiceLine,
+  type FubOrderLine,
+} from '@/lib/suppliers/fub/pdf';
 
 /**
  * FUB CSV format (Margot's list):
@@ -15,6 +20,10 @@ import type {
  * - Descriptions contain newlines inside quoted fields
  * - Sizes: "62 = 3 maand, 68 = 6 maand, 74 = 9 maand, ..."
  * - Names: "FUB - Baby body (butter)"
+ *
+ * PDF-only (Order confirmation + optional Invoice):
+ * - Order: EAN triplets + purchase price
+ * - Invoice: composition + unit/RRP
  */
 
 interface FubCsvProduct {
@@ -26,15 +35,8 @@ interface FubCsvProduct {
   sellingPrice: number;
 }
 
-interface FubPdfProduct {
-  articleName: string;
-  color: string;
-  totalQty: number;
-  unitPrice: number;
-  eanBySize: Array<{ euSize: string; qty: number; ean: string }>;
-}
-
-let pdfProductsCache: FubPdfProduct[] | null = null;
+let orderCache: FubOrderLine[] | null = null;
+let invoiceCache: FubInvoiceLine[] | null = null;
 
 function parseQuotedCSV(text: string): string[][] {
   const rows: string[][] = [];
@@ -83,7 +85,7 @@ function parseQuotedCSV(text: string): string[][] {
 
 function parseSizeField(sizeStr: string): Array<{ euSize: string; displaySize: string }> {
   if (!sizeStr) return [];
-  const pairs = sizeStr.split(',').map(s => s.trim()).filter(Boolean);
+  const pairs = sizeStr.split(',').map((s) => s.trim()).filter(Boolean);
   const result: Array<{ euSize: string; displaySize: string }> = [];
 
   for (const pair of pairs) {
@@ -118,9 +120,9 @@ function generateReference(name: string): string {
 function normalizeProductType(name: string): string {
   return name
     .replace(/^FUB\s*-\s*/i, '')
-    .replace(/\([^)]*\)\s*$/, '')       // remove trailing (color)
-    .replace(/\(\d+\s*SS\)/gi, '')      // remove (4726 SS) article codes
-    .replace(/\bSS\b/gi, '')            // remove standalone "SS"
+    .replace(/\([^)]*\)\s*$/, '') // remove trailing (color)
+    .replace(/\(\d+\s*(?:SS|AW|FW|PF)?\)/gi, '') // article codes
+    .replace(/\b(?:SS|AW|FW|PF)\b/gi, '')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ');
@@ -128,6 +130,12 @@ function normalizeProductType(name: string): string {
 
 function matchKey(type: string, color: string): string {
   return `${type}|${color}`;
+}
+
+function displayName(articleName: string, color: string): string {
+  const base = articleName.replace(/\s*\(\d+\s*(?:SS|AW|FW|PF)?\)\s*/i, ' ').trim();
+  const colorPart = color ? ` (${color})` : '';
+  return `FUB - ${base}${colorPart}`;
 }
 
 function parseFubCSV(text: string): FubCsvProduct[] {
@@ -153,24 +161,22 @@ function parseFubCSV(text: string): FubCsvProduct[] {
   return products;
 }
 
-function buildProducts(
+function buildFromCsv(
   csvProducts: FubCsvProduct[],
-  pdfProducts: FubPdfProduct[] | null,
+  orderProducts: FubOrderLine[] | null,
   context: ParseContext,
 ): ParsedProduct[] {
   const suggestedBrand = context.findBrand('fub');
   const products: ParsedProduct[] = [];
 
-  // Build lookup maps for PDF matching: (normalizedType|color) → pdfProduct
-  const pdfByTypeColor = new Map<string, FubPdfProduct>();
-  const pdfByColor = new Map<string, FubPdfProduct>();
-  const pdfUsed = new Set<FubPdfProduct>();
-  if (pdfProducts) {
-    for (const pp of pdfProducts) {
+  const pdfByTypeColor = new Map<string, FubOrderLine>();
+  const pdfByColor = new Map<string, FubOrderLine>();
+  const pdfUsed = new Set<FubOrderLine>();
+  if (orderProducts) {
+    for (const pp of orderProducts) {
       const pdfType = normalizeProductType(pp.articleName);
       const pdfColor = pp.color.toLowerCase();
       pdfByTypeColor.set(matchKey(pdfType, pdfColor), pp);
-      // Only store first occurrence per color (fallback)
       if (!pdfByColor.has(pdfColor)) {
         pdfByColor.set(pdfColor, pp);
       }
@@ -186,10 +192,8 @@ function buildProducts(
     const reference = generateReference(csv.name);
     const material = extractMaterial(csv.description);
 
-    // Match: first by (type+color), then fallback to color-only
     let pdfMatch = pdfByTypeColor.get(matchKey(csvType, color));
     if (!pdfMatch && color) {
-      // Fallback: try color-only but only if not already used
       const colorMatch = pdfByColor.get(color);
       if (colorMatch && !pdfUsed.has(colorMatch)) {
         pdfMatch = colorMatch;
@@ -197,11 +201,11 @@ function buildProducts(
     }
     if (pdfMatch) pdfUsed.add(pdfMatch);
 
-    const variants = sizes.map(s => {
+    const variants = sizes.map((s) => {
       let ean = '';
       let qty = 1;
       if (pdfMatch) {
-        const eanEntry = pdfMatch.eanBySize.find(e => e.euSize === s.euSize);
+        const eanEntry = pdfMatch.eanBySize.find((e) => e.euSize === s.euSize);
         if (eanEntry) {
           ean = eanEntry.ean;
           qty = eanEntry.qty;
@@ -242,14 +246,98 @@ function buildProducts(
   return products;
 }
 
+function buildFromOrderAndInvoice(
+  orderProducts: FubOrderLine[],
+  invoiceProducts: FubInvoiceLine[] | null,
+  context: ParseContext,
+): ParsedProduct[] {
+  const suggestedBrand = context.findBrand('fub');
+  const invoiceByKey = new Map<string, FubInvoiceLine>();
+  if (invoiceProducts) {
+    for (const inv of invoiceProducts) {
+      invoiceByKey.set(matchArticleColor(inv.articleCode, inv.color), inv);
+    }
+  }
+
+  const products: ParsedProduct[] = [];
+
+  for (const order of orderProducts) {
+    if (!order.eanBySize.length) continue;
+
+    const inv = invoiceByKey.get(matchArticleColor(order.articleCode, order.color));
+    const material = inv?.composition || '';
+    const unitPrice = order.unitPrice || inv?.unitPrice || 0;
+    const rrp = inv?.rrp || 0;
+    const name = displayName(order.articleName, order.color);
+    const reference = generateReference(name);
+
+    const variants = order.eanBySize.map((e) => ({
+      size: convertSize(e.euSize),
+      ean: e.ean,
+      sku: `${reference}-${e.euSize}`,
+      quantity: e.qty,
+      price: unitPrice,
+      rrp,
+    }));
+
+    const product: ParsedProduct = {
+      reference,
+      name,
+      originalName: order.articleName,
+      material,
+      color: order.color,
+      ecommerceDescription: material || undefined,
+      variants,
+      suggestedBrand: suggestedBrand?.name || 'FUB',
+      selectedBrand: suggestedBrand,
+      publicCategories: [],
+      productTags: [],
+      isFavorite: false,
+      isPublished: true,
+      rrpSource: inv?.rrp ? 'pdf' : undefined,
+    };
+
+    product.sizeAttribute = determineSizeAttribute(product.variants);
+    products.push(product);
+  }
+
+  return products;
+}
+
+function readCachedProducts<T>(raw: unknown): T[] | null {
+  if (!raw || typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw) as { products?: T[] };
+    if (parsed && Array.isArray(parsed.products)) {
+      return parsed.products;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 function parse(files: SupplierFiles, context: ParseContext): ParsedProduct[] {
-  const csvText = files['main_csv'] as string;
-  if (!csvText) return [];
+  const csvText = files['main_csv'] as string | undefined;
 
-  const csvProducts = parseFubCSV(csvText);
-  if (csvProducts.length === 0) return [];
+  // Prefer live caches when processPdfResults already ran this session
+  const orderProducts =
+    orderCache || readCachedProducts<FubOrderLine>(files['pdf_order']);
+  const invoiceProducts =
+    invoiceCache || readCachedProducts<FubInvoiceLine>(files['pdf_invoice']);
 
-  return buildProducts(csvProducts, pdfProductsCache, context);
+  if (csvText) {
+    const csvProducts = parseFubCSV(csvText);
+    if (csvProducts.length > 0) {
+      return buildFromCsv(csvProducts, orderProducts, context);
+    }
+  }
+
+  if (orderProducts && orderProducts.length > 0) {
+    return buildFromOrderAndInvoice(orderProducts, invoiceProducts, context);
+  }
+
+  return [];
 }
 
 function processPdfResults(
@@ -257,39 +345,45 @@ function processPdfResults(
   existingProducts: ParsedProduct[],
   context: ParseContext,
 ): EnrichmentResult {
-  const pdfProducts = (pdfData.products || []) as FubPdfProduct[];
-  if (pdfProducts.length === 0) {
-    return { products: existingProducts, message: 'Geen producten gevonden in de FUB PDF.' };
-  }
+  const kind = (pdfData.kind as string) || 'order';
+  const productsPayload = (pdfData.products || []) as Array<Record<string, unknown>>;
 
-  pdfProductsCache = pdfProducts;
-
-  if (existingProducts.length === 0) {
+  if (productsPayload.length === 0) {
     return {
       products: existingProducts,
-      message: `${pdfProducts.length} producten met EAN codes geladen uit PDF. Upload de FUB CSV voor productdata.`,
+      message: 'Geen producten gevonden in de FUB PDF.',
     };
   }
 
-  // Re-build products with EAN enrichment
-  const csvProducts = existingProducts.map(p => ({
-    name: p.name,
-    sizes: p.variants.map(v => {
-      const euMatch = v.sku?.match(/-(\d{2,3})$/);
-      return euMatch ? `${euMatch[1]} = ${v.size}` : v.size;
-    }).join(', '),
-    category: p.csvCategory || '',
-    description: p.ecommerceDescription || '',
-    purchasePrice: p.variants[0]?.price || 0,
-    sellingPrice: p.variants[0]?.rrp || 0,
-  }));
+  if (kind === 'invoice') {
+    invoiceCache = productsPayload as unknown as FubInvoiceLine[];
+  } else {
+    orderCache = productsPayload as unknown as FubOrderLine[];
+  }
 
-  const enriched = buildProducts(csvProducts, pdfProducts, context);
+  // Rebuild from caches (order required for PDF-only; invoice enriches)
+  if (orderCache && orderCache.length > 0) {
+    const built = buildFromOrderAndInvoice(orderCache, invoiceCache, context);
+    const eanCount = built.reduce((sum, p) => sum + p.variants.filter((v) => v.ean).length, 0);
+    const rrpCount = built.filter((p) => p.variants.some((v) => v.rrp > 0)).length;
+    const parts = [`${built.length} producten`, `${eanCount} EANs`];
+    if (invoiceCache?.length) parts.push(`RRP op ${rrpCount}`);
+    return {
+      products: built,
+      message: `${parts.join(', ')} uit FUB PDF.`,
+    };
+  }
 
-  const eanCount = enriched.reduce((sum, p) => sum + p.variants.filter(v => v.ean).length, 0);
+  if (kind === 'invoice') {
+    return {
+      products: existingProducts,
+      message: `${invoiceCache?.length || 0} factuurregels geladen. Upload ook de Order Confirmation voor EANs.`,
+    };
+  }
+
   return {
-    products: enriched,
-    message: `${eanCount} EAN codes toegevoegd uit de PDF aan ${enriched.length} producten.`,
+    products: existingProducts,
+    message: `${orderCache?.length || 0} orderregels geladen. Upload de FUB CSV of Invoice voor RRP.`,
   };
 }
 
@@ -303,19 +397,66 @@ const fubPlugin: SupplierPlugin = {
   displayName: 'FUB',
   brandName: 'FUB',
   fileInputs: [
-    { id: 'main_csv', label: 'FUB Product CSV', accept: '.csv', required: true, type: 'csv' },
-    { id: 'pdf_order', label: 'FUB Order PDF (optioneel - EAN codes)', accept: '.pdf', required: false, type: 'pdf' },
+    {
+      id: 'main_csv',
+      label: 'FUB Product CSV (optioneel)',
+      accept: '.csv',
+      required: false,
+      type: 'csv',
+    },
+    {
+      id: 'pdf_order',
+      label: 'FUB Order Confirmation PDF',
+      accept: '.pdf',
+      required: false,
+      type: 'pdf',
+    },
+    {
+      id: 'pdf_invoice',
+      label: 'FUB Invoice PDF (optioneel - RRP + materiaal)',
+      accept: '.pdf',
+      required: false,
+      type: 'pdf',
+    },
   ],
   fileDetection: [
     {
       fileInputId: 'main_csv',
       detect: (text) => isFubCSV(text),
     },
+    {
+      fileInputId: 'pdf_order',
+      detect: (_text, filename) => {
+        const l = (filename || '').toLowerCase();
+        return l.includes('fub') && (l.includes('order') || l.includes('confirmation'));
+      },
+    },
+    {
+      fileInputId: 'pdf_invoice',
+      detect: (_text, filename) => {
+        const l = (filename || '').toLowerCase();
+        return l.includes('fub') && (l.includes('invoice') || l.includes('factuur'));
+      },
+    },
   ],
-  serverSideFileInputs: ['pdf_order'],
+  serverSideFileInputs: ['pdf_order', 'pdf_invoice'],
   pdfParseEndpoint: '/api/parse-fub-pdf',
   parse,
   processPdfResults,
 };
 
 export default fubPlugin;
+
+/** Test helpers */
+export const __test__ = {
+  buildFromOrderAndInvoice,
+  buildFromCsv,
+  resetCaches: () => {
+    orderCache = null;
+    invoiceCache = null;
+  },
+  setCaches: (order: FubOrderLine[] | null, invoice: FubInvoiceLine[] | null) => {
+    orderCache = order;
+    invoiceCache = invoice;
+  },
+};

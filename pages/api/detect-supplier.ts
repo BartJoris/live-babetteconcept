@@ -566,6 +566,46 @@ const SUPPLIER_RULES: SupplierRule[] = [
     ],
   },
 
+  // ── FUB ── (Order Confirmation PDF + optional Invoice / optional CSV)
+  {
+    supplierId: 'fub',
+    supplierName: 'FUB',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'FUB Product CSV',
+      detect: (headers, text, fileName) => {
+        const l = `${fileName}\n${text}`.toLowerCase();
+        if (l.includes('fub') && (l.includes('maten') || l.includes('aankoopprijs'))) return 0.9;
+        if (headers.some((h) => h.toLowerCase().includes('maten')) && l.includes('fub')) return 0.85;
+        return 0;
+      },
+      reason: 'FUB productlijst (Naam;Maten;Aankoopprijs)',
+    }],
+    pdfRules: [
+      {
+        fileInputId: 'pdf_order',
+        fileInputLabel: 'FUB Order Confirmation PDF',
+        detect: (fn) => {
+          const l = fn.toLowerCase();
+          if (l.includes('fub') && (l.includes('order') || l.includes('confirmation'))) return 0.95;
+          if (l.includes('fub') && l.includes('aw') && !l.includes('invoice')) return 0.7;
+          return 0;
+        },
+        reason: 'FUB Order Confirmation PDF',
+      },
+      {
+        fileInputId: 'pdf_invoice',
+        fileInputLabel: 'FUB Invoice PDF',
+        detect: (fn) => {
+          const l = fn.toLowerCase();
+          if (l.includes('fub') && (l.includes('invoice') || l.includes('factuur'))) return 0.95;
+          return 0;
+        },
+        reason: 'FUB Invoice PDF (RRP + materiaal)',
+      },
+    ],
+  },
+
   // ── Dr Bloom ── (PDF only: proforma invoice)
   {
     supplierId: 'drbloom',

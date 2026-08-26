@@ -3,6 +3,11 @@ import formidable from 'formidable';
 import fs from 'fs';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { extractPdfText } from '@/lib/pdf/extractText';
+import {
+  detectFubPdfKind,
+  extractFubInvoiceProducts,
+  extractFubOrderProducts,
+} from '@/lib/suppliers/fub/pdf';
 
 export const config = {
   api: {
@@ -10,103 +15,7 @@ export const config = {
   },
 };
 
-interface FubPdfProduct {
-  articleName: string;
-  color: string;
-  totalQty: number;
-  unitPrice: number;
-  eanBySize: Array<{ euSize: string; qty: number; ean: string }>;
-}
-
-/**
- * FUB Order Confirmation PDF structure (clean text):
- *   Baby SS Body (4726 SS) butter 5 Pcs 90,00
- *   Certificate: 19981 (GOTS organic)
- *   EAN codes
- *   62\n1\n5712199417761\n68\n1\n5712199417778\n...
- *   18,00
- */
-function extractProducts(pdfText: string): FubPdfProduct[] {
-  const lines = pdfText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const products: FubPdfProduct[] = [];
-
-  const productLineRe = /^(.+?)\s+(\d+)\s+Pcs\s+([\d.,]+)$/;
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    const productMatch = line.match(productLineRe);
-
-    if (!productMatch) {
-      i++;
-      continue;
-    }
-
-    const fullArticle = productMatch[1].trim();
-    const totalQty = parseInt(productMatch[2]);
-
-    // Extract color: last word(s) after the article code pattern "(XXXX SS)"
-    let articleName = fullArticle;
-    let color = '';
-    const codeMatch = fullArticle.match(/^(.+?\(\d+\s*SS\))\s+(.+)$/i);
-    if (codeMatch) {
-      articleName = codeMatch[1].trim();
-      color = codeMatch[2].trim().toLowerCase();
-    }
-
-    console.log(`🔍 Product: "${articleName}" color="${color}" qty=${totalQty}`);
-
-    // Skip certificate and "EAN codes" lines
-    i++;
-    while (i < lines.length && (lines[i].startsWith('Certificate:') || lines[i] === 'EAN codes')) {
-      i++;
-    }
-
-    // Parse EAN triplets: euSize, qty, ean
-    const eanBySize: Array<{ euSize: string; qty: number; ean: string }> = [];
-    while (i < lines.length) {
-      const sizeLine = lines[i];
-      // EU sizes are 2-3 digit numbers
-      if (!/^\d{2,3}$/.test(sizeLine)) break;
-
-      const euSize = sizeLine;
-      const qty = parseInt(lines[i + 1]) || 1;
-      const ean = lines[i + 2] || '';
-
-      if (/^\d{10,13}$/.test(ean)) {
-        eanBySize.push({ euSize, qty, ean });
-        i += 3;
-      } else {
-        break;
-      }
-    }
-
-    // Unit price: next decimal number
-    let unitPrice = 0;
-    if (i < lines.length) {
-      const priceMatch = lines[i].match(/^([\d.,]+)$/);
-      if (priceMatch) {
-        unitPrice = parseFloat(priceMatch[1].replace(',', '.'));
-        i++;
-      }
-    }
-
-    console.log(`   EAN codes: ${eanBySize.length}, unitPrice: ${unitPrice}`);
-
-    products.push({
-      articleName,
-      color,
-      totalQty,
-      unitPrice,
-      eanBySize,
-    });
-  }
-
-  return products;
-}
-
-async function handler(
-  req: NextApiRequestWithSession, res: NextApiResponse) {
+async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -120,7 +29,8 @@ async function handler(
       return res.status(400).json({ error: 'No PDF file uploaded' });
     }
 
-    console.log(`📋 Parsing FUB PDF: ${pdfFile.originalFilename}`);
+    const fileName = pdfFile.originalFilename || '';
+    console.log(`📋 Parsing FUB PDF: ${fileName}`);
 
     const pdfBuffer = fs.readFileSync(pdfFile.filepath);
     const pdfData = new Uint8Array(pdfBuffer);
@@ -130,21 +40,45 @@ async function handler(
       pdfText = await extractPdfText(pdfData);
       console.log(`✅ Extracted ${pdfText.length} characters from PDF`);
     } catch (pdfError) {
-      return res.status(500).json({ success: false, error: 'Failed to parse PDF: ' + (pdfError as Error).message });
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to parse PDF: ' + (pdfError as Error).message,
+      });
     }
 
-    const products = extractProducts(pdfText);
+    const kind = detectFubPdfKind(pdfText, fileName);
+    if (kind === 'invoice') {
+      const products = extractFubInvoiceProducts(pdfText);
+      if (products.length === 0) {
+        return res.status(200).json({
+          success: false,
+          kind,
+          error: 'No products found in FUB invoice PDF.',
+          debugText: pdfText.substring(0, 5000),
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        kind: 'invoice',
+        products,
+        productCount: products.length,
+      });
+    }
 
+    // Default / order confirmation
+    const products = extractFubOrderProducts(pdfText);
     if (products.length === 0) {
       return res.status(200).json({
         success: false,
-        error: 'No products found in FUB PDF.',
+        kind: kind === 'unknown' ? 'order' : kind,
+        error: 'No products found in FUB order PDF.',
         debugText: pdfText.substring(0, 5000),
       });
     }
 
     return res.status(200).json({
       success: true,
+      kind: 'order',
       products,
       productCount: products.length,
     });
