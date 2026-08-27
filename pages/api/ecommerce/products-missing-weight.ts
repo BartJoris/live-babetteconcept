@@ -1,6 +1,9 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '../../../lib/middleware/withAuth';
 import { odooClient } from '../../../lib/odooClient';
+import { isMissingWeight } from '../../../lib/retail/missingWeight';
+
+const ODOO_READ_LIMIT = 20000;
 
 interface ProductMissingWeight {
   id: number;
@@ -36,7 +39,8 @@ async function handler(
       user.password,
       'product.template',
       [['website_published', '=', true]],
-      ['id', 'name']
+      ['id', 'name'],
+      ODOO_READ_LIMIT
     );
 
     const templateIds = publishedTemplates.map((t) => t.id);
@@ -61,7 +65,10 @@ async function handler(
       user.uid,
       user.password,
       'product.product',
-      [['product_tmpl_id', 'in', templateIds]],
+      [
+        ['product_tmpl_id', 'in', templateIds],
+        ['weight', '=', 0],
+      ],
       [
         'id',
         'name',
@@ -72,14 +79,13 @@ async function handler(
         'default_code',
         'qty_available',
         'list_price',
-      ]
+      ],
+      ODOO_READ_LIMIT
     );
 
     // Filter varianten zonder gewicht of met gewicht 0
     // Dit zijn de varianten die daadwerkelijk verzonden worden
-    const productsWithoutWeight = products.filter(
-      (p) => !p.weight || p.weight === 0
-    );
+    const productsWithoutWeight = products.filter((p) => isMissingWeight(p.weight));
 
     // Converteer naar ProductMissingWeight formaat
     const result: ProductMissingWeight[] = productsWithoutWeight.map((p) => ({

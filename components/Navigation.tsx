@@ -79,7 +79,7 @@ export default function AppNavigation() {
   };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/ecommerce-depubliceren', '/stock-verkopen', '/offerte-excel', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/gewicht-aanpassen', '/ecommerce-depubliceren', '/stock-verkopen', '/offerte-excel', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
   };
 
   return (
@@ -281,8 +281,8 @@ export default function AppNavigation() {
                     <Link href="/inventaris-pos-match" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/inventaris-pos-match') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       ✅ Inventaris POS Match
                     </Link>
-                    <Link href="/ecommerce-beheer" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/ecommerce-beheer') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      🛍️ E-commerce Beheer
+                    <Link href="/gewicht-aanpassen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/gewicht-aanpassen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      ⚖️ Gewicht aanpassen
                     </Link>
                     <Link href="/product-check" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/product-check') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       🔍 Product Controleren
@@ -934,15 +934,15 @@ export default function AppNavigation() {
                   ✅ Inventaris POS Match
                 </Link>
                 <Link
-                  href="/ecommerce-beheer"
+                  href="/gewicht-aanpassen"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/ecommerce-beheer')
+                    isActive('/gewicht-aanpassen')
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                 >
-                  🛍️ E-commerce Beheer
+                  ⚖️ Gewicht aanpassen
                 </Link>
                 <Link
                   href="/product-check"
