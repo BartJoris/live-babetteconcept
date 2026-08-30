@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import {
+  nonMolliePaymentMarks,
+  type PosPaymentMark,
+} from '@/lib/posPaymentLabel';
 
 type OrderLine = {
   product_name: string;
@@ -12,7 +16,77 @@ type Sale = {
   total: number;
   timestamp: string;
   partner?: string | null;
+  paymentMarks: PosPaymentMark[];
 };
+
+type OdooMany2one = [number, string];
+
+type OdooPosOrder = {
+  id: number;
+  amount_total: number;
+  date_order: string;
+  partner_id?: OdooMany2one | false;
+};
+
+type OdooPosPayment = {
+  pos_order_id: OdooMany2one | false;
+  payment_method_id: OdooMany2one | false;
+};
+
+function many2oneId(value: OdooMany2one | false | undefined): number | null {
+  return Array.isArray(value) ? value[0] : null;
+}
+
+function many2oneName(value: OdooMany2one | false | undefined): string {
+  return Array.isArray(value) ? value[1] : '';
+}
+
+function mapOrdersWithPayments(orders: OdooPosOrder[], payments: OdooPosPayment[]): Sale[] {
+  const methodsByOrder = new Map<number, { name: string }[]>();
+  for (const payment of payments) {
+    const orderId = many2oneId(payment.pos_order_id);
+    if (orderId == null) continue;
+    const list = methodsByOrder.get(orderId) ?? [];
+    list.push({ name: many2oneName(payment.payment_method_id) });
+    methodsByOrder.set(orderId, list);
+  }
+
+  return orders.map((order) => ({
+    id: order.id,
+    total: order.amount_total,
+    timestamp: order.date_order,
+    partner: many2oneName(order.partner_id) || null,
+    paymentMarks: nonMolliePaymentMarks(methodsByOrder.get(order.id) ?? []),
+  }));
+}
+
+function paymentMarkTone(kind: PosPaymentMark['kind']): string {
+  switch (kind) {
+    case 'cash':
+      return 'text-amber-800 bg-amber-50 ring-amber-200/80';
+    case 'transfer':
+      return 'text-slate-700 bg-slate-100 ring-slate-200/80';
+    case 'other':
+      return 'text-gray-600 bg-gray-50 ring-gray-200/80';
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
+  }
+}
+
+function PaymentMarkBadge({ mark }: { mark: PosPaymentMark }) {
+  return (
+    <span
+      title={mark.label}
+      aria-label={`Niet via Mollie: ${mark.label}`}
+      className={`shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded-md ring-1 font-medium ${paymentMarkTone(mark.kind)}`}
+    >
+      <span className="sm:hidden">{mark.shortLabel}</span>
+      <span className="hidden sm:inline">{mark.label}</span>
+    </span>
+  );
+}
 
 type SessionData = {
   session_id: number;
@@ -60,6 +134,50 @@ export default function DashboardPage() {
     }
     return json.result as T;
   }, []);
+
+  const fetchPaymentsForOrders = useCallback(
+    async (orderIds: number[]): Promise<OdooPosPayment[]> => {
+      if (orderIds.length === 0) return [];
+      try {
+        return await fetchFromOdoo<OdooPosPayment[]>({
+          model: 'pos.payment',
+          method: 'search_read',
+          args: [
+            [['pos_order_id', 'in', orderIds]],
+            ['pos_order_id', 'payment_method_id'],
+          ],
+        });
+      } catch (err) {
+        console.error('Fout bij ophalen POS-betalingen:', err);
+        return [];
+      }
+    },
+    [fetchFromOdoo],
+  );
+
+  const loadOrdersForSession = useCallback(
+    async (sessionId: number, sessionName: string, markAsHistorical: boolean) => {
+      const orders = await fetchFromOdoo<OdooPosOrder[]>({
+        model: 'pos.order',
+        method: 'search_read',
+        args: [
+          [['session_id', '=', sessionId]],
+          ['id', 'amount_total', 'date_order', 'partner_id'],
+        ],
+      });
+      const payments = await fetchPaymentsForOrders(orders.map((order) => order.id));
+      const mappedOrders = mapOrdersWithPayments(orders, payments);
+      const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
+      setShowingLastSession(markAsHistorical);
+      setData({
+        session_id: sessionId,
+        session_name: sessionName,
+        total,
+        orders: mappedOrders,
+      });
+    },
+    [fetchFromOdoo, fetchPaymentsForOrders],
+  );
 
   const fetchLastSession = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -117,7 +235,6 @@ export default function DashboardPage() {
         method: 'search_read',
         args: [
           [['state', '=', 'opened']],
-          // [['id', '=', "00908"]],
           ['id', 'name'],
           0,
           1,
@@ -127,89 +244,29 @@ export default function DashboardPage() {
 
       if (!sessions.length) {
         setData(null);
-        // Fetch last session when no active session is found
         await fetchLastSession();
         return;
       }
 
-      const session = sessions[0];
-
-      const orders = await fetchFromOdoo<{
-        id: number;
-        amount_total: number;
-        date_order: string;
-        partner_id?: [number, string];
-      }[]>({
-        model: 'pos.order',
-        method: 'search_read',
-        args: [
-          [['session_id', '=', session.id]],
-          ['id', 'amount_total', 'date_order', 'partner_id'],
-        ],
-      });
-
-      const mappedOrders: Sale[] = orders.map((order) => ({
-        id: order.id,
-        total: order.amount_total,
-        timestamp: order.date_order,
-        partner: order.partner_id?.[1] || null,
-      }));
-
-      const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
-
-      setData({
-        session_id: session.id,
-        session_name: session.name,
-        total,
-        orders: mappedOrders,
-      });
+      await loadOrdersForSession(sessions[0].id, sessions[0].name, false);
     } catch (err) {
       console.error('Fout bij ophalen POS-data:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, fetchFromOdoo, fetchLastSession]);
+  }, [isLoggedIn, fetchFromOdoo, fetchLastSession, loadOrdersForSession]);
 
   const fetchLastSessionSales = useCallback(async () => {
     if (!isLoggedIn || !lastSession) return;
     setLoading(true);
-    setShowingLastSession(true);
     try {
-      const orders = await fetchFromOdoo<{
-        id: number;
-        amount_total: number;
-        date_order: string;
-        partner_id?: [number, string];
-      }[]>({
-        model: 'pos.order',
-        method: 'search_read',
-        args: [
-          [['session_id', '=', lastSession.session_id]],
-          ['id', 'amount_total', 'date_order', 'partner_id'],
-        ],
-      });
-
-      const mappedOrders: Sale[] = orders.map((order) => ({
-        id: order.id,
-        total: order.amount_total,
-        timestamp: order.date_order,
-        partner: order.partner_id?.[1] || null,
-      }));
-
-      const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
-
-      setData({
-        session_id: lastSession.session_id,
-        session_name: lastSession.session_name,
-        total,
-        orders: mappedOrders,
-      });
+      await loadOrdersForSession(lastSession.session_id, lastSession.session_name, true);
     } catch (err) {
       console.error('Fout bij ophalen laatste sessie data:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, lastSession, fetchFromOdoo]);
+  }, [isLoggedIn, lastSession, loadOrdersForSession]);
 
   const toggleOrder = async (orderId: number) => {
     const isExpanded = expandedOrders[orderId];
@@ -233,10 +290,10 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (isLoggedIn && !authLoading) {
+    if (mounted && isLoggedIn && !authLoading) {
       fetchSales();
     }
-  }, [isLoggedIn, authLoading, fetchSales]);
+  }, [mounted, isLoggedIn, authLoading, fetchSales]);
 
   if (!mounted || authLoading) {
     return (
@@ -249,12 +306,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <div className="p-4">
-        <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🧾 POS Verkoopoverzicht</h1>
+        <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-3 sm:p-6">
+          <div className="flex justify-between items-center gap-2 mb-4">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">🧾 POS Verkoopoverzicht</h1>
             <button
               onClick={fetchSales}
-              className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
+              className="shrink-0 text-sm px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow"
             >
               🔄 Refresh
             </button>
@@ -266,8 +323,8 @@ export default function DashboardPage() {
           <>
             {showingLastSession && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <p className="text-yellow-800">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <p className="text-yellow-800 text-sm">
                     📋 Bekijkt laatste gesloten sessie: <strong>{data.session_name}</strong>
                   </p>
                   <button
@@ -298,11 +355,30 @@ export default function DashboardPage() {
                 <li key={order.id} className="border border-gray-200 bg-white rounded-xl shadow-sm">
                   <button
                     onClick={() => toggleOrder(order.id)}
-                    className="w-full px-4 py-2 flex justify-between items-center"
+                    className="w-full px-3 sm:px-4 py-2 flex items-center gap-2 min-w-0 text-left"
                   >
-                    <span>{new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', { timeZone: 'Europe/Brussels' })}</span>
-                    <span className="text-sm text-gray-800">{order.partner || '-'}</span>
-                    <span className="font-bold text-blue-800">€ {order.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="shrink-0 tabular-nums text-sm text-gray-600">
+                      {new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', {
+                        timeZone: 'Europe/Brussels',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                      {order.partner || '-'}
+                    </span>
+                    <span className="shrink-0 flex flex-col items-end gap-0.5">
+                      <span className="font-bold text-blue-800 tabular-nums text-sm">
+                        € {order.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      {order.paymentMarks.length > 0 && (
+                        <span className="flex flex-wrap justify-end gap-1">
+                          {order.paymentMarks.map((mark) => (
+                            <PaymentMarkBadge key={`${order.id}-${mark.kind}-${mark.label}`} mark={mark} />
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   </button>
 
                   {expandedOrders[order.id] && (
