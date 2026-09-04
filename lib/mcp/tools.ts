@@ -14,6 +14,7 @@ import {
   searchCategories,
 } from '@/lib/retail/sellThrough';
 import { analyzeSoldenDiscounts } from '@/lib/retail/soldenDiscountAnalysis';
+import { analyzeSeasonInsights } from '@/lib/retail/seasonInsights';
 import {
   categorySearchAliases,
   countAssortment,
@@ -238,6 +239,25 @@ const analyzeAssortmentSchema = z
       });
     }
   });
+
+const analyzeSeasonCloseoutSchema = z.object({
+  category: z
+    .string()
+    .min(1)
+    .describe('Collection/category, e.g. "Zomer 2026"'),
+  year: z
+    .number()
+    .int()
+    .min(2020)
+    .max(2100)
+    .optional()
+    .describe('Calendar year for solden windows (default: current year)'),
+  quotationName: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Optional B2B quotation name for the 20% stock sale'),
+});
 
 const rankBrandsSchema = z
   .object({
@@ -642,6 +662,20 @@ async function analyzeAssortmentTool(
   return jsonResult(result);
 }
 
+async function analyzeSeasonCloseoutTool(
+  args: z.infer<typeof analyzeSeasonCloseoutSchema>
+): Promise<string> {
+  const { uid, password } = await getMcpOdooCredentials();
+  const result = await analyzeSeasonInsights({
+    uid,
+    password,
+    category: args.category,
+    year: args.year,
+    quotationName: args.quotationName,
+  });
+  return jsonResult(result);
+}
+
 async function rankBrandsTool(
   args: z.infer<typeof rankBrandsSchema>
 ): Promise<string> {
@@ -826,6 +860,15 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     inputSchema: analyzeAssortmentSchema,
     execute: async (args) =>
       analyzeAssortmentTool(analyzeAssortmentSchema.parse(args)),
+  },
+  {
+    name: 'analyze_season_closeout',
+    description:
+      'Collection close-out: regular vs solden vs leftover vs 20% B2B stock sale, plus profit (omzet − standard_price). Use for "hoe was Zomer 2026", reguliere periode, voorraad bij start solden, stockverkoop, winst.',
+    access: 'read',
+    inputSchema: analyzeSeasonCloseoutSchema,
+    execute: async (args) =>
+      analyzeSeasonCloseoutTool(analyzeSeasonCloseoutSchema.parse(args)),
   },
   {
     name: 'rank_brands',

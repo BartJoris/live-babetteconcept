@@ -6,6 +6,12 @@
     "pages/api/suppliers/onboard.ts": {
       "maxDuration": 60
     },
+    "pages/api/season-insights.ts": {
+      "maxDuration": 60
+    },
+    "pages/api/accounting-insights.ts": {
+      "maxDuration": 60
+    },
     "pages/api/**/*.ts": {
       "maxDuration": 30
     },

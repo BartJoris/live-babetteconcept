@@ -88,7 +88,7 @@ export function computeSellThroughPct(unitsSold: number, openingStock: number, s
   return (unitsSold / available) * 100;
 }
 
-async function getMerkAttributeIds(uid: number, password: string): Promise<number[]> {
+export async function getMerkAttributeIds(uid: number, password: string): Promise<number[]> {
   const attrs = await odooClient.searchRead<{ id: number }>(
     uid,
     password,
@@ -129,7 +129,7 @@ async function findBrandValue(
   return fuzzy[0] ?? null;
 }
 
-async function findCategory(
+export async function findCategory(
   uid: number,
   password: string,
   name: string
@@ -193,7 +193,7 @@ export async function collectCategoryTreeIds(
   return [...ids];
 }
 
-async function getTemplateIdsWithAttribute(
+export async function getTemplateIdsWithAttribute(
   uid: number,
   password: string,
   attributeIds: number[],
@@ -554,7 +554,7 @@ export async function analyzeAssortment(input: {
   };
 }
 
-async function buildBrandTemplateMap(
+export async function buildBrandTemplateMap(
   uid: number,
   password: string
 ): Promise<{

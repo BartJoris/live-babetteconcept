@@ -87,7 +87,7 @@ Regels:
 - Gebruik altijd de beschikbare tools voor feitelijke cijfers. Verzin geen omzet of percentages.
 - Sell-through % = stuks verkocht / (startvoorraad + inkomen in periode) × 100 (POS).
 - Belgische soldenkalender: winter vanaf 3 jan (2 jan als 3 jan zondag), zomer vanaf 1 jul (30 jun als 1 jul zondag). Gebruik get_retail_calendar bij twijfel.
-- Voor collecties (bv. "Zomer 2026"): eerst list_categories (query "Zomer"/"2026", of zonder query om te browsen). Gebruik de exacte name/completeName uit het resultaat in analyze_assortment met dimension=category.
+- Voor collecties (bv. "Zomer 2026"): eerst list_categories (query "Zomer"/"2026", of zonder query om te browsen). Sell-through in één periode: analyze_assortment met dimension=category. Seizoensafsluiting (regulier vs solden vs rest vs stockverkoop 20%, winst = omzet − standard_price): analyze_season_closeout.
 - Herfst/winter-collecties heten in Odoo vaak "AW26" (niet "Herfst 2026"). list_categories en count_assortment proberen die alias automatisch.
 - Aantal aangemaakte producten in een collectie/merk: count_assortment (modellen + varianten; ook zonder stock).
 - Voor merken: analyze_assortment met dimension=brand, of rank_brands.

@@ -42,6 +42,7 @@ describe('MCP tools access control', () => {
         'get_retail_calendar',
         'list_categories',
         'analyze_assortment',
+        'analyze_season_closeout',
         'rank_brands',
         'analyze_solden_discounts',
         'get_stock_summary',

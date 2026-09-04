@@ -67,7 +67,7 @@ export default function AppNavigation() {
   
   const isInzichtenActive = () => {
     return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-vacation-compare', '/sales-insights',
-            '/sales-best-days', '/sales-products', '/brand-performance', '/brand-inventory', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
+            '/sales-best-days', '/sales-products', '/brand-performance', '/brand-inventory', '/seizoen-inzichten', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
   };
   
   const isImporterenActive = () => {
@@ -75,7 +75,7 @@ export default function AppNavigation() {
   };
   
   const isBoekhoudingActive = () => {
-    return ['/mollie-export', '/paypal-export', '/worldline-export'].includes(router.pathname);
+    return ['/boekhouding-inzichten', '/mollie-export', '/paypal-export', '/worldline-export'].includes(router.pathname);
   };
   
   const isBeheerActive = () => {
@@ -172,6 +172,9 @@ export default function AppNavigation() {
                     </Link>
                     <Link href="/brand-inventory" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-inventory') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Voorraad
+                    </Link>
+                    <Link href="/seizoen-inzichten" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/seizoen-inzichten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Seizoensafsluiting
                     </Link>
                     <Link href="/brand-diagnostics" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-diagnostics') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Diagnostiek
@@ -339,6 +342,9 @@ export default function AppNavigation() {
               {isBoekhoudingOpen && (
                 <div className="absolute left-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
+                    <Link href="/boekhouding-inzichten" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/boekhouding-inzichten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Boekhouding Inzichten
+                    </Link>
                     <Link href="/mollie-export" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-export') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Mollie Export
                     </Link>
@@ -549,6 +555,17 @@ export default function AppNavigation() {
                   }`}
                 >
                   Voorraad
+                </Link>
+                <Link
+                  href="/seizoen-inzichten"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/seizoen-inzichten')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Seizoensafsluiting
                 </Link>
                 <Link
                   href="/brand-diagnostics"
@@ -1059,6 +1076,17 @@ export default function AppNavigation() {
             </button>
             {mobileBoekhoudingOpen && (
               <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/boekhouding-inzichten"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/boekhouding-inzichten')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Boekhouding Inzichten
+                </Link>
                 <Link
                   href="/mollie-export"
                   onClick={closeMenu}
