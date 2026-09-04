@@ -8,6 +8,7 @@ import { registerSupplier, getSupplier, getAllSuppliers, getSupplierIds, createP
 import ao76 from './ao76';
 import lenewblack from './lenewblack';
 import playup from './playup';
+import fliink from './fliink';
 import floss from './floss';
 import petitblush from './petitblush';
 import tinycottons from './tinycottons';
@@ -56,6 +57,7 @@ const allPlugins = [
   drbloom,          // Dr Bloom
   emileetida,       // Emile et Ida
   favoritepeople,   // Favorite People
+  fliink,           // Fliink
   floss,            // Flöss
   fub,              // FUB
   goldieandace,     // Goldie + Ace
