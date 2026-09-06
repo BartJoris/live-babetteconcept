@@ -46,10 +46,29 @@ async function handleGet(
 ) {
   try {
     const categId = req.query.categ_id ? Number(req.query.categ_id) : null;
+    const labelId = req.query.label_id ? Number(req.query.label_id) : null;
 
     const domain: unknown[][] = [['qty_available', '<=', 0], ['active', '=', true]];
     if (categId) {
       domain.push(['categ_id', '=', categId]);
+    }
+
+    // If a label filter is set, first find templates with that label,
+    // then restrict variants to those templates
+    if (labelId) {
+      const templatesWithLabel = await odooClient.call<{ id: number }[]>({
+        uid: user.uid,
+        password: user.password,
+        model: 'product.template',
+        method: 'search_read',
+        args: [[['product_tag_ids', 'in', [labelId]]]],
+        kwargs: { fields: ['id'], limit: 0 },
+      });
+      const tmplIds = templatesWithLabel.map((t) => t.id);
+      if (tmplIds.length === 0) {
+        return res.status(200).json([]);
+      }
+      domain.push(['product_tmpl_id', 'in', tmplIds]);
     }
 
     // Step 1: Find all active variants with qty_available <= 0

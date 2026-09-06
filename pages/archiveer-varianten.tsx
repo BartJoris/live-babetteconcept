@@ -22,13 +22,24 @@ type OdooCategory = {
   name: string;
 };
 
-function CategoryFilter({
-  categories,
-  selectedCategoryId,
+type SelectOption = {
+  id: number;
+  name: string;
+};
+
+function SearchableDropdown({
+  label,
+  placeholder,
+  searchPlaceholder,
+  options,
+  selectedId,
   onSelect,
 }: {
-  categories: OdooCategory[];
-  selectedCategoryId: number | null;
+  label: string;
+  placeholder: string;
+  searchPlaceholder: string;
+  options: SelectOption[];
+  selectedId: number | null;
   onSelect: (id: number | null) => void;
 }) {
   const [search, setSearch] = useState('');
@@ -45,26 +56,26 @@ function CategoryFilter({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filtered = categories.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = options.filter((o) =>
+    o.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const selectedName = selectedCategoryId
-    ? categories.find((c) => c.id === selectedCategoryId)?.name ?? ''
+  const selectedName = selectedId
+    ? options.find((o) => o.id === selectedId)?.name ?? ''
     : '';
 
   return (
     <div ref={ref} className="relative w-full max-w-sm">
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Categorie
+        {label}
       </label>
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <span className={selectedCategoryId ? 'text-gray-900' : 'text-gray-400'}>
-          {selectedCategoryId ? selectedName : 'Alle categorieën'}
+        <span className={selectedId ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedId ? selectedName : placeholder}
         </span>
         <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -77,7 +88,7 @@ function CategoryFilter({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Zoek categorie..."
+              placeholder={searchPlaceholder}
               autoFocus
               className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -87,21 +98,21 @@ function CategoryFilter({
               type="button"
               onClick={() => { onSelect(null); setOpen(false); setSearch(''); }}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
-                selectedCategoryId === null ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
+                selectedId === null ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
               }`}
             >
-              Alle categorieën
+              {placeholder}
             </button>
-            {filtered.map((cat) => (
+            {filtered.map((opt) => (
               <button
-                key={cat.id}
+                key={opt.id}
                 type="button"
-                onClick={() => { onSelect(cat.id); setOpen(false); setSearch(''); }}
+                onClick={() => { onSelect(opt.id); setOpen(false); setSearch(''); }}
                 className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
-                  selectedCategoryId === cat.id ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
+                  selectedId === opt.id ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
                 }`}
               >
-                {cat.name}
+                {opt.name}
               </button>
             ))}
             {filtered.length === 0 && (
@@ -126,6 +137,8 @@ export default function ArchiveerVarianten() {
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<number>>(new Set());
   const [categories, setCategories] = useState<OdooCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [labels, setLabels] = useState<SelectOption[]>([]);
+  const [selectedLabelId, setSelectedLabelId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -140,16 +153,32 @@ export default function ArchiveerVarianten() {
         }
       })
       .catch(() => {});
+
+    fetch('/api/odoo/fetch-template-labels', { method: 'POST', credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          const sorted = (data.labels as SelectOption[]).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          setLabels(sorted);
+        }
+      })
+      .catch(() => {});
   }, [isLoggedIn]);
 
-  const fetchProducts = useCallback(async (categId?: number | null) => {
+  const fetchProducts = useCallback(async (categId?: number | null, labelId?: number | null) => {
     setFetching(true);
     setError(null);
     setSuccessMsg(null);
     setShowConfirmation(false);
     try {
-      const url = categId
-        ? `/api/odoo/archive-variants?categ_id=${categId}`
+      const params = new URLSearchParams();
+      if (categId) params.set('categ_id', String(categId));
+      if (labelId) params.set('label_id', String(labelId));
+      const qs = params.toString();
+      const url = qs
+        ? `/api/odoo/archive-variants?${qs}`
         : '/api/odoo/archive-variants';
       const res = await fetch(url, {
         method: 'GET',
@@ -288,18 +317,34 @@ export default function ArchiveerVarianten() {
 
           <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
             <div className="flex items-end gap-4 flex-wrap">
-              <CategoryFilter
-                categories={categories}
-                selectedCategoryId={selectedCategoryId}
+              <SearchableDropdown
+                label="Categorie"
+                placeholder="Alle categorieën"
+                searchPlaceholder="Zoek categorie..."
+                options={categories}
+                selectedId={selectedCategoryId}
                 onSelect={(id) => {
                   setSelectedCategoryId(id);
                   if (hasFetched) {
-                    fetchProducts(id);
+                    fetchProducts(id, selectedLabelId);
+                  }
+                }}
+              />
+              <SearchableDropdown
+                label="Label"
+                placeholder="Alle labels"
+                searchPlaceholder="Zoek label..."
+                options={labels}
+                selectedId={selectedLabelId}
+                onSelect={(id) => {
+                  setSelectedLabelId(id);
+                  if (hasFetched) {
+                    fetchProducts(selectedCategoryId, id);
                   }
                 }}
               />
               <button
-                onClick={() => fetchProducts(selectedCategoryId)}
+                onClick={() => fetchProducts(selectedCategoryId, selectedLabelId)}
                 disabled={fetching}
                 className={`px-6 py-2 rounded-md text-white font-medium transition-colors ${
                   fetching
@@ -352,7 +397,7 @@ export default function ArchiveerVarianten() {
                       Niets selecteren
                     </button>
                     <button
-                      onClick={() => fetchProducts(selectedCategoryId)}
+                      onClick={() => fetchProducts(selectedCategoryId, selectedLabelId)}
                       disabled={fetching}
                       className="text-sm px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
