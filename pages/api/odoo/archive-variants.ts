@@ -62,7 +62,7 @@ async function handleGet(
         model: 'product.template',
         method: 'search_read',
         args: [[['product_tag_ids', 'in', [labelId]]]],
-        kwargs: { fields: ['id'], limit: 0 },
+        kwargs: { fields: ['id'] },
       });
       const tmplIds = templatesWithLabel.map((t) => t.id);
       if (tmplIds.length === 0) {
