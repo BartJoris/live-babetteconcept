@@ -9,16 +9,19 @@ export default function AppNavigation() {
   const [isImporterenOpen, setIsImporterenOpen] = useState(false);
   const [isBeheerOpen, setIsBeheerOpen] = useState(false);
   const [isBoekhoudingOpen, setIsBoekhoudingOpen] = useState(false);
+  const [isSeoOpen, setIsSeoOpen] = useState(false);
   const [mobileInzichtenOpen, setMobileInzichtenOpen] = useState(false);
   const [mobileImporterenOpen, setMobileImporterenOpen] = useState(false);
   const [mobileBeheerOpen, setMobileBeheerOpen] = useState(false);
   const [mobileBoekhoudingOpen, setMobileBoekhoudingOpen] = useState(false);
+  const [mobileSeoOpen, setMobileSeoOpen] = useState(false);
   const router = useRouter();
   
   const inzichtenRef = useRef<HTMLDivElement>(null);
   const importerenRef = useRef<HTMLDivElement>(null);
   const beheerRef = useRef<HTMLDivElement>(null);
   const boekhoudingRef = useRef<HTMLDivElement>(null);
+  const seoRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -34,6 +37,9 @@ export default function AppNavigation() {
       }
       if (boekhoudingRef.current && !boekhoudingRef.current.contains(event.target as Node)) {
         setIsBoekhoudingOpen(false);
+      }
+      if (seoRef.current && !seoRef.current.contains(event.target as Node)) {
+        setIsSeoOpen(false);
       }
     };
 
@@ -51,6 +57,7 @@ export default function AppNavigation() {
     setMobileImporterenOpen(false);
     setMobileBeheerOpen(false);
     setMobileBoekhoudingOpen(false);
+    setMobileSeoOpen(false);
   };
 
   const handleLogout = async () => {
@@ -77,9 +84,13 @@ export default function AppNavigation() {
   const isBoekhoudingActive = () => {
     return ['/boekhouding-inzichten', '/mollie-export', '/paypal-export', '/worldline-export'].includes(router.pathname);
   };
+
+  const isSeoActive = () => {
+    return ['/seo-alt-tekst'].includes(router.pathname);
+  };
   
   const isBeheerActive = () => {
-    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/gewicht-aanpassen', '/ecommerce-depubliceren', '/stock-verkopen', '/offerte-excel', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten'].includes(router.pathname);
+    return ['/inventaris-maken', '/pos-verkopen-ophalen', '/webshop-verkopen-ophalen', '/inventaris-analyse', '/voorraad-bewerken', '/inventaris-samenvoegen', '/inventaris-pos-match', '/ecommerce-beheer', '/gewicht-aanpassen', '/ecommerce-depubliceren', '/stock-verkopen', '/offerte-excel', '/stocksale', '/label-printen', '/product-check', '/archiveer-varianten', '/benefiet-scanner', '/klanten-samenvoegen'].includes(router.pathname);
   };
 
   return (
@@ -308,6 +319,13 @@ export default function AppNavigation() {
                     <Link href="/archiveer-varianten" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/archiveer-varianten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       📦 Archiveer varianten
                     </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <Link href="/benefiet-scanner" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/benefiet-scanner') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      🎁 Benefiet Scanner
+                    </Link>
+                    <Link href="/klanten-samenvoegen" onClick={() => setIsBeheerOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/klanten-samenvoegen') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      👥 Klanten samenvoegen
+                    </Link>
                   </div>
                 </div>
               )}
@@ -347,6 +365,32 @@ export default function AppNavigation() {
                     </Link>
                     <Link href="/mollie-export" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-export') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Mollie Export
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SEO Dropdown */}
+            <div className="relative" ref={seoRef}>
+              <button
+                onClick={() => setIsSeoOpen(!isSeoOpen)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                  isSeoActive()
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                SEO
+                <svg className={`ml-1 h-4 w-4 transform transition-transform ${isSeoOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isSeoOpen && (
+                <div className="absolute right-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link href="/seo-alt-tekst" onClick={() => setIsSeoOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/seo-alt-tekst') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Alt Tekst Afbeeldingen
                     </Link>
                   </div>
                 </div>
@@ -1038,6 +1082,29 @@ export default function AppNavigation() {
                 >
                   📦 Archiveer varianten
                 </Link>
+                <div className="border-t border-gray-200 my-1"></div>
+                <Link
+                  href="/benefiet-scanner"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/benefiet-scanner')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🎁 Benefiet Scanner
+                </Link>
+                <Link
+                  href="/klanten-samenvoegen"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/klanten-samenvoegen')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  👥 Klanten samenvoegen
+                </Link>
               </div>
             )}
           </div>
@@ -1097,6 +1164,43 @@ export default function AppNavigation() {
                   }`}
                 >
                   Mollie Export
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* SEO Section */}
+          <div className="pt-2">
+            <button
+              onClick={() => setMobileSeoOpen(!mobileSeoOpen)}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isSeoActive()
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              <span>SEO</span>
+              <svg
+                className={`h-5 w-5 transform transition-transform ${mobileSeoOpen ? 'rotate-180' : ''}`}
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {mobileSeoOpen && (
+              <div className="pl-4 space-y-1 mt-1">
+                <Link
+                  href="/seo-alt-tekst"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/seo-alt-tekst')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Alt Tekst Afbeeldingen
                 </Link>
               </div>
             )}
