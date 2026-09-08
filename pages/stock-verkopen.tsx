@@ -69,6 +69,7 @@ export default function StockVerkopenPage() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [isSearchingPartners, setIsSearchingPartners] = useState(false);
   const [isCreatingQuotation, setIsCreatingQuotation] = useState(false);
+  const [discountPct, setDiscountPct] = useState(80);
 
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge');
   const [isCheckingStock, setIsCheckingStock] = useState(false);
@@ -796,7 +797,7 @@ export default function StockVerkopenPage() {
             name: `${r.name}${r.variant ? ' - ' + r.variant : ''}`,
             quantity: r.qty,
             priceUnit: r.salePrice,
-            discount: 80,
+            discount: discountPct,
           })),
         }),
       });
@@ -1351,10 +1352,26 @@ export default function StockVerkopenPage() {
             <div style={{ ...modalStyle, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, marginBottom: 4 }}>Offerte aanmaken in Odoo</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: '#6b7280', fontSize: 14 }}>
-                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null).length} producten aan {STOCK_PERCENTAGE_LABEL} van de verkoopprijs.
+                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null).length} producten aan {(100 - discountPct).toFixed(0)}% van de verkoopprijs ({discountPct}% korting).
               </p>
 
               <label style={labelStyle}>
+                Korting (%)
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={discountPct}
+                  onChange={e => setDiscountPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  style={{ ...inputStyle, width: 100 }}
+                />
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  Klant betaalt {(100 - discountPct).toFixed(0)}% van de verkoopprijs
+                </span>
+              </label>
+
+              <label style={{ ...labelStyle, marginTop: 12 }}>
                 Klant (opkoper) zoeken
                 <input
                   placeholder="Typ naam van klant..."
@@ -1394,7 +1411,8 @@ export default function StockVerkopenPage() {
               <div style={{ marginTop: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 4, fontSize: 13 }}>
                 <strong>Samenvatting:</strong><br />
                 Producten: {rows.filter(r => r.productId != null && r.salePrice != null).length} / {rows.length}<br />
-                Totale stock waarde: €{totals.totalStockValue.toFixed(2)}
+                Korting: {discountPct}% — klant betaalt {(100 - discountPct).toFixed(0)}% van verkoopprijs<br />
+                Offerte waarde: €{(totals.totalSaleValue * (100 - discountPct) / 100).toFixed(2)}
                 {rows.some(r => r.productId == null) && (
                   <div style={{ color: '#b45309', marginTop: 4 }}>
                     Let op: {rows.filter(r => r.productId == null).length} product(en) zonder productId worden overgeslagen.
