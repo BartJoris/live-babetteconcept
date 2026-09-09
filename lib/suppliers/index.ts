@@ -15,6 +15,7 @@ import tinycottons from './tinycottons';
 import indee from './indee';
 import sundaycollective from './sundaycollective';
 import goldieandace from './goldieandace';
+import graceandmila from './graceandmila';
 import jenest from './jenest';
 import wyncken from './wyncken';
 import onemore from './onemore';
@@ -61,6 +62,7 @@ const allPlugins = [
   floss,            // Flöss
   fub,              // FUB
   goldieandace,     // Goldie + Ace
+  graceandmila,     // Grace & Mila
   indee,            // Indee
   jellymallow,      // Jelly Mallow
   jenest,           // Jenest
