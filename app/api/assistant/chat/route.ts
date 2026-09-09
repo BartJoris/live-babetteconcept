@@ -7,6 +7,7 @@ import {
 import { createOpenAI } from '@ai-sdk/openai';
 import { requireAssistantSession } from '@/lib/mcp/assistantAuth';
 import { buildAssistantSystemPrompt, createMcpAiTools } from '@/lib/mcp/chatTools';
+import { formatAssistantChatError } from '@/lib/mcp/formatAssistantChatError';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,7 +52,15 @@ export async function POST(request: Request) {
     tools: createMcpAiTools(),
     stopWhen: stepCountIs(8),
     temperature: 0.2,
+    // Quota/rate-limit errors are retryable but repeating them adds ~10s of wait.
+    maxRetries: 0,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    onError: (error) => {
+      const message = formatAssistantChatError(error);
+      console.error('[assistant/chat]', error);
+      return message;
+    },
+  });
 }
