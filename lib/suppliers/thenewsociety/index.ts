@@ -1,4 +1,5 @@
 import { parseEuroPrice, determineSizeAttribute, toSentenceCase } from '@/lib/import/shared';
+import { parseCSV, rowToObject } from '@/lib/import/shared/csv-utils';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
 
 function convertSizeToDutch(sizeStr: string): string {
@@ -32,21 +33,21 @@ function convertSizeToDutch(sizeStr: string): string {
 }
 
 function parseOrderCSV(text: string, context: ParseContext): ParsedProduct[] {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
+  const { headers, rows } = parseCSV(text, { delimiter: ';' });
+  if (headers.length === 0 || rows.length === 0) return [];
 
-  const headers = lines[0].split(';').map(h => h.trim());
+  const col = (name: string) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
 
-  const productReferenceIdx = headers.findIndex(h => h.toLowerCase() === 'product reference');
-  const productNameIdx = headers.findIndex(h => h.toLowerCase() === 'product name');
-  const colorNameIdx = headers.findIndex(h => h.toLowerCase() === 'color name');
-  const sizeNameIdx = headers.findIndex(h => h.toLowerCase() === 'size name');
-  const eanIdx = headers.findIndex(h => h.toLowerCase() === 'ean13');
-  const skuIdx = headers.findIndex(h => h.toLowerCase() === 'sku');
-  const quantityIdx = headers.findIndex(h => h.toLowerCase() === 'quantity');
-  const unitPriceIdx = headers.findIndex(h => h.toLowerCase() === 'unit price');
-  const compositionIdx = headers.findIndex(h => h.toLowerCase() === 'composition');
-  const descriptionIdx = headers.findIndex(h => h.toLowerCase() === 'description');
+  const productReferenceIdx = col('Product reference');
+  const productNameIdx = col('Product name');
+  const colorNameIdx = col('Color name');
+  const sizeNameIdx = col('Size name');
+  const eanIdx = col('EAN13');
+  const skuIdx = col('SKU');
+  const quantityIdx = col('Quantity');
+  const unitPriceIdx = col('Unit price');
+  const compositionIdx = col('Composition');
+  const descriptionIdx = col('Description');
 
   if (productReferenceIdx === -1 || productNameIdx === -1 || colorNameIdx === -1 || sizeNameIdx === -1 || eanIdx === -1) {
     return [];
@@ -55,20 +56,19 @@ function parseOrderCSV(text: string, context: ParseContext): ParsedProduct[] {
   const brand = context.findBrand('the new society', 'thenewsociety', 'tns');
   const products: Record<string, ParsedProduct> = {};
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(';').map(v => v.trim());
-    if (values.length < headers.length) continue;
+  for (const values of rows) {
+    const get = (idx: number) => (idx >= 0 ? (values[idx] || '').trim() : '');
 
-    const productReference = values[productReferenceIdx] || '';
-    const productName = values[productNameIdx] || '';
-    const colorName = values[colorNameIdx] || '';
-    const sizeName = values[sizeNameIdx] || '';
-    const ean = values[eanIdx] || '';
-    const sku = skuIdx !== -1 ? values[skuIdx] || '' : '';
-    const quantity = quantityIdx !== -1 ? parseInt(values[quantityIdx] || '0') : 0;
-    const unitPrice = unitPriceIdx !== -1 ? parseEuroPrice(values[unitPriceIdx] || '0') : 0;
-    const composition = compositionIdx !== -1 ? values[compositionIdx] || '' : '';
-    const description = descriptionIdx !== -1 ? values[descriptionIdx] || '' : '';
+    const productReference = get(productReferenceIdx);
+    const productName = get(productNameIdx);
+    const colorName = get(colorNameIdx);
+    const sizeName = get(sizeNameIdx);
+    const ean = get(eanIdx);
+    const sku = get(skuIdx);
+    const quantity = parseInt(get(quantityIdx) || '0') || 0;
+    const unitPrice = parseEuroPrice(get(unitPriceIdx) || '0');
+    const composition = get(compositionIdx);
+    const description = get(descriptionIdx);
 
     if (!productReference || !productName || !colorName || !sizeName || !ean) continue;
 
