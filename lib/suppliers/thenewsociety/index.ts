@@ -1,5 +1,5 @@
 import { parseEuroPrice, determineSizeAttribute, toSentenceCase } from '@/lib/import/shared';
-import { parseCSV, rowToObject } from '@/lib/import/shared/csv-utils';
+import { parseCSV } from '@/lib/import/shared/csv-utils';
 import type { SupplierPlugin, ParsedProduct, SupplierFiles, ParseContext } from '@/lib/suppliers/types';
 
 function convertSizeToDutch(sizeStr: string): string {
