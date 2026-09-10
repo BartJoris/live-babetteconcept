@@ -56,6 +56,8 @@ export default function SmartUploadPage() {
   const [detection, setDetection] = useState<DetectionState | null>(null);
   // overrides: fileId -> "supplierId::fileInputId"
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  /** Manual supplier override — user can pick any supplier from the full list */
+  const [manualSupplier, setManualSupplier] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +68,12 @@ export default function SmartUploadPage() {
    * If the user overrode any file to a different supplier, that takes precedence.
    */
   const effectiveSupplier = useMemo(() => {
+    // Manual override takes absolute precedence
+    if (manualSupplier) {
+      const plugin = getSupplier(manualSupplier);
+      return { id: manualSupplier, name: plugin?.displayName || manualSupplier };
+    }
+
     if (!detection) return { id: null as string | null, name: null as string | null };
 
     // Collect votes: auto-detected + overridden
@@ -110,7 +118,7 @@ export default function SmartUploadPage() {
     }
 
     return { id: bestId, name: bestName };
-  }, [detection, overrides]);
+  }, [detection, overrides, manualSupplier]);
 
   /**
    * Process all files and redirect to product-import.
@@ -138,6 +146,14 @@ export default function SmartUploadPage() {
       let fileInputId: string;
       if (override) {
         fileInputId = decodeChoice(override).fileInputId;
+      } else if (manualSupplier && plugin) {
+        // Manual supplier: route CSV to first CSV input, PDF to first PDF input
+        const inputs = plugin.fileInputs;
+        if (uf.isPdf) {
+          fileInputId = inputs.find(fi => fi.type === 'pdf')?.id || 'pdf_invoice';
+        } else {
+          fileInputId = inputs.find(fi => fi.type === 'csv')?.id || 'main_csv';
+        }
       } else {
         fileInputId = fr.bestMatch?.fileInputId || 'main_csv';
       }
@@ -215,7 +231,7 @@ export default function SmartUploadPage() {
     sessionStorage.setItem('smart_upload_supplier', supplierId);
     sessionStorage.setItem('smart_upload_files', JSON.stringify(fileMap));
     router.push(`/product-import?vendor=${supplierId}&smartUpload=true`);
-  }, [router]);
+  }, [router, manualSupplier]);
 
   /**
    * Carry the already-uploaded files over to the "Nieuwe leverancier" onboarding
@@ -256,6 +272,7 @@ export default function SmartUploadPage() {
       if (data.success) {
         setDetection(data);
         setOverrides({});
+        setManualSupplier(null);
 
         // Never auto-redirect: user may still add CSV + RRP PDF (or more files).
         setStatus('detected');
@@ -393,7 +410,38 @@ export default function SmartUploadPage() {
                   ? `Leverancier: ${effectiveSupplier.name}`
                   : statusMessage}
               </span>
-              {status === 'detected' && effectiveSupplier.id && detection && !detection.allFilesMatched && (
+              {status === 'detected' && (
+                <select
+                  value={manualSupplier || effectiveSupplier.id || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setManualSupplier(null);
+                    } else if (val === detection?.detectedSupplier) {
+                      setManualSupplier(null);
+                    } else {
+                      setManualSupplier(val);
+                    }
+                  }}
+                  className="ml-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 max-w-[220px]"
+                >
+                  <option value="">— Kies leverancier —</option>
+                  {getAllSuppliers()
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'nl'))
+                    .map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.displayName}
+                        {s.id === detection?.detectedSupplier ? ' (herkend)' : ''}
+                      </option>
+                    ))}
+                </select>
+              )}
+              {manualSupplier && (
+                <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-600 ml-2">
+                  Handmatig
+                </span>
+              )}
+              {status === 'detected' && effectiveSupplier.id && detection && !detection.allFilesMatched && !manualSupplier && (
                 <span className="text-sm text-orange-600 dark:text-orange-400 ml-2">
                   Controleer bestandstoewijzing hieronder
                 </span>
@@ -541,7 +589,7 @@ export default function SmartUploadPage() {
               ) : (
                 <div className="w-full text-center py-4">
                   <p className="text-gray-700 dark:text-gray-300 mb-3">
-                    De bestanden komen niet overeen met een bekende leverancier.
+                    De bestanden komen niet overeen met een bekende leverancier. Kies hierboven manueel een leverancier, of:
                   </p>
                   <button
                     onClick={() => goToOnboarding(uploadedFiles)}
