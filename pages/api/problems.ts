@@ -1,15 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getIronSession } from 'iron-session';
 import {
   createBraindumpProblem,
   listBraindumpProblems,
 } from '@/lib/braindump-problems';
+import { sessionOptions, SessionData } from '@/lib/session';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const { user } = req.session;
-  if (!user) {
+  const session = await getIronSession<SessionData>(req, res, sessionOptions);
+  if (!session.isLoggedIn || !session.user) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
@@ -27,7 +29,7 @@ export default async function handler(
 
       const data = await createBraindumpProblem({
         prompt,
-        reportedBy: user.username,
+        reportedBy: session.user.username,
       });
       return res.status(200).json(data);
     }
