@@ -1,0 +1,67 @@
+{
+  "internalLocationIds": [10, 11],
+  "asOfDate": "2025-06-15",
+  "products": [
+    { "id": 101, "templateId": 1, "standardPrice": 20, "listPrice": 50 },
+    { "id": 102, "templateId": 1, "standardPrice": 20, "listPrice": 50 },
+    { "id": 201, "templateId": 2, "standardPrice": 30, "listPrice": 80 }
+  ],
+  "brandByTemplateId": {
+    "1": "Tiny Cottons",
+    "2": "Play Up"
+  },
+  "moves": [
+    {
+      "productId": 101,
+      "qty": 5,
+      "date": "2025-01-10 09:00:00",
+      "locationId": 99,
+      "destLocationId": 10
+    },
+    {
+      "productId": 102,
+      "qty": 3,
+      "date": "2025-02-01 10:00:00",
+      "locationId": 99,
+      "destLocationId": 10
+    },
+    {
+      "productId": 101,
+      "qty": 2,
+      "date": "2025-03-15 11:00:00",
+      "locationId": 10,
+      "destLocationId": 88
+    },
+    {
+      "productId": 201,
+      "qty": 4,
+      "date": "2025-05-01 12:00:00",
+      "locationId": 99,
+      "destLocationId": 11
+    },
+    {
+      "productId": 201,
+      "qty": 1,
+      "date": "2025-06-20 13:00:00",
+      "locationId": 99,
+      "destLocationId": 11
+    },
+    {
+      "productId": 102,
+      "qty": 1,
+      "date": "2025-06-10 10:30:00",
+      "locationId": 10,
+      "destLocationId": 11
+    }
+  ],
+  "expected": {
+    "stockByProductId": {
+      "101": 3,
+      "102": 3,
+      "201": 4
+    },
+    "totalUnits": 10,
+    "costValue": 240,
+    "retailValue": 620
+  }
+}
