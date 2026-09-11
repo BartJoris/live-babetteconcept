@@ -128,6 +128,17 @@ export default function AppNavigation() {
               Assistent
             </Link>
 
+            <Link
+              href="/problemen"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/problemen')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              }`}
+            >
+              Problemen
+            </Link>
+
             <Link 
               href="/webshoporders-beheren" 
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
