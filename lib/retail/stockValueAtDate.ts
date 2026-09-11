@@ -56,8 +56,9 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isValidIsoDate(value: string): boolean {
   if (!ISO_DATE_RE.test(value)) return false;
-  const d = new Date(`${value}T12:00:00`);
-  return !Number.isNaN(d.getTime());
+  const [y, m, d] = value.split('-').map(Number);
+  const t = new Date(y, m - 1, d);
+  return t.getFullYear() === y && t.getMonth() === m - 1 && t.getDate() === d;
 }
 
 /** Net stock delta for one completed move touching internal locations. */
