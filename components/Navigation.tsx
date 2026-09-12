@@ -74,7 +74,7 @@ export default function AppNavigation() {
   
   const isInzichtenActive = () => {
     return ['/sales-yearly-compare', '/sales-monthly-compare', '/sales-vacation-compare', '/sales-insights',
-            '/sales-best-days', '/sales-products', '/brand-performance', '/brand-inventory', '/seizoen-inzichten', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
+            '/sales-best-days', '/sales-products', '/brand-performance', '/brand-inventory', '/voorraad-op-datum', '/seizoen-inzichten', '/brand-diagnostics', '/ecommerce-insights'].includes(router.pathname);
   };
   
   const isImporterenActive = () => {
@@ -194,6 +194,9 @@ export default function AppNavigation() {
                     </Link>
                     <Link href="/brand-inventory" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/brand-inventory') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Voorraad
+                    </Link>
+                    <Link href="/voorraad-op-datum" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/voorraad-op-datum') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Voorraad op datum
                     </Link>
                     <Link href="/seizoen-inzichten" onClick={() => setIsInzichtenOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/seizoen-inzichten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Seizoensafsluiting
@@ -610,6 +613,17 @@ export default function AppNavigation() {
                   }`}
                 >
                   Voorraad
+                </Link>
+                <Link
+                  href="/voorraad-op-datum"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/voorraad-op-datum')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Voorraad op datum
                 </Link>
                 <Link
                   href="/seizoen-inzichten"

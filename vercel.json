@@ -9,6 +9,9 @@
     "pages/api/season-insights.ts": {
       "maxDuration": 60
     },
+    "pages/api/stock-value-at-date.ts": {
+      "maxDuration": 60
+    },
     "pages/api/accounting-insights.ts": {
       "maxDuration": 60
     },
