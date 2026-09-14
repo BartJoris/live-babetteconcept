@@ -1,4 +1,5 @@
 import type { NextApiResponse } from 'next';
+import { findOrderInvoiceAttachment } from '@/lib/order-attachments';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
@@ -38,9 +39,9 @@ async function odooCall<T>(params: {
   });
 
   const json = await res.json();
-  
+
   if (json.error) {
-    throw new Error(json.error.message || 'Odoo API error');
+    throw new Error(json.error.data?.message || json.error.message || 'Odoo API error');
   }
 
   return json.result as T;
@@ -56,74 +57,35 @@ async function handler(
 
   try {
     const { uid, password } = req.session.user!;
-    const { orderId } = req.body;
+    const orderId = Number(req.body?.orderId);
 
     console.log('📄 Download Invoice Request - Order ID:', orderId);
 
-    if (!orderId) {
+    if (!Number.isFinite(orderId)) {
       return res.status(400).json({ error: 'Order ID is required' });
     }
 
-    // Fetch all PDF attachments for this order
-    console.log('Searching for attachments on sale.order', orderId);
-    const attachments = await odooCall<any[]>({
-      uid,
-      password,
-      model: 'ir.attachment',
-      method: 'search_read',
-      args: [
-        [
-          ['res_model', '=', 'sale.order'],
-          ['res_id', '=', orderId],
-          ['mimetype', '=', 'application/pdf'],
-        ],
-      ],
-      kwargs: {
-        fields: ['id', 'name', 'datas'],
-        order: 'create_date desc',
-      },
-    });
+    const invoice = await findOrderInvoiceAttachment(odooCall, uid, password, orderId);
 
-    console.log(`✅ Found ${attachments.length} PDF attachments:`, attachments.map(a => a.name));
-
-    // Find invoice - look for order/invoice/factuur but NOT shipping/sendcloud
-    const invoice = attachments.find(a => {
-      const name = a.name.toLowerCase();
-      return (
-        (name.includes('order') || 
-         name.includes('invoice') ||
-         name.includes('factuur') ||
-         name.startsWith('order - ')) &&
-        !name.includes('shipping') && 
-        !name.includes('sendcloud') &&
-        !name.includes('label')
-      );
-    });
-
-    if (!invoice || !invoice.datas) {
-      console.log('❌ No invoice found. Available attachments:', attachments.map(a => a.name));
-      return res.status(404).json({ 
+    if (!invoice) {
+      console.log('❌ No invoice found for order', orderId);
+      return res.status(404).json({
         error: 'Geen factuur gevonden. Bevestig de order eerst.',
-        availableAttachments: attachments.map(a => a.name)
       });
     }
 
-    console.log('✅ Found invoice:', invoice.name);
+    console.log('✅ Found invoice:', invoice.attachment.name);
+    console.log(`📄 Invoice PDF size: ${invoice.buffer.length} bytes`);
 
-    // Convert base64 to PDF buffer
-    const pdfBuffer = Buffer.from(invoice.datas, 'base64');
-    console.log(`📄 Invoice PDF size: ${pdfBuffer.length} bytes`);
-
-    // Set headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${invoice.name}"`);
-    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Content-Disposition', `attachment; filename="${invoice.attachment.name}"`);
+    res.setHeader('Content-Length', invoice.buffer.length);
 
-    return res.status(200).send(pdfBuffer);
+    return res.status(200).send(invoice.buffer);
   } catch (error) {
     console.error('Error downloading invoice:', error);
-    return res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Kon factuur niet downloaden' 
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Kon factuur niet downloaden',
     });
   }
 }
