@@ -1,14 +1,15 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import {
   createBraindumpProblem,
   listBraindumpProblems,
 } from '@/lib/braindump-problems';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 
-export default async function handler(
-  req: NextApiRequest,
+async function handler(
+  req: NextApiRequestWithSession,
   res: NextApiResponse,
 ) {
-  const { user } = req.session;
+  const user = req.session.user;
   if (!user) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
@@ -41,3 +42,5 @@ export default async function handler(
     });
   }
 }
+
+export default withAuth(handler);
