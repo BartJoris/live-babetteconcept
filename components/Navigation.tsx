@@ -82,7 +82,7 @@ export default function AppNavigation() {
   };
   
   const isBoekhoudingActive = () => {
-    return ['/boekhouding-inzichten', '/mollie-export', '/paypal-export', '/worldline-export'].includes(router.pathname);
+    return ['/boekhouding-inzichten', '/mollie-export', '/mollie-opzoeken', '/paypal-export', '/worldline-export'].includes(router.pathname);
   };
 
   const isSeoActive = () => {
@@ -376,6 +376,9 @@ export default function AppNavigation() {
                     </Link>
                     <Link href="/mollie-export" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-export') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Mollie Export
+                    </Link>
+                    <Link href="/mollie-opzoeken" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-opzoeken') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Mollie opzoeken
                     </Link>
                   </div>
                 </div>
@@ -1175,6 +1178,17 @@ export default function AppNavigation() {
                   }`}
                 >
                   Mollie Export
+                </Link>
+                <Link
+                  href="/mollie-opzoeken"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/mollie-opzoeken')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Mollie opzoeken
                 </Link>
               </div>
             )}
