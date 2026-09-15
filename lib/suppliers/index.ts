@@ -13,6 +13,7 @@ import floss from './floss';
 import petitblush from './petitblush';
 import tinycottons from './tinycottons';
 import indee from './indee';
+import inuwet from './inuwet';
 import sundaycollective from './sundaycollective';
 import goldieandace from './goldieandace';
 import graceandmila from './graceandmila';
@@ -64,6 +65,7 @@ const allPlugins = [
   goldieandace,     // Goldie + Ace
   graceandmila,     // Grace & Mila
   indee,            // Indee
+  inuwet,           // Inuwet
   jellymallow,      // Jelly Mallow
   jenest,           // Jenest
   lenewblack,       // Le New Black

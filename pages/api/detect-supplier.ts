@@ -624,6 +624,23 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Inuwet (webshop catalogus) ──
+  {
+    supplierId: 'inuwet',
+    supplierName: 'Inuwet',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Inuwet webshop CSV',
+      detect: (headers, text, fileName) => {
+        if (!h(headers, 'Artikelcode', 'Webshoptekst', 'Prijs factuur HT')) return 0;
+        const blob = `${fileName} ${text}`.toLowerCase();
+        if (blob.includes('inuwet')) return 0.98;
+        return 0.9;
+      },
+      reason: 'Artikelcode + Webshoptekst + Prijs factuur HT (Inuwet catalogus)',
+    }],
+  },
+
   // ── Senger-Naturwelt (Faire order export) ──
   {
     supplierId: 'senger',
