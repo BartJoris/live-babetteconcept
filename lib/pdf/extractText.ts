@@ -73,7 +73,7 @@ function normalizeTextResult(textResult: unknown): string {
  * Extract plain text from a PDF buffer. Prefer this over raw pdf-parse on Vercel.
  */
 export async function extractPdfText(data: Uint8Array | Buffer): Promise<string> {
-  const pdfData = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const pdfData = new Uint8Array(Buffer.from(data));
   ensureMathSumPrecisePolyfill();
 
   try {

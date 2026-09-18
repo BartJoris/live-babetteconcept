@@ -355,9 +355,8 @@ const SUPPLIER_RULES: SupplierRule[] = [
       fileInputLabel: 'Sales Order / Invoice PDF',
       detect: (fn) => {
         const l = fn.toLowerCase();
-        if (/so-\d+/i.test(fn) || l.includes('sales') || l.includes('order')) return 0.9;
+        if (/so-\d+/i.test(fn) || (l.includes('sales') && l.includes('order'))) return 0.9;
         if (l.includes('wyncken') || l.includes('wynken') || /PF-\d+/i.test(fn)) return 0.85;
-        if (l.includes('babette') && (l.includes('aw') || l.includes('ss'))) return 0.6;
         return 0;
       },
       reason: 'Wyncken sales order (SO) of proforma (PF)',
@@ -604,6 +603,40 @@ const SUPPLIER_RULES: SupplierRule[] = [
         reason: 'FUB Invoice PDF (RRP + materiaal)',
       },
     ],
+  },
+
+  // ── Bayiri ── (order PDF + optional catalog CSV)
+  {
+    supplierId: 'bayiri',
+    supplierName: 'Bayiri',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Bayiri Order CSV',
+      detect: (headers, text, fileName) => {
+        const blob = `${fileName} ${text}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+        const hasLayout =
+          /style\s*ref/i.test(text) &&
+          /wholesale\s*price/i.test(text) &&
+          /[a-z]+\.(baby|kid)\.\d{2}\.\d{2}/i.test(text);
+        if (!hasLayout && !h(headers, 'STYLE REF', 'WHOLESALE PRICE')) return 0;
+        if (blob.includes('bayiri')) return 0.98;
+        if (hasLayout) return 0.95;
+        return 0.85;
+      },
+      reason: 'STYLE REF + WHOLESALE PRICE (Bayiri order form)',
+    }],
+    pdfRules: [{
+      fileInputId: 'pdf_invoice',
+      fileInputLabel: 'Bayiri Factuur PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+        if (l.includes('bayiri')) return 0.95;
+        if (/aw\d{2}w\d+/i.test(fn) && l.includes('babette')) return 0.92;
+        if (/aw26w12/i.test(fn)) return 0.9;
+        return 0;
+      },
+      reason: 'Bestandsnaam verwijst naar Bayiri',
+    }],
   },
 
   // ── Dr Bloom ── (PDF only: proforma invoice)
@@ -906,7 +939,7 @@ const SUPPLIER_RULES: SupplierRule[] = [
   },
 ];
 
-function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
+export function detectCSV(fileId: string, fileName: string, content: string): FileDetectionResult {
   const lines = content.trim().split('\n');
   // Order confirmations put the real header ~30+ lines down (STYLE/REFERENCE/SRP)
   const firstLines = lines.slice(0, 80).join('\n');
@@ -976,7 +1009,7 @@ function detectCSV(fileId: string, fileName: string, content: string): FileDetec
   return { fileId, fileName, isPdf: false, matches, bestMatch: matches[0] || null };
 }
 
-function detectPDF(fileId: string, fileName: string): FileDetectionResult {
+export function detectPDF(fileId: string, fileName: string): FileDetectionResult {
   const matches: DetectionMatch[] = [];
 
   for (const rule of SUPPLIER_RULES) {
