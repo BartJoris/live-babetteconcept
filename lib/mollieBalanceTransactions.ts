@@ -39,10 +39,16 @@ interface MollieBalanceTransactionListResponse {
   _links: { next?: { href: string }; self: { href: string } };
 }
 
+/**
+ * Grotere pagina's bleken NIET sneller in de praktijk: Mollie's antwoordtijd schaalt mee met de
+ * paginagrootte (waarschijnlijk `deductionDetails` per item berekend), dus minder-maar-grotere
+ * requests wint hier niets en liep zelfs tegen `REQUEST_TIMEOUT_MS` aan bij 250. 50 is gemeten
+ * (~38s voor een volledige septembermaand, 241 transacties) en past ruim binnen de 60s-functielimiet.
+ */
 const BALANCE_TRANSACTIONS_PAGE_SIZE = 50;
 /** Veiligheidslimiet: 60 pagina's × 50 = 3000 transacties, ruim genoeg voor een kwartaal. */
 const MAX_PAGES = 60;
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 25_000;
 
 async function fetchMollieWithTimeout(url: string, token: string): Promise<MollieBalanceTransactionListResponse> {
   const controller = new AbortController();

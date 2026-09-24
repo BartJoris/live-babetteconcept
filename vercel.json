@@ -22,13 +22,13 @@
       "maxDuration": 60
     },
     "pages/api/mollie/import-odoo-statement.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "pages/api/mollie/import-odoo-capital.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "pages/api/mollie/commission-check.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "pages/api/accounting/pos-session-check.ts": {
       "maxDuration": 60
