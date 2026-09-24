@@ -82,7 +82,7 @@ export default function AppNavigation() {
   };
   
   const isBoekhoudingActive = () => {
-    return ['/boekhouding-inzichten', '/mollie-export', '/mollie-opzoeken', '/paypal-export', '/worldline-export'].includes(router.pathname);
+    return ['/boekhouding-inzichten', '/mollie-boekhouding', '/mollie-export', '/mollie-opzoeken', '/paypal-export', '/worldline-export'].includes(router.pathname);
   };
 
   const isSeoActive = () => {
@@ -373,6 +373,9 @@ export default function AppNavigation() {
                   <div className="py-1">
                     <Link href="/boekhouding-inzichten" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/boekhouding-inzichten') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Boekhouding Inzichten
+                    </Link>
+                    <Link href="/mollie-boekhouding" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-boekhouding') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      Mollie Boekhouding Verwerken
                     </Link>
                     <Link href="/mollie-export" onClick={() => setIsBoekhoudingOpen(false)} className={`block px-4 py-2 text-sm ${isActive('/mollie-export') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       Mollie Export
@@ -1167,6 +1170,17 @@ export default function AppNavigation() {
                   }`}
                 >
                   Boekhouding Inzichten
+                </Link>
+                <Link
+                  href="/mollie-boekhouding"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/mollie-boekhouding')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Mollie Boekhouding Verwerken
                 </Link>
                 <Link
                   href="/mollie-export"
