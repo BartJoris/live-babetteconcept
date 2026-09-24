@@ -31,7 +31,7 @@ export default withAuth(async function handler(req: NextApiRequestWithSession, r
       user.uid,
       user.password,
       'res.partner',
-      [['name', 'ilike', query.trim()], ['is_company', '=', true]],
+      [['name', 'ilike', query.trim()]],
       ['id', 'name'],
       20,
       undefined,

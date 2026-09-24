@@ -77,6 +77,7 @@ export default function StockVerkopenPage() {
   const [settingStockProductId, setSettingStockProductId] = useState<number | null>(null);
   const [showOnlyShortages, setShowOnlyShortages] = useState(false);
   const [showOnlyArchived, setShowOnlyArchived] = useState(false);
+  const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set());
   const [isUnarchiving, setIsUnarchiving] = useState(false);
   const [defaultSetQty, setDefaultSetQty] = useState(1);
 
@@ -130,6 +131,27 @@ export default function StockVerkopenPage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
     } catch { /* ignore */ }
   }, [rows]);
+
+  const toggleSelect = (index: number) => {
+    setSelectedIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const displayedIdxs = displayedRows.map(({ index }) => index);
+    const allSelected = displayedIdxs.length > 0 && displayedIdxs.every((i) => selectedIndexes.has(i));
+    if (allSelected) {
+      setSelectedIndexes(new Set());
+    } else {
+      setSelectedIndexes(new Set(displayedIdxs));
+    }
+  };
+
+  const hasSelection = selectedIndexes.size > 0;
 
   const clearBarcodeInput = () => {
     if (inputRef.current) inputRef.current.value = '';
@@ -205,9 +227,11 @@ export default function StockVerkopenPage() {
       );
       if (existingIndex >= 0) {
         const next = [...prev];
+        const newQty = (next[existingIndex].qty || 0) + 1;
         const updated = {
           ...next[existingIndex],
-          qty: (next[existingIndex].qty || 0) + 1,
+          qty: newQty,
+          setQty: newQty,
         };
         next.splice(existingIndex, 1);
         return [updated, ...next];
@@ -266,9 +290,11 @@ export default function StockVerkopenPage() {
     const existingByBarcode = rows.findIndex((r) => r.barcode === normalized);
     if (existingByBarcode >= 0) {
       const next = [...rows];
+      const newQty = (next[existingByBarcode].qty || 0) + 1;
       next[existingByBarcode] = {
         ...next[existingByBarcode],
-        qty: (next[existingByBarcode].qty || 0) + 1,
+        qty: newQty,
+        setQty: newQty,
       };
       const [updated] = next.splice(existingByBarcode, 1);
       setRows([updated, ...next]);
@@ -398,6 +424,7 @@ export default function StockVerkopenPage() {
   const clearAll = () => {
     if (confirm('Weet je zeker dat je alles wil leegmaken?')) {
       setRows([]);
+      setSelectedIndexes(new Set());
       setShowOnlyShortages(false);
       setShowOnlyArchived(false);
     }
@@ -592,8 +619,11 @@ export default function StockVerkopenPage() {
   };
 
   const setStockForDisplayed = async () => {
+    const source = hasSelection
+      ? displayedRows.filter(({ index }) => selectedIndexes.has(index))
+      : displayedRows;
     const byProduct = new Map<number, { productId: number; newQuantity: number; rowIndexes: number[] }>();
-    for (const { r, index } of displayedRows) {
+    for (const { r, index } of source) {
       if (r.productId == null) continue;
       // Last row wins if duplicate productIds
       byProduct.set(r.productId, {
@@ -620,7 +650,15 @@ export default function StockVerkopenPage() {
   const fillAllSetQty = (value: number) => {
     const qty = Math.max(0, Number(value) || 0);
     setDefaultSetQty(qty);
-    setRows((prev) => prev.map((r) => ({ ...r, setQty: qty })));
+    const targets = hasSelection ? selectedIndexes : new Set(rows.map((_, i) => i));
+    setRows((prev) => prev.map((r, i) => (targets.has(i) ? { ...r, setQty: qty } : r)));
+  };
+
+  const syncSetQtyToScanned = () => {
+    const targets = hasSelection ? selectedIndexes : new Set(rows.map((_, i) => i));
+    setRows((prev) =>
+      prev.map((r, i) => (targets.has(i) ? { ...r, setQty: Math.max(0, r.qty || 0) } : r)),
+    );
   };
 
   const formatTs = (d: Date) => {
@@ -779,9 +817,12 @@ export default function StockVerkopenPage() {
       setAlert('Selecteer eerst een klant.');
       return;
     }
-    const validLines = rows.filter(r => r.productId != null && r.salePrice != null);
+    const validLines = rows.filter(r => r.productId != null && r.salePrice != null && r.isArchived !== true);
+    const archivedSkipped = rows.filter(r => r.productId != null && r.salePrice != null && r.isArchived === true).length;
     if (validLines.length === 0) {
-      setAlert('Geen producten met geldige productId en verkoopprijs.');
+      setAlert(archivedSkipped > 0
+        ? `Geen actieve producten om te offreren (${archivedSkipped} gearchiveerde overgeslagen).`
+        : 'Geen producten met geldige productId en verkoopprijs.');
       return;
     }
 
@@ -803,7 +844,10 @@ export default function StockVerkopenPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setAlert(`Offerte ${data.orderName} aangemaakt in Odoo!`);
+        setAlert(
+          `Offerte ${data.orderName} aangemaakt in Odoo!` +
+          (archivedSkipped > 0 ? ` (${archivedSkipped} gearchiveerde overgeslagen)` : ''),
+        );
         setExcelExportHref(`/offerte-excel?ref=${encodeURIComponent(String(data.orderId))}`);
         setIsQuotationOpen(false);
         setSelectedPartner(null);
@@ -941,9 +985,17 @@ export default function StockVerkopenPage() {
               onClick={() => fillAllSetQty(defaultSetQty)}
               disabled={rows.length === 0}
               style={btnStyle}
-              title="Vul 'Nieuwe vv' op alle regels met deze default"
+              title="Vul 'Nieuwe vv' op geselecteerde (of alle) regels met deze default"
             >
-              Vul alle
+              {hasSelection ? `Vul ${selectedIndexes.size} sel.` : 'Vul alle'}
+            </button>
+            <button
+              onClick={syncSetQtyToScanned}
+              disabled={rows.length === 0}
+              style={btnStyle}
+              title="Zet 'Nieuwe vv' gelijk aan 'Gescand' voor geselecteerde (of alle) regels"
+            >
+              {hasSelection ? `Sync ${selectedIndexes.size} sel.` : 'Sync = gescand'}
             </button>
             <button
               onClick={setStockForDisplayed}
@@ -956,7 +1008,11 @@ export default function StockVerkopenPage() {
                 opacity: isSettingStock || rows.length === 0 ? 0.6 : 1,
               }}
             >
-              {isSettingStock ? 'Voorraad zetten…' : 'Zet voorraad in Odoo'}
+              {isSettingStock
+                ? 'Voorraad zetten…'
+                : hasSelection
+                  ? `Zet voorraad (${selectedIndexes.size} sel.)`
+                  : 'Zet voorraad in Odoo'}
             </button>
           </div>
           <button
@@ -1055,6 +1111,14 @@ export default function StockVerkopenPage() {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
+                <th style={{ ...thStyle, width: 36, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={displayedRows.length > 0 && displayedRows.every(({ index }) => selectedIndexes.has(index))}
+                    onChange={toggleSelectAll}
+                    title="Alles selecteren / deselecteren"
+                  />
+                </th>
                 <th style={thStyle}>Product Naam</th>
                 <th style={thStyle}>Variant / Maat</th>
                 <th style={{ ...thStyle, textAlign: 'right' }}>Aankoopprijs</th>
@@ -1085,6 +1149,13 @@ export default function StockVerkopenPage() {
                       background: archived ? '#fff7ed' : shortfall ? '#fef2f2' : undefined,
                     }}
                   >
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIndexes.has(i)}
+                        onChange={() => toggleSelect(i)}
+                      />
+                    </td>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500 }}>
                         {r.name}
@@ -1219,14 +1290,14 @@ export default function StockVerkopenPage() {
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
                     Nog geen producten. Scan een barcode of importeer een JSON om te beginnen.
                   </td>
                 </tr>
               )}
               {rows.length > 0 && displayedRows.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
                     Geen rijen voor dit filter. Schakel &quot;Alleen tekorten&quot; / &quot;Alleen gearchiveerd&quot; uit.
                   </td>
                 </tr>
@@ -1235,6 +1306,7 @@ export default function StockVerkopenPage() {
             {rows.length > 0 && (
               <tfoot style={{ background: '#f9fafb', fontWeight: 700 }}>
                 <tr style={{ borderTop: '2px solid #d1d5db' }}>
+                  <td style={tdStyle} />
                   <td style={tdStyle}>Totaal</td>
                   <td style={tdStyle} />
                   <td style={{ ...tdStyle, textAlign: 'right' }}>€{totals.totalPurchaseValue.toFixed(2)}</td>
@@ -1352,7 +1424,10 @@ export default function StockVerkopenPage() {
             <div style={{ ...modalStyle, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, marginBottom: 4 }}>Offerte aanmaken in Odoo</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: '#6b7280', fontSize: 14 }}>
-                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null).length} producten aan {(100 - discountPct).toFixed(0)}% van de verkoopprijs ({discountPct}% korting).
+                Er wordt een offerte (concept verkooporder) aangemaakt met {rows.filter(r => r.productId != null && r.salePrice != null && r.isArchived !== true).length} actieve producten aan {(100 - discountPct).toFixed(0)}% van de verkoopprijs ({discountPct}% korting).
+                {rows.some(r => r.isArchived === true && r.productId != null) && (
+                  <span style={{ color: '#b45309' }}> ({rows.filter(r => r.isArchived === true && r.productId != null).length} gearchiveerde worden overgeslagen)</span>
+                )}
               </p>
 
               <label style={labelStyle}>
@@ -1410,7 +1485,7 @@ export default function StockVerkopenPage() {
 
               <div style={{ marginTop: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 4, fontSize: 13 }}>
                 <strong>Samenvatting:</strong><br />
-                Producten: {rows.filter(r => r.productId != null && r.salePrice != null).length} / {rows.length}<br />
+                Producten: {rows.filter(r => r.productId != null && r.salePrice != null && r.isArchived !== true).length} actief / {rows.length} totaal<br />
                 Korting: {discountPct}% — klant betaalt {(100 - discountPct).toFixed(0)}% van verkoopprijs<br />
                 Offerte waarde: €{(totals.totalSaleValue * (100 - discountPct) / 100).toFixed(2)}
                 {rows.some(r => r.productId == null) && (

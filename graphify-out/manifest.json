@@ -15,9 +15,9 @@
     "semantic_hash": "46ad50971ca8cbd196acefe8cbb3a831"
   },
   "app/api/assistant/chat/route.ts": {
-    "mtime": 1784795462.5882719,
-    "ast_hash": "5cb1227a0f455bdd9a40e09c7c09d2c1",
-    "semantic_hash": "5cb1227a0f455bdd9a40e09c7c09d2c1"
+    "mtime": 1788773219.3657696,
+    "ast_hash": "c3b76c8d797dc10d42a7a88efd9ec282",
+    "semantic_hash": ""
   },
   "app/api/mcp/__tests__/route.test.ts": {
     "mtime": 1784704831.5083275,
@@ -45,17 +45,17 @@
     "semantic_hash": "13a64392c3c758c1d2dfa4e36b2583a1"
   },
   "components/DeliveryConfirmationDialog.tsx": {
-    "mtime": 1788510756.4238791,
+    "mtime": 1790242418.0322726,
     "ast_hash": "2e25454fef08cf006e636f34f9292772",
     "semantic_hash": "2e25454fef08cf006e636f34f9292772"
   },
   "components/Navigation.tsx": {
-    "mtime": 1788511461.241217,
-    "ast_hash": "95bf6bf598b4a64ebe1237a5bba301a7",
+    "mtime": 1789476486.7554412,
+    "ast_hash": "fbac815eca6d5216592c9210fd6d4169",
     "semantic_hash": ""
   },
   "components/ProductAvailabilityDialog.tsx": {
-    "mtime": 1788510756.4237254,
+    "mtime": 1790242418.0286603,
     "ast_hash": "2ea3b03bb43ee415fefb4a300472f74c",
     "semantic_hash": "2ea3b03bb43ee415fefb4a300472f74c"
   },
@@ -465,9 +465,9 @@
     "semantic_hash": "87540cc725423087dd68ce23fb0f9954"
   },
   "lib/mollieSettlementShared.ts": {
-    "mtime": 1781798753.556522,
-    "ast_hash": "93a1cb739f75ce01ad699ea0004597d7",
-    "semantic_hash": "93a1cb739f75ce01ad699ea0004597d7"
+    "mtime": 1790282259.535625,
+    "ast_hash": "2d1ab08513ee664367c3dd34debed756",
+    "semantic_hash": ""
   },
   "lib/odoo.ts": {
     "mtime": 1761686125.2183592,
@@ -485,9 +485,9 @@
     "semantic_hash": "87e9108d88f1de789f0f7b2d4d88ce9a"
   },
   "lib/pdf/extractText.ts": {
-    "mtime": 1785330466.8141048,
-    "ast_hash": "a068004e4ac9efc735d63c8127c7f35e",
-    "semantic_hash": "a068004e4ac9efc735d63c8127c7f35e"
+    "mtime": 1789724409.2856507,
+    "ast_hash": "aa09d18c73ec5df2a852b8a2bc992eff",
+    "semantic_hash": ""
   },
   "lib/posSalesForRange.ts": {
     "mtime": 1775659787.7636402,
@@ -570,9 +570,9 @@
     "semantic_hash": "a00f507c549e6eb84da1258b90640bf7"
   },
   "lib/suppliers/bayiri/index.ts": {
-    "mtime": 1772039491.800505,
-    "ast_hash": "2c4f4ccdd48250dd0eff004dcd746be6",
-    "semantic_hash": "2c4f4ccdd48250dd0eff004dcd746be6"
+    "mtime": 1789724091.822704,
+    "ast_hash": "ae8daee095dba062a5744a4197f831af",
+    "semantic_hash": ""
   },
   "lib/suppliers/bobochoses/index.ts": {
     "mtime": 1772007110.660018,
@@ -665,8 +665,8 @@
     "semantic_hash": "55c32574575a08214f01beb13395426d"
   },
   "lib/suppliers/index.ts": {
-    "mtime": 1786484470.8023245,
-    "ast_hash": "410d52a77927233dbd6b4a4c58316c9d",
+    "mtime": 1789501350.2427053,
+    "ast_hash": "9eb5f435c50857362784af5de3ad0534",
     "semantic_hash": ""
   },
   "lib/suppliers/jellymallow/index.ts": {
@@ -765,9 +765,9 @@
     "semantic_hash": "1bef169e1f0c4528df286f40dad22b5f"
   },
   "lib/suppliers/thenewsociety/index.ts": {
-    "mtime": 1772007087.5600047,
-    "ast_hash": "995c0a46817aa4bff5a222320eb90fe8",
-    "semantic_hash": "995c0a46817aa4bff5a222320eb90fe8"
+    "mtime": 1788978148.298599,
+    "ast_hash": "a47ef54558eca0c5bec74e50263d63e0",
+    "semantic_hash": ""
   },
   "lib/suppliers/thinkingmu/index.ts": {
     "mtime": 1772032869.7234704,
@@ -845,7 +845,7 @@
     "semantic_hash": "215d5aa31a87dfea2040fbe297ee134b"
   },
   "package.json": {
-    "mtime": 1788510756.4237394,
+    "mtime": 1790242418.0286424,
     "ast_hash": "55d7d25aa8e8dde72b412481f0c3292c",
     "semantic_hash": ""
   },
@@ -865,7 +865,7 @@
     "semantic_hash": "913e833c6bb3aa58be03a000364fb147"
   },
   "pages/ao76-image-matcher.tsx": {
-    "mtime": 1788510756.4132204,
+    "mtime": 1790242418.0055113,
     "ast_hash": "1b9a20bfb9b2c5c5dc55a6341d42d5da",
     "semantic_hash": "1b9a20bfb9b2c5c5dc55a6341d42d5da"
   },
@@ -975,19 +975,19 @@
     "semantic_hash": ""
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1787739905.6806982,
-    "ast_hash": "6246897a02ce0048919e330f22059403",
+    "mtime": 1789723206.1537592,
+    "ast_hash": "fe8fc20e373e170a8544e48ca841e46b",
     "semantic_hash": ""
   },
   "pages/api/download-order-invoice.ts": {
-    "mtime": 1784796151.0625193,
-    "ast_hash": "2cc5e392f51180140f7fab55c5a61053",
-    "semantic_hash": "2cc5e392f51180140f7fab55c5a61053"
+    "mtime": 1789288918.3355293,
+    "ast_hash": "94bde312e5d6233161d85a0bd4be8498",
+    "semantic_hash": ""
   },
   "pages/api/download-shipping-label.ts": {
-    "mtime": 1784796151.0629506,
-    "ast_hash": "522fd1d2d873733ada48e01fdf901e46",
-    "semantic_hash": "522fd1d2d873733ada48e01fdf901e46"
+    "mtime": 1789288924.3366725,
+    "ast_hash": "4ee89f9fd6ce5e090b0e2d203918010b",
+    "semantic_hash": ""
   },
   "pages/api/ecommerce-insights.ts": {
     "mtime": 1761699946.7779603,
@@ -995,7 +995,7 @@
     "semantic_hash": "bf46bc8d369d2affcb9faed0cfa0d5e5"
   },
   "pages/api/ecommerce/bulk-unpublish.ts": {
-    "mtime": 1788510756.4238482,
+    "mtime": 1790242418.0322165,
     "ast_hash": "817083c17e13d9f097db9a9084fdb30c",
     "semantic_hash": "817083c17e13d9f097db9a9084fdb30c"
   },
@@ -1130,7 +1130,7 @@
     "semantic_hash": "bdd61290ac95b580818917cb819906ef"
   },
   "pages/api/odoo-call.ts": {
-    "mtime": 1788510756.4236789,
+    "mtime": 1790242418.0215487,
     "ast_hash": "c6dd6c0a932bd30c9a5a03ee536db258",
     "semantic_hash": "c6dd6c0a932bd30c9a5a03ee536db258"
   },
@@ -1140,14 +1140,14 @@
     "semantic_hash": "f5107b564d07602473e76f2a67676d53"
   },
   "pages/api/odoo/analyse-barcodes.ts": {
-    "mtime": 1788510756.4239087,
+    "mtime": 1790242418.0322962,
     "ast_hash": "003cf751c5edfab7531581d22d236496",
     "semantic_hash": "003cf751c5edfab7531581d22d236496"
   },
   "pages/api/odoo/archive-variants.ts": {
-    "mtime": 1786656710.36993,
-    "ast_hash": "2a5d647b384f9067094015c07e967edf",
-    "semantic_hash": "2a5d647b384f9067094015c07e967edf"
+    "mtime": 1788724330.2246172,
+    "ast_hash": "5ff08d2be07839879f5054cab4097ecc",
+    "semantic_hash": ""
   },
   "pages/api/odoo/archived-lookup.ts": {
     "mtime": 1763416302.9080017,
@@ -1165,7 +1165,7 @@
     "semantic_hash": "30c6e6a1de506375c72196506566019b"
   },
   "pages/api/odoo/fetch-brands-for-templates.ts": {
-    "mtime": 1788510756.423878,
+    "mtime": 1790242418.032266,
     "ast_hash": "2b2657d3b622186f0c45f70a51a4b0e4",
     "semantic_hash": "2b2657d3b622186f0c45f70a51a4b0e4"
   },
@@ -1175,7 +1175,7 @@
     "semantic_hash": "31d8eaa1a5bd445415ca781d10bc60b7"
   },
   "pages/api/odoo/fetch-labels-for-templates.ts": {
-    "mtime": 1788510756.4239106,
+    "mtime": 1790242418.0323176,
     "ast_hash": "3c36f904a8e0132e6e5dc6fb8b527692",
     "semantic_hash": "3c36f904a8e0132e6e5dc6fb8b527692"
   },
@@ -1200,9 +1200,9 @@
     "semantic_hash": "eaa56e7bd94119820c3e5a6f51f79ecd"
   },
   "pages/api/odoo/search-partners.ts": {
-    "mtime": 1771590398.5610554,
-    "ast_hash": "92d817227a39b22fc4788f86e78b63ce",
-    "semantic_hash": "92d817227a39b22fc4788f86e78b63ce"
+    "mtime": 1788881420.4050329,
+    "ast_hash": "cf0fc059cd2d02ab64b91c18774a9690",
+    "semantic_hash": ""
   },
   "pages/api/odoo/search-products.ts": {
     "mtime": 1763416302.9973972,
@@ -1230,7 +1230,7 @@
     "semantic_hash": "1da3c9a7e4453b2d15234226a206d157"
   },
   "pages/api/odoo/update-product-quantities.ts": {
-    "mtime": 1788510756.4239104,
+    "mtime": 1790242418.0323157,
     "ast_hash": "b25f567bb31fc6e9ccba51a250813ae7",
     "semantic_hash": "b25f567bb31fc6e9ccba51a250813ae7"
   },
@@ -1260,9 +1260,9 @@
     "semantic_hash": "6dbf7294e7a812d2aa5d1f2896c1aee8"
   },
   "pages/api/parse-bayiri-pdf.ts": {
-    "mtime": 1784993808.8263328,
-    "ast_hash": "3dc57c5832da2c8eaf8860615a3a5a1f",
-    "semantic_hash": "3dc57c5832da2c8eaf8860615a3a5a1f"
+    "mtime": 1789724414.7093022,
+    "ast_hash": "83acb5c51e423f992526bbdeaefb3703",
+    "semantic_hash": ""
   },
   "pages/api/parse-bobochoses-pdf.ts": {
     "mtime": 1784993808.8265517,
@@ -1585,7 +1585,7 @@
     "semantic_hash": "f58176de064bccbf806051bcdce3acd3"
   },
   "pages/api/webshop-sales-by-date-range.ts": {
-    "mtime": 1788510756.4237154,
+    "mtime": 1790242418.0286195,
     "ast_hash": "25d34aa77ba319720a17c1e885468cba",
     "semantic_hash": "25d34aa77ba319720a17c1e885468cba"
   },
@@ -1605,9 +1605,9 @@
     "semantic_hash": "5c59916c646d6703297bf3cc74169580"
   },
   "pages/archiveer-varianten.tsx": {
-    "mtime": 1786656710.3698683,
-    "ast_hash": "7689c4cad700688ca22d62aecbeda544",
-    "semantic_hash": "7689c4cad700688ca22d62aecbeda544"
+    "mtime": 1788723859.794866,
+    "ast_hash": "e836be1cc1b02852e9e7e26998aa89a3",
+    "semantic_hash": ""
   },
   "pages/armedangels-image-matcher.tsx": {
     "mtime": 1764618149.008479,
@@ -1630,7 +1630,7 @@
     "semantic_hash": "370aa40765e973c6dce8bfb78b79a4d4"
   },
   "pages/audit-monitor.tsx": {
-    "mtime": 1788510756.423795,
+    "mtime": 1790242418.0287597,
     "ast_hash": "2f2ec90541d2bb6f5c33364b37f682af",
     "semantic_hash": "2f2ec90541d2bb6f5c33364b37f682af"
   },
@@ -1640,17 +1640,17 @@
     "semantic_hash": "370fd8efb31bb0ea211f7348b9645b14"
   },
   "pages/brand-diagnostics.tsx": {
-    "mtime": 1788510756.4131875,
+    "mtime": 1790242418.005514,
     "ast_hash": "611e54a7e6cc21b84710ecabc94b3427",
     "semantic_hash": "611e54a7e6cc21b84710ecabc94b3427"
   },
   "pages/brand-inventory.tsx": {
-    "mtime": 1788510756.4305966,
+    "mtime": 1790242418.0323453,
     "ast_hash": "583b6c372bb538e48105768d7e9446e3",
     "semantic_hash": "583b6c372bb538e48105768d7e9446e3"
   },
   "pages/brand-performance.tsx": {
-    "mtime": 1788510756.4237635,
+    "mtime": 1790242418.0287135,
     "ast_hash": "a5918bd896a6742586b5f1bb4d156c66",
     "semantic_hash": "a5918bd896a6742586b5f1bb4d156c66"
   },
@@ -1660,7 +1660,7 @@
     "semantic_hash": "3b4a943932965efa2244150a1da84d4e"
   },
   "pages/categories-explorer.tsx": {
-    "mtime": 1788510756.42381,
+    "mtime": 1790242418.032162,
     "ast_hash": "cf7441e9a19d74000a339bcd04e3cfef",
     "semantic_hash": "cf7441e9a19d74000a339bcd04e3cfef"
   },
@@ -1675,12 +1675,12 @@
     "semantic_hash": ""
   },
   "pages/ecommerce-depubliceren.tsx": {
-    "mtime": 1788510756.4237814,
+    "mtime": 1790242418.0287876,
     "ast_hash": "b678bc40156ab49233a918fea35d8079",
     "semantic_hash": "b678bc40156ab49233a918fea35d8079"
   },
   "pages/ecommerce-insights.tsx": {
-    "mtime": 1788510756.4238548,
+    "mtime": 1790242418.032258,
     "ast_hash": "43ceb8bbd65d717ff3fa6c6b646265fe",
     "semantic_hash": "43ceb8bbd65d717ff3fa6c6b646265fe"
   },
@@ -1720,12 +1720,12 @@
     "semantic_hash": "7d3bb8828700afac4b0ed221db1d1088"
   },
   "pages/inventaris-analyse.tsx": {
-    "mtime": 1788510756.4238238,
+    "mtime": 1790242418.028831,
     "ast_hash": "da2c573e42cf5f0163d67a00537cb77d",
     "semantic_hash": "da2c573e42cf5f0163d67a00537cb77d"
   },
   "pages/inventaris-beheer.tsx": {
-    "mtime": 1788510756.423715,
+    "mtime": 1790242418.028546,
     "ast_hash": "874e8bc6fd642e9ddf5da01d70ef9302",
     "semantic_hash": "874e8bc6fd642e9ddf5da01d70ef9302"
   },
@@ -1735,17 +1735,17 @@
     "semantic_hash": "0ccc29a04deb3b816c34b7ba778f5588"
   },
   "pages/inventaris-pos-match.tsx": {
-    "mtime": 1788510756.423792,
+    "mtime": 1790242418.0288033,
     "ast_hash": "324701d79bfa3d0d3d8eac14644c24df",
     "semantic_hash": "324701d79bfa3d0d3d8eac14644c24df"
   },
   "pages/inventaris-samenvoegen.tsx": {
-    "mtime": 1788510756.4237719,
+    "mtime": 1790242418.0287375,
     "ast_hash": "1ef5ad652acf795a71ed0ef9f6db8ab0",
     "semantic_hash": "1ef5ad652acf795a71ed0ef9f6db8ab0"
   },
   "pages/kelder-analyse.tsx": {
-    "mtime": 1788510756.4236352,
+    "mtime": 1790242418.005776,
     "ast_hash": "69a8957f119003123e1c3dc8e5b1e10c",
     "semantic_hash": "69a8957f119003123e1c3dc8e5b1e10c"
   },
@@ -1770,9 +1770,9 @@
     "semantic_hash": "f6b4a9092c9eb0dcbe14600f3069056a"
   },
   "pages/mollie-export.tsx": {
-    "mtime": 1781798753.3195338,
-    "ast_hash": "5f8d7cdb72279bd3d994279a2d4949df",
-    "semantic_hash": "5f8d7cdb72279bd3d994279a2d4949df"
+    "mtime": 1790243932.5339272,
+    "ast_hash": "76d8ba709379a7469d9821a69b907ac4",
+    "semantic_hash": ""
   },
   "pages/onemore-images-import.tsx": {
     "mtime": 1784883000.4325187,
@@ -1845,7 +1845,7 @@
     "semantic_hash": "fd5c9b4f29aaa5821d0fc96d0e73ffae"
   },
   "pages/sales-dashboard.tsx": {
-    "mtime": 1788510756.4236915,
+    "mtime": 1790242418.0215597,
     "ast_hash": "a48e7e2a842f69ef738b318fdebadc96",
     "semantic_hash": "a48e7e2a842f69ef738b318fdebadc96"
   },
@@ -1875,13 +1875,13 @@
     "semantic_hash": "53923715a910de3e38a425da0b9e87a5"
   },
   "pages/smart-upload.tsx": {
-    "mtime": 1786630385.6270127,
-    "ast_hash": "4c2c3a7dd0b89d96ce6a8cdf5994a2de",
+    "mtime": 1789030277.513814,
+    "ast_hash": "62137fc743bef1d0ca80727cbcd23882",
     "semantic_hash": ""
   },
   "pages/stock-verkopen.tsx": {
-    "mtime": 1786656710.3615944,
-    "ast_hash": "5b6cd8a8726c5ce6b63e9d7bc243bdfc",
+    "mtime": 1788881723.9487739,
+    "ast_hash": "e6678e7b08785dce3c676cc1e7d5b1d5",
     "semantic_hash": ""
   },
   "pages/stocksale.tsx": {
@@ -1920,7 +1920,7 @@
     "semantic_hash": "19c5e09f11d1716d4cf59b6d7810739a"
   },
   "pages/voorraad-samenvoegen.tsx": {
-    "mtime": 1788510756.4236605,
+    "mtime": 1790242418.0055108,
     "ast_hash": "2009dce4dd28423b6e7f8d7e191b20c0",
     "semantic_hash": "2009dce4dd28423b6e7f8d7e191b20c0"
   },
@@ -1930,7 +1930,7 @@
     "semantic_hash": "7f4139984fd92bc5e7f93994ac768607"
   },
   "pages/webshoporders-beheren.tsx": {
-    "mtime": 1788510756.4237485,
+    "mtime": 1790242418.028699,
     "ast_hash": "43002e95a43183f51422ebfb9775bc34",
     "semantic_hash": "43002e95a43183f51422ebfb9775bc34"
   },
@@ -2005,8 +2005,8 @@
     "semantic_hash": "11a9c2422d5cf28a3180caada6403415"
   },
   "vercel.json": {
-    "mtime": 1788511356.3224072,
-    "ast_hash": "d4d8b1444e7e9bb70724edf385a8f4e2",
+    "mtime": 1789731292.5254464,
+    "ast_hash": "dc9776bf098c14c9734b6ca1415d2641",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
@@ -2155,12 +2155,12 @@
     "semantic_hash": "46617dd84aa65f939c7eef9c8d8445b4"
   },
   "TINYCOTTONS_IMPLEMENTATION.md": {
-    "mtime": 1788510756.423868,
+    "mtime": 1790242418.0322478,
     "ast_hash": "8cd06c78200041945994203dfa385d79",
     "semantic_hash": "8cd06c78200041945994203dfa385d79"
   },
   "TINYCOTTONS_IMPORT_GUIDE.md": {
-    "mtime": 1788510756.4236827,
+    "mtime": 1790242418.0215864,
     "ast_hash": "a38fb2cd4e920714d02ce3ef25580738",
     "semantic_hash": "a38fb2cd4e920714d02ce3ef25580738"
   },
@@ -2520,8 +2520,348 @@
     "semantic_hash": ""
   },
   "pages/boekhouding-inzichten.tsx": {
-    "mtime": 1788512079.54651,
-    "ast_hash": "672dcafc0e0136364c9b834061bb5832",
+    "mtime": 1789733029.4749703,
+    "ast_hash": "111147faf8c174d381f45584a52bc533",
+    "semantic_hash": ""
+  },
+  "lib/accounting/__tests__/processGuide.test.ts": {
+    "mtime": 1788512974.3256273,
+    "ast_hash": "a71874e5f48506c703606834b4cb0aa0",
+    "semantic_hash": ""
+  },
+  "lib/accounting/processGuide.ts": {
+    "mtime": 1790243834.3773272,
+    "ast_hash": "75665432f6c292cd53963bbee5e70ce1",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/fliink/index.test.ts": {
+    "mtime": 1788513835.2917843,
+    "ast_hash": "06de68eb5a0a531bb0b8379964fea1e5",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/fliink/index.ts": {
+    "mtime": 1788513745.2028341,
+    "ast_hash": "a9bbf1f215460063837fbb38d6d7c4ce",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/fliink/samples/image-filenames.txt": {
+    "mtime": 1788513796.8647082,
+    "ast_hash": "a214cc21000ce55e0fadfadec0178a69",
+    "semantic_hash": ""
+  },
+  "lib/seo/__tests__/altText.test.ts": {
+    "mtime": 1788637159.933101,
+    "ast_hash": "dc48fdb768ef680c3c81cf2e1126950e",
+    "semantic_hash": ""
+  },
+  "lib/seo/altText.ts": {
+    "mtime": 1788637158.7603278,
+    "ast_hash": "ae91995de0542de8d41dd0d6d6d2fb6e",
+    "semantic_hash": ""
+  },
+  "lib/seo/types.ts": {
+    "mtime": 1788635591.1278064,
+    "ast_hash": "77ecdad937034e2bee0bb24e1708f4c8",
+    "semantic_hash": ""
+  },
+  "pages/api/seo/products.ts": {
+    "mtime": 1788635633.904709,
+    "ast_hash": "4b2ef96a9b3f6e1d8fcbecd754c56b2c",
+    "semantic_hash": ""
+  },
+  "pages/api/seo/update-alt-text.ts": {
+    "mtime": 1788635634.0037968,
+    "ast_hash": "020fa291f7fec2cefcd879c222d499f0",
+    "semantic_hash": ""
+  },
+  "pages/seo-alt-tekst.tsx": {
+    "mtime": 1788637161.5227132,
+    "ast_hash": "65bec21b50c7a5681964715183a38d9c",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1789721446.096271,
+    "ast_hash": "dc096bca65337f1a9f17b57481abd2ab",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1788555936.3279448,
+    "ast_hash": "5c27369b226fcf2be8a6cfe52224e767",
+    "semantic_hash": ""
+  },
+  "pages/api/odoo/duplicate-partners.ts": {
+    "mtime": 1788685391.355215,
+    "ast_hash": "7f6a854c8ed2186a9dabe19d3d36d685",
+    "semantic_hash": ""
+  },
+  "pages/benefiet-scanner.tsx": {
+    "mtime": 1788685802.3699014,
+    "ast_hash": "c4d613246d19b71f7d907280251b13d4",
+    "semantic_hash": ""
+  },
+  "pages/klanten-samenvoegen.tsx": {
+    "mtime": 1788685406.0380912,
+    "ast_hash": "fa0b0a277087e38f2e8dd7e1ab8952bb",
+    "semantic_hash": ""
+  },
+  "lib/mcp/__tests__/formatAssistantChatError.test.ts": {
+    "mtime": 1788773216.535574,
+    "ast_hash": "33403767cdb4c4dfa6d66d6a46bb2814",
+    "semantic_hash": ""
+  },
+  "lib/mcp/formatAssistantChatError.ts": {
+    "mtime": 1788773213.374446,
+    "ast_hash": "ec77fbfbadbd6f7c93fd8ffa814237e3",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/babeandtess/index.test.ts": {
+    "mtime": 1788974362.8255477,
+    "ast_hash": "ecaacfca27773005635e5a59e1ce7795",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/thenewsociety/index.test.ts": {
+    "mtime": 1788974369.0247269,
+    "ast_hash": "071a6e5e437f513be00a4af445934859",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/graceandmila/index.test.ts": {
+    "mtime": 1788978149.548651,
+    "ast_hash": "af5d52ae494112a5a23a0092bf0e0b0f",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/graceandmila/index.ts": {
+    "mtime": 1788975328.9653754,
+    "ast_hash": "6ec0e666f994934b3bf6094ee76aeaa6",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/graceandmila/pdf.ts": {
+    "mtime": 1788975219.2185524,
+    "ast_hash": "798c8a396085b91c6458897ee929003a",
+    "semantic_hash": ""
+  },
+  "pages/api/parse-graceandmila-pdf.ts": {
+    "mtime": 1788975247.5672283,
+    "ast_hash": "c2b1f801bc68101b167f81aacd1448ed",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/graceandmila/samples/INV_2026_00001929.pdf": {
+    "mtime": 1788975198.9887002,
+    "ast_hash": "5cd01d045fe9764977d0de85377ca8e2",
+    "semantic_hash": ""
+  },
+  "components/ProblemsPanel.tsx": {
+    "mtime": 1789132383.0898092,
+    "ast_hash": "c7539ddc415a1c00a580dcbfa858d13b",
+    "semantic_hash": ""
+  },
+  "lib/braindump-problems.ts": {
+    "mtime": 1789132372.8878684,
+    "ast_hash": "b9fc134d981cf600d39196533d4a764d",
+    "semantic_hash": ""
+  },
+  "pages/api/problems.ts": {
+    "mtime": 1789388650.156105,
+    "ast_hash": "4c2a7fea579ed1695e69ead00298a889",
+    "semantic_hash": ""
+  },
+  "pages/problemen.tsx": {
+    "mtime": 1789132383.8345742,
+    "ast_hash": "545d34bc17021f25f42bc292bbfa3743",
+    "semantic_hash": ""
+  },
+  "lib/order-attachments.test.ts": {
+    "mtime": 1789375145.3148954,
+    "ast_hash": "19a8de7b9cb6c8920edbcbd7ceffb10a",
+    "semantic_hash": ""
+  },
+  "lib/order-attachments.ts": {
+    "mtime": 1789373468.2108634,
+    "ast_hash": "800d317573553f93a4e764bb407b2818",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-09-15-mollie-opzoeken-design.md": {
+    "mtime": 1789476486.7561777,
+    "ast_hash": "bbfb71957a7107bdcbd16c4c051b901c",
+    "semantic_hash": ""
+  },
+  "lib/__tests__/mollieLookup.test.ts": {
+    "mtime": 1789476486.756468,
+    "ast_hash": "c57c1204fa456f80c5464885fed4d1cb",
+    "semantic_hash": ""
+  },
+  "lib/mollieLookup.ts": {
+    "mtime": 1789476486.7568057,
+    "ast_hash": "5373571292828dfc02a914c1a945fc63",
+    "semantic_hash": ""
+  },
+  "lib/mollieLookupService.ts": {
+    "mtime": 1789476486.7570217,
+    "ast_hash": "f022162833cea9f25ccf91da119db5ec",
+    "semantic_hash": ""
+  },
+  "pages/api/mollie/in-transit.ts": {
+    "mtime": 1789476486.757321,
+    "ast_hash": "e5ab19746e1a44f3f256ffb15c47bf6b",
+    "semantic_hash": ""
+  },
+  "pages/api/mollie/lookup.ts": {
+    "mtime": 1789476486.7575252,
+    "ast_hash": "c87822da7da7db18c5789f85e5c41bd8",
+    "semantic_hash": ""
+  },
+  "pages/mollie-opzoeken.tsx": {
+    "mtime": 1789476486.7578518,
+    "ast_hash": "902d8e91186f2946c830faa767b1c3e8",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-09-15-mollie-opzoeken.md": {
+    "mtime": 1789476486.7557924,
+    "ast_hash": "0f969a5a1f440f31cee5b7e9949c9cfa",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/inuwet/index.test.ts": {
+    "mtime": 1789501346.9412959,
+    "ast_hash": "defccadc8cf213c5b9b6de8d8c58d445",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/inuwet/index.ts": {
+    "mtime": 1789501346.463833,
+    "ast_hash": "3cd61b6b916ad17101a3cdcf1241f86e",
+    "semantic_hash": ""
+  },
+  ".agents/skills/supplier-onboarding/SKILL.md": {
+    "mtime": 1789499106.202651,
+    "ast_hash": "06fc8ad02202f8cecadf0008a6b93d96",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/index.test.ts": {
+    "mtime": 1789724426.8186314,
+    "ast_hash": "86fe821b1d8c52b6199355d318abc9a8",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/pdf.ts": {
+    "mtime": 1789724125.4744167,
+    "ast_hash": "557719b100d6e051d60d0f4b572a31ad",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/samples/AW26W12-0901-Babette.txt": {
+    "mtime": 1789721212.9502082,
+    "ast_hash": "3ef16868d7432bd1d65c5f5b3777cfd4",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/samples/AW26W12-0901-Babette.pdf": {
+    "mtime": 1789721212.942356,
+    "ast_hash": "e94371fd48c6f4d0ff9ac4da22bf0bf5",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/samples/AW26W12-0901-layout.json": {
+    "mtime": 1789721883.1897306,
+    "ast_hash": "6836c394f477841785e1526e28272674",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/bayiri/pdf-layout.ts": {
+    "mtime": 1789724406.20821,
+    "ast_hash": "4b60b2450919042ec27ee11cc27ef629",
+    "semantic_hash": ""
+  },
+  "lib/accounting/__tests__/documents.test.ts": {
+    "mtime": 1789733018.0754116,
+    "ast_hash": "f42616bf05d3a6eacd5594c824d21625",
+    "semantic_hash": ""
+  },
+  "lib/accounting/documents.ts": {
+    "mtime": 1789733052.4183774,
+    "ast_hash": "8d86649bb2e2dabeec59cba1ce766427",
+    "semantic_hash": ""
+  },
+  "lib/accounting/fetchDocuments.ts": {
+    "mtime": 1789732920.4156163,
+    "ast_hash": "c0d0a09b37516509ee77f092ee183e71",
+    "semantic_hash": ""
+  },
+  "pages/api/accounting-documents.ts": {
+    "mtime": 1789731291.3986344,
+    "ast_hash": "bd16ad9de87266e5910666412a52f4eb",
+    "semantic_hash": ""
+  },
+  "lib/__tests__/mollieSettlementShared.test.ts": {
+    "mtime": 1790282374.1038754,
+    "ast_hash": "9d45e419b7cf573ec811b7fd73a5ac61",
+    "semantic_hash": ""
+  },
+  "lib/accounting/__tests__/mollieCapitalLedger.test.ts": {
+    "mtime": 1790280078.4652767,
+    "ast_hash": "0d5a0edae51cf87c298239e446c8ea04",
+    "semantic_hash": ""
+  },
+  "lib/accounting/__tests__/mollieCommissionCheck.test.ts": {
+    "mtime": 1790243586.7939606,
+    "ast_hash": "320276611b1d83b5f986ba70ef3771f5",
+    "semantic_hash": ""
+  },
+  "lib/accounting/__tests__/posSessionReconciliation.test.ts": {
+    "mtime": 1790243660.5002587,
+    "ast_hash": "e9d4ed7ee1baebbf975969753fa4e75e",
+    "semantic_hash": ""
+  },
+  "lib/accounting/fetchMollieCommissionBills.ts": {
+    "mtime": 1790243554.5204027,
+    "ast_hash": "39e0aa79c4368772aad2736cb8af103b",
+    "semantic_hash": ""
+  },
+  "lib/accounting/fetchOutstandingReceipts.ts": {
+    "mtime": 1790243628.9274423,
+    "ast_hash": "03e74e274f38a2baaca48e8dcd22039c",
+    "semantic_hash": ""
+  },
+  "lib/accounting/mollieBankStatements.ts": {
+    "mtime": 1790278033.6735213,
+    "ast_hash": "6bd34f4961893b9636a169cbb5434a0a",
+    "semantic_hash": ""
+  },
+  "lib/accounting/mollieCapitalLedger.ts": {
+    "mtime": 1790280065.0568466,
+    "ast_hash": "72a47cf9097e56dc5a360486448ea056",
+    "semantic_hash": ""
+  },
+  "lib/accounting/mollieCommissionCheck.ts": {
+    "mtime": 1790243546.919608,
+    "ast_hash": "2e06b416164db736eed45a35b3993fb9",
+    "semantic_hash": ""
+  },
+  "lib/accounting/posSessionReconciliation.ts": {
+    "mtime": 1790243619.2719164,
+    "ast_hash": "4941bda909ca6e9132eb0e6639aa71cd",
+    "semantic_hash": ""
+  },
+  "lib/mollieBalanceTransactions.ts": {
+    "mtime": 1790257446.8284893,
+    "ast_hash": "026e8761b401403a64549339ccc9cc98",
+    "semantic_hash": ""
+  },
+  "pages/api/accounting/pos-session-check.ts": {
+    "mtime": 1790243644.3035095,
+    "ast_hash": "7d7bc8df070b3a992707b2557e29d5f7",
+    "semantic_hash": ""
+  },
+  "pages/api/mollie/commission-check.ts": {
+    "mtime": 1790243567.5566182,
+    "ast_hash": "70d0dab951bb9e1162515697594dca07",
+    "semantic_hash": ""
+  },
+  "pages/api/mollie/import-odoo-capital.ts": {
+    "mtime": 1790280818.4668424,
+    "ast_hash": "6163b8f14f6235989adfbd4264370cfe",
+    "semantic_hash": ""
+  },
+  "pages/api/mollie/import-odoo-statement.ts": {
+    "mtime": 1790283020.2585511,
+    "ast_hash": "0e91bf51e4d21eb068da821892a69c0f",
+    "semantic_hash": ""
+  },
+  "pages/mollie-boekhouding.tsx": {
+    "mtime": 1790283278.4663095,
+    "ast_hash": "5553ecea47e1cc4aebe259baad25972c",
     "semantic_hash": ""
   }
 }

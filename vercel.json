@@ -12,6 +12,9 @@
     "pages/api/accounting-insights.ts": {
       "maxDuration": 60
     },
+    "pages/api/accounting-documents.ts": {
+      "maxDuration": 60
+    },
     "pages/api/mollie/lookup.ts": {
       "maxDuration": 60
     },
