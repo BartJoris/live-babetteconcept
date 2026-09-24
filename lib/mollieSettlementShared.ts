@@ -87,12 +87,13 @@ export function escapeCSV(value: string): string {
   return value;
 }
 
-export async function fetchMollie(url: string, token: string) {
+export async function fetchMollie(url: string, token: string, signal?: AbortSignal) {
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal,
   });
   if (!response.ok) {
     const text = await response.text();
@@ -350,11 +351,16 @@ export function costToOdooRow(
 ): SettlementOdooRow {
   const ref = settlement.reference || settlement.id;
   const uniekeImportId = `${settlement.id}:cost:${periodKey}:${costIndex}`;
+  // Mollie levert `amountGross` als positieve grootte (een kost, geen bedrag-met-teken). Voor de
+  // banklijn/CSV moet dit een AFTREKKING zijn (negatief) — zo staat het ook in Mollie's eigen export
+  // en in `costToRowClassic` hierboven. Zonder deze `-Math.abs(...)` boekt de kost als extra omzet
+  // i.p.v. als kost.
+  const negativeAmount = (-Math.abs(Number.parseFloat(cost.amountGross.value))).toFixed(2);
   return {
     datum: settledAtIso,
     betaalmethode: cost.method ?? '',
     valuta: cost.amountGross.currency,
-    bedrag: cost.amountGross.value,
+    bedrag: negativeAmount,
     status: '',
     id: '',
     omschrijving: cost.description,
@@ -362,10 +368,10 @@ export function costToOdooRow(
     rekeningConsument: '',
     bicConsument: '',
     uitbetalingsvaluta: cost.amountGross.currency,
-    uitbetalingsbedrag: cost.amountGross.value,
+    uitbetalingsbedrag: negativeAmount,
     uitbetalingsreferentie: ref,
     teruggestortBedrag: '0.00',
-    descriptionOdoo: buildOdooDescription(cost.description, cost.amountGross.value, ref),
+    descriptionOdoo: buildOdooDescription(cost.description, negativeAmount, ref),
     datumDdMmYyyy: formatDdMmYyyyFromIso(settledAtIso),
     settlementId: settlement.id,
     boekingsdatum: bookingDateFromIso(settledAtIso),
@@ -539,5 +545,110 @@ export function settlementOdooRowToBankLineVals(
     amount: Number.isFinite(amount) ? amount : 0,
     payment_ref: paymentRef || row.uniekeImportId,
     ref: ref || undefined,
+  };
+}
+
+/** Bedrag dat `settlementOdooRowToBankLineVals` op de banklijn zou zetten (voor optellingen/preview). */
+export function bankLineAmount(row: SettlementOdooRow): number {
+  const amount = Number.parseFloat(String(row.uitbetalingsbedrag).replace(',', '.'));
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+/** Marge waarbinnen een afschrift als "sluitend" (begin- en eindsaldo effectief op 0) telt. */
+export const STATEMENT_BALANCE_TOLERANCE_EUR = 0.01;
+
+export function isNetAmountBalanced(
+  netAmount: number,
+  tolerance = STATEMENT_BALANCE_TOLERANCE_EUR
+): boolean {
+  return Math.abs(netAmount) <= tolerance;
+}
+
+/**
+ * Eén Mollie-settlement met al zijn regels (betaling/omzet/kosten), zoals stap 10-11 in de gids:
+ * "maak het afschrift aan door de referentie te plakken in dat veld" + begin/eindsaldo op nul.
+ *
+ * BELANGRIJK — ontdekt tegen een echte settlement: de individuele `betaling`-rijen (uit
+ * `fetchSettlementPayments`) en de `omzet`-rijen (uit `settlement.periods[].revenue`) mogen NIET als
+ * nieuwe banklijn geboekt worden. De betalingen zelf komen al automatisch in Odoo terecht (via de
+ * POS/Mollie-koppeling of de webshop) — die opnieuw aanmaken boekt de omzet dubbel. De `omzet`-rijen
+ * zijn zelf ook al een optelsom van (een deel van) diezelfde betalingen — een derde keer dezelfde
+ * omzet. Alleen `kosten`-rijen (Withheld fees) bestaan nog nergens anders in Odoo en mogen dus wél
+ * als nieuwe banklijn aangemaakt worden — zie `bookableRows`.
+ */
+export interface SettlementRowGroup {
+  /** Mollie settlement id (`stl_...`), of `''` als de rijen niet aan een settlement toe te wijzen zijn
+   *  (fallback via Payments API — zie `approach: 'payments'` in `collectSettlementOdooRows`). */
+  settlementId: string;
+  /** Settlement-referentie (bv. `14086537.2609.18`) — dit is wat in het Odoo `name`-veld van het
+   *  afschrift moet staan. Valt terug op `settlementId` als er geen referentie is. */
+  reference: string;
+  /** Alle rijen van deze settlement (betaling + omzet + kosten) — enkel informatief, niet alles
+   *  hiervan wordt geboekt. Gebruik `bookableRows` voor wat er echt als banklijn aangemaakt wordt. */
+  rows: SettlementOdooRow[];
+  /** Enkel de `kosten`-rijen — dit zijn de enige rijen die hier veilig als nieuwe banklijn aangemaakt
+   *  mogen worden (zie uitleg hierboven). */
+  bookableRows: SettlementOdooRow[];
+  /** Som van de bedragen van `bookableRows` (de kosten) — een negatief bedrag, geen "moet op 0
+   *  sluiten"-saldo. Het afschrift zelf sluit pas op 0 als ook de al-bestaande betalingen erop
+   *  gekoppeld worden (nog niet geautomatiseerd). */
+  netAmount: number;
+  /** Meest recente boekingsdatum in de groep (voor het `date`-veld van het afschrift). */
+  latestBookingDate: string;
+}
+
+/**
+ * Groepeert settlement-rijen per Mollie settlement (stap 10-11: één afschrift per settlement).
+ * Rijen zonder `settlementId` (Payments API-fallback, geen settlement-referentie beschikbaar) komen
+ * in één groep met `settlementId: ''` terecht — daarvoor kan geen afschrift aangemaakt worden.
+ */
+export function groupSettlementRowsBySettlement(rows: SettlementOdooRow[]): SettlementRowGroup[] {
+  const groups = new Map<string, SettlementOdooRow[]>();
+  for (const row of rows) {
+    const key = row.settlementId || '';
+    const existing = groups.get(key);
+    if (existing) existing.push(row);
+    else groups.set(key, [row]);
+  }
+
+  const result: SettlementRowGroup[] = [];
+  for (const [settlementId, groupRows] of groups) {
+    const bookableRows = groupRows.filter((row) => row.regeltype === 'kosten');
+    const netAmount = bookableRows.reduce((sum, row) => sum + bankLineAmount(row), 0);
+    const reference = groupRows.find((row) => row.uitbetalingsreferentie)?.uitbetalingsreferentie
+      || settlementId;
+    const latestBookingDate = groupRows.reduce(
+      (latest, row) => (row.boekingsdatum > latest ? row.boekingsdatum : latest),
+      groupRows[0]?.boekingsdatum ?? ''
+    );
+    result.push({
+      settlementId,
+      reference,
+      rows: groupRows,
+      bookableRows,
+      netAmount: Math.round(netAmount * 100) / 100,
+      latestBookingDate,
+    });
+  }
+
+  result.sort((a, b) => b.latestBookingDate.localeCompare(a.latestBookingDate));
+  return result;
+}
+
+/**
+ * `account.bank.statement` create-vals voor één settlement-groep (stap 10-11): naam = settlement-
+ * referentie, begin- en eindsaldo op nul (deze afschriften documenteren enkel de settlement-batch,
+ * ze representeren geen doorlopend banksaldo).
+ */
+export function settlementGroupToStatementVals(
+  group: SettlementRowGroup,
+  journalId: number
+): Record<string, unknown> {
+  return {
+    journal_id: journalId,
+    name: group.reference || group.settlementId,
+    date: group.latestBookingDate || undefined,
+    balance_start: 0,
+    balance_end_real: 0,
   };
 }

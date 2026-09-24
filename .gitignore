@@ -56,6 +56,8 @@ yarn-error.log*
 next-env.d.ts
 
 server.log
+.next-dev.log
+.next-dev-assistant.log
 
 # Xcode
 *.xcodeproj/

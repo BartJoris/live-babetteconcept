@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Head from 'next/head';
+import Link from 'next/link';
 
 const QUARTERS = [
   { label: 'Q1', startMonth: 0, endMonth: 2 },
@@ -295,6 +296,12 @@ export default function MollieExport() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Mollie Uitbetalingen Export
           </h1>
+          <p className="mb-4">
+            <Link href="/mollie-boekhouding" className="text-sm font-medium text-blue-700 hover:underline">
+              → Per settlement een afschrift aanmaken in Odoo (begin/eindsaldo 0 + groen/rood-check),
+              plus de maandelijkse commissiecontrole en kassasessies op 550001
+            </Link>
+          </p>
           <p className="text-gray-600 mb-8">
             Exporteer Mollie-uitbetalingen (settlements) over een gekozen periode. Kies{' '}
             <strong>klassiek</strong> voor het bestand zoals vroeger naar de boekhouder (zelfde
