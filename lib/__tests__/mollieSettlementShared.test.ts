@@ -377,6 +377,55 @@ describe('collectSettlementOdooRows', () => {
     expect(groups[0].rows).toHaveLength(3);
   });
 
+  it('fetches each settlement’s payments concurrently and combines all rows without dropping any', async () => {
+    // Regression test for a production 504 (30s function timeout): fetching a month of settlements'
+    // payments one-by-one, sequentially, was slow enough to hit Vercel's timeout. This confirms
+    // multiple settlements still all end up in the result when fetched concurrently.
+    const settlements: MollieSettlement[] = Array.from({ length: 8 }, (_, i) => ({
+      id: `stl_${i}`,
+      reference: `REF-${i}`,
+      createdAt: '2026-09-01T10:00:00+00:00',
+      status: 'paidout',
+      amount: { currency: 'EUR', value: '10.00' },
+    }));
+
+    global.fetch = vi.fn(async (url: string | URL) => {
+      const href = url.toString();
+      if (href.includes('/settlements?')) {
+        return new Response(
+          JSON.stringify({ count: settlements.length, _embedded: { settlements }, _links: { self: { href } } }),
+          { status: 200 }
+        );
+      }
+      const match = /\/settlements\/(stl_\d+)\/payments/.exec(href);
+      if (match) {
+        const settlementId = match[1];
+        return new Response(
+          JSON.stringify({
+            count: 1,
+            _embedded: { payments: [payment({ id: `tr_${settlementId}` })] },
+            _links: { self: { href } },
+          }),
+          { status: 200 }
+        );
+      }
+      throw new Error(`Unexpected URL in test: ${href}`);
+    }) as unknown as typeof fetch;
+
+    const { rows } = await collectSettlementOdooRows({
+      apiKey: 'test-key',
+      accessToken: undefined,
+      from: new Date('2026-09-01T00:00:00.000Z'),
+      to: new Date('2026-09-30T23:59:59.999Z'),
+    });
+
+    expect(rows).toHaveLength(8);
+    expect(new Set(rows.map((r) => r.settlementId)).size).toBe(8);
+    for (let i = 0; i < 8; i++) {
+      expect(rows.some((r) => r.uniekeImportId === `tr_stl_${i}`)).toBe(true);
+    }
+  });
+
   it('falls back to the Payments API when the Settlements API errors', async () => {
     global.fetch = vi.fn(async (url: string | URL) => {
       const href = url.toString();

@@ -394,6 +394,32 @@ export function sortSettlementOdooRows(rows: SettlementOdooRow[]): void {
   });
 }
 
+/**
+ * Voert `fn` uit voor elk item in `items`, met max `concurrency` gelijktijdige aanroepen — nodig omdat
+ * Mollie een aparte API-call per settlement vereist voor de individuele betalingen. Bij een volledige
+ * maand (20-30 dagelijkse settlements) duurde dit sequentieel lang genoeg om Vercel's functie-timeout
+ * te raken (zie productie-incident: 504 op `/api/mollie/import-odoo-capital`).
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
+
 export async function collectSettlementOdooRows(params: {
   apiKey: string;
   accessToken: string | undefined;
@@ -413,13 +439,14 @@ export async function collectSettlementOdooRows(params: {
   try {
     const settlements = await fetchSettlementsForPeriod(settlementToken, from, to);
 
-    for (const settlement of settlements) {
+    const rowsPerSettlement = await mapWithConcurrency(settlements, 5, async (settlement) => {
       const payments = await fetchSettlementPayments(settlementToken, settlement.id);
       const ref = settlement.reference || settlement.id;
       const invoiceId = settlement.invoiceId ?? '';
+      const settlementRows: SettlementOdooRow[] = [];
 
       for (const payment of payments) {
-        rows.push(paymentToOdooRow(payment, ref, settlement.id, invoiceId));
+        settlementRows.push(paymentToOdooRow(payment, ref, settlement.id, invoiceId));
       }
 
       if (settlement.periods) {
@@ -430,18 +457,22 @@ export async function collectSettlementOdooRows(params: {
             const periodKey = `${yearKey}-${monthKey}`;
             if (period.revenue) {
               period.revenue.forEach((rev, revIndex) => {
-                rows.push(revenueToOdooRow(rev, settlement, settledAtIso, periodKey, revIndex, invoiceId));
+                settlementRows.push(revenueToOdooRow(rev, settlement, settledAtIso, periodKey, revIndex, invoiceId));
               });
             }
             if (period.costs) {
               period.costs.forEach((cost, costIndex) => {
-                rows.push(costToOdooRow(cost, settlement, settledAtIso, periodKey, costIndex, invoiceId));
+                settlementRows.push(costToOdooRow(cost, settlement, settledAtIso, periodKey, costIndex, invoiceId));
               });
             }
           }
         }
       }
-    }
+
+      return settlementRows;
+    });
+
+    rows = rowsPerSettlement.flat();
   } catch (err) {
     approach = 'payments';
     settlementError = err instanceof Error ? err.message : 'Onbekende fout';
