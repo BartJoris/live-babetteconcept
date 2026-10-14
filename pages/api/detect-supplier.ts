@@ -690,6 +690,41 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Steiff (invoice PDF + prijslijst CSV) ──
+  {
+    supplierId: 'steiff',
+    supplierName: 'Steiff',
+    csvRules: [{
+      fileInputId: 'prices_csv',
+      fileInputLabel: 'Prijslijst CSV',
+      detect: (headers, text, fileName) => {
+        const blob = `${fileName} ${text}`.toLowerCase();
+        if (
+          h(headers, 'Artikelcode', 'EAN-code', 'Artikel omschrijving') &&
+          (h(headers, 'Inkoopprijs') || h(headers, 'Adviesprijs'))
+        ) {
+          if (blob.includes('steiff')) return 0.98;
+          if (/66\.\d{6}/.test(text)) return 0.9;
+          return 0.8;
+        }
+        return 0;
+      },
+      reason: 'Artikelcode + EAN-code + Artikel omschrijving (Steiff prijslijst)',
+    }],
+    pdfRules: [{
+      fileInputId: 'pdf_invoice',
+      fileInputLabel: 'Factuur PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase();
+        if (l.includes('steiff')) return 0.95;
+        // Steiff invoice doc numbers are often numeric PDFs (e.g. 0072400045.PDF)
+        if (/^\d{8,10}\.pdf$/i.test(fn)) return 0.55;
+        return 0;
+      },
+      reason: 'Bestandsnaam verwijst naar Steiff factuur',
+    }],
+  },
+
   // ── Nixnut ──
   {
     supplierId: 'nixnut',

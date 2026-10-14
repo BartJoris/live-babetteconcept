@@ -40,6 +40,7 @@ import babeandtess from './babeandtess';
 import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
+import steiff from './steiff';
 import nixnut from './nixnut';
 import baje from './baje';
 import petitbateau from './petitbateau';
@@ -78,6 +79,7 @@ const allPlugins = [
   babeandtess,      // Babe & Tess
   senger,           // Senger-Naturwelt
   sistersdepartment,// Sisters Department
+  steiff,           // Steiff
   sundaycollective, // The Sunday Collective
   tangerine,        // Tangerine
   thenewsociety,    // The New Society

@@ -1,0 +1,72 @@
+import type { NextApiResponse } from 'next';
+import formidable from 'formidable';
+import fs from 'fs';
+import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { extractPdfText } from '@/lib/pdf/extractText';
+import { extractSteiffProducts, isSteiffInvoice } from '@/lib/suppliers/steiff/pdf';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const form = formidable({});
+    const [, files] = await form.parse(req);
+
+    const pdfFile = files.pdf?.[0] || files.file?.[0];
+    if (!pdfFile) {
+      return res.status(400).json({ error: 'No PDF file uploaded' });
+    }
+
+    const fileName = pdfFile.originalFilename || '';
+    console.log(`📋 Parsing Steiff PDF: ${fileName}`);
+
+    const pdfBuffer = fs.readFileSync(pdfFile.filepath);
+    const pdfData = new Uint8Array(pdfBuffer);
+
+    let pdfText = '';
+    try {
+      pdfText = await extractPdfText(pdfData);
+      console.log(`✅ Extracted ${pdfText.length} characters from PDF`);
+    } catch (pdfError) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to parse PDF: ' + (pdfError as Error).message,
+      });
+    }
+
+    if (!isSteiffInvoice(pdfText) && !fileName.toLowerCase().includes('steiff')) {
+      console.log('⚠️ PDF does not look like a Steiff invoice; parsing anyway');
+    }
+
+    const products = extractSteiffProducts(pdfText);
+
+    if (products.length === 0) {
+      return res.status(200).json({
+        success: false,
+        error: 'Geen producten gevonden in Steiff factuur.',
+        debugText: pdfText.substring(0, 5000),
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      products,
+      productCount: products.length,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to parse PDF: ' + ((error as Error).message || 'Unknown error'),
+    });
+  }
+}
+
+export default withAuth(handler);
