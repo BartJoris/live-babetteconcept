@@ -45,7 +45,7 @@
     "semantic_hash": "13a64392c3c758c1d2dfa4e36b2583a1"
   },
   "components/DeliveryConfirmationDialog.tsx": {
-    "mtime": 1790242418.0322726,
+    "mtime": 1791975859.316821,
     "ast_hash": "2e25454fef08cf006e636f34f9292772",
     "semantic_hash": "2e25454fef08cf006e636f34f9292772"
   },
@@ -55,7 +55,7 @@
     "semantic_hash": ""
   },
   "components/ProductAvailabilityDialog.tsx": {
-    "mtime": 1790242418.0286603,
+    "mtime": 1791975859.2130432,
     "ast_hash": "2ea3b03bb43ee415fefb4a300472f74c",
     "semantic_hash": "2ea3b03bb43ee415fefb4a300472f74c"
   },
@@ -665,8 +665,8 @@
     "semantic_hash": "55c32574575a08214f01beb13395426d"
   },
   "lib/suppliers/index.ts": {
-    "mtime": 1789501350.2427053,
-    "ast_hash": "9eb5f435c50857362784af5de3ad0534",
+    "mtime": 1791976151.6831667,
+    "ast_hash": "8e86444013497131a090d8a621357ece",
     "semantic_hash": ""
   },
   "lib/suppliers/jellymallow/index.ts": {
@@ -845,7 +845,7 @@
     "semantic_hash": "215d5aa31a87dfea2040fbe297ee134b"
   },
   "package.json": {
-    "mtime": 1790242418.0286424,
+    "mtime": 1791975859.2130194,
     "ast_hash": "55d7d25aa8e8dde72b412481f0c3292c",
     "semantic_hash": ""
   },
@@ -865,7 +865,7 @@
     "semantic_hash": "913e833c6bb3aa58be03a000364fb147"
   },
   "pages/ao76-image-matcher.tsx": {
-    "mtime": 1790242418.0055113,
+    "mtime": 1791975859.2125251,
     "ast_hash": "1b9a20bfb9b2c5c5dc55a6341d42d5da",
     "semantic_hash": "1b9a20bfb9b2c5c5dc55a6341d42d5da"
   },
@@ -975,8 +975,8 @@
     "semantic_hash": ""
   },
   "pages/api/detect-supplier.ts": {
-    "mtime": 1789723206.1537592,
-    "ast_hash": "fe8fc20e373e170a8544e48ca841e46b",
+    "mtime": 1791976156.0042465,
+    "ast_hash": "c1a30569c597acbd0cb7e12913eaabaa",
     "semantic_hash": ""
   },
   "pages/api/download-order-invoice.ts": {
@@ -995,7 +995,7 @@
     "semantic_hash": "bf46bc8d369d2affcb9faed0cfa0d5e5"
   },
   "pages/api/ecommerce/bulk-unpublish.ts": {
-    "mtime": 1790242418.0322165,
+    "mtime": 1791975859.2969167,
     "ast_hash": "817083c17e13d9f097db9a9084fdb30c",
     "semantic_hash": "817083c17e13d9f097db9a9084fdb30c"
   },
@@ -1130,7 +1130,7 @@
     "semantic_hash": "bdd61290ac95b580818917cb819906ef"
   },
   "pages/api/odoo-call.ts": {
-    "mtime": 1790242418.0215487,
+    "mtime": 1791975859.212867,
     "ast_hash": "c6dd6c0a932bd30c9a5a03ee536db258",
     "semantic_hash": "c6dd6c0a932bd30c9a5a03ee536db258"
   },
@@ -1140,7 +1140,7 @@
     "semantic_hash": "f5107b564d07602473e76f2a67676d53"
   },
   "pages/api/odoo/analyse-barcodes.ts": {
-    "mtime": 1790242418.0322962,
+    "mtime": 1791975859.3168507,
     "ast_hash": "003cf751c5edfab7531581d22d236496",
     "semantic_hash": "003cf751c5edfab7531581d22d236496"
   },
@@ -1165,7 +1165,7 @@
     "semantic_hash": "30c6e6a1de506375c72196506566019b"
   },
   "pages/api/odoo/fetch-brands-for-templates.ts": {
-    "mtime": 1790242418.032266,
+    "mtime": 1791975859.3127565,
     "ast_hash": "2b2657d3b622186f0c45f70a51a4b0e4",
     "semantic_hash": "2b2657d3b622186f0c45f70a51a4b0e4"
   },
@@ -1175,7 +1175,7 @@
     "semantic_hash": "31d8eaa1a5bd445415ca781d10bc60b7"
   },
   "pages/api/odoo/fetch-labels-for-templates.ts": {
-    "mtime": 1790242418.0323176,
+    "mtime": 1791975859.3169096,
     "ast_hash": "3c36f904a8e0132e6e5dc6fb8b527692",
     "semantic_hash": "3c36f904a8e0132e6e5dc6fb8b527692"
   },
@@ -1230,7 +1230,7 @@
     "semantic_hash": "1da3c9a7e4453b2d15234226a206d157"
   },
   "pages/api/odoo/update-product-quantities.ts": {
-    "mtime": 1790242418.0323157,
+    "mtime": 1791975859.316849,
     "ast_hash": "b25f567bb31fc6e9ccba51a250813ae7",
     "semantic_hash": "b25f567bb31fc6e9ccba51a250813ae7"
   },
@@ -1585,7 +1585,7 @@
     "semantic_hash": "f58176de064bccbf806051bcdce3acd3"
   },
   "pages/api/webshop-sales-by-date-range.ts": {
-    "mtime": 1790242418.0286195,
+    "mtime": 1791975859.2129984,
     "ast_hash": "25d34aa77ba319720a17c1e885468cba",
     "semantic_hash": "25d34aa77ba319720a17c1e885468cba"
   },
@@ -1630,7 +1630,7 @@
     "semantic_hash": "370aa40765e973c6dce8bfb78b79a4d4"
   },
   "pages/audit-monitor.tsx": {
-    "mtime": 1790242418.0287597,
+    "mtime": 1791975859.246021,
     "ast_hash": "2f2ec90541d2bb6f5c33364b37f682af",
     "semantic_hash": "2f2ec90541d2bb6f5c33364b37f682af"
   },
@@ -1640,17 +1640,17 @@
     "semantic_hash": "370fd8efb31bb0ea211f7348b9645b14"
   },
   "pages/brand-diagnostics.tsx": {
-    "mtime": 1790242418.005514,
+    "mtime": 1791975859.21245,
     "ast_hash": "611e54a7e6cc21b84710ecabc94b3427",
     "semantic_hash": "611e54a7e6cc21b84710ecabc94b3427"
   },
   "pages/brand-inventory.tsx": {
-    "mtime": 1790242418.0323453,
+    "mtime": 1791975859.3169332,
     "ast_hash": "583b6c372bb538e48105768d7e9446e3",
     "semantic_hash": "583b6c372bb538e48105768d7e9446e3"
   },
   "pages/brand-performance.tsx": {
-    "mtime": 1790242418.0287135,
+    "mtime": 1791975859.2369268,
     "ast_hash": "a5918bd896a6742586b5f1bb4d156c66",
     "semantic_hash": "a5918bd896a6742586b5f1bb4d156c66"
   },
@@ -1660,7 +1660,7 @@
     "semantic_hash": "3b4a943932965efa2244150a1da84d4e"
   },
   "pages/categories-explorer.tsx": {
-    "mtime": 1790242418.032162,
+    "mtime": 1791975859.2718258,
     "ast_hash": "cf7441e9a19d74000a339bcd04e3cfef",
     "semantic_hash": "cf7441e9a19d74000a339bcd04e3cfef"
   },
@@ -1675,12 +1675,12 @@
     "semantic_hash": ""
   },
   "pages/ecommerce-depubliceren.tsx": {
-    "mtime": 1790242418.0287876,
+    "mtime": 1791975859.2758455,
     "ast_hash": "b678bc40156ab49233a918fea35d8079",
     "semantic_hash": "b678bc40156ab49233a918fea35d8079"
   },
   "pages/ecommerce-insights.tsx": {
-    "mtime": 1790242418.032258,
+    "mtime": 1791975859.3046792,
     "ast_hash": "43ceb8bbd65d717ff3fa6c6b646265fe",
     "semantic_hash": "43ceb8bbd65d717ff3fa6c6b646265fe"
   },
@@ -1720,12 +1720,12 @@
     "semantic_hash": "7d3bb8828700afac4b0ed221db1d1088"
   },
   "pages/inventaris-analyse.tsx": {
-    "mtime": 1790242418.028831,
+    "mtime": 1791975859.2836487,
     "ast_hash": "da2c573e42cf5f0163d67a00537cb77d",
     "semantic_hash": "da2c573e42cf5f0163d67a00537cb77d"
   },
   "pages/inventaris-beheer.tsx": {
-    "mtime": 1790242418.028546,
+    "mtime": 1791975859.2129145,
     "ast_hash": "874e8bc6fd642e9ddf5da01d70ef9302",
     "semantic_hash": "874e8bc6fd642e9ddf5da01d70ef9302"
   },
@@ -1735,17 +1735,17 @@
     "semantic_hash": "0ccc29a04deb3b816c34b7ba778f5588"
   },
   "pages/inventaris-pos-match.tsx": {
-    "mtime": 1790242418.0288033,
+    "mtime": 1791975859.2598038,
     "ast_hash": "324701d79bfa3d0d3d8eac14644c24df",
     "semantic_hash": "324701d79bfa3d0d3d8eac14644c24df"
   },
   "pages/inventaris-samenvoegen.tsx": {
-    "mtime": 1790242418.0287375,
+    "mtime": 1791975859.246021,
     "ast_hash": "1ef5ad652acf795a71ed0ef9f6db8ab0",
     "semantic_hash": "1ef5ad652acf795a71ed0ef9f6db8ab0"
   },
   "pages/kelder-analyse.tsx": {
-    "mtime": 1790242418.005776,
+    "mtime": 1791975859.2122042,
     "ast_hash": "69a8957f119003123e1c3dc8e5b1e10c",
     "semantic_hash": "69a8957f119003123e1c3dc8e5b1e10c"
   },
@@ -1845,7 +1845,7 @@
     "semantic_hash": "fd5c9b4f29aaa5821d0fc96d0e73ffae"
   },
   "pages/sales-dashboard.tsx": {
-    "mtime": 1790242418.0215597,
+    "mtime": 1791975859.2128625,
     "ast_hash": "a48e7e2a842f69ef738b318fdebadc96",
     "semantic_hash": "a48e7e2a842f69ef738b318fdebadc96"
   },
@@ -1920,7 +1920,7 @@
     "semantic_hash": "19c5e09f11d1716d4cf59b6d7810739a"
   },
   "pages/voorraad-samenvoegen.tsx": {
-    "mtime": 1790242418.0055108,
+    "mtime": 1791975859.2121959,
     "ast_hash": "2009dce4dd28423b6e7f8d7e191b20c0",
     "semantic_hash": "2009dce4dd28423b6e7f8d7e191b20c0"
   },
@@ -1930,7 +1930,7 @@
     "semantic_hash": "7f4139984fd92bc5e7f93994ac768607"
   },
   "pages/webshoporders-beheren.tsx": {
-    "mtime": 1790242418.028699,
+    "mtime": 1791975859.2200577,
     "ast_hash": "43002e95a43183f51422ebfb9775bc34",
     "semantic_hash": "43002e95a43183f51422ebfb9775bc34"
   },
@@ -2005,8 +2005,8 @@
     "semantic_hash": "11a9c2422d5cf28a3180caada6403415"
   },
   "vercel.json": {
-    "mtime": 1790285923.7108715,
-    "ast_hash": "94224f50c3722ba610f3a9af3b71f04d",
+    "mtime": 1790286645.6823535,
+    "ast_hash": "9a4bdf675cef0f6be12f86ecb8335c05",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
@@ -2155,12 +2155,12 @@
     "semantic_hash": "46617dd84aa65f939c7eef9c8d8445b4"
   },
   "TINYCOTTONS_IMPLEMENTATION.md": {
-    "mtime": 1790242418.0322478,
+    "mtime": 1791975859.3088124,
     "ast_hash": "8cd06c78200041945994203dfa385d79",
     "semantic_hash": "8cd06c78200041945994203dfa385d79"
   },
   "TINYCOTTONS_IMPORT_GUIDE.md": {
-    "mtime": 1790242418.0215864,
+    "mtime": 1791975859.212731,
     "ast_hash": "a38fb2cd4e920714d02ce3ef25580738",
     "semantic_hash": "a38fb2cd4e920714d02ce3ef25580738"
   },
@@ -2580,7 +2580,7 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1789721446.096271,
+    "mtime": 1791976074.9440548,
     "ast_hash": "dc096bca65337f1a9f17b57481abd2ab",
     "semantic_hash": ""
   },
@@ -2835,8 +2835,8 @@
     "semantic_hash": ""
   },
   "lib/mollieBalanceTransactions.ts": {
-    "mtime": 1790257446.8284893,
-    "ast_hash": "026e8761b401403a64549339ccc9cc98",
+    "mtime": 1790286834.9539793,
+    "ast_hash": "7ff51536297734f3ca5a0f341c02016e",
     "semantic_hash": ""
   },
   "pages/api/accounting/pos-session-check.ts": {
@@ -2862,6 +2862,31 @@
   "pages/mollie-boekhouding.tsx": {
     "mtime": 1790283278.4663095,
     "ast_hash": "5553ecea47e1cc4aebe259baad25972c",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/steiff/samples/0072400045.PDF": {
+    "mtime": 1791976077.2455971,
+    "ast_hash": "9bd1a53b54ba4a95d4c654b7c0f4359c",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/steiff/index.test.ts": {
+    "mtime": 1791976149.8471403,
+    "ast_hash": "858d1f3e18a8d30f65e0eded9ef75512",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/steiff/index.ts": {
+    "mtime": 1791976189.302958,
+    "ast_hash": "d51536a9ff5a0c815156786dbdf93a26",
+    "semantic_hash": ""
+  },
+  "lib/suppliers/steiff/pdf.ts": {
+    "mtime": 1791976103.4358065,
+    "ast_hash": "fc89f17d0cd6b37f92e016dfce788bc0",
+    "semantic_hash": ""
+  },
+  "pages/api/parse-steiff-pdf.ts": {
+    "mtime": 1791976137.1364682,
+    "ast_hash": "6f91ac609e987a8186152643298fed98",
     "semantic_hash": ""
   }
 }
