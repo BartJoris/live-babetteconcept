@@ -7,6 +7,10 @@ import { logProductImport } from '@/lib/auditLog';
 import { OdooImportService, OdooImageService } from '@/lib/import/services';
 import type { ImportProductData, ImportVariantData } from '@/lib/import/services';
 import {
+  isBarcodeAlreadyExistsError,
+  planExistingBarcodeImport,
+} from '@/lib/import/existing-barcode';
+import {
   buildPartialVariantMessage,
   summarizeImportResults,
   type ImportProductStatus,
@@ -58,6 +62,7 @@ async function handler(
     const categoryPathCache = new Map<string, number>();
 
     for (const product of products) {
+      let createdTemplateId: number | undefined;
       try {
         console.log(`\n📦 Processing: ${product.name} (${product.reference})`);
         console.log(`   🌐 isPublished: ${product.isPublished}, isFavorite: ${product.isFavorite}`);
@@ -81,6 +86,80 @@ async function handler(
         ).filter(Boolean);
         const isNoVariantProduct =
           uniqueSizes.length === 1 || product.sizeAttribute === 'Eén Maat';
+
+        const variantData: ImportVariantData[] = product.variants.map(v => ({
+          size: v.size,
+          ean: v.ean,
+          sku: v.sku,
+          price: v.price,
+          rrp: v.rrp,
+          quantity: v.quantity,
+        }));
+
+        // Prefer updating an existing Odoo product when barcodes already exist
+        // (avoids unique barcode constraint failures on re-import).
+        const eans = variantData.map((v) => v.ean || '').filter(Boolean);
+        const existingByBarcode = await importService.findProductsByBarcodes(eans);
+        const barcodePlan = planExistingBarcodeImport(eans, existingByBarcode);
+
+        if (barcodePlan.action === 'conflict') {
+          throw new Error(barcodePlan.message);
+        }
+
+        if (barcodePlan.action === 'update') {
+          console.log(
+            `♻️ Barcodes already in Odoo — updating template ${barcodePlan.templateId} (${barcodePlan.existingName})`,
+          );
+          const expectedVariants = Math.max(eans.length, 1);
+          const variantResult = await importService.updateExistingByBarcodes(
+            barcodePlan.templateId,
+            variantData,
+            barcodePlan.productIdsByBarcode,
+            {
+              listPrice: maxRrp || maxPrice || 0,
+              standardPrice: maxPrice || maxRrp || 0,
+              publicCategoryIds: product.publicCategories?.map((c) => c.id),
+              productTagIds: product.productTags?.map((t) => t.id),
+              taxRate: product.taxRate,
+              weight: product.weight,
+              isPublished: product.isPublished,
+            },
+          );
+
+          let imagesUploaded = 0;
+          if (product.images && product.images.length > 0) {
+            imagesUploaded = await imageService.uploadProductImages(
+              barcodePlan.templateId,
+              product.images,
+              product.name,
+              product.isPublished,
+            );
+          }
+
+          const isPartial = variantResult.updated < expectedVariants;
+          const status: ImportProductStatus = isPartial ? 'partial' : 'success';
+          const warnings = isPartial
+            ? [buildPartialVariantMessage(variantResult.updated, expectedVariants)]
+            : [];
+
+          results.push({
+            success: status === 'success',
+            status,
+            partial: isPartial,
+            reference: product.reference,
+            name: barcodePlan.existingName,
+            templateId: barcodePlan.templateId,
+            variantsCreated: 0,
+            variantsUpdated: variantResult.updated,
+            variantsExpected: expectedVariants,
+            imagesUploaded,
+            warnings,
+            message: isPartial
+              ? `Bestaand product ${barcodePlan.templateId} deels bijgewerkt: ${warnings[0]}`
+              : `Bestaand product bijgewerkt (template ${barcodePlan.templateId}, ${variantResult.updated} variant(en), was: ${barcodePlan.existingName})`,
+          });
+          continue;
+        }
 
         // Resolve newly proposed categories (negative local ids) to real Odoo ids.
         let categoryId = product.category.id;
@@ -111,9 +190,12 @@ async function handler(
           publicCategoryIds: product.publicCategories?.map(c => c.id),
           productTagIds: product.productTags?.map(t => t.id),
           productName: product.productName,
+          taxRate: product.taxRate,
+          weight: product.weight,
         };
 
         const templateId = await importService.createProductTemplate(templateData);
+        createdTemplateId = templateId;
         console.log(`✅ Template created: ID ${templateId}`);
 
         const templateInfo = await odooClient.read<{ display_name: string }>(
@@ -124,9 +206,14 @@ async function handler(
           : product.name;
         console.log(`📝 Display name: ${displayName}`);
 
-        // Step 2: Add brand attribute
-        console.log('Step 2: Adding brand attribute...');
-        await importService.addBrandAttribute(templateId, product.selectedBrand.name);
+        // Step 2: Add brand / publisher attribute (MERK, or Uitgeverij for books)
+        const brandAttributeName = product.brandAttributeName || 'MERK';
+        console.log(`Step 2: Adding ${brandAttributeName} attribute...`);
+        await importService.addBrandAttribute(
+          templateId,
+          product.selectedBrand.name,
+          brandAttributeName,
+        );
 
         // Step 3-4: Add size attribute (skip for single-size products)
         let sizeValueIds: number[] = [];
@@ -154,15 +241,6 @@ async function handler(
           templateId,
           expectedVariants,
         );
-
-        const variantData: ImportVariantData[] = product.variants.map(v => ({
-          size: v.size,
-          ean: v.ean,
-          sku: v.sku,
-          price: v.price,
-          rrp: v.rrp,
-          quantity: v.quantity,
-        }));
 
         let variantResult = await importService.updateVariants(
           templateId,
@@ -231,13 +309,21 @@ async function handler(
       } catch (productError) {
         console.error(`❌ Error processing ${product.reference}:`, productError);
         const err = productError as { message?: string };
+        let message = err.message || String(productError);
+        if (isBarcodeAlreadyExistsError(message)) {
+          message =
+            `Barcode bestaat al in Odoo. Geen nieuw product aangemaakt` +
+            (createdTemplateId ? ` (orphane template ${createdTemplateId} — archiveer indien leeg)` : '') +
+            `. Selecteer het product opnieuw en importeer: bestaande voorraad/prijs wordt dan bijgewerkt. Oorspronkelijk: ${message}`;
+        }
         results.push({
           success: false,
           status: 'failed',
           partial: false,
           reference: product.reference,
           name: product.name,
-          message: err.message || String(productError),
+          templateId: createdTemplateId,
+          message,
         });
       }
     }

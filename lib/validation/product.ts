@@ -38,6 +38,12 @@ export const productSchema = z.object({
   isPublished: z.boolean(),
   sizeAttribute: z.string().optional(),
   images: z.array(z.string()).optional(),
+  /** VAT percentage (e.g. 6 for books). */
+  taxRate: z.number().positive().optional(),
+  /** Weight in kg. */
+  weight: z.number().positive().optional(),
+  /** Odoo attribute for brand/publisher (default MERK; books: Uitgeverij). */
+  brandAttributeName: z.string().min(1).optional(),
 });
 
 export const importProductsSchema = z.object({

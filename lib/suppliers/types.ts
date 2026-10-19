@@ -17,6 +17,32 @@ export interface ParsedProduct {
   fabricPrint?: string;
   ecommerceDescription?: string;
   csvCategory?: string;
+  /**
+   * Full internal Odoo category path from the source file
+   * (e.g. "All / Speelgoed / Boeken"). Resolved to `category` once
+   * internal categories are loaded in the wizard.
+   */
+  csvInternalCategory?: string;
+  /**
+   * Ecommerce / public category paths from the source file
+   * (e.g. "Speelgoed / Boeken", "Speelgoed / Op leeftijd / 3 jaar").
+   * Resolved to `publicCategories` once public categories are loaded.
+   */
+  csvPublicCategoryPaths?: string[];
+  /**
+   * Product tag names from the source file (e.g. "klantenkaart").
+   * Resolved to `productTags` once tags are loaded.
+   */
+  csvProductTagNames?: string[];
+  /** Sale/purchase VAT percentage from the source file (e.g. 6 for books). */
+  taxRate?: number;
+  /** Product weight in kg (defaults to 0.2 in Odoo import when omitted). */
+  weight?: number;
+  /**
+   * Odoo product.attribute to use for the publisher/brand line.
+   * Defaults to MERK; books use "Uitgeverij".
+   */
+  brandAttributeName?: string;
   variants: ProductVariant[];
   suggestedBrand?: string;
   selectedBrand?: { id: number; name: string };
@@ -192,6 +218,15 @@ export interface SupplierPlugin {
    * If not provided, determineSizeAttribute() from shared utils is used.
    */
   defaultSizeAttribute?: SizeAttribute;
+
+  /**
+   * Odoo product.attribute used for the brand/publisher line on import.
+   * Defaults to MERK (+ legacy Merk 1). Books use "Uitgeverij".
+   */
+  brandAttributeName?: string;
+
+  /** UI label for the brand column (defaults to "Merk"). */
+  brandAttributeLabel?: string;
 }
 
 // ─── Declarative CSV Supplier Config (for createCSVSupplier factory) ────────

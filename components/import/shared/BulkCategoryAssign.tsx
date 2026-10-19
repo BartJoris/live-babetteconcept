@@ -26,6 +26,8 @@ interface BulkCategoryAssignProps {
   resolveOrCreateBrand: (name: string) => Brand;
   /** Registers a typed-in category path that isn't in Odoo yet. */
   resolveOrCreateCategory: (path: string) => Category;
+  /** UI label for the brand/publisher field (e.g. "Merk" or "Uitgeverij"). */
+  brandLabel?: string;
 }
 
 export default function BulkCategoryAssign({
@@ -38,6 +40,7 @@ export default function BulkCategoryAssign({
   onProductsChange,
   resolveOrCreateBrand,
   resolveOrCreateCategory,
+  brandLabel = 'Merk',
 }: BulkCategoryAssignProps) {
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -154,8 +157,8 @@ export default function BulkCategoryAssign({
           options={brandOptions}
           value={selectedBrand || null}
           onChange={setSelectedBrand}
-          placeholder="Selecteer of typ een nieuw merk..."
-          label="Merk"
+          placeholder={`Selecteer of typ een nieuwe ${brandLabel.toLowerCase()}...`}
+          label={brandLabel}
           allowCustom
         />
 

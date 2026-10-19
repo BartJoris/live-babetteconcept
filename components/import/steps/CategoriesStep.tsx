@@ -37,7 +37,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
           </button>
         </div>
         <div className="flex gap-4 text-sm text-gray-700 dark:text-gray-300">
-          <span>Merken: <strong>{wizard.brands.length}</strong></span>
+          <span>{wizard.brandAttributeLabel}: <strong>{wizard.brands.length}</strong></span>
           <span>Interne Categorieën: <strong>{wizard.internalCategories.length}</strong></span>
           <span>Publieke Categorieën: <strong>{wizard.publicCategories.length}</strong></span>
           <span>Productlabels: <strong>{wizard.productTags.length}</strong></span>
@@ -63,6 +63,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
         onProductsChange={(updated) => wizard.setParsedProducts(updated)}
         resolveOrCreateBrand={wizard.resolveOrCreateBrand}
         resolveOrCreateCategory={wizard.resolveOrCreateCategory}
+        brandLabel={wizard.brandAttributeLabel}
       />
 
       {/* Per Product Categorieën */}
@@ -72,7 +73,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
           <thead className="bg-blue-600 dark:bg-blue-700 text-white sticky top-0 z-10">
             <tr>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Product</th>
-              <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Merk</th>
+              <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">{wizard.brandAttributeLabel}</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Interne Categorie</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Webshopcat.</th>
               <th className="p-3 text-left font-semibold border-b border-blue-700 dark:border-blue-800">Productlabels</th>
@@ -92,7 +93,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                   <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">{product.reference}</div>
                 </td>
 
-                {/* Merk */}
+                {/* Merk / Uitgeverij */}
                 <td className="p-3">
                   <FuzzySearchSelect
                     options={wizard.brands.map((b) => ({
@@ -113,15 +114,15 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                       const brand = wizard.brands.find(
                         (b) => b.id.toString() === value,
                       );
-                      // No existing Odoo brand matched — treat the typed
-                      // text as a brand new merk (e.g. a first-time supplier).
+                      // No existing Odoo value matched — create at import time
+                      // on MERK or Uitgeverij depending on the supplier.
                       wizard.updateProductBrand(
                         product.reference,
                         brand ?? value,
                         product.color,
                       );
                     }}
-                    placeholder="Selecteer of typ een nieuw merk..."
+                    placeholder={`Selecteer of typ een nieuwe ${wizard.brandAttributeLabel.toLowerCase()}...`}
                     className="min-w-[180px]"
                     showGroupHeaders
                     allowCustom
@@ -133,7 +134,7 @@ export default function CategoriesStep({ wizard }: CategoriesStepProps) {
                   )}
                   {product.selectedBrand && product.selectedBrand.id < 0 && (
                     <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      🆕 Nieuw merk — wordt aangemaakt in Odoo bij import
+                      🆕 Nieuwe {wizard.brandAttributeLabel.toLowerCase()} — wordt aangemaakt in Odoo bij import
                     </div>
                   )}
                 </td>

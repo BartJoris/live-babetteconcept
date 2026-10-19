@@ -725,6 +725,26 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Boeken (uitgeverij-lijst met BTW / ecommerce cats) ──
+  {
+    supplierId: 'boeken',
+    supplierName: 'Boeken (uitgeverijen)',
+    csvRules: [{
+      fileInputId: 'main_csv',
+      fileInputLabel: 'Boekenlijst CSV/Numbers',
+      detect: (headers, text, fileName) => {
+        const blob = `${fileName} ${text}`.toLowerCase();
+        if (h(headers, 'Uitgeverij', 'Titel', 'Barcode') && h(headers, 'BTW')) {
+          if (blob.includes('boek') || blob.includes('speelgoed / boeken')) return 0.98;
+          if (h(headers, 'E-commerce categorieën') || h(headers, 'E-commerce categorieen')) return 0.95;
+          return 0.9;
+        }
+        return 0;
+      },
+      reason: 'Uitgeverij + Titel + Barcode + BTW (Babette boekenlijst)',
+    }],
+  },
+
   // ── Nixnut ──
   {
     supplierId: 'nixnut',

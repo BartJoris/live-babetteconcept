@@ -2,6 +2,8 @@ import { odooClient } from '@/lib/odooClient';
 import { determineSizeAttribute } from '@/lib/import/shared/size-utils';
 import { toEcommerceHtml } from '@/lib/import/shared/ecommerce-html';
 import type { SizeAttribute } from '@/lib/import/shared/size-utils';
+import type { ExistingBarcodeHit } from '@/lib/import/existing-barcode';
+import { isBarcodeAlreadyExistsError } from '@/lib/import/existing-barcode';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,6 +22,14 @@ export interface ImportProductData {
   productTagIds?: number[];
   /** Optional extra reference stored alongside the main reference (e.g. productName for image matching). */
   productName?: string;
+  /** Override default weight (kg). */
+  weight?: number;
+  /**
+   * VAT percentage for sale (+ purchase) taxes, e.g. 6 for books.
+   * When set, looks up matching account.tax records and writes taxes_id /
+   * supplier_taxes_id on the template.
+   */
+  taxRate?: number;
 }
 
 export interface ImportVariantData {
@@ -76,7 +86,45 @@ export class OdooImportService {
   // Product template
   // -----------------------------------------------------------------------
 
+  /**
+   * Resolve account.tax ids for a VAT percentage (sale and optionally purchase).
+   * Prefers active taxes whose amount matches exactly (6 → books, 21 → clothing).
+   */
+  async resolveTaxIds(
+    rate: number,
+    typeTaxUse: 'sale' | 'purchase',
+  ): Promise<number[]> {
+    const taxes = await odooClient.searchRead<{ id: number; name: string; amount: number }>(
+      this.uid,
+      this.password,
+      'account.tax',
+      [
+        ['amount', '=', rate],
+        ['type_tax_use', '=', typeTaxUse],
+        ['active', '=', true],
+      ],
+      ['id', 'name', 'amount'],
+      10,
+    );
+
+    if (!taxes?.length) {
+      console.warn(`⚠️ No active ${typeTaxUse} tax found for ${rate}%`);
+      return [];
+    }
+
+    // Prefer non-group / simple VAT lines when multiple match
+    const preferred = taxes.filter(
+      (t) => /btw|vat|tva/i.test(t.name) && !/groep|group/i.test(t.name),
+    );
+    return (preferred.length ? preferred : taxes).map((t) => t.id);
+  }
+
   async createProductTemplate(data: ImportProductData): Promise<number> {
+    const weight =
+      typeof data.weight === 'number' && data.weight > 0
+        ? data.weight
+        : DEFAULT_WEIGHT;
+
     const templateData: Record<string, unknown> = {
       name: data.name,
       categ_id: data.categoryId,
@@ -84,7 +132,7 @@ export class OdooImportService {
       standard_price: data.standardPrice,
       type: 'consu',
       is_storable: true,
-      weight: DEFAULT_WEIGHT,
+      weight,
       tracking: 'none',
       available_in_pos: true,
       website_id: DEFAULT_WEBSITE_ID,
@@ -113,6 +161,21 @@ export class OdooImportService {
 
     if (data.productTagIds && data.productTagIds.length > 0) {
       templateData.product_tag_ids = [[6, 0, data.productTagIds]];
+    }
+
+    if (typeof data.taxRate === 'number' && data.taxRate > 0) {
+      const saleTaxIds = await this.resolveTaxIds(data.taxRate, 'sale');
+      if (saleTaxIds.length > 0) {
+        templateData.taxes_id = [[6, 0, saleTaxIds]];
+        console.log(`💶 Applied ${data.taxRate}% sale tax ids: ${saleTaxIds.join(',')}`);
+      }
+      const purchaseTaxIds = await this.resolveTaxIds(data.taxRate, 'purchase');
+      if (purchaseTaxIds.length > 0) {
+        templateData.supplier_taxes_id = [[6, 0, purchaseTaxIds]];
+        console.log(
+          `💶 Applied ${data.taxRate}% purchase tax ids: ${purchaseTaxIds.join(',')}`,
+        );
+      }
     }
 
     try {
@@ -225,36 +288,51 @@ export class OdooImportService {
   }
 
   // -----------------------------------------------------------------------
-  // Brand (MERK) attribute
+  // Brand / publisher attribute (MERK by default, Uitgeverij for books)
   // -----------------------------------------------------------------------
 
-  async addBrandAttribute(templateId: number, brandName: string): Promise<void> {
-    // Always prefer MERK over the legacy Merk 1 attribute so newly created
-    // brands land on the modern attribute (new suppliers like Nixnut).
-    const merkAttrs = await odooClient.searchRead<{ id: number; name: string }>(
+  /**
+   * Attach a brand/publisher attribute line to the template.
+   * @param attributeName  Odoo attribute to use. Defaults to MERK (with
+   *                       legacy Merk 1 fallback). Books pass "Uitgeverij".
+   */
+  async addBrandAttribute(
+    templateId: number,
+    brandName: string,
+    attributeName = 'MERK',
+  ): Promise<void> {
+    const candidateNames =
+      attributeName === 'MERK' || attributeName === 'Merk 1'
+        ? ['MERK', 'Merk 1']
+        : [attributeName];
+
+    const attrs = await odooClient.searchRead<{ id: number; name: string }>(
       this.uid,
       this.password,
       'product.attribute',
-      [['name', 'in', ['MERK', 'Merk 1']]],
+      [['name', 'in', candidateNames]],
       ['id', 'name'],
     );
 
-    if (!merkAttrs || merkAttrs.length === 0) {
+    if (!attrs || attrs.length === 0) {
       throw new OdooImportError(
-        'MERK attribute not found in Odoo',
-        'MERK_ATTRIBUTE_MISSING',
+        `${attributeName} attribute not found in Odoo`,
+        'BRAND_ATTRIBUTE_MISSING',
+        { attributeName, candidateNames },
       );
     }
 
     const preferred =
-      merkAttrs.find((attr) => attr.name === 'MERK') ?? merkAttrs[0];
-    const merkAttributeId = preferred.id;
+      attrs.find((attr) => attr.name === attributeName) ??
+      attrs.find((attr) => attr.name === 'MERK') ??
+      attrs[0];
+    const attributeId = preferred.id;
 
     const existingBrand = await odooClient.searchRead<{ id: number }>(
       this.uid,
       this.password,
       'product.attribute.value',
-      [['attribute_id', '=', merkAttributeId], ['name', '=', brandName]],
+      [['attribute_id', '=', attributeId], ['name', '=', brandName]],
       ['id'],
     );
 
@@ -266,7 +344,7 @@ export class OdooImportService {
         this.uid,
         this.password,
         'product.attribute.value',
-        { attribute_id: merkAttributeId, name: brandName },
+        { attribute_id: attributeId, name: brandName },
       );
     }
 
@@ -276,7 +354,7 @@ export class OdooImportService {
       'product.template.attribute.line',
       {
         product_tmpl_id: templateId,
-        attribute_id: merkAttributeId,
+        attribute_id: attributeId,
         value_ids: [[6, 0, [brandValueId]]],
       },
     );
@@ -481,6 +559,158 @@ export class OdooImportService {
   }
 
   // -----------------------------------------------------------------------
+  // Existing barcode lookup / update
+  // -----------------------------------------------------------------------
+
+  /**
+   * Find product.product rows by barcode (includes archived).
+   * Used to update existing stock instead of creating barcode duplicates.
+   */
+  async findProductsByBarcodes(
+    barcodes: string[],
+  ): Promise<Map<string, ExistingBarcodeHit>> {
+    const unique = [
+      ...new Set(barcodes.map((b) => b?.trim()).filter(Boolean)),
+    ];
+    const found = new Map<string, ExistingBarcodeHit>();
+    if (unique.length === 0) return found;
+
+    const BATCH = 200;
+    for (let i = 0; i < unique.length; i += BATCH) {
+      const batch = unique.slice(i, i + BATCH);
+      const rows = await odooClient.call<
+        Array<{
+          id: number;
+          barcode: string;
+          display_name: string;
+          qty_available: number;
+          product_tmpl_id: [number, string];
+        }>
+      >({
+        uid: this.uid,
+        password: this.password,
+        model: 'product.product',
+        method: 'search_read',
+        args: [[['barcode', 'in', batch]]],
+        kwargs: {
+          fields: [
+            'id',
+            'barcode',
+            'display_name',
+            'qty_available',
+            'product_tmpl_id',
+          ],
+          limit: batch.length,
+          context: { active_test: false },
+        },
+      });
+
+      for (const row of rows || []) {
+        if (!row.barcode) continue;
+        found.set(row.barcode, {
+          barcode: row.barcode,
+          productId: row.id,
+          templateId: row.product_tmpl_id[0],
+          name: row.display_name,
+          qtyAvailable: row.qty_available || 0,
+        });
+      }
+    }
+
+    return found;
+  }
+
+  /**
+   * Update prices + stock on existing variants matched by barcode.
+   * Also refreshes template list/standard price when provided.
+   */
+  async updateExistingByBarcodes(
+    templateId: number,
+    variants: ImportVariantData[],
+    productIdsByBarcode: Map<string, number>,
+    templatePatch?: {
+      listPrice?: number;
+      standardPrice?: number;
+      publicCategoryIds?: number[];
+      productTagIds?: number[];
+      taxRate?: number;
+      weight?: number;
+      isPublished?: boolean;
+    },
+  ): Promise<VariantUpdateResult> {
+    let updated = 0;
+
+    for (const variant of variants) {
+      const ean = variant.ean?.trim();
+      if (!ean) continue;
+      const productId = productIdsByBarcode.get(ean);
+      if (!productId) continue;
+
+      const updateData: Record<string, unknown> = {
+        standard_price: variant.price || variant.rrp || 0,
+        list_price: variant.rrp || variant.price || 0,
+      };
+      if (typeof templatePatch?.weight === 'number' && templatePatch.weight > 0) {
+        updateData.weight = templatePatch.weight;
+      }
+
+      await odooClient.write(
+        this.uid,
+        this.password,
+        'product.product',
+        [productId],
+        updateData,
+      );
+      await this.createStock(productId, variant.quantity);
+      updated += 1;
+    }
+
+    if (templatePatch) {
+      const tmpl: Record<string, unknown> = {};
+      if (typeof templatePatch.listPrice === 'number') {
+        tmpl.list_price = templatePatch.listPrice;
+      }
+      if (typeof templatePatch.standardPrice === 'number') {
+        tmpl.standard_price = templatePatch.standardPrice;
+      }
+      if (templatePatch.publicCategoryIds?.length) {
+        tmpl.public_categ_ids = [[6, 0, templatePatch.publicCategoryIds]];
+      }
+      if (templatePatch.productTagIds?.length) {
+        tmpl.product_tag_ids = [[6, 0, templatePatch.productTagIds]];
+      }
+      if (typeof templatePatch.weight === 'number' && templatePatch.weight > 0) {
+        tmpl.weight = templatePatch.weight;
+      }
+      if (templatePatch.isPublished === true) {
+        tmpl.website_published = true;
+      }
+      if (typeof templatePatch.taxRate === 'number' && templatePatch.taxRate > 0) {
+        const saleTaxIds = await this.resolveTaxIds(templatePatch.taxRate, 'sale');
+        if (saleTaxIds.length > 0) tmpl.taxes_id = [[6, 0, saleTaxIds]];
+        const purchaseTaxIds = await this.resolveTaxIds(
+          templatePatch.taxRate,
+          'purchase',
+        );
+        if (purchaseTaxIds.length > 0) {
+          tmpl.supplier_taxes_id = [[6, 0, purchaseTaxIds]];
+        }
+      }
+      if (Object.keys(tmpl).length > 0) {
+        await odooClient.write(
+          this.uid,
+          this.password,
+          'product.template',
+          [templateId],
+          tmpl,
+        );
+      }
+    }
+
+    return { updated, total: productIdsByBarcode.size };
+  }
+
+  // -----------------------------------------------------------------------
   // Stock
   // -----------------------------------------------------------------------
 
@@ -535,7 +765,27 @@ export class OdooImportService {
       updateData.barcode = combined.ean;
     }
 
-    await odooClient.write(this.uid, this.password, 'product.product', [odooVariantId], updateData);
+    try {
+      await odooClient.write(
+        this.uid,
+        this.password,
+        'product.product',
+        [odooVariantId],
+        updateData,
+      );
+    } catch (writeError) {
+      const msg = (writeError as Error).message || '';
+      // Don't strip the barcode and leave a duplicate product — surface clearly.
+      if (isBarcodeAlreadyExistsError(msg) && updateData.barcode) {
+        throw new OdooImportError(
+          `Barcode ${String(updateData.barcode)} bestaat al in Odoo. ` +
+            `Importeer opnieuw om het bestaande product bij te werken in plaats van een nieuw product aan te maken.`,
+          'BARCODE_ALREADY_EXISTS',
+          { barcode: updateData.barcode, productId: odooVariantId },
+        );
+      }
+      throw writeError;
+    }
     await this.createStock(odooVariantId, combined.quantity);
 
     return 1;
