@@ -22,6 +22,7 @@ import {
   suggestCategoriesForBrand,
   resolveTypedCategoryPath,
   categoryPathExists,
+  matchPublicCategoriesByPaths,
 } from '@/lib/import/shared';
 import type { CategorySuggestion } from '@/lib/import/shared';
 import { rebuildNameWithBrand } from '@/lib/import/shared/name-utils';
@@ -98,6 +99,8 @@ export default function useImportWizard() {
   // import. Negative ids stay local; import-products resolves the path via
   // ensureCategoryPath() before creating the product template.
   const nextCustomCategoryIdRef = useRef(-1);
+  /** Ignore stale /api/fetch-brands responses (MERK vs Uitgeverij race). */
+  const brandFetchGenRef = useRef(0);
   const [internalCategories, setInternalCategories] = useState<Category[]>([]);
   const [publicCategories, setPublicCategories] = useState<Category[]>([]);
   const [productTags, setProductTags] = useState<Category[]>([]);
@@ -179,6 +182,9 @@ export default function useImportWizard() {
     Map<string, { name: string; qty: number }>
   >(new Map());
   const [checkingExisting, setCheckingExisting] = useState(false);
+  const [existingBarcodeCheckError, setExistingBarcodeCheckError] = useState<
+    string | null
+  >(null);
   const [generatingBarcodes, setGeneratingBarcodes] = useState(false);
 
   // ─── Auth helper ──────────────────────────────────────────────────────
@@ -195,7 +201,17 @@ export default function useImportWizard() {
   };
 
   // ─── Data fetching ────────────────────────────────────────────────────
+  const resolveBrandAttributeName = (): string => {
+    const plugin = selectedVendor ? getSupplier(selectedVendor) : undefined;
+    if (plugin?.brandAttributeName) return plugin.brandAttributeName;
+    // Fallback: product-level hint (books set brandAttributeName: Uitgeverij)
+    const fromProduct = parsedProducts.find((p) => p.brandAttributeName)
+      ?.brandAttributeName;
+    return fromProduct || 'MERK';
+  };
+
   const fetchBrands = async () => {
+    const fetchGen = ++brandFetchGenRef.current;
     try {
       setCategoriesDataError(null);
       if (!(await ensureLoggedIn())) {
@@ -205,20 +221,55 @@ export default function useImportWizard() {
         return;
       }
 
+      const brandAttributeName = resolveBrandAttributeName();
+      const attributes =
+        brandAttributeName === 'MERK'
+          ? ['MERK', 'Merk 1']
+          : [brandAttributeName];
+
+      console.log(`🏷️ Requesting brand attributes: ${attributes.join(', ')}`);
+
       const response = await fetch('/api/fetch-brands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ attributes }),
       });
       const data = await response.json();
 
+      // A newer fetch (e.g. Uitgeverij after initial MERK) already started —
+      // drop this stale response so clothing brands don't overwrite publishers.
+      if (fetchGen !== brandFetchGenRef.current) {
+        console.log(
+          `⏭️ Ignoring stale brand fetch #${fetchGen} (${brandAttributeName})`,
+        );
+        return;
+      }
+
       if (data.success && data.brands) {
-        setBrands(data.brands);
-        console.log(`✅ Fetched ${data.brands.length} brands`);
+        // Keep locally created placeholders (negative ids) so auto-selected
+        // publishers aren't wiped when MERK → Uitgeverij (or vice versa).
+        setBrands((prev) => {
+          const customs = prev.filter((b) => b.id < 0);
+          const next = [...(data.brands as Brand[])];
+          for (const custom of customs) {
+            if (
+              !next.some(
+                (b) => b.name.toLowerCase() === custom.name.toLowerCase(),
+              )
+            ) {
+              next.push(custom);
+            }
+          }
+          return next;
+        });
+        console.log(
+          `✅ Fetched ${data.brands.length} ${brandAttributeName} values`,
+        );
       } else {
         setCategoriesDataError(data.error || 'Merken laden mislukt.');
       }
     } catch (error) {
+      if (fetchGen !== brandFetchGenRef.current) return;
       console.error('Error fetching brands:', error);
       setCategoriesDataError(
         'Fout bij laden van merken. Controleer je verbinding.',
@@ -274,6 +325,7 @@ export default function useImportWizard() {
       return new Map<string, { name: string; qty: number }>();
 
     setCheckingExisting(true);
+    setExistingBarcodeCheckError(null);
     try {
       const response = await fetch('/api/odoo/check-existing-barcodes', {
         method: 'POST',
@@ -281,12 +333,22 @@ export default function useImportWizard() {
         body: JSON.stringify({ barcodes: allBarcodes }),
       });
 
-      if (!response.ok)
+      if (!response.ok) {
+        setExistingBarcodeCheckError(
+          'Kon bestaande barcodes niet controleren. Import blokkeert dubbele barcodes alsnog server-side.',
+        );
         return new Map<string, { name: string; qty: number }>();
+      }
 
       const data = await response.json();
-      if (data.error)
+      if (data.error) {
+        setExistingBarcodeCheckError(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Barcode-controle mislukt.',
+        );
         return new Map<string, { name: string; qty: number }>();
+      }
 
       const map = new Map<string, { name: string; qty: number }>();
       for (const item of data.found || []) {
@@ -313,6 +375,9 @@ export default function useImportWizard() {
       return map;
     } catch (error) {
       console.error('Error checking existing barcodes:', error);
+      setExistingBarcodeCheckError(
+        'Kon bestaande barcodes niet controleren. Import blokkeert dubbele barcodes alsnog server-side.',
+      );
       return new Map<string, { name: string; qty: number }>();
     } finally {
       setCheckingExisting(false);
@@ -2236,7 +2301,9 @@ export default function useImportWizard() {
 
   // ─── Effects ──────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchBrands();
+    // Brands are loaded once selectedVendor (or product brandAttributeName) is
+    // known — see the selectedVendor / parsedProducts effects below. Fetching
+    // MERK here races with the later Uitgeverij fetch for books.
     fetchCategories();
 
     fetch('/api/generate-description')
@@ -2400,43 +2467,178 @@ export default function useImportWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
+  const brandAttributeKey =
+    (selectedVendor
+      ? getSupplier(selectedVendor)?.brandAttributeName
+      : undefined) ||
+    parsedProducts.find((p) => p.brandAttributeName)?.brandAttributeName ||
+    (selectedVendor || parsedProducts.length > 0 ? 'MERK' : null);
+
+  // Clothing uses MERK; books use Uitgeverij — reload when the target attribute changes.
   useEffect(() => {
-    if (publicCategories.length > 0 && parsedProducts.length > 0) {
-      const productsToMatch = parsedProducts.filter(
-        (p) => p.csvCategory && p.publicCategories.length === 0,
-      );
-
-      if (productsToMatch.length > 0) {
-        console.log(
-          `🔄 Auto-matching ${productsToMatch.length} products with CSV categories...`,
-        );
-
-        setParsedProducts((products) =>
-          products.map((product) => {
-            if (
-              product.csvCategory &&
-              product.publicCategories.length === 0
-            ) {
-              const matchedCategories =
-                findMatchingPublicCategories(
-                  product.csvCategory,
-                  product.sizeAttribute,
-                  publicCategories,
-                );
-              if (matchedCategories.length > 0) {
-                return {
-                  ...product,
-                  publicCategories: matchedCategories,
-                };
-              }
-            }
-            return product;
-          }),
-        );
-      }
-    }
+    if (!brandAttributeKey) return;
+    void fetchBrands();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicCategories]);
+  }, [brandAttributeKey]);
+
+  useEffect(() => {
+    if (parsedProducts.length === 0) return;
+
+    const brandNeedsRematch = (p: ParsedProduct): boolean => {
+      if (!p.suggestedBrand || brands.length === 0) return false;
+      const want = p.suggestedBrand.trim().toLowerCase();
+      const byName = brands.find((b) => b.name.toLowerCase() === want);
+      if (byName) {
+        return !p.selectedBrand || p.selectedBrand.id !== byName.id;
+      }
+      // No Odoo match yet — still need a selection (placeholder) if missing/stale
+      return (
+        !p.selectedBrand ||
+        !brands.some((b) => b.id === p.selectedBrand!.id)
+      );
+    };
+
+    const needsEnrichment = parsedProducts.some(
+      (p) =>
+        (p.csvPublicCategoryPaths?.length && p.publicCategories.length === 0) ||
+        (p.csvCategory && p.publicCategories.length === 0) ||
+        (p.csvInternalCategory && !p.category) ||
+        (p.csvProductTagNames?.length && p.productTags.length === 0) ||
+        brandNeedsRematch(p),
+    );
+    if (!needsEnrichment) return;
+
+    // Wait until at least one lookup list is available (brands may already
+    // be loaded before the categories step).
+    if (
+      brands.length === 0 &&
+      internalCategories.length === 0 &&
+      publicCategories.length === 0 &&
+      productTags.length === 0
+    ) {
+      return;
+    }
+
+    console.log('🔄 Auto-matching CSV brands / categories / tags...');
+
+    // Resolve unique brands/categories once (avoid setState-per-row).
+    const brandCache = new Map<string, Brand>();
+    const categoryCache = new Map<string, Category>();
+
+    const brandFor = (name: string): Brand => {
+      const key = name.trim().toLowerCase();
+      const cached = brandCache.get(key);
+      if (cached) return cached;
+      const resolved = resolveOrCreateBrand(name);
+      brandCache.set(key, resolved);
+      return resolved;
+    };
+
+    const categoryFor = (path: string): Category | null => {
+      const key = path.trim().toLowerCase();
+      const cached = categoryCache.get(key);
+      if (cached) return cached;
+      try {
+        const resolved = resolveOrCreateCategory(path);
+        categoryCache.set(key, resolved);
+        return resolved;
+      } catch (err) {
+        console.warn(`Could not resolve internal category "${path}":`, err);
+        return null;
+      }
+    };
+
+    setParsedProducts((products) =>
+      products.map((product) => {
+        let next = product;
+
+        if (product.suggestedBrand && brands.length > 0) {
+          const want = product.suggestedBrand.trim().toLowerCase();
+          const byName = brands.find((b) => b.name.toLowerCase() === want);
+          if (byName) {
+            if (!product.selectedBrand || product.selectedBrand.id !== byName.id) {
+              next = { ...next, selectedBrand: byName };
+            }
+          } else if (
+            !product.selectedBrand ||
+            !brands.some((b) => b.id === product.selectedBrand!.id)
+          ) {
+            next = {
+              ...next,
+              selectedBrand: brandFor(product.suggestedBrand),
+            };
+          }
+        }
+
+        if (product.csvInternalCategory && !product.category) {
+          const resolved = categoryFor(product.csvInternalCategory);
+          if (resolved) {
+            next = {
+              ...next,
+              category: {
+                id: resolved.id,
+                name:
+                  resolved.complete_name ||
+                  resolved.display_name ||
+                  resolved.name,
+                display_name:
+                  resolved.display_name ||
+                  resolved.complete_name ||
+                  resolved.name,
+              },
+            };
+          }
+        }
+
+        if (product.publicCategories.length === 0) {
+          let matched = product.csvPublicCategoryPaths?.length
+            ? matchPublicCategoriesByPaths(
+                product.csvPublicCategoryPaths,
+                publicCategories,
+              )
+            : [];
+
+          if (
+            matched.length === 0 &&
+            product.csvCategory &&
+            publicCategories.length > 0
+          ) {
+            matched = findMatchingPublicCategories(
+              product.csvCategory,
+              product.sizeAttribute,
+              publicCategories,
+            );
+          }
+
+          if (matched.length > 0) {
+            next = { ...next, publicCategories: matched };
+          }
+        }
+
+        if (
+          product.csvProductTagNames?.length &&
+          product.productTags.length === 0 &&
+          productTags.length > 0
+        ) {
+          const matchedTags = product.csvProductTagNames
+            .map((name) => {
+              const found = productTags.find(
+                (t) => t.name.toLowerCase() === name.toLowerCase(),
+              );
+              return found ? { id: found.id, name: found.name } : null;
+            })
+            .filter((t): t is { id: number; name: string } => t != null);
+
+          if (matchedTags.length > 0) {
+            next = { ...next, productTags: matchedTags };
+          }
+        }
+
+        return next;
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicCategories, internalCategories, productTags, brands]);
 
   // ─── Derived data ─────────────────────────────────────────────────────
   const selectedCount = selectedProducts.size;
@@ -2451,6 +2653,9 @@ export default function useImportWizard() {
       p.category,
   );
 
+  const activePlugin = selectedVendor ? getSupplier(selectedVendor) : undefined;
+  const brandAttributeLabel = activePlugin?.brandAttributeLabel || 'Merk';
+
   return {
     // Navigation
     currentStep,
@@ -2460,6 +2665,7 @@ export default function useImportWizard() {
     // Vendor & files
     selectedVendor,
     setSelectedVendor,
+    brandAttributeLabel,
     supplierFiles,
     setSupplierFiles,
     supplierFileStatus,
@@ -2570,6 +2776,7 @@ export default function useImportWizard() {
     isLoading,
     checkingExisting,
     existingBarcodes,
+    existingBarcodeCheckError,
     generatingBarcodes,
     generatingDescription,
 

@@ -150,10 +150,10 @@ export default function StockStep({ wizard }: StockStepProps) {
             onChange={setBulkBrandId}
             placeholder={
               wizard.brands.length === 0
-                ? 'Merken laden...'
-                : 'Zoek of typ een nieuw merk...'
+                ? `${wizard.brandAttributeLabel} laden...`
+                : `Zoek of typ een nieuwe ${wizard.brandAttributeLabel.toLowerCase()}...`
             }
-            label="Merk (bulk)"
+            label={`${wizard.brandAttributeLabel} (bulk)`}
             showGroupHeaders
             allowCustom
           />
@@ -164,7 +164,7 @@ export default function StockStep({ wizard }: StockStepProps) {
           disabled={!bulkBrandId || wizard.selectedProducts.size === 0}
           className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Pas merk toe op selectie ({wizard.selectedProducts.size})
+          Pas {wizard.brandAttributeLabel.toLowerCase()} toe op selectie ({wizard.selectedProducts.size})
         </button>
       </div>
 
@@ -315,12 +315,21 @@ export default function StockStep({ wizard }: StockStepProps) {
         </span>
       </div>
 
+      {wizard.existingBarcodeCheckError && (
+        <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4">
+          <h4 className="font-bold text-red-800 mb-1">Barcode-controle mislukt</h4>
+          <p className="text-red-700 text-sm">{wizard.existingBarcodeCheckError}</p>
+        </div>
+      )}
+
       {/* Existing barcode warnings */}
       {existingBarcodesArray.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
           <h4 className="font-bold text-yellow-800 mb-2">⚠️ Bestaande barcodes in Odoo gevonden</h4>
           <p className="text-yellow-700 text-sm mb-2">
-            De volgende barcodes bestaan al in Odoo. Producten met deze barcodes zijn automatisch gedeselecteerd.
+            Deze barcodes bestaan al. Producten zijn automatisch gedeselecteerd om dubbele records te vermijden.
+            Als je ze opnieuw selecteert en importeert, worden prijs en voorraad op het{' '}
+            <strong>bestaande</strong> product bijgewerkt (geen nieuw product).
           </p>
           <div className="bg-orange-50 border border-orange-200 rounded p-3 max-h-32 overflow-y-auto">
             {existingBarcodesArray.map(([barcode, info]) => (

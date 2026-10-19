@@ -46,4 +46,12 @@ export type {
   CategorySuggestion,
 } from './category-suggest';
 
+export {
+  normalizePublicCategoryPath,
+  buildPublicCategoryPathMap,
+  matchPublicCategoriesByPaths,
+  splitPublicCategoryPaths,
+} from './public-category-match';
+export type { PublicCategoryLike } from './public-category-match';
+
 export { toEcommerceHtml } from './ecommerce-html';

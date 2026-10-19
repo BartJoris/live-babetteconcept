@@ -253,8 +253,8 @@ export class OdooValidationService {
         ['attribute_id', 'value_ids'],
       );
 
-      const merkLine = lines.find(
-        l => l.attribute_id[1] === 'MERK' || l.attribute_id[1] === 'Merk 1',
+      const merkLine = lines.find((l) =>
+        ['MERK', 'Merk 1', 'Uitgeverij'].includes(l.attribute_id[1]),
       );
 
       if (!merkLine) {
@@ -262,8 +262,8 @@ export class OdooValidationService {
           field: 'brand',
           status: 'fail',
           expected: expectedBrand,
-          actual: 'No MERK attribute line',
-          message: 'Brand attribute line is missing on the template',
+          actual: 'No MERK/Uitgeverij attribute line',
+          message: 'Brand/publisher attribute line is missing on the template',
         };
       }
 
@@ -273,7 +273,7 @@ export class OdooValidationService {
           status: 'fail',
           expected: expectedBrand,
           actual: 'No brand value',
-          message: 'MERK attribute line has no values',
+          message: `${merkLine.attribute_id[1]} attribute line has no values`,
         };
       }
 

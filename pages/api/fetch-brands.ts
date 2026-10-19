@@ -7,29 +7,35 @@ async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Get credentials from session
     const { uid, password } = req.session.user!;
 
-    console.log('🏷️ Fetching brands from MERK attribute...');
+    // Clothing uses MERK (+ legacy Merk 1). Books use Uitgeverij.
+    const body = (req.body || {}) as { attributes?: string[] };
+    const requested = Array.isArray(body.attributes)
+      ? body.attributes.map((a) => String(a).trim()).filter(Boolean)
+      : [];
+    const attributeNames =
+      requested.length > 0 ? requested : ['MERK', 'Merk 1'];
 
-    // Step 1: Get MERK and Merk 1 attributes
+    console.log(`🏷️ Fetching brands from attributes: ${attributeNames.join(', ')}`);
+
     const merkAttributes = await odooClient.searchRead<{ id: number; name: string }>(
       uid,
       password,
       'product.attribute',
-      [['name', 'in', ['MERK', 'Merk 1']]],
+      [['name', 'in', attributeNames]],
       ['id', 'name'],
       10
     );
 
     if (!merkAttributes || merkAttributes.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'MERK or Merk 1 attributes not found' 
+        error: `Attribute(s) not found: ${attributeNames.join(', ')}`,
       });
     }
 
-    console.log(`✅ Found ${merkAttributes.length} MERK attributes`);
+    console.log(`✅ Found ${merkAttributes.length} brand attributes`);
 
     const merkAttributeIds = merkAttributes.map((attr) => attr.id);
     const attributeIdToName: Record<number, string> = {};
@@ -37,7 +43,6 @@ async function handler(
       attributeIdToName[attr.id] = attr.name;
     });
 
-    // Step 2: Get all brand values for these attributes
     const brandValues = await odooClient.searchRead<{
       id: number;
       name: string;
@@ -48,17 +53,18 @@ async function handler(
       'product.attribute.value',
       [['attribute_id', 'in', merkAttributeIds]],
       ['id', 'name', 'attribute_id'],
-      500
+      2000
     );
 
     console.log(`✅ Found ${brandValues.length} brand values`);
 
-    // Format the brands with source information
-    const brands = brandValues.map((brand) => ({
-      id: brand.id,
-      name: brand.name,
-      source: attributeIdToName[brand.attribute_id[0]] || 'Unknown',
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    const brands = brandValues
+      .map((brand) => ({
+        id: brand.id,
+        name: brand.name,
+        source: attributeIdToName[brand.attribute_id[0]] || 'Unknown',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       success: true,
@@ -68,7 +74,6 @@ async function handler(
         attributes: merkAttributes.map((a) => ({ id: a.id, name: a.name })),
       },
     });
-
   } catch (error) {
     console.error('Fetch brands error:', error);
     const err = error as { message?: string };
@@ -80,4 +85,3 @@ async function handler(
 }
 
 export default withAuth(handler);
-

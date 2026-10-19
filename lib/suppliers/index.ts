@@ -41,6 +41,7 @@ import drbloom from './drbloom';
 import jellymallow from './jellymallow';
 import senger from './senger';
 import steiff from './steiff';
+import boeken from './boeken';
 import nixnut from './nixnut';
 import baje from './baje';
 import petitbateau from './petitbateau';
@@ -54,6 +55,7 @@ const allPlugins = [
   baje,             // Baje
   bayiri,           // Bayiri
   bobochoses,       // Bobo Choses
+  boeken,           // Boeken (uitgeverijen)
   brunobruno,       // Brunobruno (shared parser with Flöss)
   claudeandco,      // Claude & Co
   cozmo,            // Cozmo
