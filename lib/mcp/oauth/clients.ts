@@ -68,6 +68,19 @@ export async function resolveClient(clientId: string): Promise<RegisteredClient 
   return fetchCimdClient(clientId);
 }
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function isAllowedRedirectUri(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'https:') return true;
+    if (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function registerClient(input: {
   redirect_uris: string[];
   client_name?: string;
@@ -76,6 +89,11 @@ export function registerClient(input: {
   const redirect_uris = input.redirect_uris.filter((u) => typeof u === 'string' && u.length > 0);
   if (redirect_uris.length === 0) {
     throw new Error('redirect_uris required');
+  }
+  for (const uri of redirect_uris) {
+    if (!isAllowedRedirectUri(uri)) {
+      throw new Error(`redirect_uri not allowed (https or loopback http only): ${uri}`);
+    }
   }
 
   const clientId = signJwt(

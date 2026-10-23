@@ -2,6 +2,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
 import { odooClient } from '@/lib/odooClient';
 import { odooCallSchema } from '@/lib/validation/product';
+import { isOdooCallAllowed } from '@/lib/security/odooCallAllowlist';
 
 export const config = {
   api: {
@@ -27,6 +28,13 @@ async function handler(req: NextApiRequestWithSession, res: NextApiResponse) {
     }
 
     const { model, method, args, kwargs } = validation.data;
+
+    if (!isOdooCallAllowed(model, method)) {
+      return res.status(403).json({
+        success: false,
+        error: `Odoo call not allowed: ${model}.${method}`,
+      });
+    }
 
     // Get credentials from session
     const { uid, password } = req.session.user!;
