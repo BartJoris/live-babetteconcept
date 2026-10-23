@@ -1,4 +1,5 @@
 import { odooClient } from '@/lib/odooClient';
+import { safeFetch } from '@/lib/security/safeFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,7 +58,7 @@ export class OdooImageService {
     for (const ext of IMAGE_EXTENSIONS) {
       const candidate = base + ext;
       try {
-        const res = await fetch(candidate);
+        const res = await safeFetch(candidate, { maxBytes: 12 * 1024 * 1024 });
         if (res.ok) {
           const buffer = await res.arrayBuffer();
           const sizeKB = buffer.byteLength / 1024;
@@ -69,7 +70,7 @@ export class OdooImageService {
     }
 
     try {
-      const res = await fetch(base);
+      const res = await safeFetch(base, { maxBytes: 12 * 1024 * 1024 });
       if (res.ok) {
         const buffer = await res.arrayBuffer();
         const sizeKB = buffer.byteLength / 1024;
@@ -242,7 +243,7 @@ export class OdooImageService {
 
   private async downloadAsBase64(imageUrl: string): Promise<FetchedImage | null> {
     try {
-      const response = await fetch(imageUrl);
+      const response = await safeFetch(imageUrl, { maxBytes: 12 * 1024 * 1024 });
       if (!response.ok) return null;
 
       const buffer = await response.arrayBuffer();

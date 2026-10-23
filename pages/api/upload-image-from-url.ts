@@ -1,5 +1,6 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '../../lib/middleware/withAuth';
+import { SafeFetchUrlError, safeFetch } from '@/lib/security/safeFetch';
 
 async function handler(
   req: NextApiRequestWithSession,
@@ -16,11 +17,13 @@ async function handler(
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; BabetteConcept/1.0)',
         Accept: 'image/*',
       },
+      maxBytes: 10 * 1024 * 1024,
+      timeoutMs: 15_000,
     });
 
     if (!response.ok) {
@@ -37,6 +40,9 @@ async function handler(
 
     return res.status(200).json({ base64, mimeType: contentType });
   } catch (error) {
+    if (error instanceof SafeFetchUrlError) {
+      return res.status(400).json({ error: error.message, code: error.code });
+    }
     console.error('Error fetching image from URL:', error);
     return res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to fetch image from URL',

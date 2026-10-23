@@ -1,5 +1,6 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, NextApiRequestWithSession } from '@/lib/middleware/withAuth';
+import { SafeFetchUrlError, assertSafeFetchUrl, safeFetch } from '@/lib/security/safeFetch';
 
 const ODOO_URL = process.env.ODOO_URL || 'https://www.babetteconcept.be/jsonrpc';
 const ODOO_DB = process.env.ODOO_DB || 'babetteconcept';
@@ -48,7 +49,21 @@ async function handler(
 
   try {
     console.log('📦 [REQUEST BODY] Received:', { productName: req.body?.productName, productReference: req.body?.productReference, vendorUrl: req.body?.vendorUrl, templateId: req.body?.templateId });
-    const { productName, productReference, vendorUrl, templateId } = req.body as FetchImagesRequest;
+
+    const vendorUrlRaw = String(req.body?.vendorUrl || '').trim();
+    if (!vendorUrlRaw) {
+      return res.status(400).json({ success: false, error: 'vendorUrl is required' });
+    }
+    try {
+      await assertSafeFetchUrl(vendorUrlRaw);
+    } catch (err) {
+      if (err instanceof SafeFetchUrlError) {
+        return res.status(400).json({ success: false, error: err.message, code: err.code });
+      }
+      throw err;
+    }
+    const { productName, productReference, templateId } = req.body as FetchImagesRequest;
+    const vendorUrl = vendorUrlRaw.replace(/\/+$/, '');
 
     if (!productName || !vendorUrl || !templateId) {
       console.log('❌ [ERROR] Missing parameters:', { productName: !!productName, productReference: !!productReference, vendorUrl: !!vendorUrl, templateId: !!templateId });
@@ -68,33 +83,26 @@ async function handler(
       // Fetch first page
       const productsUrl = `${vendorUrl}/products.json?limit=250`;
       console.log(`📡 [FETCH] Requesting: ${productsUrl}`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log(`⏰ [TIMEOUT] Aborting request after 30 seconds...`);
-        controller.abort();
-      }, 30000);
-      
+
       try {
-        const productsResponse = await fetch(productsUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        const productsResponse = await safeFetch(productsUrl, { timeoutMs: 30_000, maxBytes: 8 * 1024 * 1024 });
         console.log(`📡 [RESPONSE] Status: ${productsResponse.status} ${productsResponse.statusText}`);
-      
+
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
           const productsCount = productsData.products?.length || 0;
           console.log(`📦 [DATA] Fetched ${productsCount} products from vendor (page 1)`);
-          
+
           if (productsData.products) {
             allProducts.push(...productsData.products);
           }
-          
+
           // If we got 250 products, there might be more - try to fetch page 2
           if (productsCount === 250) {
             try {
               console.log(`📡 [FETCH] Fetching page 2...`);
               const page2Url = `${vendorUrl}/products.json?limit=250&page=2`;
-              const page2Response = await fetch(page2Url);
+              const page2Response = await safeFetch(page2Url, { timeoutMs: 30_000, maxBytes: 8 * 1024 * 1024 });
               if (page2Response.ok) {
                 const page2Data = await page2Response.json();
                 if (page2Data.products) {
@@ -106,16 +114,15 @@ async function handler(
               console.log(`⚠️ [PAGE 2] Could not fetch page 2, continuing with ${allProducts.length} products`);
             }
           }
-          
+
           console.log(`📦 [DATA TOTAL] Working with ${allProducts.length} total products`);
         } else {
           console.error(`❌ [ERROR] HTTP ${productsResponse.status}: ${productsResponse.statusText}`);
         }
       } catch (fetchError) {
-        clearTimeout(timeoutId);
         const err = fetchError as { name?: string };
         if (err.name === 'AbortError') {
-          console.error('❌ [TIMEOUT] Request timed out after 10 seconds');
+          console.error('❌ [TIMEOUT] Request timed out');
         } else {
           console.error('❌ [ERROR] Fetch failed:', fetchError);
         }
@@ -215,28 +222,24 @@ async function handler(
       const imageUrl = productImages[i];
       try {
         console.log(`📥 [DOWNLOAD ${i + 1}/${productImages.length}] Fetching: ${imageUrl}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          console.log(`⏰ [TIMEOUT] Aborting image download after 30 seconds...`);
-          controller.abort();
-        }, 30000);
-        
-        const imageResponse = await fetch(imageUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+
+        const imageResponse = await safeFetch(imageUrl, {
+          timeoutMs: 30_000,
+          maxBytes: 12 * 1024 * 1024,
+        });
         console.log(`📥 [DOWNLOAD ${i + 1}/${productImages.length}] Response: ${imageResponse.status} ${imageResponse.statusText}`);
-        
+
         if (!imageResponse.ok) {
           throw new Error(`HTTP ${imageResponse.status}`);
         }
-        
+
         const imageBuffer = await imageResponse.arrayBuffer();
         const bufferSize = imageBuffer.byteLength;
         console.log(`📥 [DOWNLOAD ${i + 1}/${productImages.length}] Downloaded ${bufferSize} bytes (${(bufferSize / 1024).toFixed(2)} KB)`);
-        
+
         const base64 = Buffer.from(imageBuffer).toString('base64');
         console.log(`📥 [DOWNLOAD ${i + 1}/${productImages.length}] Converted to base64 (${base64.length} chars)`);
-        
+
         imageData.push({
           url: imageUrl,
           base64: base64,
@@ -245,7 +248,7 @@ async function handler(
       } catch (imgError) {
         const err = imgError as { name?: string; message?: string };
         if (err.name === 'AbortError') {
-          console.error(`❌ [DOWNLOAD ${i + 1}/${productImages.length}] Timeout after 15 seconds: ${imageUrl}`);
+          console.error(`❌ [DOWNLOAD ${i + 1}/${productImages.length}] Timeout: ${imageUrl}`);
         } else {
           console.error(`❌ [DOWNLOAD ${i + 1}/${productImages.length}] Failed (${err.message}): ${imageUrl}`);
         }
