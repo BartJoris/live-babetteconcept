@@ -207,6 +207,15 @@ export interface SupplierPlugin {
     context: ParseContext
   ) => EnrichmentResult;
 
+  /**
+   * Merge successive PDF parse payloads for the same file input
+   * (e.g. multiple Steiff invoices). Default behavior overwrites.
+   */
+  mergePdfPayloads?: (
+    existing: Record<string, unknown>,
+    incoming: Record<string, unknown>,
+  ) => Record<string, unknown>;
+
   /** Image matching configuration */
   imageMatching?: ImageMatchingConfig;
 

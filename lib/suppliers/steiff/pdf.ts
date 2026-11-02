@@ -44,6 +44,38 @@ export function isSteiffInvoice(text: string): boolean {
 }
 
 /**
+ * Merge invoice lines from multiple PDFs.
+ * Same article code → quantities are summed (net unit price kept from first).
+ */
+export function mergeSteiffInvoiceLines(
+  existing: SteiffInvoiceLine[],
+  incoming: SteiffInvoiceLine[],
+): SteiffInvoiceLine[] {
+  const map = new Map<string, SteiffInvoiceLine>();
+
+  for (const line of [...existing, ...incoming]) {
+    const key = (line.articleCode || line.material || line.item).trim();
+    if (!key) continue;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, { ...line });
+      continue;
+    }
+    map.set(key, {
+      ...prev,
+      quantity: (prev.quantity || 0) + (line.quantity || 0),
+      description: prev.description || line.description,
+      // Prefer a positive net price; keep the first if both set
+      netUnitPrice:
+        prev.netUnitPrice > 0 ? prev.netUnitPrice : line.netUnitPrice,
+      unitPrice: prev.unitPrice > 0 ? prev.unitPrice : line.unitPrice,
+    });
+  }
+
+  return [...map.values()];
+}
+
+/**
  * Extract product lines from Steiff invoice PDF text.
  */
 export function extractSteiffProducts(pdfText: string): SteiffInvoiceLine[] {

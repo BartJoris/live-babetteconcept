@@ -188,15 +188,25 @@ export default function SmartUploadPage() {
             const res = await fetch(plugin.pdfParseEndpoint, { method: 'POST', body: formData });
             const pdfData = await res.json();
             if (pdfData.success) {
-              // Store PDF JSON so supplier.parse() can combine with CSVs (Wyncken etc.)
-              fileMap[pf.fileInputId] = JSON.stringify(pdfData);
+              // Accumulate multiple PDFs for the same slot (e.g. several Steiff invoices)
+              let payload: Record<string, unknown> = pdfData;
+              const prevRaw = fileMap[pf.fileInputId];
+              if (prevRaw && plugin.mergePdfPayloads) {
+                try {
+                  const prev = JSON.parse(prevRaw) as Record<string, unknown>;
+                  payload = plugin.mergePdfPayloads(prev, pdfData);
+                } catch {
+                  payload = pdfData;
+                }
+              }
+              fileMap[pf.fileInputId] = JSON.stringify(payload);
               const context = createParseContext([], supplierId);
               const fromParse = plugin.parse(fileMap, context);
               if (plugin.processPdfResults) {
                 // Enrich CSV products with PDF prices (WHK / Mipounet). Wyncken parse
                 // already builds products from PDF JSON — processPdfResults re-combines.
                 const result = plugin.processPdfResults(
-                  pdfData,
+                  payload,
                   fromParse,
                   context,
                 );

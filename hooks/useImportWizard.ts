@@ -594,118 +594,163 @@ export default function useImportWizard() {
     e: React.ChangeEvent<HTMLInputElement>,
     fileInputId: string,
   ) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedVendor) return;
+    const fileList = e.target.files;
+    if (!fileList?.length || !selectedVendor) return;
 
     const plugin = getSupplier(selectedVendor);
     if (!plugin?.pdfParseEndpoint) return;
 
+    const files = Array.from(fileList);
     setIsLoading(true);
     try {
-      const formData = new FormData();
+      // Tangerine uses a dedicated packing/price pairing — single file
       if (selectedVendor === 'tangerine') {
-        if (fileInputId === 'order_pdf')
-          formData.append('order', file);
+        const file = files[0];
+        const formData = new FormData();
+        if (fileInputId === 'order_pdf') formData.append('order', file);
         else formData.append('packing', file);
-      } else {
-        formData.append('pdf', file);
+
+        const response = await fetch(plugin.pdfParseEndpoint, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (data.success && data.costPrices) {
+          const costPrices = data.costPrices as Record<
+            string,
+            Record<string, number>
+          >;
+          const rrpPrices = (data.rrpPrices || {}) as Record<
+            string,
+            Record<string, number>
+          >;
+          const compositions = (data.compositions || {}) as Record<
+            string,
+            string
+          >;
+          let matchedCount = 0;
+          setParsedProducts((prev) =>
+            prev.map((p) => {
+              const refKey = p.reference.replace(/\s+/g, ' ');
+              const refCost =
+                costPrices[p.reference] ?? costPrices[refKey];
+              const refRrp =
+                rrpPrices[p.reference] ?? rrpPrices[refKey];
+              const composition =
+                compositions[p.reference] ?? compositions[refKey];
+              if (!refCost && !refRrp && !composition) return p;
+              matchedCount++;
+              const sizeKey = (size: string) => {
+                const m = size.match(/^(\d+)\s*jaar$/);
+                return m ? m[1] : size;
+              };
+              return {
+                ...p,
+                ecommerceDescription:
+                  composition || p.ecommerceDescription,
+                variants: p.variants.map((v) => {
+                  const sk = sizeKey(v.size);
+                  const cost = refCost
+                    ? (refCost[sk] ??
+                        refCost[v.size] ??
+                        refCost[''] ??
+                        Object.values(refCost)[0] ??
+                        0)
+                    : 0;
+                  const rrp = refRrp
+                    ? (refRrp[sk] ??
+                        refRrp[v.size] ??
+                        refRrp[''] ??
+                        Object.values(refRrp)[0] ??
+                        0)
+                    : 0;
+                  return {
+                    ...v,
+                    price: cost > 0 ? cost : v.price,
+                    rrp: rrp > 0 ? rrp : v.rrp,
+                  };
+                }),
+              };
+            }),
+          );
+          setSupplierFileStatus((prev) => ({
+            ...prev,
+            [fileInputId]: true,
+          }));
+          if (matchedCount > 0) {
+            alert(
+              `Prijzen en beschrijvingen bijgewerkt voor ${matchedCount} producten.`,
+            );
+          }
+        } else {
+          alert(`Fout bij parsen PDF: ${data.error || 'Onbekende fout'}`);
+        }
+        return;
       }
 
-      const response = await fetch(plugin.pdfParseEndpoint, {
-        method: 'POST',
-        body: formData,
-      });
+      // Generic / multi-PDF path (Steiff etc.): parse each file and merge payloads
+      let mergedPayload: Record<string, unknown> | null = null;
+      const errors: string[] = [];
 
-      const data = await response.json();
-
-      if (
-        data.success &&
-        data.costPrices &&
-        selectedVendor === 'tangerine'
-      ) {
-        const costPrices = data.costPrices as Record<
-          string,
-          Record<string, number>
-        >;
-        const rrpPrices = (data.rrpPrices || {}) as Record<
-          string,
-          Record<string, number>
-        >;
-        const compositions = (data.compositions || {}) as Record<
-          string,
-          string
-        >;
-        let matchedCount = 0;
-        setParsedProducts((prev) =>
-          prev.map((p) => {
-            const refKey = p.reference.replace(/\s+/g, ' ');
-            const refCost =
-              costPrices[p.reference] ?? costPrices[refKey];
-            const refRrp =
-              rrpPrices[p.reference] ?? rrpPrices[refKey];
-            const composition =
-              compositions[p.reference] ?? compositions[refKey];
-            if (!refCost && !refRrp && !composition) return p;
-            matchedCount++;
-            const sizeKey = (size: string) => {
-              const m = size.match(/^(\d+)\s*jaar$/);
-              return m ? m[1] : size;
-            };
-            return {
-              ...p,
-              ecommerceDescription:
-                composition || p.ecommerceDescription,
-              variants: p.variants.map((v) => {
-                const sk = sizeKey(v.size);
-                const cost = refCost
-                  ? (refCost[sk] ??
-                      refCost[v.size] ??
-                      refCost[''] ??
-                      Object.values(refCost)[0] ??
-                      0)
-                  : 0;
-                const rrp = refRrp
-                  ? (refRrp[sk] ??
-                      refRrp[v.size] ??
-                      refRrp[''] ??
-                      Object.values(refRrp)[0] ??
-                      0)
-                  : 0;
-                return {
-                  ...v,
-                  price: cost > 0 ? cost : v.price,
-                  rrp: rrp > 0 ? rrp : v.rrp,
-                };
-              }),
-            };
-          }),
-        );
-        setSupplierFileStatus((prev) => ({
-          ...prev,
-          [fileInputId]: true,
-        }));
-        if (matchedCount > 0) {
-          alert(
-            `Prijzen en beschrijvingen bijgewerkt voor ${matchedCount} producten.`,
-          );
+      // Seed with previously uploaded PDFs for this slot
+      const prevRaw = supplierFilesRef.current[fileInputId];
+      if (typeof prevRaw === 'string' && prevRaw.trim().startsWith('{')) {
+        try {
+          mergedPayload = JSON.parse(prevRaw) as Record<string, unknown>;
+        } catch {
+          mergedPayload = null;
         }
-      } else if (data.success && plugin.processPdfResults) {
+      }
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('pdf', file);
+        const response = await fetch(plugin.pdfParseEndpoint, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!data.success) {
+          errors.push(
+            `${file.name}: ${data.error || 'parsen mislukt'}`,
+          );
+          continue;
+        }
+        if (!mergedPayload) {
+          mergedPayload = data;
+        } else if (plugin.mergePdfPayloads) {
+          mergedPayload = plugin.mergePdfPayloads(mergedPayload, data);
+        } else {
+          // Default: last PDF wins (legacy)
+          mergedPayload = data;
+        }
+      }
+
+      if (!mergedPayload) {
+        alert(
+          errors.length
+            ? `Fout bij parsen PDF:\n${errors.join('\n')}`
+            : 'Fout bij parsen PDF: Onbekende fout',
+        );
+        return;
+      }
+
+      if (plugin.processPdfResults) {
         const context = createParseContext(brands, selectedVendor);
 
-        // Keep PDF JSON in supplier files so later CSV uploads can re-combine
         const updatedFiles = {
           ...supplierFilesRef.current,
-          [fileInputId]: JSON.stringify(data),
+          [fileInputId]: JSON.stringify(mergedPayload),
         };
         supplierFilesRef.current = updatedFiles;
         setSupplierFiles(updatedFiles);
 
-        // Prefer full parse (PDF + any CSVs already loaded)
         let products = plugin.parse(updatedFiles as SupplierFiles, context);
         let message: string | undefined;
         if (products.length === 0) {
           const result = plugin.processPdfResults(
-            data,
+            mergedPayload,
             parsedProducts,
             context,
           );
@@ -717,9 +762,7 @@ export default function useImportWizard() {
 
         if (products.length > 0) {
           setParsedProducts(products);
-          setSelectedProducts(
-            new Set(products.map((p) => p.reference)),
-          );
+          setSelectedProducts(new Set(products.map((p) => p.reference)));
           checkExistingBarcodes(products);
         }
 
@@ -728,18 +771,19 @@ export default function useImportWizard() {
           [fileInputId]: true,
         }));
 
-        if (message) {
-          alert(message);
+        if (errors.length > 0) {
+          message = `${message || ''} (${errors.length} PDF(s) mislukt: ${errors.join('; ')})`;
         }
+        if (message) alert(message);
       } else {
-        alert(
-          `Fout bij parsen PDF: ${data.error || 'Onbekende fout'}`,
-        );
+        alert('Deze leverancier ondersteunt geen PDF-import.');
       }
     } catch (error) {
       alert(`Fout bij uploaden PDF: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
+      // Allow re-selecting the same files
+      e.target.value = '';
     }
   };
 
