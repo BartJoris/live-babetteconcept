@@ -586,6 +586,7 @@ export default function UploadStep({ wizard }: UploadStepProps) {
                     <input
                       type="file"
                       accept={fi.accept}
+                      multiple={Boolean(fi.multiple)}
                       onChange={(e) =>
                         fi.type === 'pdf'
                           ? wizard.handlePdfUpload(e, fi.id)
@@ -603,8 +604,12 @@ export default function UploadStep({ wizard }: UploadStepProps) {
                       }`}
                     >
                       {wizard.supplierFileStatus[fi.id]
-                        ? '✅ Geladen'
-                        : `Upload ${fi.type.toUpperCase()}`}
+                        ? fi.multiple
+                          ? '✅ Geladen (meer toevoegen?)'
+                          : '✅ Geladen'
+                        : fi.multiple
+                          ? `Upload ${fi.type.toUpperCase()}(s)`
+                          : `Upload ${fi.type.toUpperCase()}`}
                     </label>
                   </div>
                 ))}

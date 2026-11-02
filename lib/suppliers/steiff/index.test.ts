@@ -2,12 +2,23 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import { extractPdfText } from '@/lib/pdf/extractText';
-import steiffPlugin, { isSteiffPricesCSV } from './index';
-import { extractSteiffProducts, isSteiffInvoice, materialToArticleCode } from './pdf';
+import steiffPlugin, { isSteiffPricesCSV, mergePdfPayloads } from './index';
+import {
+  extractSteiffProducts,
+  isSteiffInvoice,
+  materialToArticleCode,
+  mergeSteiffInvoiceLines,
+} from './pdf';
 import type { ParseContext } from '@/lib/suppliers/types';
 
 const CSV_PATH = join(__dirname, 'samples', 'Steiff-prijzen.csv');
+const CSV_PATH_V2 = join(__dirname, 'samples', 'Steiff-prijzen-2.csv');
 const PDF_PATH = join(__dirname, 'samples', '0072400045.PDF');
+const EXTRA_PDFS = [
+  '0072405438.pdf',
+  '0072410086.pdf',
+  '0072414202.pdf',
+].map((name) => join(__dirname, 'samples', name));
 
 const context: ParseContext = {
   brands: [{ id: 1, name: 'Steiff', source: 'odoo' }],
@@ -115,5 +126,62 @@ describe('steiff plugin combine (PDF + prijslijst)', () => {
     expect(result.products[0].variants[0].price).toBeCloseTo(33.48);
     expect(result.products[0].variants[0].rrp).toBeCloseTo(33.48 * 2.2);
     expect(result.message).toMatch(/prijslijst/i);
+  });
+});
+
+describe('steiff multi-invoice merge', () => {
+  it('sums quantities for the same article across invoices', () => {
+    const a = [
+      {
+        item: '000010',
+        material: '014253',
+        articleCode: '66.014253',
+        sizeCm: '30',
+        description: 'Paddy',
+        quantity: 1,
+        unitPrice: 37.2,
+        netUnitPrice: 33.48,
+      },
+    ];
+    const b = [
+      {
+        item: '000010',
+        material: '014253',
+        articleCode: '66.014253',
+        sizeCm: '30',
+        description: 'Paddy',
+        quantity: 2,
+        unitPrice: 37.2,
+        netUnitPrice: 33.48,
+      },
+    ];
+    const merged = mergeSteiffInvoiceLines(a, b);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].quantity).toBe(3);
+  });
+
+  it('merges all four sample invoices + prijzen 2 CSV (20 unique products)', async () => {
+    const csvText = readFileSync(CSV_PATH_V2, 'utf8');
+    steiffPlugin.parse({ prices_csv: csvText }, context);
+
+    let payload: Record<string, unknown> = { products: [] };
+    const pdfPaths = [PDF_PATH, ...EXTRA_PDFS];
+    for (const path of pdfPaths) {
+      const text = await extractPdfText(new Uint8Array(readFileSync(path)));
+      const lines = extractSteiffProducts(text);
+      payload = mergePdfPayloads(payload, { products: lines });
+    }
+
+    const products = (payload.products || []) as Array<{ articleCode: string }>;
+    expect(products.length).toBe(20);
+
+    const result = steiffPlugin.processPdfResults!(payload, [], context);
+    expect(result.products).toHaveLength(20);
+    expect(result.products.every((p) => p.variants[0].ean)).toBe(true);
+    expect(result.products.every((p) => p.variants[0].rrp > 0)).toBe(true);
+
+    const jimmy55 = result.products.find((p) => p.reference === '66.067181');
+    expect(jimmy55).toBeTruthy();
+    expect(jimmy55!.variants[0].quantity).toBe(1);
   });
 });

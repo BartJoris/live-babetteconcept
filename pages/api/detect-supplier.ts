@@ -767,6 +767,24 @@ const SUPPLIER_RULES: SupplierRule[] = [
     }],
   },
 
+  // ── Cîme (opstart / bestelformulier PDF) ──
+  {
+    supplierId: 'cime',
+    supplierName: 'Cîme',
+    csvRules: [],
+    pdfRules: [{
+      fileInputId: 'pdf_order',
+      fileInputLabel: 'Opstart / bestelformulier PDF',
+      detect: (fn) => {
+        const l = fn.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+        if (l.includes('cime')) return 0.95;
+        if (l.includes('opstart') && l.includes('babette') && l.includes('oostduinkerke')) return 0.85;
+        return 0;
+      },
+      reason: 'Bestandsnaam verwijst naar CÎME opstart-/bestelformulier',
+    }],
+  },
+
   // ── Baje ──
   {
     supplierId: 'baje',
