@@ -74,6 +74,13 @@ const BY_SALES_YEAR: Record<string, YearEntry> = {
     pasen: { start: '2026-04-06', end: '2026-04-19' },
     zomer: { start: '2026-07-01', end: '2026-08-31' },
   },
+  '2026-2027': {
+    herfst: { start: '2026-11-02', end: '2026-11-08' },
+    kerst: { start: '2026-12-21', end: '2027-01-03' },
+    krokus: { start: '2027-02-08', end: '2027-02-14' },
+    pasen: { start: '2027-03-29', end: '2027-04-11' },
+    zomer: { start: '2027-07-01', end: '2027-08-31' },
+  },
 };
 
 function dateToYmd(d: Date): string {
