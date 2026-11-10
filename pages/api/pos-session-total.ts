@@ -1,4 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import {
+  addCalendarDays,
+  brusselsTodayYmd,
+  isOdooDateOnBrusselsDay,
+} from '@/lib/posDashboardDays';
 import { timingSafeEqualString } from '@/lib/security/timingSafeEqualString';
 
 const ODOO_URL = process.env.ODOO_URL!; // Should point to the JSON-RPC endpoint, e.g. https://your-odoo/jsonrpc
@@ -96,20 +101,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = (sessionJson.result || [])[0];
 
     if (!session) {
-      // Fallback: sum today's orders (Europe/Brussels) excluding cancelled
-      const now = new Date();
-      const brussels = new Intl.DateTimeFormat('sv-SE', {
-        timeZone: 'Europe/Brussels',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }).format(now); // e.g. 2025-08-10 15:04:05
-      const ymd = brussels.split(' ')[0];
-      const dayStart = `${ymd} 00:00:00`;
-      const dayEnd = `${ymd} 23:59:59`;
+      // Fallback: sum today's orders (Europe/Brussels) excluding cancelled.
+      // Query a 2-day UTC-naive window, then keep Brussels calendar today.
+      const todayYmd = brusselsTodayYmd();
+      const yesterdayYmd = addCalendarDays(todayYmd, -1);
+      const dayStart = `${yesterdayYmd} 00:00:00`;
+      const dayEnd = `${todayYmd} 23:59:59`;
 
       const todayOrdersPayload = {
         jsonrpc: '2.0',
@@ -136,7 +133,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         body: JSON.stringify(todayOrdersPayload),
       });
       const todayJson: { result?: PosOrder[] } = await todayRes.json();
-      const todayOrders = todayJson.result || [];
+      const todayOrders = (todayJson.result || []).filter((o) =>
+        isOdooDateOnBrusselsDay(o.date_order, todayYmd),
+      );
       const todayTotal = todayOrders.reduce((sum, o) => sum + (o.amount_total || 0), 0);
 
       return res.status(200).json({
@@ -173,7 +172,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify(orderPayload),
     });
     const orderJson: { result?: PosOrder[] } = await orderRes.json();
-    const orders = orderJson.result || [];
+    const todayYmd = brusselsTodayYmd();
+    const orders = (orderJson.result || []).filter((o) =>
+      isOdooDateOnBrusselsDay(o.date_order, todayYmd),
+    );
     const total = orders.reduce((sum, o) => sum + (o.amount_total || 0), 0);
 
     return res.status(200).json({

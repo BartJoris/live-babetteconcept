@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
+  brusselsTodayYmd,
+  groupOrdersByDay,
+} from '@/lib/posDashboardDays';
+import {
   nonMolliePaymentMarks,
   type PosPaymentMark,
 } from '@/lib/posPaymentLabel';
@@ -88,6 +92,90 @@ function PaymentMarkBadge({ mark }: { mark: PosPaymentMark }) {
   );
 }
 
+function formatEuro(amount: number): string {
+  return amount.toLocaleString('nl-BE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function OrderList({
+  orders,
+  expandedOrders,
+  orderLines,
+  loadingOrderLines,
+  onToggle,
+}: {
+  orders: Sale[];
+  expandedOrders: Record<number, boolean>;
+  orderLines: Record<number, OrderLine[]>;
+  loadingOrderLines: Record<number, boolean>;
+  onToggle: (orderId: number) => void;
+}) {
+  return (
+    <ul className="space-y-2">
+      {orders.map((order) => (
+        <li key={order.id} className="border border-gray-200 bg-white rounded-xl shadow-sm">
+          <button
+            type="button"
+            onClick={() => onToggle(order.id)}
+            className="w-full px-3 sm:px-4 py-2 flex items-center gap-2 min-w-0 text-left"
+          >
+            <span className="shrink-0 tabular-nums text-sm text-gray-600">
+              {new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', {
+                timeZone: 'Europe/Brussels',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+              {order.partner || '-'}
+            </span>
+            <span className="shrink-0 flex flex-col items-end gap-0.5">
+              <span className="font-bold text-blue-800 tabular-nums text-sm">
+                € {formatEuro(order.total)}
+              </span>
+              {order.paymentMarks.length > 0 && (
+                <span className="flex flex-wrap justify-end gap-1">
+                  {order.paymentMarks.map((mark) => (
+                    <PaymentMarkBadge key={`${order.id}-${mark.kind}-${mark.label}`} mark={mark} />
+                  ))}
+                </span>
+              )}
+            </span>
+          </button>
+
+          {expandedOrders[order.id] && (
+            <div className="px-6 pb-4">
+              {loadingOrderLines[order.id] ? (
+                <p className="text-sm text-gray-500">Laden...</p>
+              ) : (
+                <table className="w-full mt-2 text-sm">
+                  <tbody>
+                    {orderLines[order.id]?.map((line, index) => (
+                      <tr key={index} className="border-t border-gray-200">
+                        <td className="font-semibold pr-2 py-1">{line.product_name}</td>
+                        {line.qty > 1 && (
+                          <td className="text-right text-gray-800 whitespace-nowrap px-2">
+                            {line.qty} × € {formatEuro(line.price_unit)}
+                          </td>
+                        )}
+                        <td className="text-right font-bold text-blue-800 whitespace-nowrap pl-2">
+                          € {formatEuro(line.qty * line.price_unit)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type SessionData = {
   session_id: number;
   session_name: string;
@@ -109,6 +197,7 @@ export default function DashboardPage() {
   const [lastSession, setLastSession] = useState<LastSessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [orderLines, setOrderLines] = useState<Record<number, OrderLine[]>>({});
   const [loadingOrderLines, setLoadingOrderLines] = useState<Record<number, boolean>>({});
   const [showingLastSession, setShowingLastSession] = useState(false);
@@ -169,6 +258,7 @@ export default function DashboardPage() {
       const mappedOrders = mapOrdersWithPayments(orders, payments);
       const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
       setShowingLastSession(markAsHistorical);
+      setExpandedDays({});
       setData({
         session_id: sessionId,
         session_name: sessionName,
@@ -303,6 +393,14 @@ export default function DashboardPage() {
     );
   }
 
+  const todayYmd = brusselsTodayYmd();
+  const dayBuckets = data ? groupOrdersByDay(data.orders, todayYmd) : [];
+  const todayBucket = dayBuckets.find((bucket) => bucket.ymd === todayYmd);
+  const pastBuckets = dayBuckets.filter((bucket) => bucket.ymd !== todayYmd);
+  const todayOrders = todayBucket?.orders ?? [];
+  const todayTotal = todayBucket?.total ?? 0;
+  const todayCount = todayOrders.length;
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <div className="p-4">
@@ -339,76 +437,71 @@ export default function DashboardPage() {
             <p className="mb-2 text-gray-700">
               Sessienaam: <strong>{data.session_name}</strong>
             </p>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Vandaag</h2>
             <div className="mb-4 flex gap-4 flex-wrap">
               <p className="text-gray-700">
-                Aantal orders: <strong>{data.orders.length}</strong>
+                Aantal orders: <strong>{todayCount}</strong>
               </p>
               <p className="text-gray-700">
-                Totale omzet: <strong>€ {data.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                Totale omzet: <strong>€ {formatEuro(todayTotal)}</strong>
               </p>
               <p className="text-gray-700">
-                Gemiddelde orderwaarde: <strong>€ {data.orders.length > 0 ? (data.total / data.orders.length).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</strong>
+                Gemiddelde orderwaarde:{' '}
+                <strong>€ {todayCount > 0 ? formatEuro(todayTotal / todayCount) : '0,00'}</strong>
               </p>
             </div>
-            <ul className="space-y-2">
-              {data.orders.map((order) => (
-                <li key={order.id} className="border border-gray-200 bg-white rounded-xl shadow-sm">
-                  <button
-                    onClick={() => toggleOrder(order.id)}
-                    className="w-full px-3 sm:px-4 py-2 flex items-center gap-2 min-w-0 text-left"
-                  >
-                    <span className="shrink-0 tabular-nums text-sm text-gray-600">
-                      {new Date(order.timestamp + 'Z').toLocaleTimeString('nl-BE', {
-                        timeZone: 'Europe/Brussels',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
-                      {order.partner || '-'}
-                    </span>
-                    <span className="shrink-0 flex flex-col items-end gap-0.5">
-                      <span className="font-bold text-blue-800 tabular-nums text-sm">
-                        € {order.total.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      {order.paymentMarks.length > 0 && (
-                        <span className="flex flex-wrap justify-end gap-1">
-                          {order.paymentMarks.map((mark) => (
-                            <PaymentMarkBadge key={`${order.id}-${mark.kind}-${mark.label}`} mark={mark} />
-                          ))}
+            {todayCount === 0 ? (
+              <p className="text-sm text-gray-600 mb-4">Nog geen verkopen vandaag.</p>
+            ) : (
+              <OrderList
+                orders={todayOrders}
+                expandedOrders={expandedOrders}
+                orderLines={orderLines}
+                loadingOrderLines={loadingOrderLines}
+                onToggle={toggleOrder}
+              />
+            )}
+            {pastBuckets.length > 0 && (
+              <div className="mt-6 space-y-2">
+                {pastBuckets.map((bucket) => {
+                  const open = Boolean(expandedDays[bucket.ymd]);
+                  return (
+                    <div key={bucket.ymd} className="border border-gray-200 rounded-xl bg-gray-50">
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setExpandedDays((prev) => ({
+                            ...prev,
+                            [bucket.ymd]: !prev[bucket.ymd],
+                          }))
+                        }
+                        className="w-full px-3 sm:px-4 py-3 flex items-center gap-2 min-w-0 text-left"
+                      >
+                        <span className="font-semibold text-gray-900">{bucket.label}</span>
+                        <span className="text-sm text-gray-600">
+                          {bucket.orders.length} {bucket.orders.length === 1 ? 'order' : 'orders'}
                         </span>
-                      )}
-                    </span>
-                  </button>
-
-                  {expandedOrders[order.id] && (
-                    <div className="px-6 pb-4">
-                      {loadingOrderLines[order.id] ? (
-                        <p className="text-sm text-gray-500">Laden...</p>
-                      ) : (
-                        <table className="w-full mt-2 text-sm">
-                          <tbody>
-                            {orderLines[order.id]?.map((line, index) => (
-                              <tr key={index} className="border-t border-gray-200">
-                                <td className="font-semibold pr-2 py-1">{line.product_name}</td>
-                                {line.qty > 1 && (
-                                  <td className="text-right text-gray-800 whitespace-nowrap px-2">
-                                    {line.qty} × € {line.price_unit.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </td>
-                                )}
-                                <td className="text-right font-bold text-blue-800 whitespace-nowrap pl-2">
-                                  € {(line.qty * line.price_unit).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <span className="ml-auto font-bold text-blue-800 tabular-nums">
+                          € {formatEuro(bucket.total)}
+                        </span>
+                      </button>
+                      {open && (
+                        <div className="px-3 sm:px-4 pb-3">
+                          <OrderList
+                            orders={bucket.orders}
+                            expandedOrders={expandedOrders}
+                            orderLines={orderLines}
+                            loadingOrderLines={loadingOrderLines}
+                            onToggle={toggleOrder}
+                          />
+                        </div>
                       )}
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                  );
+                })}
+              </div>
+            )}
           </>
         ) : lastSession ? (
           <div className="text-center py-8">

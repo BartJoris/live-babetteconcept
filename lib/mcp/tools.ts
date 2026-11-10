@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { odooClient } from '@/lib/odooClient';
 import { fetchPosOrdersInDateRange } from '@/lib/posSalesForRange';
 import { getMcpOdooCredentials } from '@/lib/mcp/odooCredentials';
+import { brusselsTodayYmd, isOdooDateOnBrusselsDay } from '@/lib/posDashboardDays';
 import {
   getRetailCalendar,
   PERIOD_PRESETS,
@@ -469,7 +470,9 @@ async function getOpenPosSession(): Promise<string> {
     ['id', 'amount_total', 'date_order', 'partner_id']
   );
 
-  const mapped = orders.map((o) => ({
+  const todayYmd = brusselsTodayYmd();
+  const todayOrders = orders.filter((o) => isOdooDateOnBrusselsDay(o.date_order, todayYmd));
+  const mapped = todayOrders.map((o) => ({
     id: o.id,
     total: o.amount_total,
     timestamp: o.date_order,
@@ -804,7 +807,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: 'get_open_pos_session',
     description:
-      'Return the currently open POS session with order count and total. Use for live till / kassa status.',
+      'Return the currently open POS session with today\'s order count and total (Europe/Brussels calendar day). Use for live till / kassa status when a session stays open across days.',
     access: 'read',
     inputSchema: emptySchema,
     execute: async () => getOpenPosSession(),
