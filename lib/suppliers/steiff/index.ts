@@ -19,7 +19,7 @@ import type {
   EnrichmentResult,
 } from '@/lib/suppliers/types';
 import type { SteiffInvoiceLine } from './pdf';
-import { materialToArticleCode } from './pdf';
+import { materialToArticleCode, mergeSteiffInvoiceLines } from './pdf';
 
 interface SteiffPriceRow {
   articleCode: string;
@@ -121,9 +121,11 @@ function combineData(
   context: ParseContext,
 ): ParsedProduct[] {
   const brand = context.findBrand('steiff');
+  // Collapse duplicates across invoices before building products
+  const mergedLines = mergeSteiffInvoiceLines([], invoiceLines);
   const products: ParsedProduct[] = [];
 
-  for (const line of invoiceLines) {
+  for (const line of mergedLines) {
     if (line.quantity <= 0) continue;
 
     const priceRow = lookupPrice(line.articleCode, line.material, prices);
@@ -170,6 +172,20 @@ function combineData(
   }
 
   return products;
+}
+
+function mergePdfPayloads(
+  existing: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  const existingLines = (existing.products || []) as SteiffInvoiceLine[];
+  const incomingLines = (incoming.products || []) as SteiffInvoiceLine[];
+  const products = mergeSteiffInvoiceLines(existingLines, incomingLines);
+  return {
+    success: true,
+    products,
+    productCount: products.length,
+  };
 }
 
 function loadPriceCache(files: SupplierFiles): void {
@@ -225,9 +241,10 @@ const steiffPlugin: SupplierPlugin = {
   fileInputs: [
     {
       id: 'pdf_invoice',
-      label: 'Factuur PDF (Margarete Steiff)',
+      label: 'Factuur PDF(s) (Margarete Steiff) — meerdere mogelijk',
       accept: '.pdf',
       required: true,
+      multiple: true,
       type: 'pdf',
     },
     {
@@ -247,8 +264,9 @@ const steiffPlugin: SupplierPlugin = {
   serverSideFileInputs: ['pdf_invoice'],
   pdfParseEndpoint: '/api/parse-steiff-pdf',
   processPdfResults,
+  mergePdfPayloads,
   parse,
 };
 
 export default steiffPlugin;
-export { isSteiffPricesCSV, parsePricesCSV };
+export { isSteiffPricesCSV, parsePricesCSV, mergePdfPayloads };

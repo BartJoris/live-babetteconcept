@@ -32,6 +32,7 @@ import thinkingmu from './thinkingmu';
 import americanvintage from './americanvintage';
 import bayiri from './bayiri';
 import claudeandco from './claudeandco';
+import cime from './cime';
 import cozmo from './cozmo';
 import fub from './fub';
 import sistersdepartment from './sistersdepartment';
@@ -58,6 +59,7 @@ const allPlugins = [
   boeken,           // Boeken (uitgeverijen)
   brunobruno,       // Brunobruno (shared parser with Flöss)
   claudeandco,      // Claude & Co
+  cime,             // Cîme
   cozmo,            // Cozmo
   drbloom,          // Dr Bloom
   emileetida,       // Emile et Ida
