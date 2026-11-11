@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   brusselsTodayYmd,
+  brusselsYmdFromOdooDateOrder,
   groupOrdersByDay,
 } from '@/lib/posDashboardDays';
 import {
@@ -99,6 +100,90 @@ function formatEuro(amount: number): string {
   });
 }
 
+function formatOpenedAt(utcNaive: string, todayYmd: string): string {
+  const time = new Date(utcNaive + 'Z').toLocaleTimeString('nl-BE', {
+    timeZone: 'Europe/Brussels',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const ymd = brusselsYmdFromOdooDateOrder(utcNaive);
+  if (ymd === todayYmd) return time;
+  const [, month, day] = ymd.split('-');
+  return `${day}/${month} ${time}`;
+}
+
+function openerSummary(
+  openedBy: string | null,
+  openedAt: string | null,
+  todayYmd: string,
+): string | null {
+  const when = openedAt ? formatOpenedAt(openedAt, todayYmd) : null;
+  if (openedBy && when) return `Geopend door ${openedBy} om ${when}`;
+  if (openedBy) return `Geopend door ${openedBy}`;
+  if (when) return `Geopend om ${when}`;
+  return null;
+}
+
+type SessionOpener = {
+  openedBy: string | null;
+  openedAt: string | null;
+};
+
+type LastSessionData = {
+  session_id: number;
+  session_name: string;
+  end_date: string;
+  order_count: number;
+  total_amount: number;
+  openedBy: string | null;
+  openedAt: string | null;
+};
+
+function LastSessionCard({
+  lastSession,
+  onView,
+}: {
+  lastSession: LastSessionData;
+  onView: () => void;
+}) {
+  const opened = openerSummary(lastSession.openedBy, lastSession.openedAt, brusselsTodayYmd());
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <p className="text-blue-800 mb-3">
+        Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>
+      </p>
+      <div className="flex justify-center gap-6 mb-3 text-sm flex-wrap">
+        <p className="text-blue-700">
+          Aantal orders: <strong>{lastSession.order_count}</strong>
+        </p>
+        <p className="text-blue-700">
+          Totale omzet: <strong>€ {formatEuro(lastSession.total_amount)}</strong>
+        </p>
+        <p className="text-blue-700">
+          Gemiddelde orderwaarde:{' '}
+          <strong>
+            € {lastSession.order_count > 0 ? formatEuro(lastSession.total_amount / lastSession.order_count) : '0,00'}
+          </strong>
+        </p>
+      </div>
+      {opened && <p className="text-sm text-blue-700 mb-2">{opened}</p>}
+      <p className="text-sm text-blue-600 mb-4">
+        Gesloten op:{' '}
+        {new Date(lastSession.end_date + 'Z').toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}
+      </p>
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={onView}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg font-semibold"
+        >
+          📊 Bekijk laatste sessie
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OrderList({
   orders,
   expandedOrders,
@@ -181,15 +266,24 @@ type SessionData = {
   session_name: string;
   total: number;
   orders: Sale[];
+  openedBy: string | null;
+  openedAt: string | null;
 };
 
-type LastSessionData = {
-  session_id: number;
-  session_name: string;
-  end_date: string;
-  order_count: number;
-  total_amount: number;
+type OdooPosSession = {
+  id: number;
+  name: string;
+  stop_at?: string;
+  start_at?: string;
+  employee_id?: OdooMany2one | false;
 };
+
+function openerFromSession(session: Pick<OdooPosSession, 'employee_id' | 'start_at'>): SessionOpener {
+  return {
+    openedBy: many2oneName(session.employee_id) || null,
+    openedAt: session.start_at || null,
+  };
+}
 
 export default function DashboardPage() {
   const { isLoggedIn, isLoading: authLoading } = useAuth();
@@ -224,6 +318,26 @@ export default function DashboardPage() {
     return json.result as T;
   }, []);
 
+  const fetchPosSessions = useCallback(
+    async (domain: unknown[], fields: string[]) => {
+      try {
+        return await fetchFromOdoo<OdooPosSession[]>({
+          model: 'pos.session',
+          method: 'search_read',
+          args: [domain, fields, 0, 1, 'id desc'],
+        });
+      } catch (err) {
+        if (!fields.includes('employee_id')) throw err;
+        return fetchFromOdoo<OdooPosSession[]>({
+          model: 'pos.session',
+          method: 'search_read',
+          args: [domain, fields.filter((field) => field !== 'employee_id'), 0, 1, 'id desc'],
+        });
+      }
+    },
+    [fetchFromOdoo],
+  );
+
   const fetchPaymentsForOrders = useCallback(
     async (orderIds: number[]): Promise<OdooPosPayment[]> => {
       if (orderIds.length === 0) return [];
@@ -245,7 +359,12 @@ export default function DashboardPage() {
   );
 
   const loadOrdersForSession = useCallback(
-    async (sessionId: number, sessionName: string, markAsHistorical: boolean) => {
+    async (
+      sessionId: number,
+      sessionName: string,
+      markAsHistorical: boolean,
+      opener: SessionOpener = { openedBy: null, openedAt: null },
+    ) => {
       const orders = await fetchFromOdoo<OdooPosOrder[]>({
         model: 'pos.order',
         method: 'search_read',
@@ -258,12 +377,24 @@ export default function DashboardPage() {
       const mappedOrders = mapOrdersWithPayments(orders, payments);
       const total = mappedOrders.reduce((sum, o) => sum + o.total, 0);
       setShowingLastSession(markAsHistorical);
-      setExpandedDays({});
+      if (markAsHistorical) {
+        const todayYmd = brusselsTodayYmd();
+        const expanded: Record<string, boolean> = {};
+        for (const order of mappedOrders) {
+          const ymd = brusselsYmdFromOdooDateOrder(order.timestamp);
+          if (ymd !== todayYmd) expanded[ymd] = true;
+        }
+        setExpandedDays(expanded);
+      } else {
+        setExpandedDays({});
+      }
       setData({
         session_id: sessionId,
         session_name: sessionName,
         total,
         orders: mappedOrders,
+        openedBy: opener.openedBy,
+        openedAt: opener.openedAt,
       });
     },
     [fetchFromOdoo, fetchPaymentsForOrders],
@@ -272,17 +403,10 @@ export default function DashboardPage() {
   const fetchLastSession = useCallback(async () => {
     if (!isLoggedIn) return;
     try {
-      const sessions = await fetchFromOdoo<{ id: number; name: string; stop_at: string }[]>({
-        model: 'pos.session',
-        method: 'search_read',
-        args: [
-          [['state', '=', 'closed']],
-          ['id', 'name', 'stop_at'],
-          0,
-          1,
-          'id desc',
-        ],
-      });
+      const sessions = await fetchPosSessions(
+        [['state', '=', 'closed']],
+        ['id', 'name', 'stop_at', 'start_at', 'employee_id'],
+      );
 
       if (sessions.length > 0) {
         const session = sessions[0];
@@ -302,35 +426,31 @@ export default function DashboardPage() {
 
         const total = orders.reduce((sum, order) => sum + order.amount_total, 0);
         
+        const opener = openerFromSession(session);
         setLastSession({
           session_id: session.id,
           session_name: session.name,
-          end_date: session.stop_at,
+          end_date: session.stop_at ?? '',
           order_count: orders.length,
           total_amount: total,
+          openedBy: opener.openedBy,
+          openedAt: opener.openedAt,
         });
       }
     } catch (err) {
       console.error('Fout bij ophalen laatste sessie:', err);
     }
-  }, [isLoggedIn, fetchFromOdoo]);
+  }, [isLoggedIn, fetchFromOdoo, fetchPosSessions]);
 
   const fetchSales = useCallback(async () => {
     if (!isLoggedIn) return;
     setLoading(true);
     setShowingLastSession(false);
     try {
-      const sessions = await fetchFromOdoo<{ id: number; name: string }[]>({
-        model: 'pos.session',
-        method: 'search_read',
-        args: [
-          [['state', '=', 'opened']],
-          ['id', 'name'],
-          0,
-          1,
-          'id desc',
-        ],
-      });
+      const sessions = await fetchPosSessions(
+        [['state', '=', 'opened']],
+        ['id', 'name', 'start_at', 'employee_id'],
+      );
 
       if (!sessions.length) {
         setData(null);
@@ -338,19 +458,25 @@ export default function DashboardPage() {
         return;
       }
 
-      await loadOrdersForSession(sessions[0].id, sessions[0].name, false);
+      await Promise.all([
+        loadOrdersForSession(sessions[0].id, sessions[0].name, false, openerFromSession(sessions[0])),
+        fetchLastSession(),
+      ]);
     } catch (err) {
       console.error('Fout bij ophalen POS-data:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, fetchFromOdoo, fetchLastSession, loadOrdersForSession]);
+  }, [isLoggedIn, fetchPosSessions, fetchLastSession, loadOrdersForSession]);
 
   const fetchLastSessionSales = useCallback(async () => {
     if (!isLoggedIn || !lastSession) return;
     setLoading(true);
     try {
-      await loadOrdersForSession(lastSession.session_id, lastSession.session_name, true);
+      await loadOrdersForSession(lastSession.session_id, lastSession.session_name, true, {
+        openedBy: lastSession.openedBy,
+        openedAt: lastSession.openedAt,
+      });
     } catch (err) {
       console.error('Fout bij ophalen laatste sessie data:', err);
     } finally {
@@ -437,6 +563,23 @@ export default function DashboardPage() {
             <p className="mb-2 text-gray-700">
               Sessienaam: <strong>{data.session_name}</strong>
             </p>
+            {(data.openedBy || data.openedAt) && (
+              <p className="mb-2 text-gray-700">
+                {data.openedBy ? (
+                  <>
+                    Geopend door <strong>{data.openedBy}</strong>
+                  </>
+                ) : (
+                  'Geopend'
+                )}
+                {data.openedAt ? (
+                  <>
+                    {' '}
+                    om <strong>{formatOpenedAt(data.openedAt, todayYmd)}</strong>
+                  </>
+                ) : null}
+              </p>
+            )}
             <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Vandaag</h2>
             <div className="mb-4 flex gap-4 flex-wrap">
               <p className="text-gray-700">
@@ -461,7 +604,7 @@ export default function DashboardPage() {
                 onToggle={toggleOrder}
               />
             )}
-            {pastBuckets.length > 0 && (
+            {(showingLastSession || todayCount === 0) && pastBuckets.length > 0 && (
               <div className="mt-6 space-y-2">
                 {pastBuckets.map((bucket) => {
                   const open = Boolean(expandedDays[bucket.ymd]);
@@ -502,35 +645,19 @@ export default function DashboardPage() {
                 })}
               </div>
             )}
+            {todayCount === 0 &&
+              lastSession &&
+              lastSession.session_id !== data.session_id &&
+              !showingLastSession && (
+              <div className="mt-6 text-center">
+                <LastSessionCard lastSession={lastSession} onView={fetchLastSessionSales} />
+              </div>
+            )}
           </>
         ) : lastSession ? (
           <div className="text-center py-8">
             <p className="text-gray-800 mb-4">❌ Geen actieve POS-sessie gevonden</p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 mb-3">
-                Laatste gesloten sessie: <strong>{lastSession.session_name}</strong>
-              </p>
-              <div className="flex justify-center gap-6 mb-3 text-sm flex-wrap">
-                <p className="text-blue-700">
-                  Aantal orders: <strong>{lastSession.order_count}</strong>
-                </p>
-                <p className="text-blue-700">
-                  Totale omzet: <strong>€ {lastSession.total_amount.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                </p>
-                <p className="text-blue-700">
-                  Gemiddelde orderwaarde: <strong>€ {lastSession.order_count > 0 ? (lastSession.total_amount / lastSession.order_count).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</strong>
-                </p>
-              </div>
-              <p className="text-sm text-blue-600 mb-4">
-                Gesloten op: {new Date(lastSession.end_date + 'Z').toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}
-              </p>
-              <button
-                onClick={fetchLastSessionSales}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg font-semibold"
-              >
-                📊 Bekijk laatste sessie
-              </button>
-            </div>
+            <LastSessionCard lastSession={lastSession} onView={fetchLastSessionSales} />
           </div>
         ) : (
           <p>Geen gegevens beschikbaar.</p>

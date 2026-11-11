@@ -21,15 +21,47 @@ function jsonResponse(result: unknown) {
   };
 }
 
-function stubOdoo(orders: unknown[], payments: unknown[]) {
+function sessionIdFromDomain(args: unknown[]): number | null {
+  const domain = args[0];
+  if (!Array.isArray(domain)) return null;
+  for (const clause of domain) {
+    if (Array.isArray(clause) && clause[0] === 'session_id') return Number(clause[2]);
+  }
+  return null;
+}
+
+function stubOdoo(
+  orders: unknown[],
+  payments: unknown[],
+  closed?: {
+    session: { id: number; name: string; stop_at: string };
+    orders: unknown[];
+  },
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: string, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? '{}')) as OdooCallBody;
       if (body.model === 'pos.session') {
-        return jsonResponse([{ id: 99, name: 'POS/01413' }]);
+        const domain = JSON.stringify(body.args[0] ?? []);
+        if (domain.includes('"closed"')) {
+          return jsonResponse(closed ? [closed.session] : []);
+        }
+        return jsonResponse([
+          {
+            id: 99,
+            name: 'POS/01414',
+            employee_id: [12, 'Lisa'],
+            user_id: [5, 'admin@babetteconcept.be'],
+            start_at: '2026-08-29 08:05:00',
+          },
+        ]);
       }
       if (body.model === 'pos.order') {
+        const sessionId = sessionIdFromDomain(body.args);
+        if (closed && sessionId === closed.session.id) {
+          return jsonResponse(closed.orders);
+        }
         return jsonResponse(orders);
       }
       if (body.model === 'pos.payment') {
@@ -87,6 +119,9 @@ describe('POS dashboard', () => {
       expect(screen.queryByLabelText(/Niet via Mollie: Mollie/)).not.toBeInTheDocument();
       expect(screen.getByText('Anna')).toBeInTheDocument();
       expect(screen.getByText('Bert')).toBeInTheDocument();
+      expect(screen.getByText(/Geopend door/)).toHaveTextContent('Lisa');
+      expect(screen.getByText(/Geopend door/)).toHaveTextContent(/10[:.]05/);
+      expect(screen.queryByText('admin@babetteconcept.be')).not.toBeInTheDocument();
     });
   });
 
@@ -119,11 +154,25 @@ describe('POS dashboard', () => {
           { pos_order_id: [21, 'A'], payment_method_id: [13, 'Mollie'] },
           { pos_order_id: [20, 'B'], payment_method_id: [2, 'Cash'] },
         ],
+        {
+          session: {
+            id: 88,
+            name: 'POS/01413',
+            stop_at: '2026-11-08 19:00:00',
+          },
+          orders: [
+            {
+              id: 20,
+              amount_total: 50,
+              date_order: '2026-11-08 15:00:00',
+              partner_id: [2, 'Gisterenklant'],
+            },
+          ],
+        },
       );
     });
 
-    it('shows today totals and collapses earlier days', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    it('hides yesterday once today has an order', async () => {
       render(<DashboardPage />);
 
       expect(await screen.findByText('Hanne')).toBeInTheDocument();
@@ -131,15 +180,53 @@ describe('POS dashboard', () => {
       expect(screen.getByText('Aantal orders:')).toHaveTextContent('Aantal orders: 1');
       expect(screen.getByText('Totale omzet:')).toHaveTextContent('72,95');
       expect(screen.queryByText('Gisterenklant')).not.toBeInTheDocument();
-      expect(screen.queryByText('Eergisterenklant')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Gisteren/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Eergisteren/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Bekijk laatste sessie/ })).not.toBeInTheDocument();
+    });
+  });
 
-      const yesterday = screen.getByRole('button', { name: /Gisteren/ });
-      expect(yesterday).toHaveTextContent('50,00');
-      await user.click(yesterday);
-      expect(screen.getByText('Gisterenklant')).toBeInTheDocument();
-      expect(screen.getByLabelText('Niet via Mollie: Cash')).toBeInTheDocument();
+  describe('previous closed session', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-10T09:00:00.000Z'));
+      stubOdoo(
+        [],
+        [{ pos_order_id: [20, 'B'], payment_method_id: [2, 'Cash'] }],
+        {
+          session: {
+            id: 88,
+            name: 'POS/01413',
+            stop_at: '2026-11-09 19:00:00',
+            employee_id: [4, 'Margot'],
+            start_at: '2026-11-09 07:30:00',
+          },
+          orders: [
+            {
+              id: 20,
+              amount_total: 50,
+              date_order: '2026-11-09 15:00:00',
+              partner_id: [2, 'Gisterenklant'],
+            },
+          ],
+        },
+      );
+    });
 
-      expect(screen.getByRole('button', { name: /Eergisteren/ })).toHaveTextContent('30,00');
+    it('shows a button to open the last closed session when today is empty', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      render(<DashboardPage />);
+
+      expect(await screen.findByText('Nog geen verkopen vandaag.')).toBeInTheDocument();
+      expect(screen.getByText('POS/01414')).toBeInTheDocument();
+      expect(await screen.findByText('POS/01413')).toBeInTheDocument();
+      expect(screen.getByText('Lisa')).toBeInTheDocument();
+      expect(screen.getByText(/Geopend door Margot/)).toBeInTheDocument();
+      expect(screen.queryByText('Gisterenklant')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /Bekijk laatste sessie/ }));
+      expect(await screen.findByText(/Bekijkt laatste gesloten sessie/)).toBeInTheDocument();
+      expect(await screen.findByText('Gisterenklant')).toBeInTheDocument();
     });
   });
 });
