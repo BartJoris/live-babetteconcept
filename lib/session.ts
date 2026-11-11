@@ -4,7 +4,11 @@ export interface SessionData {
   user?: {
     uid: number;
     username: string;
-    password: string; // Encrypted in session cookie via iron-session
+    /**
+     * Odoo password (or API key) sealed inside the iron-session cookie.
+     * Prefer short cookie lifetime; long-term fix is a server-side session store.
+     */
+    password: string;
   };
   isLoggedIn: boolean;
 }
@@ -30,8 +34,8 @@ export const sessionOptions: SessionOptions = {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'strict',
-    // Shorter lifetime reduces impact if a session cookie is stolen (still holds Odoo password).
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    // Cookie holds Odoo credentials — keep lifetime short to limit theft window.
+    maxAge: 60 * 60 * 8, // 8 hours
     path: '/',
   },
 };

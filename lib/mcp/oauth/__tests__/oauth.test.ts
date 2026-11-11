@@ -71,6 +71,22 @@ describe('MCP OAuth helpers', () => {
     ).toBe(true);
   });
 
+  it('rejects non-https non-loopback redirect URIs at registration', () => {
+    process.env.MCP_OAUTH_SIGNING_SECRET = 'oauth-signing-secret-for-tests';
+    expect(() =>
+      registerClient({
+        redirect_uris: ['http://evil.example/callback'],
+        client_name: 'Evil',
+      })
+    ).toThrow(/redirect_uri not allowed/);
+    expect(() =>
+      registerClient({
+        redirect_uris: ['http://127.0.0.1:54321/callback'],
+        client_name: 'Loopback',
+      })
+    ).not.toThrow();
+  });
+
   it('exchanges auth code for access token and accepts it on MCP auth', () => {
     process.env.MCP_API_TOKEN = 'static-mcp-token';
     process.env.MCP_OAUTH_SIGNING_SECRET = 'oauth-signing-secret-for-tests';
